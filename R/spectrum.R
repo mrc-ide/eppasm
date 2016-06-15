@@ -23,6 +23,8 @@ spectrumR <- function(fp, VERSION="C"){
   sexinc15to49out <- array(NA, c(NG, PROJ_YEARS))
   paedsurvout <- rep(NA, PROJ_YEARS)
 
+  incrate15to49.ts.out <- rep(NA, length(fp$rvec))
+
   for(i in 2:PROJ_YEARS){
 
     ## ################################### ##
@@ -82,18 +84,20 @@ spectrumR <- function(fp, VERSION="C"){
     for(ii in seq_len(1/DT)){
       grad <- array(0, c(hTS, hDS, hAG, NG))
 
-      ## ## incidence
-      ## ts <- (i-2)/DT + ii
+      ## incidence
+      ts <- (i-2)/DT + ii
 
-      ## incrate15to49.ts <- fp$rvec[ts] * ((sum(hivpop[1,,h.age15to49.idx,,i]) + fp$relinfectART*sum(hivpop[-1,,h.age15to49.idx,,i])) / sum(mod[p.age15to49.idx,,,i]) + fp$iota * (ts == fp$ts.epi.start))
-      ## sexinc15to49.ts <- incrate15to49.ts*c(1, fp$inc.sexratio[i])*sum(pop[p.age15to49.idx,,hivn.idx,i])/(sum(pop[p.age15to49.idx,m.idx,hivn.idx,i]) + fp$inc.sexratio[i]*sum(pop[p.age15to49.idx, f.idx,hivn.idx,i]))
-      ## agesex.inc <- sweep(fp$inc.agerr[,,i], 2, sexinc15to49.ts/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$inc.agerr[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
-      ## infections.ts <- agesex.inc * pop[,,hivn.idx,i]
+      incrate15to49.ts <- fp$rvec[ts] * (sum(hivpop[1,,h.age15to49.idx,,i]) + fp$relinfectART*sum(hivpop[-1,,h.age15to49.idx,,i])) / sum(pop[p.age15to49.idx,,,i]) + fp$iota * (ts == fp$ts.epi.start)
+      sexinc15to49.ts <- incrate15to49.ts*c(1, fp$inc.sexratio[i])*sum(pop[p.age15to49.idx,,hivn.idx,i])/(sum(pop[p.age15to49.idx,m.idx,hivn.idx,i]) + fp$inc.sexratio[i]*sum(pop[p.age15to49.idx, f.idx,hivn.idx,i]))
+      agesex.inc <- sweep(fp$inc.agerr[,,i], 2, sexinc15to49.ts/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$inc.agerr[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
+      infections.ts <- agesex.inc * pop[,,hivn.idx,i]
 
-      ## pop[,,hivn.idx,i] <- pop[,,hivn.idx,i] - DT*infections.ts
-      ## pop[,,hivp.idx,i] <- pop[,,hivp.idx,i] + DT*infections.ts
+      incrate15to49.ts.out[ts] <- incrate15to49.ts
 
-      ## grad[1,,,] <- grad[1,,,] + sweep(fp$cd4.initdist, 2:3, apply(infections.ts, 2, ctapply, ag.idx, sum), "*")
+      pop[,,hivn.idx,i] <- pop[,,hivn.idx,i] - DT*infections.ts
+      pop[,,hivp.idx,i] <- pop[,,hivp.idx,i] + DT*infections.ts
+
+      grad[1,,,] <- grad[1,,,] + sweep(fp$cd4.initdist, 2:3, apply(infections.ts, 2, ctapply, ag.idx, sum), "*")
       
 
       ## disease progression and mortality
@@ -107,8 +111,8 @@ spectrumR <- function(fp, VERSION="C"){
 
       ## Remove hivdeaths from pop
       hivdeaths.ts <- DT*(colSums(fp$cd4.mort * hivpop[1,,,,i]) + colSums(fp$art.mort * hivpop[-1,,,,i],,2))
-##      calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
-  ##    pop[,,2,i] <- pop[,,2,i] - apply(hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)
+      calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
+      pop[,,2,i] <- pop[,,2,i] - apply(hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)
       hivdeaths <- hivdeaths + hivdeaths.ts
 
       hivpop[,,,,i] <- hivpop[,,,,i] + DT*grad
@@ -143,25 +147,25 @@ spectrumR <- function(fp, VERSION="C"){
       }
     }
 
-    ## Remove HIV deaths from single year population projection
-    ## Assume deaths come proportional to HIV age distribution
-    calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
-    pop[,,2,i] <- pop[,,2,i] - apply(hivdeaths, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)
+    ## ## Remove HIV deaths from single year population projection
+    ## ## Assume deaths come proportional to HIV age distribution
+    ## calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
+    ## pop[,,2,i] <- pop[,,2,i] - apply(hivdeaths, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)
 
 
-    ## incidence
-    prev.i <- sum(pop[p.age15to49.idx,,2,i]) / sum(pop[p.age15to49.idx,,,i]) # prevalence age 15 to 49
-    incrate15to49.i <- (fp$prev15to49[i] - prev.i)/(1-prev.i)
+    ## ## incidence
+    ## prev.i <- sum(pop[p.age15to49.idx,,2,i]) / sum(pop[p.age15to49.idx,,,i]) # prevalence age 15 to 49
+    ## incrate15to49.i <- (fp$prev15to49[i] - prev.i)/(1-prev.i)
 
-    sexinc15to49 <- incrate15to49.i*c(1, fp$inc.sexratio[i])*sum(pop[p.age15to49.idx,,hivn.idx,i])/(sum(pop[p.age15to49.idx,m.idx,hivn.idx,i]) + fp$inc.sexratio[i]*sum(pop[p.age15to49.idx, f.idx,hivn.idx,i]))
+    ## sexinc15to49 <- incrate15to49.i*c(1, fp$inc.sexratio[i])*sum(pop[p.age15to49.idx,,hivn.idx,i])/(sum(pop[p.age15to49.idx,m.idx,hivn.idx,i]) + fp$inc.sexratio[i]*sum(pop[p.age15to49.idx, f.idx,hivn.idx,i]))
 
-    agesex.inc <- sweep(fp$inc.agerr[,,i], 2, sexinc15to49/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$inc.agerr[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
-    infections <- agesex.inc * pop[,,hivn.idx,i]
+    ## agesex.inc <- sweep(fp$inc.agerr[,,i], 2, sexinc15to49/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$inc.agerr[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
+    ## infections <- agesex.inc * pop[,,hivn.idx,i]
 
-    pop[,,hivn.idx,i] <- pop[,,hivn.idx,i] - infections
-    pop[,,hivp.idx,i] <- pop[,,hivp.idx,i] + infections
+    ## pop[,,hivn.idx,i] <- pop[,,hivn.idx,i] - infections
+    ## pop[,,hivp.idx,i] <- pop[,,hivp.idx,i] + infections
 
-    hivpop[1,,,,i] <- hivpop[1,,,,i] + sweep(fp$cd4.initdist, 2:3, apply(infections, 2, ctapply, ag.idx, sum), "*")
+    ## hivpop[1,,,,i] <- hivpop[1,,,,i] + sweep(fp$cd4.initdist, 2:3, apply(infections, 2, ctapply, ag.idx, sum), "*")
     
     ## prevalence among pregnant women
     hivn.byage <- ctapply(rowMeans(pop[p.fert.idx, f.idx, hivn.idx,i-1:0]), ag.idx[p.fert.idx], sum)
@@ -172,8 +176,8 @@ spectrumR <- function(fp, VERSION="C"){
 
 
     ## output
-    incrate15to49[i] <- incrate15to49.i
-    sexinc15to49out[,i] <- sexinc15to49
+    ## incrate15to49[i] <- incrate15to49.i
+    ## sexinc15to49out[,i] <- sexinc15to49
     }
 
   attr(pop, "incrate15to49") <- incrate15to49
@@ -181,5 +185,6 @@ spectrumR <- function(fp, VERSION="C"){
   attr(pop, "hivpop") <- hivpop
   attr(pop, "pregprevlag") <- pregprevlag
   attr(pop, "paedsurvout") <- paedsurvout
+  attr(pop, "incrate15to49.ts") <- incrate15to49.ts.out
   return(pop)
 }

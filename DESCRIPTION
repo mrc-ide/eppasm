@@ -3,7 +3,7 @@ Title: Age-structured EPP Model for HIV Epidemic Estimates
 Version: 0.0.1
 Authors@R: person("Jeff", "Eaton", email = "jeffrey.eaton@imperial.ac.uk", role = c("aut", "cre"))
 Description: What the package does (one paragraph).
-Depends: R (>= 3.1.0)
+Depends: R (>= 3.1.0), epp
 LinkingTo: BH
 License: GPL-3
 Encoding: UTF-8

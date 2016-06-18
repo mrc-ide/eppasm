@@ -109,7 +109,7 @@ read.hivproj.output <- function(specdp.file, single.age=TRUE){
 ####  function to read HIV projection parameters  ####
 ######################################################
 
-read.hivproj.param <- function(specdp.file){
+read_hivproj_param <- function(specdp.file){
 
   ## read .DP file
   dp <- read.csv(specdp.file, as.is=TRUE)
@@ -143,93 +143,85 @@ read.hivproj.param <- function(specdp.file){
   ## state space dimensions
   NG <- 2
   AG <- 17
-  DS <- 8
-  TS <- 4
+  DS <- 7
+  TS <- 3
 
   ## projection parameters
-  yr.start <- as.integer(dp[which(dp[,2] == "First year")+1,4])
-  yr.end <- as.integer(dp[which(dp[,2] == "Final year")+1,4])
-  proj.years <- yr.start:yr.end
+  yr_start <- as.integer(dp[which(dp[,2] == "First year")+1,4])
+  yr_end <- as.integer(dp[which(dp[,2] == "Final year")+1,4])
+  proj.years <- yr_start:yr_end
   t0 <- as.numeric(dp[epidemfirstyr.tidx+2,4])
   timedat.idx <- 4+1:length(proj.years)-1
 
   ## scalar paramters
-  relinfect.ART <- 1.0 - as.numeric(dp[infectreduc.tidx+1, 4])
-  vert.trans <- 0  ## !! Spectrum vertical transmission not yet implemented
+  relinfectART <- 1.0 - as.numeric(dp[infectreduc.tidx+1, 4])
 
   if(dp.vers == "<General 3>"){
-    fert.rat <- as.numeric(dp[which(dp[,1] == "<AIDS5>")+185, 4+0:6])
-    fert.rat <- array(rep(fert.rat, length(proj.years)), c(7, length(proj.years)))
-    dimnames(fert.rat) <- list(seq(15, 45, 5), proj.years)
+    fert_rat <- as.numeric(dp[which(dp[,1] == "<AIDS5>")+185, 4+0:6])
+    fert_rat <- array(rep(fert_rat, length(proj.years)), c(7, length(proj.years)))
+    dimnames(fert_rat) <- list(seq(15, 45, 5), proj.years)
   } else if(dp.vers == "<General5>") {
-    fert.rat <- sapply(dp[hivtfr.tidx+2:8, 3+seq_along(proj.years)], as.numeric)
-    dimnames(fert.rat) <- list(seq(15, 45, 5), proj.years)
+    fert_rat <- sapply(dp[hivtfr.tidx+2:8, 3+seq_along(proj.years)], as.numeric)
+    dimnames(fert_rat) <- list(seq(15, 45, 5), proj.years)
   }
 
   ## sex/age-specific incidence ratios (time varying)
   if(dp.vers == "<General 3>"){
-    inc.sexrat <- setNames(as.numeric(dp[aids5.tidx+181,timedat.idx]), proj.years) # !!! Not sure what aids5.tidx+183 (Ratio of female to male prevalence)
-    inc.agerat <- array(NA, c(AG, NG, length(proj.years)), list(0:(AG-1)*5, c("Male", "Female"), proj.years))
-    inc.agerat[,"Male",] <- sapply(dp[aids5.tidx+281:297,timedat.idx], as.numeric)
-    inc.agerat[,"Female",] <- sapply(dp[aids5.tidx+299:315,timedat.idx], as.numeric)
+    incrr_sex <- setNames(as.numeric(dp[aids5.tidx+181,timedat.idx]), proj.years) # !!! Not sure what aids5.tidx+183 (Ratio of female to male prevalence)
+    incrr_age <- array(NA, c(AG, NG, length(proj.years)), list(0:(AG-1)*5, c("Male", "Female"), proj.years))
+    incrr_age[,"Male",] <- sapply(dp[aids5.tidx+281:297,timedat.idx], as.numeric)
+    incrr_age[,"Female",] <- sapply(dp[aids5.tidx+299:315,timedat.idx], as.numeric)
   } else if(dp.vers == "<General5>"){
-    inc.sexrat <- setNames(as.numeric(dp[hivsexrat.tidx+2, timedat.idx]), proj.years)
-    inc.agerat <- array(NA, c(AG, NG, length(proj.years)), list(0:(AG-1)*5, c("Male", "Female"), proj.years))
-    inc.agerat[,"Male",] <- sapply(dp[hivagedist.tidx+3:19,timedat.idx], as.numeric)
-    inc.agerat[,"Female",] <- sapply(dp[hivagedist.tidx+21:37,timedat.idx], as.numeric)
+    incrr_sex <- setNames(as.numeric(dp[hivsexrat.tidx+2, timedat.idx]), proj.years)
+    incrr_age <- array(NA, c(AG, NG, length(proj.years)), list(0:(AG-1)*5, c("Male", "Female"), proj.years))
+    incrr_age[,"Male",] <- sapply(dp[hivagedist.tidx+3:19,timedat.idx], as.numeric)
+    incrr_age[,"Female",] <- sapply(dp[hivagedist.tidx+21:37,timedat.idx], as.numeric)
   }
 
   ## hiv natural history
-  cd4.initdist <- array(NA, c(DS-1, AG, NG), list(2:DS, 0:(AG-1)*5, c("Male", "Female")))
-  cd4.initdist[,,"Male"] <- array(as.numeric(dp[cd4initdist.tidx+2, 4:31])/100, c(DS-1, 4))[,rep(1:4, c(5,2,2,8))]
-  cd4.initdist[,,"Female"] <- array(as.numeric(dp[cd4initdist.tidx+3, 4:31])/100, c(DS-1, 4))[,rep(1:4, c(5,2,2,8))]
+  cd4_initdist <- array(NA, c(DS, 4, NG), list(1:DS, c("15-24", "25-34", "35-44", "45+"), c("Male", "Female")))
+  cd4_initdist[,,"Male"] <- array(as.numeric(dp[cd4initdist.tidx+2, 4:31])/100, c(DS, 4))
+  cd4_initdist[,,"Female"] <- array(as.numeric(dp[cd4initdist.tidx+3, 4:31])/100, c(DS, 4))
 
-  cd4.prog <- array(NA, c(DS-2, AG, NG), list(2:(DS-1), 0:(AG-1)*5, c("Male", "Female")))
-  cd4.prog[,,"Male"] <- array(1/as.numeric(dp[nathist.tidx+4, 4:27]), c(DS-2, 4))[,rep(1:4, c(5,2,2,8))]
-  cd4.prog[,,"Female"] <- array(1/as.numeric(dp[nathist.tidx+5, 4:27]), c(DS-2, 4))[,rep(1:4, c(5,2,2,8))]
+  cd4_prog <- array(NA, c(DS-1, 4, NG), list(1:(DS-1), c("15-24", "25-34", "35-44", "45+"), c("Male", "Female")))
+  cd4_prog[,,"Male"] <- array(1/as.numeric(dp[nathist.tidx+4, 4:27]), c(DS-1, 4))
+  cd4_prog[,,"Female"] <- array(1/as.numeric(dp[nathist.tidx+5, 4:27]), c(DS-1, 4))
 
-  cd4.art.mort <- array(NA, c(TS, DS-1, AG, NG), list(1:TS, 2:DS, 0:(AG-1)*5, c("Male", "Female")))
-  cd4.art.mort[1,,,"Male"] <- array(as.numeric(dp[nathist.tidx+7, 4:31]), c(DS-1, 4))[,rep(1:4, c(5,2,2,8))]
-  cd4.art.mort[1,,,"Female"] <- array(as.numeric(dp[nathist.tidx+8, 4:31]), c(DS-1, 4))[,rep(1:4, c(5,2,2,8))]
-  cd4.art.mort[2,,,"Male"] <- array(as.numeric(dp[nathist.tidx+10, 4:31]), c(DS-1, 4))[,rep(1:4, c(5,2,2,8))]
-  cd4.art.mort[2,,,"Female"] <- array(as.numeric(dp[nathist.tidx+11, 4:31]), c(DS-1, 4))[,rep(1:4, c(5,2,2,8))]
-  cd4.art.mort[3,,,"Male"] <- array(as.numeric(dp[nathist.tidx+13, 4:31]), c(DS-1, 4))[,rep(1:4, c(5,2,2,8))]
-  cd4.art.mort[3,,,"Female"] <- array(as.numeric(dp[nathist.tidx+14, 4:31]), c(DS-1, 4))[,rep(1:4, c(5,2,2,8))]
-  cd4.art.mort[4,,,"Male"] <- array(as.numeric(dp[nathist.tidx+16, 4:31]), c(DS-1, 4))[,rep(1:4, c(5,2,2,8))]
-  cd4.art.mort[4,,,"Female"] <- array(as.numeric(dp[nathist.tidx+17, 4:31]), c(DS-1, 4))[,rep(1:4, c(5,2,2,8))]
+  cd4_mort <- array(NA, c(DS, 4, NG), list(1:DS, c("15-24", "25-34", "35-44", "45+"), c("Male", "Female")))
+  cd4_mort[,,"Male"] <- array(as.numeric(dp[nathist.tidx+7, 4:31]), c(DS, 4))
+  cd4_mort[,,"Female"] <- array(as.numeric(dp[nathist.tidx+8, 4:31]), c(DS, 4))
+
+  art_mort <- array(NA, c(TS, DS, 4, NG), list(c("ART0MOS", "ART6MOS", "ART1YR"), 1:DS, c("15-24", "25-34", "35-44", "45+"), c("Male", "Female")))
+  art_mort[1,,,"Male"] <- array(as.numeric(dp[nathist.tidx+10, 4:31]), c(DS, 4))
+  art_mort[1,,,"Female"] <- array(as.numeric(dp[nathist.tidx+11, 4:31]), c(DS, 4))
+  art_mort[2,,,"Male"] <- array(as.numeric(dp[nathist.tidx+13, 4:31]), c(DS, 4))
+  art_mort[2,,,"Female"] <- array(as.numeric(dp[nathist.tidx+14, 4:31]), c(DS, 4))
+  art_mort[3,,,"Male"] <- array(as.numeric(dp[nathist.tidx+16, 4:31]), c(DS, 4))
+  art_mort[3,,,"Female"] <- array(as.numeric(dp[nathist.tidx+17, 4:31]), c(DS, 4))
 
   ## program parameters
-  artnumperc.15plus <- sapply(dp[adult.artnumperc.tidx+3:4, timedat.idx], as.numeric)
-  dimnames(artnumperc.15plus) <- list(c("Male", "Female"), proj.years)
+  art15plus_numperc <- sapply(dp[adult.artnumperc.tidx+3:4, timedat.idx], as.numeric)
+  dimnames(art15plus_numperc) <- list(c("Male", "Female"), proj.years)
 
-  artnum.15plus <- sapply(dp[adult.art.tidx+3:4, timedat.idx], as.numeric)
-  dimnames(artnum.15plus) <- list(c("Male", "Female"), proj.years)
+  art15plus_num <- sapply(dp[adult.art.tidx+3:4, timedat.idx], as.numeric)
+  dimnames(art15plus_num) <- list(c("Male", "Female"), proj.years)
 
-  arteligthresh.15plus <- setNames(as.numeric(dp[adult.arteligthresh.tidx+2, timedat.idx]), proj.years)
+  art15plus_eligthresh <- setNames(as.numeric(dp[adult.arteligthresh.tidx+2, timedat.idx]), proj.years)
 
-  artelig.specpop <- setNames(dp[specpopelig.tidx+1:7,2:6], c("description", "pop", "elig", "percent", "year"))
-  artelig.specpop$pop <- c("PW", "TBHIV", "DC", "FSW", "MSM", "IDU", "OTHER")
-  artelig.specpop$elig <- as.logical(as.integer(artelig.specpop$elig))
-  artelig.specpop$percent <- as.numeric(artelig.specpop$percent)/100
-  artelig.specpop$year <- as.integer(artelig.specpop$year)
-  artelig.specpop$idx <- match(as.integer(artelig.specpop$year), proj.years)
-  rownames(artelig.specpop) <- artelig.specpop$pop
+  artelig_specpop <- setNames(dp[specpopelig.tidx+1:7,2:6], c("description", "pop", "elig", "percent", "year"))
+  artelig_specpop$pop <- c("PW", "TBHIV", "DC", "FSW", "MSM", "IDU", "OTHER")
+  artelig_specpop$elig <- as.logical(as.integer(artelig_specpop$elig))
+  artelig_specpop$percent <- as.numeric(artelig_specpop$percent)/100
+  artelig_specpop$year <- as.integer(artelig_specpop$year)
+  artelig_specpop$idx <- match(as.integer(artelig_specpop$year), proj.years)
+  rownames(artelig_specpop) <- artelig_specpop$pop
 
-  ## permute indices to match model state space (year, NG, AG, DS, TS)
-  fert.rat <- aperm(fert.rat, 2:1)
-  inc.agerat <- aperm(inc.agerat, 3:1)
-  cd4.initdist <- aperm(cd4.initdist, 3:1)
-  cd4.prog <- aperm(cd4.prog, 3:1)
-  cd4.art.mort <- aperm(cd4.art.mort, 4:1)
-  artnum.15plus <- aperm(artnum.15plus, 2:1)
-  artnumperc.15plus <- aperm(artnumperc.15plus, 2:1)
-
-  projp <- list("yr.start"=yr.start, "yr.end"=yr.end, "t0"=t0,
-                "relinfect.ART"=relinfect.ART, "vert.trans"=vert.trans,
-                "fert.rat"=fert.rat, "inc.sexrat"=inc.sexrat, "inc.agerat"=inc.agerat,
-                "cd4.initdist"=cd4.initdist, "cd4.prog"=cd4.prog, "cd4.art.mort"=cd4.art.mort,
-                "artnumperc.15plus"=artnumperc.15plus, "artnum.15plus"=artnum.15plus,
-                "arteligthresh.15plus"=arteligthresh.15plus, "artelig.specpop"=artelig.specpop)
+  projp <- list("yr_start"=yr_start, "yr_end"=yr_end, "t0"=t0,
+                "relinfectART"=relinfectART,
+                "fert_rat"=fert_rat, "incrr_sex"=incrr_sex, "incrr_age"=incrr_age,
+                "cd4_initdist"=cd4_initdist, "cd4_prog"=cd4_prog, "cd4_mort"=cd4_mort, "art_mort"=art_mort,
+                "art15plus_numperc"=art15plus_numperc, "art15plus_num"=art15plus_num,
+                "art15plus_eligthresh"=art15plus_eligthresh, "artelig_specpop"=artelig_specpop)
   class(projp) <- "projp"
   attr(projp, "version") <- version
   attr(projp, "validdate") <- validdate
@@ -244,9 +236,7 @@ read.hivproj.param <- function(specdp.file){
 ###################################################################
 
 
-read.demog.param <- function(upd.file, age.intervals = 1){
-
-  DEM.INIT.YEAR <- 1970
+read_demog_param <- function(upd.file, age.intervals = 1){
 
   ## check age intervals and prepare age groups vector
   if(length(age.intervals) == 1){
@@ -304,15 +294,8 @@ read.demog.param <- function(upd.file, age.intervals = 1){
 
   ## migration
   netmigr <- array(as.numeric(migration$value), c(81, 2, 80))
+  dimnames(netmigr) <- list(0:80, c("Male", "Female"), 1970:2049)
   netmigr <- apply(netmigr, 2:3, tapply, age.groups, sum)
-
-  ## ## permute indices to match model state space (year, NG, AG)
-  ## basepop <- aperm(basepop, 3:1)
-  ## mx <- aperm(mx, 3:1)
-  ## Sx <- aperm(Sx, 3:1)
-  ## asfr <- aperm(asfr, 2:1)
-  ## asfd <- aperm(asfd, 2:1)
-  ## netmigr <- aperm(netmigr, 3:1)
 
   demp <- list("basepop"=basepop, "mx"=mx, "Sx"=Sx, "asfr"=asfr, "tfr"=tfr, "asfd"=asfd, "srb"=srb, "netmigr"=netmigr)
   class(demp) <- "demp"

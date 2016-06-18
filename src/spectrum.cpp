@@ -63,14 +63,16 @@ extern "C" {
     using namespace boost;
 
     // state space dimensions
-    SEXP ss = getListElement(s_fp, "ss");
-    int PROJ_YEARS = *INTEGER(getListElement(ss, "PROJ_YEARS"));
-    int HIVSTEPS_PER_YEAR = *INTEGER(getListElement(s_fp, "hiv.steps.per.year"));
+    SEXP s_ss = getListElement(s_fp, "ss");
+    int PROJ_YEARS = *INTEGER(getListElement(s_ss, "PROJ_YEARS"));
+    int HIVSTEPS_PER_YEAR = *INTEGER(getListElement(s_ss, "hiv_steps_per_year"));
     double DT = 1.0/HIVSTEPS_PER_YEAR;
-    int *hAG_SPAN = INTEGER(getListElement(s_fp, "h.ag.span"));
-    int hAG_START[hAG] = {0, 2, 5, 10, 15, 20, 25, 30, 35};
+    int *hAG_SPAN = INTEGER(getListElement(s_ss, "h.ag.span"));
 
-    Rprintf("%d %f\n", HIVSTEPS_PER_YEAR, DT);
+    int hAG_START[hAG];
+    hAG_START[0] = 0;
+    for(int ha = 1; ha < hAG; ha++)
+      hAG_START[ha] = hAG_START[ha-1] + hAG_SPAN[ha-1];
 
     // demographic projection
     multi_array_ref<double, 2> basepop(REAL(getListElement(s_fp, "basepop")), extents[NG][pAG]);
@@ -83,38 +85,38 @@ extern "C" {
     multi_array_ref<double, 2> cumnetmigr(REAL(getListElement(s_fp, "cumnetmigr")), extents[PROJ_YEARS][NG]);
 
     // disease progression
-    multi_array_ref<double, 3> cd4_initdist(REAL(getListElement(s_fp, "cd4.initdist")), extents[NG][hAG][hDS]);
-    multi_array_ref<double, 3> cd4_prog(REAL(getListElement(s_fp, "cd4.prog")), extents[NG][hAG][hDS-1]);
-    multi_array_ref<double, 3> cd4_mort(REAL(getListElement(s_fp, "cd4.mort")), extents[NG][hAG][hDS]);
-    multi_array_ref<double, 4> art_mort(REAL(getListElement(s_fp, "art.mort")), extents[NG][hAG][hDS][hTS]);
+    multi_array_ref<double, 3> cd4_initdist(REAL(getListElement(s_fp, "cd4_initdist")), extents[NG][hAG][hDS]);
+    multi_array_ref<double, 3> cd4_prog(REAL(getListElement(s_fp, "cd4_prog")), extents[NG][hAG][hDS-1]);
+    multi_array_ref<double, 3> cd4_mort(REAL(getListElement(s_fp, "cd4_mort")), extents[NG][hAG][hDS]);
+    multi_array_ref<double, 4> art_mort(REAL(getListElement(s_fp, "art_mort")), extents[NG][hAG][hDS][hTS]);
 
     // sub-fertility
-    multi_array_ref<double, 2> frr_cd4(REAL(getListElement(s_fp, "frr.cd4")), extents[hAG_FERT][hDS]);
-    multi_array_ref<double, 3> frr_art(REAL(getListElement(s_fp, "frr.art")), extents[hAG_FERT][hDS][hTS]);
+    multi_array_ref<double, 2> frr_cd4(REAL(getListElement(s_fp, "frr_cd4")), extents[hAG_FERT][hDS]);
+    multi_array_ref<double, 3> frr_art(REAL(getListElement(s_fp, "frr_art")), extents[hAG_FERT][hDS][hTS]);
 
     // ART inputs
     int t_ART_start = *INTEGER(getListElement(s_fp, "tARTstart")) - 1; // -1 for 0-based indexing in C vs. 1-based in R
-    multi_array_ref<double, 2> artnum15plus(REAL(getListElement(s_fp, "artnum15plus")), extents[PROJ_YEARS][NG]);
+    multi_array_ref<double, 2> artnum15plus(REAL(getListElement(s_fp, "art15plus_num")), extents[PROJ_YEARS][NG]);
     multi_array_ref<double, 2> artcd4elig(REAL(getListElement(s_fp, "artcd4elig")), extents[PROJ_YEARS][hDS]);
-    multi_array_ref<double, 2> pw_artelig(REAL(getListElement(s_fp, "pw.artelig")), extents[PROJ_YEARS][hDS]);
+    multi_array_ref<double, 2> pw_artelig(REAL(getListElement(s_fp, "pw_artelig")), extents[PROJ_YEARS][hDS]);
 
     // incidence model
-    double *prev15to49 = REAL(getListElement(s_fp, "prev15to49"));
-    double *inc_sexratio = REAL(getListElement(s_fp, "inc.sexratio"));
-    multi_array_ref<double, 3> inc_agerr(REAL(getListElement(s_fp, "inc.agerr")), extents[PROJ_YEARS][NG][pAG]);
+    // double *prev15to49 = REAL(getListElement(s_fp, "prev15to49"));
+    double *incrr_sex = REAL(getListElement(s_fp, "incrr_sex"));
+    multi_array_ref<double, 3> incrr_age(REAL(getListElement(s_fp, "incrr_age")), extents[PROJ_YEARS][NG][pAG]);
 
     double *rvec = REAL(getListElement(s_fp, "rvec"));
     double iota = *REAL(getListElement(s_fp, "iota"));
     double relinfectART = *REAL(getListElement(s_fp, "relinfectART"));
-    double ts_epidemic_start = *INTEGER(getListElement(s_fp, "ts.epi.start")) - 1; // -1 for 0-based indexing in C vs. 1-based in R
+    double ts_epidemic_start = *INTEGER(getListElement(s_fp, "ts_epi_start")) - 1; // -1 for 0-based indexing in C vs. 1-based in R
     
 
     // vertical transmission and survival
-    double verttrans = *REAL(getListElement(s_fp, "vert.trans"));
+    double verttrans = *REAL(getListElement(s_fp, "verttrans"));
     double paedsurv = *REAL(getListElement(s_fp, "paedsurv"));
-    double netmig_hivprob = *REAL(getListElement(s_fp, "netmig.hivprob"));
+    double netmig_hivprob = *REAL(getListElement(s_fp, "netmig_hivprob"));
     double netmighivsurv = *REAL(getListElement(s_fp, "netmighivsurv"));
-    double *paedsurv_cd4dist = REAL(getListElement(s_fp, "paedsurv.cd4dist"));
+    double *paedsurv_cd4dist = REAL(getListElement(s_fp, "paedsurv_cd4dist"));
 
 
     // initialize output
@@ -149,8 +151,8 @@ extern "C" {
     setAttrib(s_pop, install("artpop"), s_artpop);
     setAttrib(s_pop, install("pregprevlag"), s_pregprevlag);
 
-    SEXP s_incrate15to49_ts = PROTECT(allocVector(REALSXP, length(getListElement(s_fp, "rvec"))));
-    setAttrib(s_pop, install("incrate15to49.ts"), s_incrate15to49_ts);
+    SEXP s_incrate15to49_ts = PROTECT(allocVector(REALSXP, (PROJ_YEARS-1) * HIVSTEPS_PER_YEAR));
+    setAttrib(s_pop, install("incrate15to49_ts"), s_incrate15to49_ts);
     double *incrate15to49_ts_out = REAL(s_incrate15to49_ts);
     memset(incrate15to49_ts_out, 0, length(s_incrate15to49_ts)*sizeof(double));
     
@@ -374,7 +376,7 @@ extern "C" {
 	  Xhivn_incagerr[g] = 0.0;
 	  for(int a = pIDX_15TO49; a < pIDX_15TO49+pAG_15TO49; a++){
 	    Xhivn[g] += pop[t][HIVN][g][a];
-	    Xhivn_incagerr[g] += inc_agerr[t][g][a] * pop[t][HIVN][g][a];
+	    Xhivn_incagerr[g] += incrr_age[t][g][a] * pop[t][HIVN][g][a];
 	  }
 	  for(int ha = hIDX_15TO49; ha < hIDX_15TO49+hAG_15TO49; ha++)
 	    for(int hm = 0; hm < hDS; hm++){
@@ -389,8 +391,8 @@ extern "C" {
 	int ts = (t-1)*HIVSTEPS_PER_YEAR + hts;
 	double incrate15to49_ts = rvec[ts] * (Xhivp_noart + relinfectART * Xart)/Xtot + ((ts == ts_epidemic_start) ? iota : 0.0);
 	double incrate15to49_g[NG];
-	incrate15to49_g[MALE] = incrate15to49_ts * (Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + inc_sexratio[t]*Xhivn[FEMALE]);
-	incrate15to49_g[FEMALE] = incrate15to49_ts * inc_sexratio[t]*(Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + inc_sexratio[t]*Xhivn[FEMALE]);
+	incrate15to49_g[MALE] = incrate15to49_ts * (Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
+	incrate15to49_g[FEMALE] = incrate15to49_ts * incrr_sex[t]*(Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
 
 
 	incrate15to49_ts_out[ts] = incrate15to49_ts; // !!TEMP CODE
@@ -400,7 +402,7 @@ extern "C" {
 	  for(int ha = 0; ha < hAG; ha++){
 	    double infections_a, infections_ha = 0.0;
 	    for(int i = 0; i < hAG_SPAN[ha]; i++){
-	      infections_ha += infections_a = pop[t][HIVN][g][a] * incrate15to49_g[g] * inc_agerr[t][g][a] * Xhivn[g] / Xhivn_incagerr[g];
+	      infections_ha += infections_a = pop[t][HIVN][g][a] * incrate15to49_g[g] * incrr_age[t][g][a] * Xhivn[g] / Xhivn_incagerr[g];
 	      pop[t][HIVN][g][a] -= DT*infections_a;
 	      pop[t][HIVP][g][a] += DT*infections_a;
 	      a++;
@@ -564,21 +566,21 @@ extern "C" {
         for(int a = pIDX_15TO49; a < pIDX_15TO49+pAG_15TO49; a++){
           Xhivp += pop[t][HIVP][g][a];
           Xhivn[g] += pop[t][HIVN][g][a];
-          Xhivn_incagerr[g] += inc_agerr[t][g][a] * pop[t][HIVN][g][a];
+          Xhivn_incagerr[g] += incrr_age[t][g][a] * pop[t][HIVN][g][a];
         }
       }
       double prev_i = Xhivp / (Xhivn[MALE] + Xhivn[FEMALE] + Xhivp);
       double incrate15to49_i = (prev15to49[t] - prev_i)/(1.0 - prev_i);
       double incrate15to49_g[NG];
-      incrate15to49_g[MALE] = incrate15to49_i * (Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + inc_sexratio[t]*Xhivn[FEMALE]);
-      incrate15to49_g[FEMALE] = incrate15to49_i * inc_sexratio[t]*(Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + inc_sexratio[t]*Xhivn[FEMALE]);
+      incrate15to49_g[MALE] = incrate15to49_i * (Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
+      incrate15to49_g[FEMALE] = incrate15to49_i * incrr_sex[t]*(Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
 
       for(int g = 0; g < NG; g++){
         int a = 0;
         for(int ha = 0; ha < hAG; ha++){
           double infections_a, infections_ha = 0.0;
           for(int i = 0; i < hAG_SPAN[ha]; i++){
-            infections_ha += infections_a = pop[t][HIVN][g][a] * incrate15to49_g[g] * inc_agerr[t][g][a] * Xhivn[g] / Xhivn_incagerr[g];
+            infections_ha += infections_a = pop[t][HIVN][g][a] * incrate15to49_g[g] * incrr_age[t][g][a] * Xhivn[g] / Xhivn_incagerr[g];
             pop[t][HIVN][g][a] -= infections_a;
             pop[t][HIVP][g][a] += infections_a;
             a++;
@@ -658,9 +660,9 @@ SEXP getListElement(SEXP list, const char *str)
       elmt = VECTOR_ELT(list, i);
       break;
     }
-  /*
+
     if ( elmt == R_NilValue )
     error("%s missing from list", str);
-  */
+
   return elmt;
 }

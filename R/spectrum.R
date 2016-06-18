@@ -1,6 +1,191 @@
+create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_start = projp$yr_start, proj_end = projp$yr_end,
+                                   AGE_START = 15L, relinfectART = 0.3, time_epi_start = projp$t0){
 
-spectrumR <- function(fp, VERSION="C"){
+  
+  ## ########################## ##
+  ##  Define model state space  ##
+  ## ########################## ##
 
+  ## Parameters defining the model projection period and state-space
+  ss <- list(PROJ_YEARS = as.integer(proj_end - proj_start + 1L),
+             AGE_START  = as.integer(AGE_START),
+             hiv_steps_per_year = as.integer(hiv_steps_per_year))
+             
+  ## populuation projection state-space
+  ss$NG <- 2
+  ss$pDS <- 2               # Disease stratification for population projection (HIV-, and HIV+)
+
+  ## macros
+  ss$m.idx <- 1
+  ss$f.idx <- 2
+
+  ss$hivn.idx <- 1
+  ss$hivp.idx <- 2
+
+  ss$pAG <- 81 - AGE_START
+  ss$ag.rate <- 1
+  ss$p.fert.idx <- 16:50 - AGE_START
+  ss$p.age15to49.idx <- 16:50 - AGE_START
+  ss$p.age15plus.idx <- 16:ss$pAG - AGE_START
+
+  
+  ## HIV model state-space
+  ss$h.ag.span <- as.integer(c(2,3, rep(5, 6), 31))   # Number of population age groups spanned by each HIV age group [sum(h.ag.span) = pAG]
+  ss$hAG <- length(ss$h.ag.span)          # Number of age groups
+  ss$hDS <- 7                             # Number of CD4 stages (Disease Stages)
+  ss$hTS <- 3                             # number of treatment stages (including untreated)
+
+  ss$ag.idx <- rep(1:ss$hAG, ss$h.ag.span)
+  ss$aglast.idx <- which(!duplicated(ss$ag.idx, fromLast=TRUE))
+
+  ss$h.fert.idx <- which((AGE_START-1 + cumsum(ss$h.ag.span)) %in% 15:49)
+  ss$h.age15to49.idx <- which((AGE_START-1 + cumsum(ss$h.ag.span)) %in% 15:49)
+  ss$h.age15plus.idx <- which((AGE_START-1 + cumsum(ss$h.ag.span)) >= 15)
+
+  invisible(list2env(ss, environment())) # put ss variables in environment for convenience
+
+
+  ## ######################## ##
+  ##  Demographic parameters  ##
+  ## ######################## ##
+
+  fp <- list(ss=ss)
+
+  ## linearly interpolate basepop if proj_start falls between indices
+  bp_years <- as.integer(dimnames(demp$basepop)[[3]])
+  bp_aidx <- max(which(proj_start >= bp_years))
+  bp_dist <- 1-(proj_start - bp_years[bp_aidx]) / diff(bp_years[bp_aidx+0:1])
+  basepop_allage <- rowSums(sweep(demp$basepop[,, bp_aidx+0:1], 3, c(bp_dist, 1-bp_dist), "*"),,2)
+
+  fp$basepop <- basepop_allage[(AGE_START+1):81,]
+  fp$Sx <- demp$Sx[(AGE_START+1):81,,as.character(proj_start:proj_end)]
+
+  fp$asfr <- demp$asfr[,as.character(proj_start:proj_end)] # NOTE: assumes 15-49 is within projection age range
+  ## Note: Spectrum averages ASFRs from the UPD file over 5-year age groups.
+  ##       Prefer to use single-year of age ASFRs as provided. The below line will
+  ##       convert to 5-year average ASFRs to exactly match Spectrum.
+  ## fp$asfr <- apply(apply(fp$asfr, 2, tapply, rep(3:9*5, each=5), mean), 2, rep, each=5)
+  
+  fp$srb <- sapply(demp$srb[as.character(proj_start:proj_end)], function(x) c(x,100)/(x+100))
+  
+  ## Spectrum adjusts net-migration to occur half in current age group and half in next age group
+  netmigr.adj <- demp$netmigr
+  netmigr.adj[-1,,] <- (demp$netmigr[-1,,] + demp$netmigr[-81,,])/2
+  netmigr.adj[1,,] <- demp$netmigr[1,,]/2
+  netmigr.adj[81,,] <- netmigr.adj[81,,] + demp$netmigr[81,,]/2
+
+  fp$netmigr <- netmigr.adj[(AGE_START+1):81,,as.character(proj_start:proj_end)]
+
+
+  ## Calcuate the net-migration and survival up to AGE_START for each birth cohort.
+  ## For cohorts born before projection start, this will be the partial
+  ## survival since the projection start to AGE_START, and the corresponding lagged "births"
+  ## represent the number in the basepop who will survive to the corresponding age.
+  
+  cumnetmigr <- array(0, dim=c(NG, PROJ_YEARS))
+  cumsurv <- array(1, dim=c(NG, PROJ_YEARS))
+  if(AGE_START > 0)
+    for(i in 2:PROJ_YEARS)  # start at 2 because year 1 inputs are not used
+      for(s in 1:2)
+        for(j in max(1, AGE_START-(i-2)):AGE_START){
+          ii <- i+j-AGE_START
+          cumsurv[s,i] <- cumsurv[s,i] * demp$Sx[j,s,ii]
+          if(j==1)
+            cumnetmigr[s,i] <- netmigr.adj[j,s,ii] * (1+2*demp$Sx[j,s,ii])/3
+          else
+            cumnetmigr[s,i] <- cumnetmigr[s,i]*demp$Sx[j,s,ii] + netmigr.adj[j,s,ii] * (1+demp$Sx[j,s,ii])/2
+        }
+  
+  ## initial values for births
+  birthslag <- array(0, dim=c(NG, PROJ_YEARS))             # birthslag(i,s) = number of births of sex s, i-AGE_START years ago
+  birthslag[,1:AGE_START] <- t(basepop_allage[AGE_START:1,])  # initial pop values (NOTE REVERSE ORDER). Rest will be completed by fertility during projection
+  
+  fp$birthslag <- birthslag
+  fp$cumsurv <- cumsurv
+  fp$cumnetmigr <- cumnetmigr
+
+
+  ## ###################### ##
+  ##  HIV model parameters  ##
+  ## ###################### ##
+
+  fp$relinfectART <- projp$relinfectART
+
+  fp$incrr_sex <- projp$incrr_sex[as.character(proj_start:proj_end)]
+  
+  projp.p.ag <- findInterval(AGE_START-1 + 1:pAG, seq(0, 85, 5))
+  fp$incrr_age <- projp$incrr_age[projp.p.ag,,as.character(proj_start:proj_end)]
+  
+  projp.h.ag <- findInterval(AGE_START + cumsum(h.ag.span) - h.ag.span, c(15, 25, 35, 45))  # NOTE: Will not handle AGE_START < 15 presently
+  fp$cd4_initdist <- projp$cd4_initdist[,projp.h.ag,]
+  fp$cd4_prog <- projp$cd4_prog[,projp.h.ag,]
+  fp$cd4_mort <- projp$cd4_mort[,projp.h.ag,]
+  fp$art_mort <- projp$art_mort[,,projp.h.ag,]
+
+  fert_rat.h.ag <- findInterval(AGE_START + cumsum(h.ag.span[h.fert.idx]) - h.ag.span[h.fert.idx], seq(15, 45, 5))
+  
+
+  fp$frr_cd4 <- array(1, c(hDS, length(h.fert.idx)))
+  fp$frr_cd4[,] <- rep(projp$fert_rat[fert_rat.h.ag, "2005"], each=hDS)
+
+  fp$frr_cd4[,] <- rep(projp$fert_rat[fert_rat.h.ag, "2005"], each=hDS)
+  c(1.63, 0.95, 0.83, 0.67, 0.69, 0.53, 0.47)
+  
+  fp$frr_art <- array(1, c(hTS, hDS, length(h.fert.idx)))
+  fp$frr_art[1:2,,] <- rep(projp$fert_rat[fert_rat.h.ag, "2005"], each=2*hDS)
+
+
+  ## ART eligibility and numbers on treatment
+
+  fp$art15plus_num <- projp$art15plus_num[,as.character(proj_start:proj_end)]
+
+  if(any(projp$art15plus_numperc[1, as.character(proj_start:proj_end)]==1)){
+    lastnuminput <- min(which(projp$art15plus_numperc[1, as.character(proj_start:proj_end)]==1))-1
+    fp$art15plus_num[,(lastnuminput+1):PROJ_YEARS] <- fp$art15plus_num[,lastnuminput]
+  }
+  ## NOTE: !! MODEL NEEDS UPDATING FOR PERCENTAGE INPUTS
+
+
+  ## eligibility starts in projection year idx+1
+  specpop_percelig <- rowSums(with(projp$artelig_specpop[-1,], mapply(function(elig, percent, year) rep(c(0, percent*as.numeric(elig)), c(year - proj_start+1, proj_end - year)), elig, percent, year)))
+  artelig.idx <- findInterval(-projp$art15plus_eligthresh[as.character(proj_start:proj_end)], -c(999, 500, 350, 250, 200, 100, 50))
+  fp$artcd4elig <- mapply(function(idx, sp.perc) rep(c(sp.perc, 1), c(idx-1, hDS-idx+1)), artelig.idx, specpop_percelig)  # proportion eligible by CD4
+
+  fp$pw_artelig <- with(projp$artelig_specpop["PW",], rep(c(0, elig), c(year - proj_start+1, proj_end - year)))
+  fp$pw_artelig <- mapply(function(idx, pw.elig) rep(c(pw.elig, 0), c(idx-1, hDS-idx+1)), artelig.idx, fp$pw_artelig)  # proportion eligible by CD4
+
+  fp$tARTstart <- min(apply(fp$art15plus_num > 0, 1, which))
+
+  
+  ## Vertical transmission and survival to AGE_START for lagged births
+  ## (fixed values assuming AGE_START = 15)
+  ## NOTE: !! THIS COMPONENT OF THE MODEL NEEDS UPDATING
+  
+  fp$verttrans <- 0.4
+  fp$paedsurv <- 0.09
+  fp$paedsurv_cd4dist <- c(0.056,0.112,0.112,0.07,0.14,0.23,0.28)
+  
+  fp$netmig_hivprob <- 0.4*0.22
+  fp$netmighivsurv <- 0.09/0.22
+
+  class(fp) <- "specfp"
+
+  return(fp)
+}
+
+
+
+
+
+simmod.specfp <- function(fp, VERSION="C"){
+
+  if(VERSION != "R"){
+    mod <- .Call(spectrumC, fp)
+    class(mod) <- "spec"
+    return(mod)
+  }
+
+  ##################################################################################
 
   if(requireNamespace("fastmatch", quietly = TRUE))
     ctapply <- fastmatch::ctapply
@@ -9,6 +194,8 @@ spectrumR <- function(fp, VERSION="C"){
   
   ## Attach state space variables
   invisible(list2env(fp$ss, environment())) # put ss variables in environment for convenience
+
+  DT <- fp$ss$hiv.steps.per.year
 
   birthslag <- fp$birthslag
   pregprevlag <- rep(0, PROJ_YEARS)
@@ -81,7 +268,7 @@ spectrumR <- function(fp, VERSION="C"){
     hivdeaths <- array(0, c(hAG, NG))
 
     ## events at dt timestep
-    for(ii in seq_len(1/DT)){
+    for(ii in seq_len(hiv.steps.per.year)){
       grad <- array(0, c(hTS, hDS, hAG, NG))
 
       ## incidence
@@ -186,5 +373,6 @@ spectrumR <- function(fp, VERSION="C"){
   attr(pop, "pregprevlag") <- pregprevlag
   attr(pop, "paedsurvout") <- paedsurvout
   attr(pop, "incrate15to49.ts") <- incrate15to49.ts.out
+  class(pop) <- "spec"
   return(pop)
 }

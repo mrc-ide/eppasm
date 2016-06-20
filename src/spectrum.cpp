@@ -102,8 +102,11 @@ extern "C" {
     // ART inputs
     int t_ART_start = *INTEGER(getListElement(s_fp, "tARTstart")) - 1; // -1 for 0-based indexing in C vs. 1-based in R
     multi_array_ref<double, 2> artnum15plus(REAL(getListElement(s_fp, "art15plus_num")), extents[PROJ_YEARS][NG]);
-    multi_array_ref<double, 2> artcd4elig(REAL(getListElement(s_fp, "artcd4elig")), extents[PROJ_YEARS][hDS]);
-    multi_array_ref<double, 2> pw_artelig(REAL(getListElement(s_fp, "pw_artelig")), extents[PROJ_YEARS][hDS]);
+
+    int *artcd4elig_idx = INTEGER(getListElement(s_fp, "artcd4elig_idx"));  // NOTE: 1-based indexing
+    double *specpop_percelig = REAL(getListElement(s_fp, "specpop_percelig"));
+    double *pw_artelig = REAL(getListElement(s_fp, "pw_artelig"));
+      
 
     // incidence model
     // double *prev15to49 = REAL(getListElement(s_fp, "prev15to49"));
@@ -419,11 +422,15 @@ extern "C" {
 	    for(int hm = 0; hm < hDS; hm++)
 	      hivpop[t][g][ha][hm] += DT*grad[g][ha][hm];
 
-	// Progression and mortality for ART population
-	if(t >= t_ART_start)
+	// ART progression, mortality, and initiation
+	if(t >= t_ART_start){
+	  int cd4elig_idx = artcd4elig_idx[t] - 1; // -1 for 0-based indexing vs. 1-based in R
+	  int anyelig_idx = (specpop_percelig[t] > 0 | pw_artelig[t] > 0) ? 0 : cd4elig_idx;
+	
+	  // progression and mortality
 	  for(int g = 0; g < NG; g++)
 	    for(int ha = 0; ha < hAG; ha++)
-		for(int hm = 0; hm < hDS; hm++){
+		for(int hm = anyelig_idx; hm < hDS; hm++){
 		  double gradART[hTS];
 		  
 		  for(int hu = 0; hu < hTS; hu++){
@@ -438,7 +445,60 @@ extern "C" {
 		  
 		  for(int hu = 0; hu < hTS; hu++)
 		    artpop[t][g][ha][hm][hu] += DT*gradART[hu];
-		}
+		}	
+
+	  // ART initiation
+          for(int g = 0; g < NG; g++){
+	    
+            double artelig_hahm[hAG_15PLUS][hDS], Xart_15plus = 0.0, Xartelig_15plus = 0.0, expect_mort_artelig15plus = 0.0;
+            for(int ha = hIDX_15PLUS; ha < hAG; ha++){
+              for(int hm = anyelig_idx; hm < hDS; hm++){
+                Xartelig_15plus += artelig_hahm[ha-hIDX_15PLUS][hm] = (hm < cd4elig_idx) ? specpop_percelig[t] * hivpop[t][g][ha][hm] : hivpop[t][g][ha][hm];
+                expect_mort_artelig15plus += cd4_mort[g][ha][hm] * artelig_hahm[ha-hIDX_15PLUS][hm];
+		  for(int hu = 0; hu < hTS; hu++)
+                  Xart_15plus += artpop[t][g][ha][hm][hu];
+              }
+
+              // if pw_artelig, add pregnant women to artelig_hahm population
+              if(g == FEMALE & pw_artelig[t] > 0 & ha < hAG_FERT){
+                double frr_pop_ha = 0;
+                for(int a =  hAG_START[ha]; a < hAG_START[ha]+hAG_SPAN[ha]; a++)
+                  frr_pop_ha += pop[t][HIVN][g][a]; // add HIV- population
+                for(int hm = 0; hm < hDS; hm++){
+                  frr_pop_ha += frr_cd4[ha-hIDX_FERT][hm] * hivpop[t][g][ha][hm];
+                  for(int hu = 0; hu < hTS; hu++)
+                    frr_pop_ha += frr_art[ha-hIDX_FERT][hm][hu] * artpop[t][g][ha][hm][hu];
+                }
+
+                for(int hm = anyelig_idx; hm < cd4elig_idx; hm++){
+                  double pw_elig_hahm = DT * births_by_ha[ha-hIDX_FERT] * frr_cd4[ha-hIDX_FERT][hm] * hivpop[t][g][ha][hm] / frr_pop_ha;
+                  artelig_hahm[ha-hIDX_15PLUS][hm] += pw_elig_hahm;
+                  Xartelig_15plus += pw_elig_hahm;
+                  expect_mort_artelig15plus += cd4_mort[g][ha][hm] * pw_elig_hahm;
+                }
+	      }
+            } // loop over ha
+
+
+            double artnum_hts;
+            if(DT*(hts+1) < 0.5)
+              artnum_hts = (0.5-DT*(hts+1))*artnum15plus[t-2][g] + (DT*(hts+1)+0.5)*artnum15plus[t-1][g];
+            else
+              artnum_hts = (1.5-DT*(hts+1))*artnum15plus[t-1][g] + (DT*(hts+1)-0.5)*artnum15plus[t][g];
+
+            double artinit_hts = artnum_hts > Xart_15plus ? artnum_hts - Xart_15plus : 0;
+
+            for(int ha = hIDX_15PLUS; ha < hAG; ha++)
+              for(int hm = anyelig_idx; hm < hDS; hm++){
+                double artinit_hahm = artinit_hts * artelig_hahm[ha-hIDX_15PLUS][hm] * 0.5 * (1.0/Xartelig_15plus + cd4_mort[g][ha][hm] / expect_mort_artelig15plus);
+                if(artinit_hahm > hivpop[t][g][ha][hm]) artinit_hahm = hivpop[t][g][ha][hm];
+                hivpop[t][g][ha][hm] -= artinit_hahm;
+                artpop[t][g][ha][hm][ART0MOS] += artinit_hahm;
+              }
+
+          }
+        }
+
 
 	// remove hivdeaths from pop
 	for(int g = 0; g < NG; g++){
@@ -466,62 +526,6 @@ extern "C" {
 	    }  // end if(pop_ha[ha] > 0)
 	  }
 	}
-	
-
-        // ART initiation
-        // calculated separately for men and women
-        if(t >= t_ART_start){
-          for(int g = 0; g < NG; g++){
-	    
-            double artelig_hahm[hAG_15PLUS][hDS], Xart_15plus = 0.0, Xartelig_15plus = 0.0, expect_mort_artelig15plus = 0.0;
-            for(int ha = hIDX_15PLUS; ha < hAG; ha++){
-              for(int hm = 0; hm < hDS; hm++){
-                Xartelig_15plus += artelig_hahm[ha-hIDX_15PLUS][hm] = artcd4elig[t][hm] * hivpop[t][g][ha][hm];
-                expect_mort_artelig15plus += cd4_mort[g][ha][hm] * artelig_hahm[ha-hIDX_15PLUS][hm];
-                for(int hu = 0; hu < hTS; hu++)
-                  Xart_15plus += artpop[t][g][ha][hm][hu];
-              }
-
-              // if pw_artelig, add pregnant women to artelig_hahm population
-              if(g == FEMALE & pw_artelig[t][0] > 0 & ha < hAG_FERT){
-                double frr_pop_ha = 0;
-                for(int a =  hAG_START[ha]; a < hAG_START[ha]+hAG_SPAN[ha]; a++)
-                  frr_pop_ha += pop[t][HIVN][g][a]; // add HIV- population
-                for(int hm = 0; hm < hDS; hm++){
-                  frr_pop_ha += frr_cd4[ha-hIDX_FERT][hm] * hivpop[t][g][ha][hm];
-                  for(int hu = 0; hu < hTS; hu++)
-                    frr_pop_ha += frr_art[ha-hIDX_FERT][hm][hu] * artpop[t][g][ha][hm][hu];
-                }
-
-                for(int hm = 0; hm < hDS; hm++){
-                  double pw_elig_hahm = DT * births_by_ha[ha-hIDX_FERT] * pw_artelig[t][hm] * frr_cd4[ha-hIDX_FERT][hm] * hivpop[t][g][ha][hm] / frr_pop_ha;
-                  artelig_hahm[ha-hIDX_15PLUS][hm] += pw_elig_hahm;
-                  Xartelig_15plus += pw_elig_hahm;
-                  expect_mort_artelig15plus += cd4_mort[g][ha][hm] * pw_elig_hahm;
-                }
-	      }
-            } // loop over ha
-
-
-            double artnum_hts;
-            if(DT*(hts+1) < 0.5)
-              artnum_hts = (0.5-DT*(hts+1))*artnum15plus[t-2][g] + (DT*(hts+1)+0.5)*artnum15plus[t-1][g];
-            else
-              artnum_hts = (1.5-DT*(hts+1))*artnum15plus[t-1][g] + (DT*(hts+1)-0.5)*artnum15plus[t][g];
-
-            double artinit_hts = artnum_hts > Xart_15plus ? artnum_hts - Xart_15plus : 0;
-
-            for(int ha = hIDX_15PLUS; ha < hAG; ha++)
-              for(int hm = 0; hm < hDS; hm++){
-                double artinit_hahm = artinit_hts * artelig_hahm[ha-hIDX_15PLUS][hm] * 0.5 * (1.0/Xartelig_15plus + cd4_mort[g][ha][hm] / expect_mort_artelig15plus);
-                if(artinit_hahm > hivpop[t][g][ha][hm]) artinit_hahm = hivpop[t][g][ha][hm];
-                hivpop[t][g][ha][hm] -= artinit_hahm;
-                artpop[t][g][ha][hm][ART0MOS] += artinit_hahm;
-              }
-
-          }
-        }
-
 
       } // loop HIVSTEPS_PER_YEAR
 

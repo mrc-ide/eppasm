@@ -42,6 +42,9 @@
 #define ART_STAGE_PROG_RATE 2.0 // HARD CODED: ART stage progression rate
 
 
+#define EPP_RSPLINE 0
+#define EPP_RTREND 1
+
 
 SEXP getListElement(SEXP list, const char *str);
 
@@ -74,6 +77,8 @@ extern "C" {
     for(int ha = 1; ha < hAG; ha++)
       hAG_START[ha] = hAG_START[ha-1] + hAG_SPAN[ha-1];
 
+    double *projsteps = REAL(getListElement(s_fp, "proj.steps"));
+
     // demographic projection
     multi_array_ref<double, 2> basepop(REAL(getListElement(s_fp, "basepop")), extents[NG][pAG]);
     multi_array_ref<double, 3> Sx(REAL(getListElement(s_fp, "Sx")), extents[PROJ_YEARS][NG][pAG]);
@@ -105,10 +110,22 @@ extern "C" {
     double *incrr_sex = REAL(getListElement(s_fp, "incrr_sex"));
     multi_array_ref<double, 3> incrr_age(REAL(getListElement(s_fp, "incrr_age")), extents[PROJ_YEARS][NG][pAG]);
 
-    double *rvec = REAL(getListElement(s_fp, "rvec"));
-    double iota = *REAL(getListElement(s_fp, "iota"));
     double relinfectART = *REAL(getListElement(s_fp, "relinfectART"));
-    double ts_epidemic_start = *INTEGER(getListElement(s_fp, "ts_epi_start")) - 1; // -1 for 0-based indexing in C vs. 1-based in R
+    // double ts_epidemic_start = *INTEGER(getListElement(s_fp, "ts_epi_start")) - 1; // -1 for 0-based indexing in C vs. 1-based in R
+    double tsEpidemicStart = *REAL(getListElement(s_fp, "tsEpidemicStart")); // -1 for 0-based indexing in C vs. 1-based in R
+    double iota = *REAL(getListElement(s_fp, "iota"));
+
+    int eppmod = *INTEGER(getListElement(s_fp, "eppmodInt"));
+    double *rspline_rvec;
+    double *rtrend_beta, rtrend_tstab, rtrend_r0;
+    if(eppmod == EPP_RSPLINE)
+      rspline_rvec = REAL(getListElement(s_fp, "rvec"));
+    else {
+      SEXP s_rtrend = getListElement(s_fp, "rtrend");
+      rtrend_beta = REAL(getListElement(s_rtrend, "beta"));
+      rtrend_tstab = *REAL(getListElement(s_rtrend, "tStabilize"));
+      rtrend_r0 = *REAL(getListElement(s_rtrend, "r0"));
+    }
     
 
     // vertical transmission and survival
@@ -155,6 +172,12 @@ extern "C" {
     setAttrib(s_pop, install("incrate15to49_ts"), s_incrate15to49_ts);
     double *incrate15to49_ts_out = REAL(s_incrate15to49_ts);
     memset(incrate15to49_ts_out, 0, length(s_incrate15to49_ts)*sizeof(double));
+
+
+    SEXP s_rvec_ts = PROTECT(allocVector(REALSXP, (PROJ_YEARS-1) * HIVSTEPS_PER_YEAR));
+    setAttrib(s_pop, install("rvec_ts"), s_rvec_ts);
+    double *rvec = REAL(s_rvec_ts);
+
     
     // initialize population
 
@@ -189,6 +212,9 @@ extern "C" {
     // array to store lagged prevalence among pregnant women
     double *pregprevlag = REAL(s_pregprevlag); // (double*) R_alloc(PROJ_YEARS, sizeof(double));
     memset(pregprevlag, 0, AGE_START*sizeof(double));
+
+
+    double prevcurr = 0.0, prevlast; // store prevalence at last time step for r-trend model
 
     ////////////////////////////////////
     ////  do population projection  ////
@@ -303,57 +329,15 @@ extern "C" {
       ////////////////////////////////
       
       for(int hts = 0; hts < HIVSTEPS_PER_YEAR; hts++){
+
+	int ts = (t-1)*HIVSTEPS_PER_YEAR + hts;
+	
 	double hivdeaths[NG][hAG];
 	memset(hivdeaths, 0, sizeof(double)*NG*hAG);
 
-	/*
-	// incidence
-
-	*/
-
-        // CD4 progression and mortality
-
-	/*
-        for(int g = 0; g < NG; g++)
-          for(int ha = 0; ha < hAG; ha++){
-            double grad[hDS];
-
-            // untreated population
-            for(int hm = 0; hm < hDS; hm++){
-              double deaths = cd4_mort[g][ha][hm] * hivpop[t][g][ha][hm];
-              hivdeaths[g][ha] += DT*deaths;
-              grad[hm] = -deaths;
-            }
-            for(int hm = 1; hm < hDS; hm++){
-              grad[hm-1] -= cd4_prog[g][ha][hm-1] * hivpop[t][g][ha][hm-1];
-              grad[hm] += cd4_prog[g][ha][hm-1] * hivpop[t][g][ha][hm-1];
-            }
-            for(int hm = 0; hm < hDS; hm++)
-              hivpop[t][g][ha][hm] += DT*grad[hm];
-
-            // ART population
-            if(t >= t_ART_start)
-              for(int hm = 0; hm < hDS; hm++){
-                double gradART[hTS];
-
-                for(int hu = 0; hu < hTS; hu++){
-                  double deaths = art_mort[g][ha][hm][hu] * artpop[t][g][ha][hm][hu];
-                  hivdeaths[g][ha] += DT*deaths;
-                  gradART[hu] = -deaths;
-                }
-
-                gradART[ART0MOS] += -ART_STAGE_PROG_RATE * artpop[t][g][ha][hm][ART0MOS];
-                gradART[ART6MOS] += ART_STAGE_PROG_RATE * artpop[t][g][ha][hm][ART0MOS] - ART_STAGE_PROG_RATE * artpop[t][g][ha][hm][ART6MOS];
-                gradART[ART1YR] += ART_STAGE_PROG_RATE * artpop[t][g][ha][hm][ART6MOS];
-
-                for(int hu = 0; hu < hTS; hu++)
-                  artpop[t][g][ha][hm][hu] += DT*gradART[hu];
-              } // loop over hm
-          } // loop over ha
-
-	*/
-
 	// untreated population
+
+	// disease progression and mortality
 	double grad[NG][hAG][hDS];
         for(int g = 0; g < NG; g++)
           for(int ha = 0; ha < hAG; ha++){
@@ -370,6 +354,7 @@ extern "C" {
 	
 	// incidence
 
+	// sum population sizes
 	double Xhivn[NG], Xhivn_incagerr[NG], Xhivp_noart = 0.0, Xart = 0.0;
 	for(int g = 0; g < NG; g++){
 	  Xhivn[g] = 0.0;
@@ -387,16 +372,31 @@ extern "C" {
 	    }
 	}
 	double Xtot = Xhivn[MALE] + Xhivn[FEMALE] + Xhivp_noart + Xart;
+	prevlast = prevcurr;
+	prevcurr = (Xhivp_noart + Xart) / Xtot;
 
-	int ts = (t-1)*HIVSTEPS_PER_YEAR + hts;
-	double incrate15to49_ts = rvec[ts] * (Xhivp_noart + relinfectART * Xart)/Xtot + ((ts == ts_epidemic_start) ? iota : 0.0);
+	// calculate r(t)
+	if(eppmod == EPP_RSPLINE)
+	  rvec[ts] = rspline_rvec[ts];
+	else {
+	  if(projsteps[ts] > tsEpidemicStart){
+	    double gamma_ts = (projsteps[ts] < rtrend_tstab)?0.0:(prevcurr-prevlast) * (projsteps[ts] - rtrend_tstab) / (DT * prevlast);
+	    double logr_diff = rtrend_beta[1]*(rtrend_beta[0] - rvec[ts-1]) + rtrend_beta[2]*prevlast + rtrend_beta[3]*gamma_ts;
+	    rvec[ts] = exp(log(rvec[ts-1]) + logr_diff);
+	  } else {
+	    rvec[ts] = rtrend_r0;
+	  }
+	}
+
+	double incrate15to49_ts = rvec[ts] * (Xhivp_noart + relinfectART * Xart)/Xtot + ((projsteps[ts] == tsEpidemicStart) ? iota : 0.0);
+	incrate15to49_ts_out[ts] = incrate15to49_ts;
+
+
+	// incidence by sex
 	double incrate15to49_g[NG];
 	incrate15to49_g[MALE] = incrate15to49_ts * (Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
 	incrate15to49_g[FEMALE] = incrate15to49_ts * incrr_sex[t]*(Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
 
-
-	incrate15to49_ts_out[ts] = incrate15to49_ts; // !!TEMP CODE
-	
 	for(int g = 0; g < NG; g++){
 	  int a = 0;
 	  for(int ha = 0; ha < hAG; ha++){
@@ -644,7 +644,7 @@ extern "C" {
       for(int hu = 0; hu < hTS; hu++)
       ma_artpop[t][g][ha][hm][hu] = t < t_ART_start ? 0 : artpop[t][g][ha][hm][hu];
     */
-    UNPROTECT(8);
+    UNPROTECT(9);
     return s_pop;
   }
 }

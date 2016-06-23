@@ -1,5 +1,5 @@
 create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_start = projp$yr_start, proj_end = projp$yr_end,
-                                   AGE_START = 15L, relinfectART = 0.3, time_epi_start = projp$t0){
+                                   AGE_START = 15L, relinfectART = projp$relinfectART, time_epi_start = projp$t0){
 
   
   ## ########################## ##
@@ -46,7 +46,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   invisible(list2env(ss, environment())) # put ss variables in environment for convenience
 
   fp <- list(ss=ss)
-  fp$proj.steps <- proj_start + 0.5 + seq_len(ss$hiv_steps_per_year * (ss$PROJ_YEARS-1)) / ss$hiv_steps_per_year
+  fp$proj.steps <- proj_start + 0.5 + 0:(ss$hiv_steps_per_year * (ss$PROJ_YEARS-1)) / ss$hiv_steps_per_year
   
   ## ######################## ##
   ##  Demographic parameters  ##
@@ -167,6 +167,20 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$netmig_hivprob <- 0.4*0.22
   fp$netmighivsurv <- 0.09/0.22
 
+
+  ## ######################### ##
+  ##  Prepare EPP r(t) models  ##
+  ## ######################### ##
+
+  fp$iota <- 0.0025
+  proj.dur <- diff(range(fp$proj.steps))
+  fp$numKnots <- 7
+  rvec.knots <- seq(min(fp$proj.steps) - 3*proj.dur/(fp$numKnots-3), max(fp$proj.steps) + 3*proj.dur/(fp$numKnots-3), proj.dur/(fp$numKnots-3))
+  fp$rvec.spldes <- splines::splineDesign(rvec.knots, fp$proj.steps)
+  fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - fp$ss$time_epi_start))]
+
+  fp$eppmod <- "rspline"  # default to r-spline model
+  
   class(fp) <- "specfp"
 
   return(fp)
@@ -189,7 +203,7 @@ prepare_rspline_model <- function(fp, numKnots=7, tsEpidemicStart=fp$ss$time_epi
   fp$rvec.spldes <- splines::splineDesign(rvec.knots, fp$proj.steps)
 
   fp$eppmod <- "rspline"
-  fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - (tsEpidemicStart + 1/fp$ss$hiv_steps_per_year)))]
+  fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - tsEpidemicStart))]
   fp$iota <- NULL
 
   return(fp)
@@ -428,5 +442,7 @@ update.specfp <- epp::update.eppfp
 ####  Model outputs  ####
 #########################
 
-modprev15to49 <- function(mod, fp){colSums(mod[fp$ss$p.age15to49.idx,,fp$ss$hivp.idx,],,2) / colSums(mod[fp$ss$p.age15to49.idx,,,],,3)}
-prev.spec <- function(mod, fp) modprev15to49(mod, fp)
+## modprev15to49 <- function(mod, fp){colSums(mod[fp$ss$p.age15to49.idx,,fp$ss$hivp.idx,],,2) / colSums(mod[fp$ss$p.age15to49.idx,,,],,3)}
+prev.spec <- function(mod, fp){ attr(mod, "prev15to49") }
+incid.spec <- function(mod, fp){ attr(mod, "incid15to49") }
+fnPregPrev.spec <- function(mod, fp) { attr(mod, "pregprev") }

@@ -166,7 +166,7 @@ extern "C" {
     setAttrib(s_artpop, R_DimSymbol, s_artpop_dim);
 
     SEXP s_pregprevlag = PROTECT(allocVector(REALSXP, PROJ_YEARS));
-    
+
     setAttrib(s_pop, install("hivpop"), s_hivpop);
     setAttrib(s_pop, install("artpop"), s_artpop);
     setAttrib(s_pop, install("pregprevlag"), s_pregprevlag);
@@ -176,10 +176,34 @@ extern "C" {
     double *incrate15to49_ts_out = REAL(s_incrate15to49_ts);
     memset(incrate15to49_ts_out, 0, length(s_incrate15to49_ts)*sizeof(double));
 
+    SEXP s_prev15to49_ts = PROTECT(allocVector(REALSXP, (PROJ_YEARS-1) * HIVSTEPS_PER_YEAR));
+    setAttrib(s_pop, install("prev15to49_ts"), s_prev15to49_ts);
+    double *prev15to49_ts_out = REAL(s_prev15to49_ts);
+    memset(prev15to49_ts_out, 0, length(s_prev15to49_ts)*sizeof(double));
 
     SEXP s_rvec_ts = PROTECT(allocVector(REALSXP, (PROJ_YEARS-1) * HIVSTEPS_PER_YEAR));
     setAttrib(s_pop, install("rvec_ts"), s_rvec_ts);
     double *rvec = REAL(s_rvec_ts);
+
+    SEXP s_prev15to49 = PROTECT(allocVector(REALSXP, PROJ_YEARS));
+    setAttrib(s_pop, install("prev15to49"), s_prev15to49);
+    double *prev15to49 = REAL(s_prev15to49);
+    prev15to49[0] = 0.0;
+
+    SEXP s_pregprev = PROTECT(allocVector(REALSXP, PROJ_YEARS));
+    setAttrib(s_pop, install("pregprev"), s_pregprev);
+    double *pregprev = REAL(s_pregprev);
+    pregprev[0] = 0.0;
+
+    SEXP s_incid15to49 = PROTECT(allocVector(REALSXP, PROJ_YEARS));
+    setAttrib(s_pop, install("incid15to49"), s_incid15to49);
+    double *incid15to49 = REAL(s_incid15to49);
+    memset(incid15to49, 0, length(s_incid15to49)*sizeof(double));
+
+    double *hivn15to49 = (double*) R_alloc(PROJ_YEARS, sizeof(double));
+    double *hivp15to49 = (double*) R_alloc(PROJ_YEARS, sizeof(double));
+    memset(hivn15to49, 0, PROJ_YEARS*sizeof(double));
+    memset(hivp15to49, 0, PROJ_YEARS*sizeof(double));
 
     
     // initialize population
@@ -191,6 +215,8 @@ extern "C" {
       for(int a = 0; a < pAG; a++){
         pop[0][HIVN][g][a] = basepop[g][a];
         pop[0][HIVP][g][a] = 0.0;
+	if(a >= pIDX_15TO49 & a < pIDX_15TO49+pAG_15TO49)
+	  hivn15to49[0] += basepop[g][a];
       }
 
     // HIV population with stage stratification
@@ -205,11 +231,12 @@ extern "C" {
     // double artpop[PROJ_YEARS][NG][hAG][hDS][hTS];
     multi_array_ref<double, 5> artpop(REAL(s_artpop), extents[PROJ_YEARS][NG][hAG][hDS][hTS]);
     // memset(REAL(s_artpop), 0, length(s_artpop) * sizeof(double)); // initialize artpop to 0
-    for(int g = 0; g < NG; g++)
-      for(int ha = 0; ha < hAG; ha++)
-        for(int hm = 0; hm < hDS; hm++)
-          for(int hu = 0; hu < hTS; hu++)
-            artpop[t_ART_start][g][ha][hm][hu] = 0.0;  // initialize to zero in year of ART start
+    if(t_ART_start < PROJ_YEARS)
+      for(int g = 0; g < NG; g++)
+	for(int ha = 0; ha < hAG; ha++)
+	  for(int hm = 0; hm < hDS; hm++)
+	    for(int hu = 0; hu < hTS; hu++)
+	      artpop[t_ART_start][g][ha][hm][hu] = 0.0;  // initialize to zero in year of ART start
 
 
     // array to store lagged prevalence among pregnant women
@@ -377,6 +404,7 @@ extern "C" {
 	double Xtot = Xhivn[MALE] + Xhivn[FEMALE] + Xhivp_noart + Xart;
 	prevlast = prevcurr;
 	prevcurr = (Xhivp_noart + Xart) / Xtot;
+	prev15to49_ts_out[ts] = prevcurr;
 
 	// calculate r(t)
 	if(eppmod == EPP_RSPLINE)
@@ -410,6 +438,7 @@ extern "C" {
 	      pop[t][HIVP][g][a] += DT*infections_a;
 	      a++;
 	    }
+	    incid15to49[t] += DT*infections_ha;
 	    // add infections to grad hivpop
 	    for(int hm = 0; hm < hDS; hm++)
 	      grad[g][ha][hm] += infections_ha * cd4_initdist[g][ha][hm];
@@ -596,11 +625,11 @@ extern "C" {
         }
       }
       */
-      // prevalence among pregnant women
 
-      if(t + AGE_START < PROJ_YEARS){
-	double hivbirths = 0;
-        for(int ha = hIDX_FERT; ha < hIDX_FERT+hAG_FERT; ha++){
+      // prevalence among pregnant women
+      
+        double hivbirths = 0;
+	for(int ha = hIDX_FERT; ha < hIDX_FERT+hAG_FERT; ha++){
 	  double hivn_ha = 0, frr_hivpop_ha = 0;
 	  for(int a =  hAG_START[ha]; a < hAG_START[ha]+hAG_SPAN[ha]; a++)
             hivn_ha += (pop[t-1][HIVN][FEMALE][a] + pop[t][HIVN][FEMALE][a])/2;
@@ -615,10 +644,20 @@ extern "C" {
 	  }
 	  hivbirths += births_by_ha[ha-hIDX_FERT] * frr_hivpop_ha / (hivn_ha + frr_hivpop_ha);
 	}
-	pregprevlag[t + AGE_START-1] = hivbirths/births;
-      }
-	
-      }
+
+	pregprev[t] = hivbirths/births;
+	if(t + AGE_START < PROJ_YEARS)
+	  pregprevlag[t + AGE_START-1] = pregprev[t];
+
+	// prevalence 15 to 49
+	for(int g = 0; g < NG; g++)
+	  for(int a = pIDX_15TO49; a < pIDX_15TO49 + pAG_15TO49; a++){
+	    hivn15to49[t] += pop[t][HIVN][g][a];
+	    hivp15to49[t] += pop[t][HIVP][g][a];
+	  }
+	prev15to49[t] = hivp15to49[t]/(hivn15to49[t] + hivp15to49[t]);
+	incid15to49[t] /= hivn15to49[t-1];
+    }
 
     //////////////////////////
     ////  Record outputs  ////
@@ -648,7 +687,7 @@ extern "C" {
       for(int hu = 0; hu < hTS; hu++)
       ma_artpop[t][g][ha][hm][hu] = t < t_ART_start ? 0 : artpop[t][g][ha][hm][hu];
     */
-    UNPROTECT(9);
+    UNPROTECT(13);
     return s_pop;
   }
 }

@@ -439,6 +439,7 @@ extern "C" {
 	      a++;
 	    }
 	    incid15to49[t] += DT*infections_ha;
+	    
 	    // add infections to grad hivpop
 	    for(int hm = 0; hm < hDS; hm++)
 	      grad[g][ha][hm] += infections_ha * cd4_initdist[g][ha][hm];
@@ -558,37 +559,9 @@ extern "C" {
 
       } // loop HIVSTEPS_PER_YEAR
 
-      /*
-      // remove hivdeaths from pop
-      for(int g = 0; g < NG; g++){
-
-        // sum HIV+ population size in each hivpop age group
-        double pop_ha[hAG];
-        int a = 0;
-        for(int ha = 0; ha < hAG; ha++){
-          pop_ha[ha] = 0.0;
-          for(int i = 0; i < hAG_SPAN[ha]; i++){
-            pop_ha[ha] += pop[t][HIVP][g][a];
-            a++;
-          }
-        }
-
-        // remove hivdeaths proportionally to age-distribution within each age group
-        a = 0;
-        for(int ha = 0; ha < hAG; ha++){
-          if(pop_ha[ha] > 0){
-            double hivsurv_ha = 1 - hivdeaths[g][ha] / pop_ha[ha];
-            for(int i = 0; i < hAG_SPAN[ha]; i++){
-              pop[t][HIVP][g][a] *= hivsurv_ha;
-              a++;
-            }
-          }  // end if(pop_ha[ha] > 0)
-        }
-      }
-      */
 
       /*
-      // incidence
+      // Code for calculating new infections once per year to match prevalence (like Spectrum)
 
       // (1) incidence from prevalence input
       double Xhivp = 0.0, Xhivn[NG], Xhivn_incagerr[NG];
@@ -659,34 +632,6 @@ extern "C" {
 	incid15to49[t] /= hivn15to49[t-1];
     }
 
-    //////////////////////////
-    ////  Record outputs  ////
-    //////////////////////////
-    /*
-      multi_array_ref<double, 4> ma_pop(REAL(s_pop), extents[PROJ_YEARS][pDS][NG][pAG]);
-      for(int t = 0; t < PROJ_YEARS; t++)
-      for(int m = 0; m < pDS; m++)
-      for(int g = 0; g < NG; g++)
-      for(int a = 0; a < pAG; a++)
-      ma_pop[t][m][g][a] = pop[t][m][g][a];
-    */
-    /*
-      multi_array_ref<double, 4> ma_hivpop(REAL(s_hivpop), extents[PROJ_YEARS][NG][hAG][hDS]);
-      for(int t = 0; t < PROJ_YEARS; t++)
-      for(int g = 0; g < NG; g++)
-      for(int ha = 0; ha < hAG; ha++)
-      for(int hm = 0; hm < hDS; hm++)
-      ma_hivpop[t][g][ha][hm] = hivpop[t][g][ha][hm];
-
-
-      multi_array_ref<double, 5> ma_artpop(REAL(s_artpop), extents[PROJ_YEARS][NG][hAG][hDS][hTS]);
-      for(int t = 0; t < PROJ_YEARS; t++)
-      for(int g = 0; g < NG; g++)
-      for(int ha = 0; ha < hAG; ha++)
-      for(int hm = 0; hm < hDS; hm++)
-      for(int hu = 0; hu < hTS; hu++)
-      ma_artpop[t][g][ha][hm][hu] = t < t_ART_start ? 0 : artpop[t][g][ha][hm][hu];
-    */
     UNPROTECT(13);
     return s_pop;
   }

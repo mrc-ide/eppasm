@@ -382,12 +382,8 @@ simmod.specfp <- function(fp, VERSION="C"){
       }
     }
 
-    ## ## Remove HIV deaths from single year population projection
-    ## ## Assume deaths come proportional to HIV age distribution
-    ## calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
-    ## pop[,,2,i] <- pop[,,2,i] - apply(hivdeaths, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)
 
-
+    ## ## Code for calculating new infections once per year to match prevalence (like Spectrum)
     ## ## incidence
     ## prev.i <- sum(pop[p.age15to49.idx,,2,i]) / sum(pop[p.age15to49.idx,,,i]) # prevalence age 15 to 49
     ## incrate15to49.i <- (fp$prev15to49[i] - prev.i)/(1-prev.i)
@@ -408,12 +404,7 @@ simmod.specfp <- function(fp, VERSION="C"){
     pregprev <- sum(births.by.h.age * (1 - hivn.byage / (hivn.byage + colSums(fp$frr_cd4 * hivp.byage[1,,]) + colSums(fp$frr_art * hivp.byage[-1,,],,2)))) / sum(births.by.age)
     if(i+AGE_START <= PROJ_YEARS)
       pregprevlag[i+AGE_START-1] <- pregprev
-
-
-    ## output
-    ## incrate15to49[i] <- incrate15to49.i
-    ## sexinc15to49out[,i] <- sexinc15to49
-    }
+  }
 
   attr(pop, "incrate15to49") <- incrate15to49
   attr(pop, "sexinc") <- sexinc15to49out

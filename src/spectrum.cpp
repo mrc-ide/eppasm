@@ -385,12 +385,12 @@ extern "C" {
 	// incidence
 
 	// sum population sizes
-	double Xhivn[NG], Xhivn_incagerr[NG], Xhivp_noart = 0.0, Xart = 0.0;
+	double Xhivn_g[NG], Xhivn_incagerr[NG], Xhivp_noart = 0.0, Xart = 0.0;
 	for(int g = 0; g < NG; g++){
-	  Xhivn[g] = 0.0;
+	  Xhivn_g[g] = 0.0;
 	  Xhivn_incagerr[g] = 0.0;
 	  for(int a = pIDX_15TO49; a < pIDX_15TO49+pAG_15TO49; a++){
-	    Xhivn[g] += pop[t][HIVN][g][a];
+	    Xhivn_g[g] += pop[t][HIVN][g][a];
 	    Xhivn_incagerr[g] += incrr_age[t][g][a] * pop[t][HIVN][g][a];
 	  }
 	  for(int ha = hIDX_15TO49; ha < hIDX_15TO49+hAG_15TO49; ha++)
@@ -401,9 +401,22 @@ extern "C" {
 		  Xart += artpop[t][g][ha][hm][hu];
 	    }
 	}
-	double Xtot = Xhivn[MALE] + Xhivn[FEMALE] + Xhivp_noart + Xart;
+	double Xhivn = Xhivn_g[MALE] + Xhivn_g[FEMALE];
+	double Xhivp = Xhivp_noart + Xart;
+	double prop_art_ts = Xhivp > 0 ? Xart / Xhivp : 0.0;
+	
+	// adjust HIV population for partial year time step
+	for(int g = 0; g < NG; g++){
+	  Xhivn -= pop[t][HIVN][g][pIDX_15TO49] * (1.0 - DT*hts);
+	  Xhivp -= pop[t][HIVP][g][pIDX_15TO49] * (1.0 - DT*hts);
+	  Xhivn += pop[t][HIVN][g][pIDX_15TO49+pAG_15TO49] * (1.0 - DT*hts);
+	  Xhivp += pop[t][HIVP][g][pIDX_15TO49+pAG_15TO49] * (1.0 - DT*hts);
+	}
+	    
+	double Xtot = Xhivn + Xhivp;
+
 	prevlast = prevcurr;
-	prevcurr = (Xhivp_noart + Xart) / Xtot;
+	prevcurr = Xhivp / Xtot;
 	prev15to49_ts_out[ts] = prevcurr;
 
 	// calculate r(t)
@@ -419,21 +432,21 @@ extern "C" {
 	  }
 	}
 
-	double incrate15to49_ts = rvec[ts] * (Xhivp_noart + relinfectART * Xart)/Xtot + ((projsteps[ts] == tsEpidemicStart) ? iota : 0.0);
+	double incrate15to49_ts = rvec[ts] * Xhivp * (1.0 - (1.0 - relinfectART) * prop_art_ts) / Xtot + ((projsteps[ts] == tsEpidemicStart) ? iota : 0.0);
 	incrate15to49_ts_out[ts] = incrate15to49_ts;
 
 
 	// incidence by sex
 	double incrate15to49_g[NG];
-	incrate15to49_g[MALE] = incrate15to49_ts * (Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
-	incrate15to49_g[FEMALE] = incrate15to49_ts * incrr_sex[t]*(Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
+	incrate15to49_g[MALE] = incrate15to49_ts * (Xhivn_g[MALE]+Xhivn_g[FEMALE]) / (Xhivn_g[MALE] + incrr_sex[t]*Xhivn_g[FEMALE]);
+	incrate15to49_g[FEMALE] = incrate15to49_ts * incrr_sex[t]*(Xhivn_g[MALE]+Xhivn_g[FEMALE]) / (Xhivn_g[MALE] + incrr_sex[t]*Xhivn_g[FEMALE]);
 
 	for(int g = 0; g < NG; g++){
 	  int a = 0;
 	  for(int ha = 0; ha < hAG; ha++){
 	    double infections_a, infections_ha = 0.0;
 	    for(int i = 0; i < hAG_SPAN[ha]; i++){
-	      infections_ha += infections_a = pop[t][HIVN][g][a] * incrate15to49_g[g] * incrr_age[t][g][a] * Xhivn[g] / Xhivn_incagerr[g];
+	      infections_ha += infections_a = pop[t][HIVN][g][a] * incrate15to49_g[g] * incrr_age[t][g][a] * Xhivn_g[g] / Xhivn_incagerr[g];
 	      pop[t][HIVN][g][a] -= DT*infections_a;
 	      pop[t][HIVP][g][a] += DT*infections_a;
 	      a++;

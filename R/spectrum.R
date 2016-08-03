@@ -248,6 +248,8 @@ simmod.specfp <- function(fp, VERSION="C"){
   incrate15to49.ts.out <- rep(NA, length(fp$rvec))
   rvec <- if(fp$eppmod == "rtrend") rep(NA, length(fp$proj.steps)) else fp$rvec
 
+  prev15to49.ts.out <- rep(NA, length(fp$rvec))
+
   ## store last prevalence value (for r-trend model)
   prevlast <- prevcurr <- 0
 
@@ -311,16 +313,30 @@ simmod.specfp <- function(fp, VERSION="C"){
     for(ii in seq_len(hiv_steps_per_year)){
       grad <- array(0, c(hTS+1L, hDS, hAG, NG))
 
-      ## incidence
+      ## HIV population size at ts
       ts <- (i-2)/DT + ii
+
+      hivn.ii <- sum(pop[p.age15to49.idx,,hivn.idx,i])
+      hivn.ii <- hivn.ii - sum(pop[p.age15to49.idx[1],,hivn.idx,i])*(1-DT*(ii-1))
+      hivn.ii <- hivn.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivn.idx,i])*(1-DT*(ii-1))
+
+      hivp.ii <- sum(pop[p.age15to49.idx,,hivp.idx,i])
+      hivp.ii <- hivp.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i])*(1-DT*(ii-1))
+      hivp.ii <- hivp.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i])*(1-DT*(ii-1))
+
+      ## there is an approximation here since this is the 15-49 pop (doesn't account for the slight offset in age group)
+      propart.ii <- ifelse(hivp.ii > 0, sum(hivpop[-1,,h.age15to49.idx,,i])/sum(hivpop[,,h.age15to49.idx,,i]), 0)  
+
+      
+      ## incidence
 
       ## calculate r(t)
       prevlast <- prevcurr
-      prevcurr <- sum(pop[p.age15to49.idx,,hivp.idx,i]) / sum(pop[p.age15to49.idx,,,i])
+      prev15to49.ts.out[ts] <- prevcurr <- hivp.ii / (hivn.ii+hivp.ii)
       if(fp$eppmod=="rtrend")
         rvec[ts] <- calc.rt(fp$proj.steps[ts], fp, rvec[ts-1L], prevlast, prevcurr)
       
-      incrate15to49.ts <- rvec[ts] * (sum(hivpop[1,,h.age15to49.idx,,i]) + fp$relinfectART*sum(hivpop[-1,,h.age15to49.idx,,i])) / sum(pop[p.age15to49.idx,,,i]) + fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
+      incrate15to49.ts <- rvec[ts] * hivp.ii * (1 - (1-fp$relinfectART)*propart.ii) / (hivn.ii+hivp.ii) + fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
       sexinc15to49.ts <- incrate15to49.ts*c(1, fp$incrr_sex[i])*sum(pop[p.age15to49.idx,,hivn.idx,i])/(sum(pop[p.age15to49.idx,m.idx,hivn.idx,i]) + fp$incrr_sex[i]*sum(pop[p.age15to49.idx, f.idx,hivn.idx,i]))
       agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc15to49.ts/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$incrr_age[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
       infections.ts <- agesex.inc * pop[,,hivn.idx,i]
@@ -411,7 +427,8 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "hivpop") <- hivpop
   attr(pop, "pregprevlag") <- pregprevlag
   attr(pop, "paedsurvout") <- paedsurvout
-  attr(pop, "incrate15to49.ts") <- incrate15to49.ts.out
+  attr(pop, "incrate15to49_ts") <- incrate15to49.ts.out
+  attr(pop, "prev15to49_ts") <- prev15to49.ts.out
   class(pop) <- "spec"
   return(pop)
 }

@@ -318,3 +318,110 @@ read_demog_param <- function(upd.file, age.intervals = 1){
 
   return(demp)
 }
+
+
+##########################################################
+####  Read demographic inputs from Spectrum .DP file  ####
+##########################################################
+
+## Note: only parses Spectrum 2016 files, produces outputs by single-year age
+
+read_specdp_demog_param <- function(specdp.file){
+
+  dp <- read.csv(specdp.file, as.is=TRUE)
+
+  version <- paste("Spectrum", dp[which(dp[,1] == "<ValidVers MV>")+2, 4])
+
+  ## projection parameters
+  yr_start <- as.integer(dp[which(dp[,1] == "<FirstYear MV>")+3,4])
+  yr_end <- as.integer(dp[which(dp[,1] == "<FinalYear MV>")+3,4])
+  proj.years <- yr_start:yr_end
+  timedat.idx <- 4+1:length(proj.years)-1
+
+
+  ## population size
+  bp.tidx <- which(dp[,1] == "<BigPop MV>")
+  basepop <- dp[bp.tidx+3+0:161, timedat.idx]
+  basepop <- array(as.numeric(unlist(basepop)), c(81, 2, length(proj.years)))
+  dimnames(basepop) <- list(0:80, c("Male", "Female"), proj.years)
+
+  ## mx
+  sx.tidx <- which(dp[,1] == "<SurvRate MV>")
+  Sx <- dp[sx.tidx+3+c(0:79,81, 83+0:79, 83+81), timedat.idx]
+  Sx <- array(as.numeric(unlist(Sx)), c(81, 2, length(proj.years)))
+  dimnames(Sx) <- list(0:80, c("Male", "Female"), proj.years)
+  mx <- -log(Sx)
+
+  ## asfr
+  tfr.tidx <- which(dp[,1] == "<TFR MV>")
+  asfd.tidx <- which(dp[,1] == "<ASFR MV>")
+
+  tfr <- setNames(as.numeric(dp[tfr.tidx + 2, timedat.idx]), proj.years)
+  asfd <- sapply(dp[asfd.tidx + 3:9, timedat.idx], as.numeric)/100
+  asfd <- apply(asfd / 5, 2, rep, each=5)
+  dimnames(asfd) <- list(15:49, proj.years)
+  asfr <- sweep(asfd, 2, tfr, "*")
+
+  ## srb
+  srb.tidx <- which(dp[,1] == "<SexBirthRatio MV>")
+  srb <- setNames(as.numeric(dp[srb.tidx + 2, timedat.idx]), proj.years)
+
+  ## migration
+  migrrate.tidx <- which(dp[,1] == "<MigrRate MV>")
+  migaged.tidx <- which(dp[,1] == "<MigrAgeDist MV>")
+
+  totnetmig <- sapply(dp[migrrate.tidx+c(5,8), timedat.idx], as.numeric)
+
+  ## note: age=0 is empty in DP file, inputs start in age=1
+  netmigagedist <- sapply(dp[migaged.tidx+6+c(1:17*2, 37+1:17*2), timedat.idx], as.numeric) / 100
+  netmigagedist <- array(c(netmigagedist), c(17, 2, length(proj.years)))
+
+  netmigr <- sweep(netmigagedist, 2:3, totnetmig, "*")
+
+
+  ## Beer's coefficients for disaggregating 5 year age groups into
+  ## single-year age groups (from John Stover)
+  Afirst <- rbind(c(0.3333, -0.1636, -0.0210,  0.0796, -0.0283),
+                  c(0.2595, -0.0780,  0.0130,  0.0100, -0.0045),
+                  c(0.1924,  0.0064,  0.0184, -0.0256,  0.0084),
+                  c(0.1329,  0.0844,  0.0054, -0.0356,  0.0129),
+                  c(0.0819,  0.1508, -0.0158, -0.0284,  0.0115))
+  Asecond <- rbind(c( 0.0404,  0.2000, -0.0344, -0.0128,  0.0068),
+                   c( 0.0093,  0.2268, -0.0402,  0.0028,  0.0013),
+                   c(-0.0108,  0.2272, -0.0248,  0.0112, -0.0028),
+                   c(-0.0198,  0.1992,  0.0172,  0.0072, -0.0038),
+                   c(-0.0191,  0.1468,  0.0822, -0.0084, -0.0015))
+  Amid <- rbind(c(-0.0117,  0.0804,  0.1570, -0.0284,  0.0027),
+                c(-0.0020,  0.0160,  0.2200, -0.0400,  0.0060),
+                c( 0.0050, -0.0280,  0.2460, -0.0280,  0.0050),
+                c( 0.0060, -0.0400,  0.2200,  0.0160, -0.0020),
+                c( 0.0027, -0.0284,  0.1570,  0.0804, -0.0117))
+  Apenult <- rbind(c(-0.0015, -0.0084,  0.0822,  0.1468, -0.0191),
+                   c(-0.0038,  0.0072,  0.0172,  0.1992, -0.0198),
+                   c(-0.0028,  0.0112, -0.0248,  0.2272, -0.0108),
+                   c( 0.0013,  0.0028, -0.0402,  0.2268,  0.0093),
+                   c( 0.0068, -0.0128, -0.0344,  0.2000,  0.0404))
+  Aultim <- rbind(c( 0.0115, -0.0284, -0.0158,  0.1508,  0.0819),
+                  c( 0.0129, -0.0356,  0.0054,  0.0844,  0.1329),
+                  c( 0.0084, -0.0256,  0.0184,  0.0064,  0.1924),
+                  c(-0.0045,  0.0100,  0.0130, -0.0780,  0.2595),
+                  c(-0.0283,  0.0796, -0.0210, -0.1636,  0.3333))
+
+  A <- do.call(rbind,
+               c(list(cbind(Afirst, matrix(0, 5, 12)),
+                      cbind(Asecond, matrix(0, 5, 12))),
+                 lapply(0:11, function(i) cbind(matrix(0, 5, i), Amid, matrix(0, 5, 12-i))),
+                 list(cbind(matrix(0, 5, 11), Apenult, matrix(0, 5, 1)),
+                      cbind(matrix(0, 5, 11), Aultim, matrix(0, 5, 1)),
+                      c(rep(0, 16), 1))))
+
+  netmigr <- apply(netmigr, 2:3, function(x) A %*% x)
+  dimnames(netmigr) <- list(0:80, c("Male", "Female"), proj.years)
+
+
+  demp <- list("basepop"=basepop, "mx"=mx, "Sx"=Sx, "asfr"=asfr, "tfr"=tfr, "asfd"=asfd, "srb"=srb, "netmigr"=netmigr)
+  class(demp) <- "demp"
+  attr(demp, "version") <- version
+
+  return(demp)
+}

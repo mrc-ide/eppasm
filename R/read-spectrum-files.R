@@ -40,7 +40,7 @@ read.hivproj.output <- function(specdp.file, single.age=TRUE){
   dimnames(newinf.m) <- dimnames(newinf.f) <- list(agegr.lab, proj.years)
 
   ## Number of infant (age 0) new infections
-  
+
   ## Total population size
   if(dp.vers == "<General 3>"){
     totpop.tidx <- which(dp[,2] == "Total Population")
@@ -98,7 +98,7 @@ read.hivproj.output <- function(specdp.file, single.age=TRUE){
   ##   <HIVBySingleAge>
   ## }
 
-  
+
   class(specres) <- "specres"
 
   return(specres)
@@ -122,8 +122,8 @@ read_hivproj_param <- function(specdp.file){
 
   ## find tag indexes (tidx)
   if(dp.vers == "<General 3>"){
-     aids5.tidx <- which(dp[,1] == "<AIDS5>")
-     epidemfirstyr.tidx <- aids5.tidx
+    aids5.tidx <- which(dp[,1] == "<AIDS5>")
+    epidemfirstyr.tidx <- aids5.tidx
   } else if(dp.vers == "<General5>"){
     epidemfirstyr.tidx <- which(dp[,1] == "<FirstYearOfEpidemic>")
     hivtfr.tidx <- which(dp[,1] == "<HIVTFR2>")
@@ -138,7 +138,7 @@ read_hivproj_param <- function(specdp.file){
   adult.art.tidx <- which(dp[,1] == "<HAARTBySex>")
   adult.arteligthresh.tidx <- which(dp[,1] == "<CD4ThreshHoldAdults>")
   specpopelig.tidx <- which(dp[,1] == "<PopsEligTreat1>")
-  
+
 
   ## state space dimensions
   NG <- 2
@@ -255,50 +255,66 @@ read_demog_param <- function(upd.file, age.intervals = 1){
   ## Read and parse udp file
   upd <- read.csv(upd.file, header=FALSE, as.is=TRUE)
 
-  bp.tidx <- which(upd[,1] == "<basepop>")
-  lt.tidx <- which(upd[,1] == "<lfts>")
-  pasfrs.tidx <- which(upd[,1] == "<pasfrs>")
-  migration.tidx <- which(upd[,1] == "<migration>")
-  tfr.tidx <- which(upd[,1] == "<tfr>")
-  srb.tidx <- which(upd[,1] == "<srb>")
+  wpp.version <- ifelse(any(upd[,1] ==  "RevisionYear=2015"), "wpp2015", "wpp2012")
 
-  bp <- setNames(data.frame(upd[bp.tidx+2:1459,1:4]), upd[bp.tidx+1,1:4])
-  lt <- setNames(data.frame(upd[lt.tidx+2:13121,1:12]), upd[lt.tidx+1,1:12])
-  pasfrs <- setNames(data.frame(upd[pasfrs.tidx+1+1:(80*35),1:3]), upd[pasfrs.tidx+1,1:3])
-  migration <- setNames(data.frame(upd[migration.tidx+1+1:(80*2*81),1:4]), upd[migration.tidx+1,1:4])
-  tfr <- setNames(as.numeric(upd[tfr.tidx+1+1:80,2]), upd[tfr.tidx+1+1:80,1])
-  srb <- setNames(as.numeric(upd[srb.tidx+1+1:80,2]), upd[srb.tidx+1+1:80,1])
+  bp.tidx <- which(upd[,1] == "<basepop>")   # tag index [tidx]
+  bp.eidx <- which(upd[,1] == "</basepop>")  # end tag index [eidx]
+
+  lt.tidx <- which(upd[,1] == "<lfts>")
+  lt.eidx <- which(upd[,1] == "</lfts>")
+
+  pasfrs.tidx <- which(upd[,1] == "<pasfrs>")
+  pasfrs.eidx <- which(upd[,1] == "</pasfrs>")
+
+  migration.tidx <- which(upd[,1] == "<migration>")
+  migration.eidx <- which(upd[,1] == "</migration>")
+
+  tfr.tidx <- which(upd[,1] == "<tfr>")
+  tfr.eidx <- which(upd[,1] == "</tfr>")
+
+  srb.tidx <- which(upd[,1] == "<srb>")
+  srb.eidx <- which(upd[,1] == "</srb>")
+
+  bp <- setNames(data.frame(upd[(bp.tidx+2):(bp.eidx-1),1:4]), upd[bp.tidx+1,1:4])
+  lt <- setNames(data.frame(upd[(lt.tidx+2):(lt.eidx-1),]), upd[lt.tidx+1,])
+  pasfrs <- setNames(data.frame(upd[(pasfrs.tidx+2):(pasfrs.eidx-1),1:3]), upd[pasfrs.tidx+1,1:3])
+  migration <- setNames(data.frame(upd[(migration.tidx+2):(migration.eidx-1),1:4]), upd[migration.tidx+1,1:4])
+  tfr <- setNames(as.numeric(upd[(tfr.tidx+2):(tfr.eidx-1),2]), upd[(tfr.tidx+2):(tfr.eidx-1),1])
+  srb <- setNames(as.numeric(upd[(srb.tidx+2):(srb.eidx-1),2]), upd[(srb.tidx+2):(srb.eidx-1),1])
 
 
   ## Aggregate into specified age groups
 
   ## population size
-  basepop <- array(as.numeric(bp$value), c(81, 2, 9))
-  dimnames(basepop) <- list(0:80, c("Male", "Female"), seq(1970, 2010, 5))
+  basepop <- array(as.numeric(bp$value), c(length(unique(bp$age)), length(unique(bp$sex)), length(unique(bp$year))))
+  dimnames(basepop) <- list(unique(bp$age), c("Male", "Female"), unique(bp$year))
   basepop <- apply(basepop, 2:3, tapply, age.groups, sum)
 
   ## mx
-  Sx <- as.numeric(lt$Sx[-(1:(2*80)*82-1)]) # 80+ age group given twice
-  dim(Sx) <- c(81, 2, 80)
-  dimnames(Sx) <- list(0:80, c("Male", "Female"), 1970:2049)
+  years <- unique(lt$year)
+  nyears <- length(years)
+  Sx <- as.numeric(lt$Sx[-(1:(2*nyears)*82-1)]) # 80+ age group given twice
+  dim(Sx) <- c(81, 2, nyears)
+  dimnames(Sx) <- list(0:80, c("Male", "Female"), years)
   Sx <- apply(Sx, 2:3, tapply, age.groups, prod)
   mx <- -sweep(log(Sx), 1, age.intervals, "/")
 
   ## asfr
-  asfd <- array(as.numeric(pasfrs$value), c(35, 80))
-  dimnames(asfd) <- list(15:49, 1970:2049)
+  asfd <- array(as.numeric(pasfrs$value), c(35, nyears))
+  dimnames(asfd) <- list(15:49, years)
   asfr <- sweep(asfd, 2, tfr, "*")
   asfr <- apply(asfr, 2, tapply, age.groups[16:50], mean)
 
   asfd <- apply(asfd, 2, tapply, age.groups[16:50], sum)
 
   ## migration
-  netmigr <- array(as.numeric(migration$value), c(81, 2, 80))
-  dimnames(netmigr) <- list(0:80, c("Male", "Female"), 1970:2049)
+  netmigr <- array(as.numeric(migration$value), c(81, 2, nyears))
+  dimnames(netmigr) <- list(0:80, c("Male", "Female"), years)
   netmigr <- apply(netmigr, 2:3, tapply, age.groups, sum)
 
   demp <- list("basepop"=basepop, "mx"=mx, "Sx"=Sx, "asfr"=asfr, "tfr"=tfr, "asfd"=asfd, "srb"=srb, "netmigr"=netmigr)
   class(demp) <- "demp"
+  attr(demp, "version") <- wpp.version
 
   return(demp)
 }

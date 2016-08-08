@@ -424,7 +424,8 @@ simmod.specfp <- function(fp, VERSION="C"){
 
   attr(pop, "incrate15to49") <- incrate15to49
   attr(pop, "sexinc") <- sexinc15to49out
-  attr(pop, "hivpop") <- hivpop
+  attr(pop, "hivpop") <- hivpop[1,,,,]
+  attr(pop, "artpop") <- hivpop[-1,,,,]
   attr(pop, "pregprevlag") <- pregprevlag
   attr(pop, "paedsurvout") <- paedsurvout
   attr(pop, "incrate15to49_ts") <- incrate15to49.ts.out

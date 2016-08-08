@@ -114,11 +114,25 @@ read_hivproj_param <- function(specdp.file){
   ## read .DP file
   dp <- read.csv(specdp.file, as.is=TRUE)
 
-  dp.vers <- dp[2,1] # <General 3>: 2013, 2014 Spectrum files; <General5>: 2015 Spectrum files
+  dpsub <- function(tag, rows, cols, tagcol=1){
+    dp[which(dp[,tagcol]==tag)+rows, cols]
+  }
 
-  version <- as.numeric(dp[which(dp[,2] == "Version")+1,4])
-  validdate <- dp[which(dp[,1] == "<ValidDate>")+2,3]
-  validversion <- as.numeric(dp[which(dp[,1] == "<ValidVers>")+2,4])
+
+  dp.vers <- dp[2,1] # <General 3>: 2013, 2014 Spectrum files; <General5>: 2015 Spectrum files
+  if(!dp.vers %in% c("<General 3>", "<General5>"))
+    dp.vers <- "Spectrum2016"
+
+  if(dp.vers %in% c("<General 3>", "<General5>")){
+    version <- as.numeric(dp[which(dp[,2] == "Version")+1,4])
+    validdate <- dp[which(dp[,1] == "<ValidDate>")+2,3]
+    validversion <- as.numeric(dp[which(dp[,1] == "<ValidVers>")+2,4])
+  } else if(dp.vers == "Spectrum2016") {
+    version <- as.numeric(dpsub("<VersionNum MV>", 3, 4))
+    validdate <- dpsub("<ValidDate MV>",2,3)
+    validversion <- dpsub("<ValidVers MV>",2,4)
+  }
+
 
   ## find tag indexes (tidx)
   if(dp.vers == "<General 3>"){
@@ -131,84 +145,130 @@ read_hivproj_param <- function(specdp.file){
     hivagedist.tidx <- which(dp[,1] == "<HIVDistribution2>")
   }
 
-  nathist.tidx <- which(dp[,1] == "<AdultTransParam2>")
-  cd4initdist.tidx <- which(dp[,1] == "<DistNewInfectionsCD4>")
-  infectreduc.tidx <- which(dp[,1] == "<InfectReduc>")
-  adult.artnumperc.tidx <- which(dp[,1] == "<HAARTBySexPerNum>")
-  adult.art.tidx <- which(dp[,1] == "<HAARTBySex>")
-  adult.arteligthresh.tidx <- which(dp[,1] == "<CD4ThreshHoldAdults>")
-  specpopelig.tidx <- which(dp[,1] == "<PopsEligTreat1>")
-
+  if(dp.vers %in% c("<General 3>", "<General5>")){
+    nathist.tidx <- which(dp[,1] == "<AdultTransParam2>")
+    cd4initdist.tidx <- which(dp[,1] == "<DistNewInfectionsCD4>")
+    infectreduc.tidx <- which(dp[,1] == "<InfectReduc>")
+    adult.artnumperc.tidx <- which(dp[,1] == "<HAARTBySexPerNum>")
+    adult.art.tidx <- which(dp[,1] == "<HAARTBySex>")
+    adult.arteligthresh.tidx <- which(dp[,1] == "<CD4ThreshHoldAdults>")
+    specpopelig.tidx <- which(dp[,1] == "<PopsEligTreat1>")
+  }
 
   ## state space dimensions
   NG <- 2
   AG <- 17
   DS <- 7
   TS <- 3
-
+  
   ## projection parameters
-  yr_start <- as.integer(dp[which(dp[,2] == "First year")+1,4])
-  yr_end <- as.integer(dp[which(dp[,2] == "Final year")+1,4])
+  if(dp.vers %in% c("<General 3>", "<General5>")){
+    yr_start <- as.integer(dp[which(dp[,2] == "First year")+1,4])
+    yr_end <- as.integer(dp[which(dp[,2] == "Final year")+1,4])
+    t0 <- as.numeric(dp[epidemfirstyr.tidx+2,4])
+  } else if(dp.vers == "Spectrum2016"){
+    yr_start <- as.integer(dpsub("<FirstYear MV>",3,4))
+    yr_end <- as.integer(dpsub("<FinalYear MV>",3,4))
+    t0 <- as.numeric(dpsub("<FirstYearOfEpidemic MV>",2,4))
+  }
   proj.years <- yr_start:yr_end
-  t0 <- as.numeric(dp[epidemfirstyr.tidx+2,4])
   timedat.idx <- 4+1:length(proj.years)-1
-
+    
+  
   ## scalar paramters
-  relinfectART <- 1.0 - as.numeric(dp[infectreduc.tidx+1, 4])
+  if(dp.vers %in% c("<General 3>", "<General5>")){
+     relinfectART <- 1.0 - as.numeric(dp[infectreduc.tidx+1, 4])
+  } else if(dp.vers == "Spectrum2016"){
+    relinfectART <- 1.0 - as.numeric(dpsub("<AdultInfectReduc MV>",2,4))
+  }
 
   if(dp.vers == "<General 3>"){
     fert_rat <- as.numeric(dp[which(dp[,1] == "<AIDS5>")+185, 4+0:6])
     fert_rat <- array(rep(fert_rat, length(proj.years)), c(7, length(proj.years)))
-    dimnames(fert_rat) <- list(seq(15, 45, 5), proj.years)
   } else if(dp.vers == "<General5>") {
     fert_rat <- sapply(dp[hivtfr.tidx+2:8, 3+seq_along(proj.years)], as.numeric)
-    dimnames(fert_rat) <- list(seq(15, 45, 5), proj.years)
+  } else if(dp.vers == "Spectrum2016") {
+    fert_rat <- sapply(dpsub("<HIVTFR MV>", 2:8, timedat.idx), as.numeric)
   }
+  dimnames(fert_rat) <- list(seq(15, 45, 5), proj.years)
+
 
   ## sex/age-specific incidence ratios (time varying)
+  incrr_age <- array(NA, c(AG, NG, length(proj.years)), list(0:(AG-1)*5, c("Male", "Female"), proj.years))
   if(dp.vers == "<General 3>"){
     incrr_sex <- setNames(as.numeric(dp[aids5.tidx+181,timedat.idx]), proj.years) # !!! Not sure what aids5.tidx+183 (Ratio of female to male prevalence)
-    incrr_age <- array(NA, c(AG, NG, length(proj.years)), list(0:(AG-1)*5, c("Male", "Female"), proj.years))
     incrr_age[,"Male",] <- sapply(dp[aids5.tidx+281:297,timedat.idx], as.numeric)
     incrr_age[,"Female",] <- sapply(dp[aids5.tidx+299:315,timedat.idx], as.numeric)
   } else if(dp.vers == "<General5>"){
     incrr_sex <- setNames(as.numeric(dp[hivsexrat.tidx+2, timedat.idx]), proj.years)
-    incrr_age <- array(NA, c(AG, NG, length(proj.years)), list(0:(AG-1)*5, c("Male", "Female"), proj.years))
     incrr_age[,"Male",] <- sapply(dp[hivagedist.tidx+3:19,timedat.idx], as.numeric)
     incrr_age[,"Female",] <- sapply(dp[hivagedist.tidx+21:37,timedat.idx], as.numeric)
+  } else if(dp.vers == "Spectrum2016") {
+    incrr_sex <- setNames(as.numeric(dpsub("<HIVSexRatio MV>", 2, timedat.idx)), proj.years)
+    incrr_age[,"Male",] <- sapply(dpsub("<DistOfHIV MV>", 4:20, timedat.idx), as.numeric)
+    incrr_age[,"Female",] <- sapply(dpsub("<DistOfHIV MV>", 22:38, timedat.idx), as.numeric)
   }
+
 
   ## hiv natural history
   cd4_initdist <- array(NA, c(DS, 4, NG), list(1:DS, c("15-24", "25-34", "35-44", "45+"), c("Male", "Female")))
-  cd4_initdist[,,"Male"] <- array(as.numeric(dp[cd4initdist.tidx+2, 4:31])/100, c(DS, 4))
-  cd4_initdist[,,"Female"] <- array(as.numeric(dp[cd4initdist.tidx+3, 4:31])/100, c(DS, 4))
-
   cd4_prog <- array(NA, c(DS-1, 4, NG), list(1:(DS-1), c("15-24", "25-34", "35-44", "45+"), c("Male", "Female")))
-  cd4_prog[,,"Male"] <- array(1/as.numeric(dp[nathist.tidx+4, 4:27]), c(DS-1, 4))
-  cd4_prog[,,"Female"] <- array(1/as.numeric(dp[nathist.tidx+5, 4:27]), c(DS-1, 4))
-
   cd4_mort <- array(NA, c(DS, 4, NG), list(1:DS, c("15-24", "25-34", "35-44", "45+"), c("Male", "Female")))
-  cd4_mort[,,"Male"] <- array(as.numeric(dp[nathist.tidx+7, 4:31]), c(DS, 4))
-  cd4_mort[,,"Female"] <- array(as.numeric(dp[nathist.tidx+8, 4:31]), c(DS, 4))
-
   art_mort <- array(NA, c(TS, DS, 4, NG), list(c("ART0MOS", "ART6MOS", "ART1YR"), 1:DS, c("15-24", "25-34", "35-44", "45+"), c("Male", "Female")))
-  art_mort[1,,,"Male"] <- array(as.numeric(dp[nathist.tidx+10, 4:31]), c(DS, 4))
-  art_mort[1,,,"Female"] <- array(as.numeric(dp[nathist.tidx+11, 4:31]), c(DS, 4))
-  art_mort[2,,,"Male"] <- array(as.numeric(dp[nathist.tidx+13, 4:31]), c(DS, 4))
-  art_mort[2,,,"Female"] <- array(as.numeric(dp[nathist.tidx+14, 4:31]), c(DS, 4))
-  art_mort[3,,,"Male"] <- array(as.numeric(dp[nathist.tidx+16, 4:31]), c(DS, 4))
-  art_mort[3,,,"Female"] <- array(as.numeric(dp[nathist.tidx+17, 4:31]), c(DS, 4))
 
+  if(dp.vers %in% c("<General 3>", "<General5>")){
+    cd4_initdist[,,"Male"] <- array(as.numeric(dp[cd4initdist.tidx+2, 4:31])/100, c(DS, 4))
+    cd4_initdist[,,"Female"] <- array(as.numeric(dp[cd4initdist.tidx+3, 4:31])/100, c(DS, 4))
+
+    cd4_prog[,,"Male"] <- array(1/as.numeric(dp[nathist.tidx+4, 4:27]), c(DS-1, 4))
+    cd4_prog[,,"Female"] <- array(1/as.numeric(dp[nathist.tidx+5, 4:27]), c(DS-1, 4))
+
+    cd4_mort[,,"Male"] <- array(as.numeric(dp[nathist.tidx+7, 4:31]), c(DS, 4))
+    cd4_mort[,,"Female"] <- array(as.numeric(dp[nathist.tidx+8, 4:31]), c(DS, 4))
+
+    art_mort[1,,,"Male"] <- array(as.numeric(dp[nathist.tidx+10, 4:31]), c(DS, 4))
+    art_mort[1,,,"Female"] <- array(as.numeric(dp[nathist.tidx+11, 4:31]), c(DS, 4))
+    art_mort[2,,,"Male"] <- array(as.numeric(dp[nathist.tidx+13, 4:31]), c(DS, 4))
+    art_mort[2,,,"Female"] <- array(as.numeric(dp[nathist.tidx+14, 4:31]), c(DS, 4))
+    art_mort[3,,,"Male"] <- array(as.numeric(dp[nathist.tidx+16, 4:31]), c(DS, 4))
+    art_mort[3,,,"Female"] <- array(as.numeric(dp[nathist.tidx+17, 4:31]), c(DS, 4))
+    
+  } else if(dp.vers == "Spectrum2016") {
+    cd4_initdist[,,"Male"] <- array(as.numeric(dpsub("<AdultDistNewInfectionsCD4 MV>", 3, 4:31))/100, c(DS, 4))
+    cd4_initdist[,,"Female"] <- array(as.numeric(dpsub("<AdultDistNewInfectionsCD4 MV>", 4, 4:31))/100, c(DS, 4))
+
+    ## Note: CD4 progression array has DS values, but should only be DS-1. Not sure what the last one is.
+    cd4_prog[,,"Male"] <- array(as.numeric(dpsub("<AdultAnnRateProgressLowerCD4 MV>", 3, 4:31)), c(DS, 4))[1:(DS-1),]
+    cd4_prog[,,"Female"] <- array(as.numeric(dpsub("<AdultAnnRateProgressLowerCD4 MV>", 3, 4:31)), c(DS, 4))[1:(DS-1),]
+
+    cd4_mort[,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4NoART MV>", 3, 4:31)), c(DS, 4))
+    cd4_mort[,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4NoART MV>", 3, 4:31)), c(DS, 4))
+    
+    art_mort[1,,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART0to6 MV>", 3, 4:31)), c(DS, 4))
+    art_mort[1,,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART0to6 MV>", 4, 4:31)), c(DS, 4))
+    art_mort[2,,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART7to12 MV>", 3, 4:31)), c(DS, 4))
+    art_mort[2,,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART7to12 MV>", 4, 4:31)), c(DS, 4))
+    art_mort[3,,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4WithARTGt12 MV>", 3, 4:31)), c(DS, 4))
+    art_mort[3,,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4WithARTGt12 MV>", 4, 4:31)), c(DS, 4))
+  }
+
+  
   ## program parameters
-  art15plus_numperc <- sapply(dp[adult.artnumperc.tidx+3:4, timedat.idx], as.numeric)
+  if(dp.vers %in% c("<General 3>", "<General5>")){
+    art15plus_numperc <- sapply(dp[adult.artnumperc.tidx+3:4, timedat.idx], as.numeric)
+    art15plus_num <- sapply(dp[adult.art.tidx+3:4, timedat.idx], as.numeric)
+    art15plus_eligthresh <- setNames(as.numeric(dp[adult.arteligthresh.tidx+2, timedat.idx]), proj.years)
+    artelig_specpop <- setNames(dp[specpopelig.tidx+1:7,2:6], c("description", "pop", "elig", "percent", "year"))
+  } else if(dp.vers == "Spectrum2016") {
+    art15plus_numperc <- sapply(dpsub("<HAARTBySexPerNum MV>", 4:5, timedat.idx), as.numeric)
+    art15plus_num <- sapply(dpsub("<HAARTBySex MV>", 4:5, timedat.idx), as.numeric)
+    art15plus_eligthresh <- setNames(as.numeric(dpsub("<CD4ThreshHoldAdults MV>", 2, timedat.idx)), proj.years)
+    artelig_specpop <- setNames(dpsub("<PopsEligTreat MV>", 3:9, 2:6), c("description", "pop", "elig", "percent", "year"))
+  }
+    
   dimnames(art15plus_numperc) <- list(c("Male", "Female"), proj.years)
-
-  art15plus_num <- sapply(dp[adult.art.tidx+3:4, timedat.idx], as.numeric)
   dimnames(art15plus_num) <- list(c("Male", "Female"), proj.years)
 
-  art15plus_eligthresh <- setNames(as.numeric(dp[adult.arteligthresh.tidx+2, timedat.idx]), proj.years)
-
-  artelig_specpop <- setNames(dp[specpopelig.tidx+1:7,2:6], c("description", "pop", "elig", "percent", "year"))
   artelig_specpop$pop <- c("PW", "TBHIV", "DC", "FSW", "MSM", "IDU", "OTHER")
   artelig_specpop$elig <- as.logical(as.integer(artelig_specpop$elig))
   artelig_specpop$percent <- as.numeric(artelig_specpop$percent)/100

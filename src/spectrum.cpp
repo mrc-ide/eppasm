@@ -102,6 +102,7 @@ extern "C" {
     // ART inputs
     int t_ART_start = *INTEGER(getListElement(s_fp, "tARTstart")) - 1; // -1 for 0-based indexing in C vs. 1-based in R
     multi_array_ref<double, 2> artnum15plus(REAL(getListElement(s_fp, "art15plus_num")), extents[PROJ_YEARS][NG]);
+    multi_array_ref<int, 2> art15plus_isperc(LOGICAL(getListElement(s_fp, "art15plus_isperc")), extents[PROJ_YEARS][NG]);
 
     int *artcd4elig_idx = INTEGER(getListElement(s_fp, "artcd4elig_idx"));  // NOTE: 1-based indexing
     double *specpop_percelig = REAL(getListElement(s_fp, "specpop_percelig"));
@@ -522,12 +523,31 @@ extern "C" {
 	      }
             } // loop over ha
 
-
-            double artnum_hts;
-            if(DT*(hts+1) < 0.5)
-              artnum_hts = (0.5-DT*(hts+1))*artnum15plus[t-2][g] + (DT*(hts+1)+0.5)*artnum15plus[t-1][g];
-            else
-              artnum_hts = (1.5-DT*(hts+1))*artnum15plus[t-1][g] + (DT*(hts+1)-0.5)*artnum15plus[t][g];
+	    // calculate number on ART at end of ts, based on number or percent
+            double artnum_hts = 0.0;
+            if(DT*(hts+1) < 0.5){
+	      if(!art15plus_isperc[t-2][g] & !art15plus_isperc[t-1][g]){ // both numbers
+		artnum_hts = (0.5-DT*(hts+1))*artnum15plus[t-2][g] + (DT*(hts+1)+0.5)*artnum15plus[t-1][g];
+	      } else if(art15plus_isperc[t-2][g] & art15plus_isperc[t-1][g]){ // both percentages
+		double artcov_hts = (0.5-DT*(hts+1))*artnum15plus[t-2][g] + (DT*(hts+1)+0.5)*artnum15plus[t-1][g];
+		artnum_hts = artcov_hts * (Xart_15plus + Xartelig_15plus);
+	      } else if(!art15plus_isperc[t-2][g] & art15plus_isperc[t-1][g]){ // transition from number to percentage
+		double curr_coverage = Xart_15plus / (Xart_15plus + Xartelig_15plus);
+		double artcov_hts = curr_coverage + (artnum15plus[t-1][g] - curr_coverage) * DT / (0.5-DT*hts);
+		artnum_hts = artcov_hts * (Xart_15plus + Xartelig_15plus);
+	      } 
+            } else {
+	      if(!art15plus_isperc[t-1][g] & !art15plus_isperc[t][g]){ // both numbers
+		artnum_hts = (1.5-DT*(hts+1))*artnum15plus[t-1][g] + (DT*(hts+1)-0.5)*artnum15plus[t][g];
+	      } else if(art15plus_isperc[t-1][g] & art15plus_isperc[t][g]){ // both percentages
+		double artcov_hts = (1.5-DT*(hts+1))*artnum15plus[t-1][g] + (DT*(hts+1)-0.5)*artnum15plus[t][g];
+		artnum_hts = artcov_hts * (Xart_15plus + Xartelig_15plus);
+	      } else if(!art15plus_isperc[t-1][g] & art15plus_isperc[t][g]){ // transition from number to percentage
+		double curr_coverage = Xart_15plus / (Xart_15plus + Xartelig_15plus);
+		double artcov_hts = curr_coverage + (artnum15plus[t][g] - curr_coverage) * DT / (1.5-DT*hts);
+		artnum_hts = artcov_hts * (Xart_15plus + Xartelig_15plus);
+	      }
+	    }
 
             double artinit_hts = artnum_hts > Xart_15plus ? artnum_hts - Xart_15plus : 0;
 

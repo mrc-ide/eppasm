@@ -130,7 +130,6 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$frr_cd4[,] <- rep(projp$fert_rat[fert_rat.h.ag, "2005"], each=hDS)
 
   fp$frr_cd4[,] <- rep(projp$fert_rat[fert_rat.h.ag, "2005"], each=hDS)
-  c(1.63, 0.95, 0.83, 0.67, 0.69, 0.53, 0.47)
   
   fp$frr_art <- array(1, c(hTS, hDS, length(h.fert.idx)))
   fp$frr_art[1:2,,] <- rep(projp$fert_rat[fert_rat.h.ag, "2005"], each=2*hDS)
@@ -139,13 +138,10 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ## ART eligibility and numbers on treatment
 
   fp$art15plus_num <- projp$art15plus_num[,as.character(proj_start:proj_end)]
+  fp$art15plus_isperc <- projp$art15plus_numperc[, as.character(proj_start:proj_end)] == 1
 
-  if(any(projp$art15plus_numperc[1, as.character(proj_start:proj_end)]==1)){
-    lastnuminput <- min(which(projp$art15plus_numperc[1, as.character(proj_start:proj_end)]==1))-1
-    fp$art15plus_num[,(lastnuminput+1):PROJ_YEARS] <- fp$art15plus_num[,lastnuminput]
-  }
-  ## NOTE: !! MODEL NEEDS UPDATING FOR PERCENTAGE INPUTS
-
+  ## convert percentage to proportion
+  fp$art15plus_num[fp$art15plus_isperc] <- fp$art15plus_num[fp$art15plus_isperc] / 100
 
   ## eligibility starts in projection year idx+1
   fp$specpop_percelig <- rowSums(with(projp$artelig_specpop[-1,], mapply(function(elig, percent, year) rep(c(0, percent*as.numeric(elig)), c(year - proj_start+1, proj_end - year)), elig, percent, year)))
@@ -368,17 +364,10 @@ simmod.specfp <- function(fp, VERSION="C"){
 
       ## ART initiation
       if(sum(fp$art15plus_num[,i])>0){
-        if(DT*ii < 0.5){
-          artnum.ii <- c(fp$art15plus_num[,i-2:1] %*% c(1-(DT*ii+0.5), DT*ii+0.5))
-        } else {
-          artnum.ii <- c(fp$art15plus_num[,i-1:0] %*% c(1-(DT*ii-0.5), DT*ii-0.5))
-        }
 
-        art15plus.inits <- pmax(artnum.ii - colSums(hivpop[-1,,h.age15plus.idx,,i],,3), 0)
-
+        ## calculate number eligible for ART
         artcd4_percelig <- rep(c(fp$specpop_percelig[i], 1), times=c(fp$artcd4elig[i]-1, hDS - fp$artcd4elig[i]+1))
         art15plus.elig <- sweep(hivpop[1,,h.age15plus.idx,,i], 1, artcd4_percelig, "*")
-
 
         ## calculate pregnant women
         if(fp$pw_artelig[i]){
@@ -386,7 +375,41 @@ simmod.specfp <- function(fp, VERSION="C"){
                                births.by.h.age / (ctapply(pop[p.fert.idx, f.idx, hivn.idx, i], ag.idx[p.fert.idx], sum) + colSums(fp$frr_cd4 * hivpop[1,,h.fert.idx,f.idx,i]) + colSums(fp$frr_art * hivpop[-1,,h.fert.idx,f.idx,i],,2)), "*")
           art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] <- art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] + DT*births.dist[1:(fp$artcd4elig_idx[i]-1),] # multiply by DT to account for proportion of annual births occurring during this time step
         }
-          
+
+        ## calculate number to initiate ART based on number or percentage
+
+        artnum.ii <- c(0,0) # number on ART this ts
+        if(DT*ii < 0.5){
+          for(g in 1:2){
+            if(!any(fp$art15plus_isperc[g,i-2:1])){  # both number 
+              artnum.ii[g] <- c(fp$art15plus_num[g,i-2:1] %*% c(1-(DT*ii+0.5), DT*ii+0.5))
+            } else if(all(fp$art15plus_isperc[g,i-2:1])){  # both percentage
+              artcov.ii <- c(fp$art15plus_num[g,i-2:1] %*% c(1-(DT*ii+0.5), DT*ii+0.5))
+              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + sum(hivpop[-1,,h.age15plus.idx,g,i]))
+            } else if(!fp$art15plus_isperc[g,i-2] & fp$art15plus_isperc[g,i-1]){ # transition number to percentage
+              curr_coverage <- sum(hivpop[-1,,h.age15plus.idx,g,i]) / (sum(art15plus.elig[,,g]) + sum(hivpop[-1,,h.age15plus.idx,g,i]))
+              artcov.ii <- curr_coverage + (fp$art15plus_num[g,i-1] - curr_coverage) * DT/(0.5-DT*(ii-1))
+              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + sum(hivpop[-1,,h.age15plus.idx,g,i]))
+            }
+          }
+        } else {
+          for(g in 1:2){
+            if(!any(fp$art15plus_isperc[g,i-1:0])){  # both number 
+              artnum.ii[g] <- c(fp$art15plus_num[g,i-1:0] %*% c(1-(DT*ii-0.5), DT*ii-0.5))
+            } else if(all(fp$art15plus_isperc[g,i-1:0])) {  # both percentage
+              artcov.ii <- c(fp$art15plus_num[g,i-1:0] %*% c(1-(DT*ii-0.5), DT*ii-0.5))
+              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + sum(hivpop[-1,,h.age15plus.idx,g,i]))
+            } else if(!fp$art15plus_isperc[g,i-1] & fp$art15plus_isperc[g,i]){  # transition number to percentage
+              curr_coverage <- sum(hivpop[-1,,h.age15plus.idx,g,i]) / (sum(art15plus.elig[,,g]) + sum(hivpop[-1,,h.age15plus.idx,g,i]))
+              artcov.ii <- curr_coverage + (fp$art15plus_num[g,i] - curr_coverage) * DT/(1.5-DT*(ii-1))
+              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + sum(hivpop[-1,,h.age15plus.idx,g,i]))
+            }
+          }
+        }
+
+        art15plus.inits <- pmax(artnum.ii - colSums(hivpop[-1,,h.age15plus.idx,,i],,3), 0)
+
+        ## calculate ART initiation distribution
         expect.mort.weight <- sweep(fp$cd4_mort[, h.age15plus.idx,], 3,
                                     colSums(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,],,2), "/")
         artinit.weight <- sweep(expect.mort.weight, 3, 1/colSums(art15plus.elig,,2), "+")/2

@@ -156,6 +156,7 @@ extern "C" {
     INTEGER(s_hivpop_dim)[2] = NG;
     INTEGER(s_hivpop_dim)[3] = PROJ_YEARS;
     setAttrib(s_hivpop, R_DimSymbol, s_hivpop_dim);
+    setAttrib(s_pop, install("hivpop"), s_hivpop);
     
     SEXP s_artpop = PROTECT(allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
     SEXP s_artpop_dim = PROTECT(allocVector(INTSXP, 5));
@@ -165,11 +166,39 @@ extern "C" {
     INTEGER(s_artpop_dim)[3] = NG;
     INTEGER(s_artpop_dim)[4] = PROJ_YEARS;
     setAttrib(s_artpop, R_DimSymbol, s_artpop_dim);
+    setAttrib(s_pop, install("artpop"), s_artpop);
+
+    SEXP s_infections = PROTECT(allocVector(REALSXP, pAG * NG * PROJ_YEARS));
+    SEXP s_infections_dim = PROTECT(allocVector(INTSXP, 3));
+    INTEGER(s_infections_dim)[0] = pAG;
+    INTEGER(s_infections_dim)[1] = NG;
+    INTEGER(s_infections_dim)[2] = PROJ_YEARS;
+    setAttrib(s_infections, R_DimSymbol, s_infections_dim);
+    setAttrib(s_pop, install("infections"), s_infections);
+    multi_array_ref<double, 3> infections(REAL(s_infections), extents[PROJ_YEARS][NG][pAG]);
+    memset(REAL(s_infections), 0, length(s_infections)*sizeof(double));
+    
+    SEXP s_hivdeaths = PROTECT(allocVector(REALSXP, pAG * NG * PROJ_YEARS));
+    SEXP s_hivdeaths_dim = PROTECT(allocVector(INTSXP, 3));
+    INTEGER(s_hivdeaths_dim)[0] = pAG;
+    INTEGER(s_hivdeaths_dim)[1] = NG;
+    INTEGER(s_hivdeaths_dim)[2] = PROJ_YEARS;
+    setAttrib(s_hivdeaths, R_DimSymbol, s_hivdeaths_dim);
+    setAttrib(s_pop, install("hivdeaths"), s_hivdeaths);
+    multi_array_ref<double, 3> hivdeaths(REAL(s_hivdeaths), extents[PROJ_YEARS][NG][pAG]);
+    memset(REAL(s_hivdeaths), 0, length(s_hivdeaths)*sizeof(double));
+
+    SEXP s_natdeaths = PROTECT(allocVector(REALSXP, pAG * NG * PROJ_YEARS));
+    SEXP s_natdeaths_dim = PROTECT(allocVector(INTSXP, 3));
+    INTEGER(s_natdeaths_dim)[0] = pAG;
+    INTEGER(s_natdeaths_dim)[1] = NG;
+    INTEGER(s_natdeaths_dim)[2] = PROJ_YEARS;
+    setAttrib(s_natdeaths, R_DimSymbol, s_natdeaths_dim);
+    setAttrib(s_pop, install("natdeaths"), s_natdeaths);
+    multi_array_ref<double, 3> natdeaths(REAL(s_natdeaths), extents[PROJ_YEARS][NG][pAG]);
+    memset(REAL(s_natdeaths), 0, length(s_natdeaths)*sizeof(double));
 
     SEXP s_pregprevlag = PROTECT(allocVector(REALSXP, PROJ_YEARS));
-
-    setAttrib(s_pop, install("hivpop"), s_hivpop);
-    setAttrib(s_pop, install("artpop"), s_artpop);
     setAttrib(s_pop, install("pregprevlag"), s_pregprevlag);
 
     SEXP s_incrate15to49_ts = PROTECT(allocVector(REALSXP, (PROJ_YEARS-1) * HIVSTEPS_PER_YEAR));
@@ -239,7 +268,7 @@ extern "C" {
 	    for(int hu = 0; hu < hTS; hu++)
 	      artpop[t_ART_start][g][ha][hm][hu] = 0.0;  // initialize to zero in year of ART start
 
-
+          
     // array to store lagged prevalence among pregnant women
     double *pregprevlag = REAL(s_pregprevlag); // (double*) R_alloc(PROJ_YEARS, sizeof(double));
     memset(pregprevlag, 0, AGE_START*sizeof(double));
@@ -304,20 +333,25 @@ extern "C" {
       for(int g = 0; g < NG; g++){
         int a = 0;
         for(int ha = 0; ha < hAG; ha++){
-          double deathsmig_ha = 0, hivpop_ha = 0, hdeaths_a, hmig_a;
+          double deathsmig_ha = 0, hivpop_ha = 0;
           for(int i = 0; i < hAG_SPAN[ha]; i++){
 
             hivpop_ha += pop[t][HIVP][g][a];
 
             // non-HIV mortality
-            pop[t][HIVN][g][a] *= Sx[t][g][a]; // survival HIV- population
-            deathsmig_ha -= hdeaths_a = pop[t][HIVP][g][a] * (1.0 - Sx[t][g][a]);
+	    double qx = 1.0 - Sx[t][g][a];
+	    double ndeaths_a = pop[t][HIVN][g][a] * qx;
+            pop[t][HIVN][g][a] -= ndeaths_a; // survival HIV- population
+	    double hdeaths_a = pop[t][HIVP][g][a] * qx;
+            deathsmig_ha -= hdeaths_a;
             pop[t][HIVP][g][a] -= hdeaths_a;   // survival HIV+ population
+	    natdeaths[t][g][a] = ndeaths_a + hdeaths_a;
 
             // net migration
             double migrate_a = netmigr[t][g][a] * (1+Sx[t][g][a])/2.0 / (pop[t][HIVN][g][a] + pop[t][HIVP][g][a]);
             pop[t][HIVN][g][a] *= 1+migrate_a;
-            deathsmig_ha += hmig_a = migrate_a * pop[t][HIVP][g][a];
+	    double hmig_a = migrate_a * pop[t][HIVP][g][a];
+            deathsmig_ha += hmig_a;
             pop[t][HIVP][g][a] += hmig_a;
 
             a++;
@@ -363,8 +397,8 @@ extern "C" {
 
 	int ts = (t-1)*HIVSTEPS_PER_YEAR + hts;
 	
-	double hivdeaths[NG][hAG];
-	memset(hivdeaths, 0, sizeof(double)*NG*hAG);
+	double hivdeaths_ha[NG][hAG];
+	memset(hivdeaths_ha, 0, sizeof(double)*NG*hAG);
 
 	// untreated population
 
@@ -374,7 +408,7 @@ extern "C" {
           for(int ha = 0; ha < hAG; ha++){
             for(int hm = 0; hm < hDS; hm++){
               double deaths = cd4_mort[g][ha][hm] * hivpop[t][g][ha][hm];
-              hivdeaths[g][ha] += DT*deaths;
+              hivdeaths_ha[g][ha] += DT*deaths;
               grad[g][ha][hm] = -deaths;
             }
             for(int hm = 1; hm < hDS; hm++){
@@ -448,6 +482,7 @@ extern "C" {
 	    double infections_a, infections_ha = 0.0;
 	    for(int i = 0; i < hAG_SPAN[ha]; i++){
 	      infections_ha += infections_a = pop[t][HIVN][g][a] * incrate15to49_g[g] * incrr_age[t][g][a] * Xhivn_g[g] / Xhivn_incagerr[g];
+	      infections[t][g][a] += DT*infections_a;
 	      pop[t][HIVN][g][a] -= DT*infections_a;
 	      pop[t][HIVP][g][a] += DT*infections_a;
 	      a++;
@@ -480,7 +515,7 @@ extern "C" {
 		  
 		  for(int hu = 0; hu < hTS; hu++){
 		    double deaths = art_mort[g][ha][hm][hu] * artpop[t][g][ha][hm][hu];
-		    hivdeaths[g][ha] += DT*deaths;
+		    hivdeaths_ha[g][ha] += DT*deaths;
 		    gradART[hu] = -deaths;
 		  }
 		  
@@ -568,12 +603,12 @@ extern "C" {
 	for(int g = 0; g < NG; g++){
 	  
 	  // sum HIV+ population size in each hivpop age group
-	  double pop_ha[hAG];
+	  double hivpop_ha[hAG];
 	  int a = 0;
 	  for(int ha = 0; ha < hAG; ha++){
-	    pop_ha[ha] = 0.0;
+	    hivpop_ha[ha] = 0.0;
 	    for(int i = 0; i < hAG_SPAN[ha]; i++){
-	      pop_ha[ha] += pop[t][HIVP][g][a];
+	      hivpop_ha[ha] += pop[t][HIVP][g][a];
 	      a++;
 	    }
 	  }
@@ -581,11 +616,12 @@ extern "C" {
 	  // remove hivdeaths proportionally to age-distribution within each age group
 	  a = 0;
 	  for(int ha = 0; ha < hAG; ha++){
-	    if(pop_ha[ha] > 0){
-	      double hivsurv_ha = 1 - hivdeaths[g][ha] / pop_ha[ha];
+	    if(hivpop_ha[ha] > 0){
+	      double hivqx_ha = hivdeaths_ha[g][ha] / hivpop_ha[ha];
 	      for(int i = 0; i < hAG_SPAN[ha]; i++){
-              pop[t][HIVP][g][a] *= hivsurv_ha;
-              a++;
+		hivdeaths[t][g][a] += pop[t][HIVP][g][a] * hivqx_ha;
+		pop[t][HIVP][g][a] *= (1.0-hivqx_ha);
+		a++;
 	      }
 	    }  // end if(pop_ha[ha] > 0)
 	  }
@@ -666,7 +702,7 @@ extern "C" {
 	incid15to49[t] /= hivn15to49[t-1];
     }
 
-    UNPROTECT(13);
+    UNPROTECT(19);
     return s_pop;
   }
 }

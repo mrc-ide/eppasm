@@ -242,6 +242,10 @@ simmod.specfp <- function(fp, VERSION="C"){
   sexinc15to49out <- array(NA, c(NG, PROJ_YEARS))
   paedsurvout <- rep(NA, PROJ_YEARS)
 
+  infections <- array(0, c(pAG, NG, PROJ_YEARS))
+  hivdeaths <- array(0, c(pAG, NG, PROJ_YEARS))
+  natdeaths <- array(0, c(pAG, NG, PROJ_YEARS))
+
   incrate15to49.ts.out <- rep(NA, length(fp$rvec))
   rvec <- if(fp$eppmod == "rtrend") rep(NA, length(fp$proj.steps)) else fp$rvec
 
@@ -280,6 +284,7 @@ simmod.specfp <- function(fp, VERSION="C"){
     hiv.sx.prob <- 1-apply(deaths[,,2], 2, ctapply, ag.idx, sum) / apply(pop[,,2,i], 2, ctapply, ag.idx, sum)
     hiv.sx.prob[is.nan(hiv.sx.prob)] <- 0
     pop[,,,i] <- pop[,,,i] - deaths
+    natdeaths[,,i] <- rowSums(deaths,,2)
 
     hivpop[,,,,i] <- sweep(hivpop[,,,,i], 3:4, hiv.sx.prob, "*")
 
@@ -303,8 +308,6 @@ simmod.specfp <- function(fp, VERSION="C"){
     ## ########################## ##
     ##  Disease model simulation  ##
     ## ########################## ##
-
-    hivdeaths <- array(0, c(hAG, NG))
 
     ## events at dt timestep
     for(ii in seq_len(hiv_steps_per_year)){
@@ -342,10 +345,11 @@ simmod.specfp <- function(fp, VERSION="C"){
 
       pop[,,hivn.idx,i] <- pop[,,hivn.idx,i] - DT*infections.ts
       pop[,,hivp.idx,i] <- pop[,,hivp.idx,i] + DT*infections.ts
+      infections[,,i] <- infections[,,i] + DT*infections.ts
 
       grad[1,,,] <- grad[1,,,] + sweep(fp$cd4_initdist, 2:3, apply(infections.ts, 2, ctapply, ag.idx, sum), "*")
+      incid15to49[i] <- incid15to49[i] + sum(DT*infections.ts[p.age15to49.idx,])
       
-
       ## disease progression and mortality
       grad[1,-hDS,,] <- grad[1,-hDS,,] - fp$cd4_prog * hivpop[1,-hDS,,,i]  # remove cd4 stage progression (untreated)
       grad[1,-1,,] <- grad[1,-1,,] + fp$cd4_prog * hivpop[1,-hDS,,,i]      # add cd4 stage progression (untreated)
@@ -358,8 +362,9 @@ simmod.specfp <- function(fp, VERSION="C"){
       ## Remove hivdeaths from pop
       hivdeaths.ts <- DT*(colSums(fp$cd4_mort * hivpop[1,,,,i]) + colSums(fp$art_mort * hivpop[-1,,,,i],,2))
       calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
-      pop[,,2,i] <- pop[,,2,i] - apply(hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)
-      hivdeaths <- hivdeaths + hivdeaths.ts
+      hivdeaths_p.ts <- apply(hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
+      pop[,,2,i] <- pop[,,2,i] - hivdeaths_p.ts
+      hivdeaths[,,i] <- hivdeaths[,,i] + hivdeaths_p.ts
 
       hivpop[,,,,i] <- hivpop[,,,,i] + DT*grad
 
@@ -455,6 +460,11 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "sexinc") <- sexinc15to49out
   attr(pop, "hivpop") <- hivpop[1,,,,]
   attr(pop, "artpop") <- hivpop[-1,,,,]
+
+  attr(pop, "infections") <- infections
+  attr(pop, "hivdeaths") <- hivdeaths
+  attr(pop, "natdeaths") <- natdeaths
+  
   attr(pop, "pregprevlag") <- pregprevlag
   attr(pop, "paedsurvout") <- paedsurvout
   attr(pop, "incrate15to49_ts") <- incrate15to49.ts.out

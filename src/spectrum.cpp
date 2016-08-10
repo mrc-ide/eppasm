@@ -452,7 +452,8 @@ extern "C" {
 	      pop[t][HIVP][g][a] += DT*infections_a;
 	      a++;
 	    }
-	    incid15to49[t] += DT*infections_ha;
+	    if(ha < hIDX_15TO49+hAG_15TO49 )
+	      incid15to49[t] += DT*infections_ha;
 	    
 	    // add infections to grad hivpop
 	    for(int hm = 0; hm < hDS; hm++)

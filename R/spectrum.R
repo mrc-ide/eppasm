@@ -237,7 +237,8 @@ simmod.specfp <- function(fp, VERSION="C"){
   hivpop <- array(0, c(hTS+1L, hDS, hAG, NG, PROJ_YEARS))
 
   ## initialize output
-  incrate15to49 <- numeric(PROJ_YEARS)
+  prev15to49 <- numeric(PROJ_YEARS)
+  incid15to49 <- numeric(PROJ_YEARS)
   sexinc15to49out <- array(NA, c(NG, PROJ_YEARS))
   paedsurvout <- rep(NA, PROJ_YEARS)
 
@@ -443,9 +444,14 @@ simmod.specfp <- function(fp, VERSION="C"){
     pregprev <- sum(births.by.h.age * (1 - hivn.byage / (hivn.byage + colSums(fp$frr_cd4 * hivp.byage[1,,]) + colSums(fp$frr_art * hivp.byage[-1,,],,2)))) / sum(births.by.age)
     if(i+AGE_START <= PROJ_YEARS)
       pregprevlag[i+AGE_START-1] <- pregprev
+
+    ## prevalence and incidence 15 to 49
+    prev15to49[i] <- sum(pop[p.age15to49.idx,,hivp.idx,i]) / sum(pop[p.age15to49.idx,,,i])
+    incid15to49[i] <- sum(incid15to49[i]) / sum(pop[p.age15to49.idx,,hivn.idx,i-1])
   }
 
-  attr(pop, "incrate15to49") <- incrate15to49
+  attr(pop, "prev15to49") <- prev15to49
+  attr(pop, "incid15to49") <- incid15to49
   attr(pop, "sexinc") <- sexinc15to49out
   attr(pop, "hivpop") <- hivpop[1,,,,]
   attr(pop, "artpop") <- hivpop[-1,,,,]

@@ -3,38 +3,64 @@
 ####  function to read HIV projection outputs  ####
 ###################################################
 
-read.hivproj.output <- function(specdp.file, single.age=TRUE){
+read_hivproj_output <- function(specdp.file, single.age=TRUE){
 
   ## read .DP file
   dp <- read.csv(specdp.file, as.is=TRUE)
 
-  dp.vers <- dp[2,1] # <General 3>: 2013, 2014 Spectrum files; <General5>: 2015 Spectrum files
+  dpsub <- function(tag, rows, cols, tagcol=1){
+    dp[which(dp[,tagcol]==tag)+rows, cols]
+  }
 
-  version <- as.numeric(dp[which(dp[,2] == "Version")+1,4])
-  validdate <- dp[which(dp[,1] == "<ValidDate>")+2,3]
-  validversion <- as.numeric(dp[which(dp[,1] == "<ValidVers>")+2,4])
+  dp.vers <- dp[2,1] # <General 3>: 2013, 2014 Spectrum files; <General5>: 2015 Spectrum files
+  if(!dp.vers %in% c("<General 3>", "<General5>"))
+    dp.vers <- "Spectrum2016"
+
+  if(dp.vers %in% c("<General 3>", "<General5>")){
+    version <- as.numeric(dp[which(dp[,2] == "Version")+1,4])
+    validdate <- dp[which(dp[,1] == "<ValidDate>")+2,3]
+    validversion <- dp[which(dp[,1] == "<ValidVers>")+2,4]
+  } else if(dp.vers == "Spectrum2016") {
+    version <- as.numeric(dpsub("<VersionNum MV>", 3, 4))
+    validdate <- dpsub("<ValidDate MV>",2,3)
+    validversion <- dpsub("<ValidVers MV>",2,4)
+  }
+
 
   ## projection parameters
-  yr.start <- as.integer(dp[which(dp[,2] == "First year")+1,4])
-  yr.end <- as.integer(dp[which(dp[,2] == "Final year")+1,4])
-  proj.years <- yr.start:yr.end
+  if(dp.vers %in% c("<General 3>", "<General5>")){
+    yr_start <- as.integer(dp[which(dp[,2] == "First year")+1,4])
+    yr_end <- as.integer(dp[which(dp[,2] == "Final year")+1,4])
+  } else if(dp.vers == "Spectrum2016"){
+    yr_start <- as.integer(dpsub("<FirstYear MV>",3,4))
+    yr_end <- as.integer(dpsub("<FinalYear MV>",3,4))
+  }
+  proj.years <- yr_start:yr_end
   timedat.idx <- 4+1:length(proj.years)-1
+
 
   agegr.lab <- c(paste(0:15*5, 1:16*5, sep="-"), "80+")
 
-
   ## Number HIV+
-  hivnum.tidx <- which(dp[,2] == "HIV")
-  hivnum.age <- sapply(dp[hivnum.tidx+4:54, timedat.idx], as.numeric)
-  rownames(hivnum.age) <- dp[hivnum.tidx+4:54, 3]
+  if(dp.vers %in% c("<General 3>", "<General5>")){
+    hivnum.age <- sapply(dpsub("HIV", 4:54, timedat.idx, 2), as.numeric)
+    rownames(hivnum.age) <- dpsub("HIV", 4:54, 3, 2)
+  } else {
+    hivnum.age <- sapply(dpsub("<HIV MV>", 5:55, timedat.idx), as.numeric)
+    rownames(hivnum.age) <- dpsub("<HIV MV>", 5:55, 3)
+  }
   hivnum.m <- hivnum.age[grep("Sex=1", rownames(hivnum.age)),]
   hivnum.f <- hivnum.age[grep("Sex=2", rownames(hivnum.age)),]
   dimnames(hivnum.m) <- dimnames(hivnum.f) <- list(agegr.lab, proj.years)
 
   ## Number new infections
-  newinf.tidx <- which(dp[,2] == "New Infections")
-  newinf.age <- sapply(dp[newinf.tidx+4:54, timedat.idx], as.numeric)
-  rownames(newinf.age) <- dp[newinf.tidx+4:54, 3]
+  if(dp.vers %in% c("<General 3>", "<General5>")){
+    newinf.age <- sapply(dpsub("New Infections", 4:54, timedat.idx, 2), as.numeric)
+    rownames(newinf.age) <- dpsub("HIV", 4:54, 3, 2)
+  } else {
+    newinf.age <- sapply(dpsub("<NewInfections MV>", 5:55, timedat.idx), as.numeric)
+    rownames(newinf.age) <- dpsub("<NewInfections MV>", 5:55, 3)
+  }
   newinf.m <- newinf.age[grep("Sex=1", rownames(newinf.age)),]
   newinf.f <- newinf.age[grep("Sex=2", rownames(newinf.age)),]
   dimnames(newinf.m) <- dimnames(newinf.f) <- list(agegr.lab, proj.years)
@@ -46,38 +72,54 @@ read.hivproj.output <- function(specdp.file, single.age=TRUE){
     totpop.tidx <- which(dp[,2] == "Total Population")
     totpop.m <- sapply(dp[totpop.tidx + 1:17*7 + 6, timedat.idx], as.numeric)
     totpop.f <- sapply(dp[totpop.tidx + 1:17*7 + 8, timedat.idx], as.numeric)
-    dimnames(totpop.m) <- dimnames(totpop.f) <- list(agegr.lab, proj.years)
   } else if(dp.vers == "<General5>"){
     totpop.tidx <- which(dp[,1] == "<BigPop3>")
     totpop.m <- sapply(lapply(dp[totpop.tidx + 1:81 + 1, timedat.idx], as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
     totpop.f <- sapply(lapply(dp[totpop.tidx + 1:81 + 82, timedat.idx], as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
-    dimnames(totpop.m) <- dimnames(totpop.f) <- list(agegr.lab, proj.years)
+  } else {
+    totpop.m <- sapply(lapply(dpsub("<BigPop MV>", 3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
+    totpop.f <- sapply(lapply(dpsub("<BigPop MV>", 81+3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
   }
+  dimnames(totpop.m) <- dimnames(totpop.f) <- list(agegr.lab, proj.years)
 
   ## ART need
-  artneed.tidx <- which(dp[,2] == "Need FL")
-  artneed.m <- sapply(dp[artneed.tidx+0:16*3+5, timedat.idx], as.numeric)
-  artneed.f <- sapply(dp[artneed.tidx+0:16*3+6, timedat.idx], as.numeric)
+  if(dp.vers %in% c("<General 3>", "<General5>")){
+    artneed.m <- sapply(dpsub("Need FL", 5+0:16*3, timedat.idx, 2), as.numeric)
+    artneed.f <- sapply(dpsub("Need FL", 6+0:16*3, timedat.idx, 2), as.numeric)
+  } else {
+    artneed.m <- sapply(dpsub("<NeedART MV>", 6+0:16*3, timedat.idx), as.numeric)
+    artneed.f <- sapply(dpsub("<NeedART MV>", 7+0:16*3, timedat.idx), as.numeric)
+  }
   dimnames(artneed.m) <- dimnames(artneed.f) <- list(agegr.lab, proj.years)
 
   ## On ART
-  artnum.tidx <- which(dp[,2] == "On FL")
-  artnum.m <- sapply(dp[artnum.tidx+0:16*3+5, timedat.idx], as.numeric)
-  artnum.f <- sapply(dp[artnum.tidx+0:16*3+6, timedat.idx], as.numeric)
+  if(dp.vers %in% c("<General 3>", "<General5>")){
+    artnum.m <- sapply(dpsub("On FL", 5+0:16*3, timedat.idx, 2), as.numeric)
+    artnum.f <- sapply(dpsub("On FL", 6+0:16*3, timedat.idx, 2), as.numeric)
+  } else {
+    artnum.m <- sapply(dpsub("<OnART MV>", 6+0:16*3, timedat.idx), as.numeric)
+    artnum.f <- sapply(dpsub("<OnART MV>", 7+0:16*3, timedat.idx), as.numeric)
+  }
   dimnames(artnum.m) <- dimnames(artnum.f) <- list(agegr.lab, proj.years)
-
+  
   ## number non-aids deaths
-  natdeathm.tidx <- which(dp[,2] == "Deaths - Male")
-  natdeathf.tidx <- which(dp[,2] == "Deaths - Female")
-  natdeaths.m <- sapply(dp[natdeathm.tidx+2:18, timedat.idx], as.numeric)
-  natdeaths.f <- sapply(dp[natdeathf.tidx+2:18, timedat.idx], as.numeric)
+  if(dp.vers %in% c("<General 3>", "<General5>")){
+    natdeaths.m <- sapply(dpsub("Deaths - Male", 2:18, timedat.idx, 2), as.numeric)
+    natdeaths.f <- sapply(dpsub("Deaths - Female", 2:18, timedat.idx, 2), as.numeric)
+  } else {
+    natdeaths.m <- sapply(dpsub("<Deaths MV>", 5:21, timedat.idx), as.numeric)
+    natdeaths.f <- sapply(dpsub("<Deaths MV>", 24:40, timedat.idx), as.numeric)
+  }
   dimnames(natdeaths.m) <- dimnames(natdeaths.f) <- list(agegr.lab, proj.years)
 
   ## number AIDS deaths
-  aidsdm.tidx <- which(dp[,2] == "AIDS deaths - Male")
-  aidsdf.tidx <- which(dp[,2] == "AIDS deaths - Female")
-  aidsdeaths.m <- sapply(dp[aidsdm.tidx+2:18, timedat.idx], as.numeric)
-  aidsdeaths.f <- sapply(dp[aidsdf.tidx+2:18, timedat.idx], as.numeric)
+  if(dp.vers %in% c("<General 3>", "<General5>")){
+    aidsdeaths.m <- sapply(dpsub("AIDS deaths - Male", 2:18, timedat.idx, 2), as.numeric)
+    aidsdeaths.f <- sapply(dpsub("AIDS deaths - Female", 2:18, timedat.idx, 2), as.numeric)
+  } else {
+    aidsdeaths.m <- sapply(dpsub("<AIDSDeaths MV>", 3:19, timedat.idx), as.numeric)
+    aidsdeaths.f <- sapply(dpsub("<AIDSDeaths MV>", 22:38, timedat.idx), as.numeric)
+  }
   dimnames(aidsdeaths.m) <- dimnames(aidsdeaths.f) <- list(agegr.lab, proj.years)
 
   specres <- list("totpop.m" = totpop.m,

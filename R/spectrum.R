@@ -494,3 +494,37 @@ update.specfp <- epp::update.eppfp
 prev.spec <- function(mod, fp){ attr(mod, "prev15to49") }
 incid.spec <- function(mod, fp){ attr(mod, "incid15to49") }
 fnPregPrev.spec <- function(mod, fp) { attr(mod, "pregprev") }
+
+
+#' Age-specific mortality
+#'
+#' Calculate all-cause mortality rate by single year of age and sex from a
+#' \code{spec} object.
+#'
+#' Mortality in year Y is calculated as the number of deaths occurring from the
+#' mid-year of year Y-1 to mid-year Y, divided by the population size at the
+#' mid-year of year Y-1.
+#' !!! NOTE: This might be different from the calculation in Spectrum. Should
+#' confirm this with John Stover.
+#'
+#' @param mod output of simmod of class \code{\link{spec}}.
+#' @return 3-dimensional array of mortality by age, sex, and year.
+agemx <- function(mod){
+  deaths <- attr(mod, "natdeaths") + attr(mod, "hivdeaths")
+  pop <- mod[,,1,]+ mod[,,2,]
+
+  mx <- array(0, dim=dim(pop))
+  mx[,,-1] <-deaths[,,-1] / pop[,,-dim(pop)[3]]
+
+  return(mx)
+}
+
+#' Age-specific prevalence by 5-year age groups
+#'
+#' Age specific HIV prevalene by 5-year age groups from age 15 to 59
+#'
+#' Notes: Assumes that AGE_START is 15 and single year of age.
+ageprev <- function(mod){
+  aggr <- apply(mod[1:45,,,], 2:4, fastmatch::ctapply, rep(3:11, each=5), sum)
+  return(aggr[,,2,] / (aggr[,,1,]+aggr[,,2,]))
+}

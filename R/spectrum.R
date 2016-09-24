@@ -524,7 +524,9 @@ agemx <- function(mod){
 #' Age specific HIV prevalene by 5-year age groups from age 15 to 59
 #'
 #' Notes: Assumes that AGE_START is 15 and single year of age.
-ageprev <- function(mod){
-  aggr <- apply(mod[1:45,,,], 2:4, fastmatch::ctapply, rep(3:11, each=5), sum)
-  return(aggr[,,2,] / (aggr[,,1,]+aggr[,,2,]))
+ageprev <- function(mod, arridx, agspan=5){
+  agidx <- rep(arridx, each=agspan)
+  hivn <- fastmatch::ctapply(mod[,,1,][rep(arridx, each=agspan) + 0:(agspan-1)], rep(arridx, each=agspan), sum)
+  hivp <- fastmatch::ctapply(mod[,,2,][rep(arridx, each=agspan) + 0:(agspan-1)], rep(arridx, each=agspan), sum)
+  return(hivp/(hivn+hivp))
 }

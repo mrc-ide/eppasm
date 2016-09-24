@@ -1,3 +1,107 @@
+
+################################################################
+####  Parameterising age/sex-specific incidence rate ratio  ####
+################################################################
+
+ldinvgamma <- function(x, alpha, beta){
+  log.density <- alpha * log(beta) - lgamma(alpha) - (alpha + 1) * log(x) - (beta/x)
+  return(log.density)
+}
+
+## r-spline prior parameters
+logiota.unif.prior <- c(log(1e-14), log(0.0025))
+tau2.prior.rate <- 0.5
+
+invGammaParameter <- 0.001   #Inverse gamma parameter for tau^2 prior for spline
+muSS <- 1/11.5               #1/duration for r steady state prior
+
+ancbias.pr.mean <- 0.15
+ancbias.pr.sd <- 1.0
+
+## r-trend prior parameters
+t0.unif.prior <- c(1970, 1990)
+t1.unif.prior <- c(10, 30)
+logr0.unif.prior <- c(1/11.5, 10)
+rtrend.beta.pr.sd <- 0.2
+
+vinfl.prior.rate <- 1/0.015
+
+sexincrr.pr.mean <- log(1.38)
+sexincrr.pr.sd <- 0.2
+
+ageincrr.pr.mean <- c(-1.40707274, -0.23518703, 0.69314718, 0.78845736, -0.39975544, -0.70620810, -0.84054571, -0.02101324, -0.16382449, -0.37914407, -0.59639985, -0.82038300)
+ageincrr.pr.sd <- 0.5
+
+
+
+fnCreateLogAgeSexIncrr <- function(logrr, fp){
+
+  
+  logincrr.theta.idx <- c(7:10, 12:20)
+  logincrr.fixed.idx <- 11
+
+  lastidx <- length(fp$proj.steps)
+  fixed.age50p.logincrr <- log(fp$agesex.incrr.ts[,age50plus.idx,lastidx]) - log(fp$agesex.incrr.ts[,age45.idx,lastidx])
+  
+  logincrr.theta <- tail(theta, length(logincrr.theta.idx))
+  logincrr.agesex <- array(-Inf, c(NG, AG))
+  logincrr.agesex[logincrr.fixed.idx] <- 0
+  logincrr.agesex[logincrr.theta.idx] <- logincrr.theta
+  logincrr.agesex[,age50plus.idx] <- logincrr.agesex[,age45.idx] + fixed.age50p.logincrr
+
+  return(logincrr.agesex)
+}
+
+fnCreateParam <- function(theta, fp){
+
+  
+  if(!exists("eppmod", where = fp))  # backward compatibility
+    fp$eppmod <- "rspline"
+  
+  if(fp$eppmod == "rspline"){
+    u <- theta[1:fp$numKnots]
+    beta <- numeric(fp$numKnots)
+    beta[1] <- u[1]
+    beta[2] <- u[1]+u[2]
+    for(i in 3:fp$numKnots)
+      beta[i] <- -beta[i-2] + 2*beta[i-1] + u[i]
+    
+    param <- list(rvec = as.vector(fp$rvec.spldes %*% beta),
+                  iota = exp(theta[fp$numKnots+1]),
+                  ancbias = theta[fp$numKnots+2],
+                  v.infl = exp(theta[fp$numKnots+4]))
+  } else { # rtrend
+    param <- list(tsEpidemicStart = fp$proj.steps[which.min(abs(fp$proj.steps - theta[1]))], # t0
+                  rtrend = list(tStabilize = theta[1]+theta[2],  # t0 + t1
+                                r0 = exp(theta[3]),              # r0
+                                beta = theta[4:7]),
+                  ancbias = theta[8],
+                  v.infl = exp(theta[9]))
+  }
+
+  if(inherits(fp, "specfp")){
+    if(exists("fitincrr", where=fp) && fp$fitincrr){
+      nparam <- length(theta)
+      param$sigma_agepen <- exp(theta[nparam])
+
+      param$incrr_sex <- fp$incrr_sex
+      param$incrr_sex[] <- exp(theta[nparam-13])
+
+      param$logincrr_age <- array(0, c(7, 2))
+      param$logincrr_age[-3,] <- theta[nparam-12:1]
+
+      param$incrr_age <- fp$incrr_age
+      param$incrr_age[fp$ss$p.age15to49.idx,,] <- apply(exp(param$logincrr_age), 2, rep, each=5)
+      param$incrr_age[36:66,,] <- sweep(fp$incrr_age[36:66,,fp$ss$PROJ_YEARS], 2,
+                                        param$incrr_age[35,,fp$ss$PROJ_YEARS]/fp$incrr_age[35,,fp$ss$PROJ_YEARS], "*")
+    }
+  }
+  
+  return(param)
+}
+
+
+
 ########################################################
 ####  Age specific prevalence likelihood functions  ####
 ########################################################
@@ -6,18 +110,16 @@
 #' Prepare age-specific HH survey prevalence likelihood data
 prepare_hhsageprev_likdat <- function(hhsage, fp){
   anchor.year <- floor(min(fp$proj.steps))
-  NG <- 2L
-  AG <- 9L # HARD-CODED IN ageprev()
   
   hhsage$W.hhs <- qnorm(hhsage$prev)
   hhsage$v.hhs <- 2*pi*exp(hhsage$W.hhs^2)*hhsage$se^2
   hhsage$sd.W.hhs <- sqrt(hhsage$v.hhs)
 
   hhsage$sidx <- as.integer(hhsage$sex)
-  hhsage$aidx <- as.integer(hhsage$agegr) - fp$ss$AGE_START/5
+  hhsage$aidx <- 5*(as.integer(hhsage$agegr)-1) - fp$ss$AGE_START+1L
   hhsage$yidx <- hhsage$year - (anchor.year - 1)
 
-  hhsage$arridx <- hhsage$aidx + (hhsage$sidx-1)*AG + (hhsage$yidx-1)*NG*AG
+  hhsage$arridx <- hhsage$aidx + (hhsage$sidx-1)*fp$ss$pAG + (hhsage$yidx-1)*fp$ss$NG*fp$ss$pAG
 
   return(hhsage)
 }
@@ -29,8 +131,9 @@ ll_hhs <- function(qM, hhslik.dat){
 }
 
 #' Log likelihood for age-specific household survey prevalence
-ll_hhsage <- function(qM.age, hhsage.dat){
-  sum(dnorm(hhsage.dat$W.hhs, qM.age[hhsage.dat$arridx], hhsage.dat$sd.W.hhs, log=TRUE))
+ll_hhsage <- function(mod, hhsage.dat){
+  qM.age <- suppressWarnings(qnorm(ageprev(mod, arridx=hhsage.dat$arridx, agspan=5)))
+  sum(dnorm(hhsage.dat$W.hhs, qM.age, hhsage.dat$sd.W.hhs, log=TRUE))
 }
 
   
@@ -102,20 +205,55 @@ ll_sibmx <- function(mx, tipscoef, theta, sibmx.dat){
 ####  Likelihood function  ####
 ###############################
 
+
+lprior <- function(theta, fp){
+
+
+  if(fp$eppmod == "rspline"){
+    nk <- fp$numKnots
+    tau2 <- exp(theta[nk+3])
+    
+    lpr <- sum(dnorm(theta[3:nk], 0, sqrt(tau2), log=TRUE)) +
+      dunif(theta[nk+1], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE) + 
+      dnorm(theta[nk+2], ancbias.pr.mean, ancbias.pr.sd, log=TRUE) +
+      ldinvgamma(tau2, invGammaParameter, invGammaParameter) + log(tau2) +  # + log(tau2): multiply likelihood by jacobian of exponential transformation
+      dexp(exp(theta[nk+4]), vinfl.prior.rate, TRUE) + theta[nk+4]         # additional ANC variance
+  
+  } else { # rtrend
+
+    lpr <- dunif(theta[1], t0.unif.prior[1], t0.unif.prior[2], log=TRUE) +
+      dunif(theta[2], t1.unif.prior[1], t1.unif.prior[2], log=TRUE) +
+      dunif(theta[3], logr0.unif.prior[1], logr0.unif.prior[2], log=TRUE) +
+      sum(dnorm(theta[4:7], 0, rtrend.beta.pr.sd, log=TRUE)) +
+      dnorm(theta[8], ancbias.pr.mean, ancbias.pr.sd, log=TRUE) +
+      dexp(exp(theta[9]), vinfl.prior.rate, TRUE) + theta[9]   # additional ANC variance
+  }
+
+  if(exists("fitincrr", where=fp) && fp$fitincrr){
+    nparam <- length(theta)
+    
+    lpr <- lpr +
+      dnorm(theta[nparam-13], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE) +
+      sum(dnorm(theta[nparam-12:1], ageincrr.pr.mean, ageincrr.pr.sd, log=TRUE)) +
+      dnorm(theta[nparam], -1, 0.7, log=TRUE)
+  }
+  
+  return(lpr)
+}
+
+
 ll <- function(theta, fp, likdat){
   theta.last <<- theta
   fp <- update(fp, list=fnCreateParam(theta, fp))
 
-  ## if(exists("ageprev", where=fp) && fp$ageprev){
-  ##   fp$agesex.incrr.ts[,,] <- exp(param$logincrr.agesex)
-  ##   ll.incpen <- sum(dnorm(diff(t(param$logincrr.agesex[,age15to49.idx]),diff=2), sd=param$sigma.agepen, log=TRUE))
-  ## }
-  ## else
-  ##   ll.incpen <- 0
+  if(exists("fitincrr", where=fp) && fp$fitincrr){
+    ll.incpen <- sum(dnorm(diff(fp$logincrr_age,diff=2), sd=fp$sigma_agepen, log=TRUE))
+  } else
+    ll.incpen <- 0
 
-  ## if (!exists("eppmod", where = fp) || fp$eppmod == "rspline") 
-  ##   if (min(fp$rvec) < 0 || max(fp$rvec) > 20) 
-  ##       return(-Inf)
+  if (!exists("eppmod", where = fp) || fp$eppmod == "rspline") 
+    if (min(fp$rvec) < 0 || max(fp$rvec) > 20) 
+        return(-Inf)
 
   
   mod <- simmod(fp)
@@ -136,8 +274,7 @@ ll <- function(theta, fp, likdat){
 
   ## Household survey likelihood
   if(exists("ageprev", where=fp) && fp$ageprev){
-    qM.age <- suppressWarnings(qnorm(ageprev(mod))) ## !! Note: would be more efficient only to calculate for needed ages/years.
-    ll.hhs <- ll_hhsage(qM.age, likdat$hhsage.dat)
+    ll.hhs <- ll_hhsage(mod, likdat$hhsage.dat)
   } else 
     ll.hhs <- ll_hhs(qM.all, likdat$hhslik.dat)
 
@@ -156,9 +293,60 @@ ll <- function(theta, fp, likdat){
     ll.rprior <- 0
   
   ## return(ll.anc+ll.hhs+ll.incpen+ll.rprior)
-  return(ll.anc + ll.hhs + ll.sibmx + ll.rprior)
+  return(ll.anc + ll.hhs + ll.sibmx + ll.rprior + ll.incpen)
 }
 
+
+##########################
+####  IMIS functions  ####
+##########################
+
+sample.prior <- function(n, fp){
+
+  if(!exists("eppmod", where = fp))  # backward compatibility
+    fp$eppmod <- "rspline"
+
+  nparam <- if(fp$eppmod == "rspline") fp$numKnots+4 else 9
+  if(exists("fitincrr", where=fp) && fp$fitincrr) nparam <- nparam+14
+
+  mat <- matrix(NA, n, nparam)
+  
+  if(fp$eppmod == "rspline"){
+    
+    ## sample penalty variance
+    tau2 <- rexp(n, tau2.prior.rate)                  # variance of second-order spline differences
+    
+    mat[,1] <- rnorm(n, 1.5, 1)                                                     # u[1]
+    mat[,2:fp$numKnots] <- rnorm(n*(fp$numKnots-1), 0, sqrt(tau2))                  # u[2:numKnots]
+    mat[,fp$numKnots+1] <-  runif(n, logiota.unif.prior[1], logiota.unif.prior[2])  # iota
+    mat[,fp$numKnots+2] <-  rnorm(n, ancbias.pr.mean, ancbias.pr.sd)                # ancbias parameter
+    mat[,fp$numKnots+3] <- log(tau2)                                                # tau2
+    mat[,fp$numKnots+4] <- log(rexp(n, vinfl.prior.rate))                           # v.infl
+    
+  } else { # r-trend
+    
+    mat[,1] <- runif(n, t0.unif.prior[1], t0.unif.prior[2])        # t0
+    mat[,2] <- runif(n, t1.unif.prior[1], t1.unif.prior[2])        # t1
+    mat[,3] <- runif(n, logr0.unif.prior[1], logr0.unif.prior[2])  # r0
+    mat[,4:7] <- rnorm(4*n, 0, rtrend.beta.pr.sd)                  # beta
+    mat[,8] <- rnorm(n, ancbias.pr.mean, ancbias.pr.sd)            # ancbias parameter
+    mat[,9] <- log(rexp(n, vinfl.prior.rate))                      # v.infl
+  }
+
+  if(exists("fitincrr", where=fp) && fp$fitincrr){
+    mat[,nparam-13] <- rnorm(n, sexincrr.pr.mean, sexincrr.pr.sd)
+    mat[,nparam-12:1] <- t(matrix(rnorm(n*12, ageincrr.pr.mean, ageincrr.pr.sd), nrow=12))
+    mat[,nparam] <- rnorm(n, -1, 0.7)  # log variance of ageincrr difference penalty
+  }
+
+  return(mat)
+}
+
+prior <- function(theta, fp){
+  if(is.vector(theta))
+    return(exp(lprior(theta, fp)))
+  return(unlist(lapply(seq_len(nrow(theta)), function(i) return(exp(lprior(theta[i,], fp))))))
+}
 
 likelihood <- function(theta, fp, likdat){
   if(is.vector(theta))

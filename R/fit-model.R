@@ -1,7 +1,7 @@
 fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k = 500, D=0, opt_iter=0,
-                   sample.prior=epp:::sample.prior,
-                   prior=epp:::prior,
-                   likelihood=epp:::likelihood){
+                   sample.prior=eppspectrum:::sample.prior,
+                   prior=eppspectrum:::prior,
+                   likelihood=eppspectrum:::likelihood){
 
   ## ... : updates to fixed parameters (fp) object to specify fitting options
 
@@ -33,7 +33,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
 
 ## simulate incidence and prevalence
-simfit.specfit <- function(fit, rwproj=FALSE, datageprev=TRUE){
+simfit.specfit <- function(fit, rwproj=FALSE, ageprevdat=TRUE){
   fit$param <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
 
   if(rwproj){
@@ -56,8 +56,8 @@ simfit.specfit <- function(fit, rwproj=FALSE, datageprev=TRUE){
   fit$incid <- mapply(incid, mod = mod.list, fp = fp.list)
   fit$popsize <- sapply(mod.list, colSums, dims=3)
 
-  if(datageprev)
-    fit$datageprev <- sapply(mod.list, ageprev, arridx=fit$likdat$hhsage.dat$arridx)
+  if(ageprevdat)
+    fit$ageprevdat <- sapply(mod.list, ageprev, arridx=fit$likdat$hhsage.dat$arridx)
   
   return(fit)
 }

@@ -1,9 +1,10 @@
 Package: eppspectrum
 Title: Age-structured EPP Model for HIV Epidemic Estimates
-Version: 0.0.3
+Version: 0.0.3.9001
 Authors@R: person("Jeff", "Eaton", email = "jeffrey.eaton@imperial.ac.uk", role = c("aut", "cre"))
 Description: What the package does (one paragraph).
-Depends: R (>= 3.1.0), epp, fastmatch (>= 1.1)
+Depends: R (>= 3.1.0), epp, 
+Imports: fastmatch (>= 1.1)
 LinkingTo: BH
 License: GPL-3
 Encoding: UTF-8

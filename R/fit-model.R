@@ -6,12 +6,9 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   ## ... : updates to fixed parameters (fp) object to specify fitting options
 
   if(epp)
-    fp <- update(attr(obj, 'eppfp'), list=fplist)
+    fp <- update(attr(obj, 'eppfp'), ...)
   else
-    fp <- update(attr(obj, 'specfp'), list=fplist)
-
-  fp <- attr(obj, 'eppfp')
-  fp <- update(fp, ...)
+    fp <- update(attr(obj, 'specfp'), ...)
 
   likdat <- attr(obj, 'likdat')
 

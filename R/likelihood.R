@@ -121,7 +121,7 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
 
   hhsage$arridx <- hhsage$aidx + (hhsage$sidx-1)*fp$ss$pAG + (hhsage$yidx-1)*fp$ss$NG*fp$ss$pAG
 
-  return(hhsage)
+  return(subset(hhsage, aidx > 0))
 }
 
 

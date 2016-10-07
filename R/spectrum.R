@@ -7,7 +7,8 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ## ########################## ##
 
   ## Parameters defining the model projection period and state-space
-  ss <- list(PROJ_YEARS = as.integer(proj_end - proj_start + 1L),
+  ss <- list(proj_start = proj_start,
+             PROJ_YEARS = as.integer(proj_end - proj_start + 1L),
              AGE_START  = as.integer(AGE_START),
              hiv_steps_per_year = as.integer(hiv_steps_per_year),
              time_epi_start=time_epi_start)

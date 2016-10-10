@@ -525,9 +525,27 @@ agemx <- function(mod){
 #' Age specific HIV prevalene by 5-year age groups from age 15 to 59
 #'
 #' Notes: Assumes that AGE_START is 15 and single year of age.
-ageprev <- function(mod, arridx, agspan=5){
-  agidx <- rep(arridx, each=agspan)
-  hivn <- fastmatch::ctapply(mod[,,1,][rep(arridx, each=agspan) + 0:(agspan-1)], rep(arridx, each=agspan), sum)
-  hivp <- fastmatch::ctapply(mod[,,2,][rep(arridx, each=agspan) + 0:(agspan-1)], rep(arridx, each=agspan), sum)
-  return(hivp/(hivn+hivp))
+ageprev <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL){
+
+  if(is.null(arridx)){
+    if(length(agspan)==1)
+      agspan <- rep(agspan, length(aidx))
+    
+    dims <- dim(mod)
+    idx <- expand.grid(aidx=aidx, sidx=sidx, yidx=yidx)
+    arridx <- idx$aidx + (idx$sidx-1)*dims[1] + (idx$yidx-1)*dims[1]*dims[2]
+    agspan <- rep(agspan, times=length(sidx)*length(yidx))
+  } else if(length(agspan)==1)
+    agspan <- rep(agspan, length(arridx))
+  
+  agidx <- rep(arridx, agspan)
+  allidx <- agidx + unlist(sapply(agspan, seq_len))-1
+  
+  hivn <- fastmatch::ctapply(mod[,,1,][allidx], agidx, sum)
+  hivp <- fastmatch::ctapply(mod[,,2,][allidx], agidx, sum)
+  
+  prev <- hivp/(hivn+hivp)
+  if(!is.null(aidx))
+    prev <- array(prev, c(length(aidx), length(sidx), length(yidx)))
+  return(prev)
 }

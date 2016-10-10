@@ -4,7 +4,7 @@ Version: 0.0.3.9002
 Authors@R: person("Jeff", "Eaton", email = "jeffrey.eaton@imperial.ac.uk", role = c("aut", "cre"))
 Description: What the package does (one paragraph).
 Depends: R (>= 3.1.0), epp, 
-Imports: fastmatch (>= 1.1)
+Imports: fastmatch (>= 1.1), abind
 LinkingTo: BH
 License: GPL-3
 Encoding: UTF-8

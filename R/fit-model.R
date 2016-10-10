@@ -33,7 +33,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
 
 ## simulate incidence and prevalence
-simfit.specfit <- function(fit, rwproj=FALSE, ageprevdat=TRUE){
+simfit.specfit <- function(fit, rwproj=FALSE, ageprevdat=TRUE, agegr3=TRUE){
   fit$param <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
 
   if(rwproj){
@@ -57,7 +57,13 @@ simfit.specfit <- function(fit, rwproj=FALSE, ageprevdat=TRUE){
   fit$popsize <- sapply(mod.list, colSums, dims=3)
 
   if(ageprevdat)
-    fit$ageprevdat <- sapply(mod.list, ageprev, arridx=fit$likdat$hhsage.dat$arridx)
-  
+    fit$ageprevdat <- sapply(mod.list, ageprev, arridx=fit$likdat$hhsage.dat$arridx, agspan=5)
+
+  if(agegr3){
+    fit$agegr3prev <- lapply(mod.list, ageprev, aidx=c(15, 25, 35)-fit$fp$ss$AGE_START+1L, sidx=1:2,
+                             yidx=(1999-fit$fp$ss$proj_start+1L):fit$fp$ss$PROJ_YEARS, agspan=c(10, 10, 15))
+    fit$agegr3prev <- do.call(abind::abind, c(fit$agegr3prev, along=4))
+  }
+    
   return(fit)
 }

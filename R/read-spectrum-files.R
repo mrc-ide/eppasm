@@ -3,10 +3,11 @@
 ####  function to read HIV projection outputs  ####
 ###################################################
 
-read_hivproj_output <- function(specdp.file, single.age=TRUE){
+read_hivproj_output <- function(pjnz, single.age=TRUE){
 
   ## read .DP file
-  dp <- read.csv(specdp.file, as.is=TRUE)
+  dpfile <- grep(".DP", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
 
   dpsub <- function(tag, rows, cols, tagcol=1){
     dp[which(dp[,tagcol]==tag)+rows, cols]
@@ -140,6 +141,9 @@ read_hivproj_output <- function(specdp.file, single.age=TRUE){
   ##   <HIVBySingleAge>
   ## }
 
+  ## "<HIVBySingleAge MV>"
+  ## "<DeathsByAge MV>"
+
 
   class(specres) <- "specres"
 
@@ -151,10 +155,11 @@ read_hivproj_output <- function(specdp.file, single.age=TRUE){
 ####  function to read HIV projection parameters  ####
 ######################################################
 
-read_hivproj_param <- function(specdp.file){
+read_hivproj_param <- function(pjnz){
 
   ## read .DP file
-  dp <- read.csv(specdp.file, as.is=TRUE)
+  dpfile <- grep(".DP", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
 
   dpsub <- function(tag, rows, cols, tagcol=1){
     dp[which(dp[,tagcol]==tag)+rows, cols]
@@ -428,9 +433,10 @@ read_demog_param <- function(upd.file, age.intervals = 1){
 
 ## Note: only parses Spectrum 2016 files, produces outputs by single-year age
 
-read_specdp_demog_param <- function(specdp.file){
+read_specdp_demog_param <- function(pjnz){
 
-  dp <- read.csv(specdp.file, as.is=TRUE)
+  dpfile <- grep(".DP", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
 
   version <- paste("Spectrum", dp[which(dp[,1] == "<ValidVers MV>")+2, 4])
 

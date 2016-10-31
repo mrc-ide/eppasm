@@ -8,6 +8,11 @@ ldinvgamma <- function(x, alpha, beta){
   return(log.density)
 }
 
+## Binomial distribution log-density permitting non-integer counts
+ldbinom <- function(x, size, prob){
+  lgamma(size+1) - lgamma(x+1) - lgamma(size-x+1) + x*log(prob) + (size-x)*log(1-prob)
+}
+
 ## r-spline prior parameters
 logiota.unif.prior <- c(log(1e-14), log(0.0025))
 tau2.prior.rate <- 0.5
@@ -115,6 +120,12 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
   hhsage$v.hhs <- 2*pi*exp(hhsage$W.hhs^2)*hhsage$se^2
   hhsage$sd.W.hhs <- sqrt(hhsage$v.hhs)
 
+  if(!is.na(deff_approx))
+    hhsage$n_eff <- hhsage$n/hhsage$deff_approx
+  else
+    hhsage$n_eff <- hhsage$n/hhsage$deff
+  hhsage$x_eff <- hhsage$n_eff * hhsage$prev
+
   hhsage$sidx <- as.integer(hhsage$sex)
   hhsage$aidx <- 5*(as.integer(hhsage$agegr)-1) - fp$ss$AGE_START+1L
   hhsage$yidx <- hhsage$year - (anchor.year - 1)
@@ -136,7 +147,12 @@ ll_hhsage <- function(mod, hhsage.dat){
   sum(dnorm(hhsage.dat$W.hhs, qM.age, hhsage.dat$sd.W.hhs, log=TRUE))
 }
 
-  
+
+#' Log likelihood for age-specific household survey prevalence using binomial approximation
+ll_hhsage_binom <- function(mod, hhsage.dat){
+  prevM.age <- suppressWarnings(ageprev(mod, arridx=hhsage.dat$arridx, agspan=5))
+  sum(ldbinom(hhsage.dat$x_eff, hhsage.dat$n_eff, prevM.age))
+}
 
 
 
@@ -273,8 +289,11 @@ ll <- function(theta, fp, likdat){
     ll.anc <- log(anclik::fnANClik(qM.preg+fp$ancbias, likdat$anclik.dat, fp$v.infl))
 
   ## Household survey likelihood
-  if(exists("ageprev", where=fp) && fp$ageprev){
-    ll.hhs <- ll_hhsage(mod, likdat$hhsage.dat)
+  if(exists("ageprev", where=fp)){
+    if(fp$ageprev=="binom")
+      ll.hhs <- ll_hhsage_binom(mod, likdat$hhsage.dat)
+    else
+      ll.hhs <- ll_hhsage(mod, likdat$hhsage.dat) # probit-transformed model
   } else 
     ll.hhs <- ll_hhs(qM.all, likdat$hhslik.dat)
 

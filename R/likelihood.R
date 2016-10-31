@@ -120,7 +120,7 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
   hhsage$v.hhs <- 2*pi*exp(hhsage$W.hhs^2)*hhsage$se^2
   hhsage$sd.W.hhs <- sqrt(hhsage$v.hhs)
 
-  if(!is.na(deff_approx))
+  if(exists("deff_approx", hhsage))
     hhsage$n_eff <- hhsage$n/hhsage$deff_approx
   else
     hhsage$n_eff <- hhsage$n/hhsage$deff

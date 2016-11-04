@@ -496,6 +496,19 @@ prev.spec <- function(mod, fp){ attr(mod, "prev15to49") }
 incid.spec <- function(mod, fp){ attr(mod, "incid15to49") }
 fnPregPrev.spec <- function(mod, fp) { attr(mod, "pregprev") }
 
+calc_prev15to49 <- function(mod, fp){
+  colSums(mod[fp$ss$p.age15to49.idx,,2,],,2)/colSums(mod[fp$ss$p.age15to49.idx,,,],,3)
+}
+
+calc_incid15to49 <- function(mod, fp){
+  c(0, colSums(attr(mod, "infections")[fp$ss$p.age15to49.idx,,-1],,2)/colSums(mod[fp$ss$p.age15to49.idx,,1,-fp$ss$PROJ_YEARS],,2))
+}
+
+calc_pregprev <- function(mod, fp){
+  warning("not yet implemented")
+}
+
+
 
 #' Age-specific mortality
 #'

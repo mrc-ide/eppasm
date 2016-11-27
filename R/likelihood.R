@@ -292,9 +292,9 @@ ll <- function(theta, fp, likdat){
     ll.anc <- log(anclik::fnANClik(qM.preg+fp$ancbias, likdat$anclik.dat, fp$v.infl))
 
   ## Household survey likelihood
-  if(exists("ageprev", where=fp) & fp$ageprev=="binom")
+  if(exists("ageprev", where=fp) && fp$ageprev=="binom")
     ll.hhs <- ll_hhsage_binom(mod, likdat$hhsage.dat)
-  else if(exists("ageprev", where=fp) & (fp$ageprev==TRUE | fp$ageprev == "probit")) # ==TRUE for backward compatibility
+  else if(exists("ageprev", where=fp) && (fp$ageprev==TRUE | fp$ageprev == "probit")) # ==TRUE for backward compatibility
     ll.hhs <- ll_hhsage(mod, likdat$hhsage.dat) # probit-transformed model
   else 
     ll.hhs <- ll_hhs(qM.all, likdat$hhslik.dat)

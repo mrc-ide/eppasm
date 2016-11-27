@@ -6,7 +6,7 @@
 read_hivproj_output <- function(pjnz, single.age=TRUE){
 
   ## read .DP file
-  dpfile <- grep(".DP", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
   dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
 
   dpsub <- function(tag, rows, cols, tagcol=1){
@@ -74,9 +74,11 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
     totpop.m <- sapply(dp[totpop.tidx + 1:17*7 + 6, timedat.idx], as.numeric)
     totpop.f <- sapply(dp[totpop.tidx + 1:17*7 + 8, timedat.idx], as.numeric)
   } else if(dp.vers == "<General5>"){
-    totpop.tidx <- which(dp[,1] == "<BigPop3>")
-    totpop.m <- sapply(lapply(dp[totpop.tidx + 1:81 + 1, timedat.idx], as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
-    totpop.f <- sapply(lapply(dp[totpop.tidx + 1:81 + 82, timedat.idx], as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
+    ## totpop.tidx <- which(dp[,1] == "<BigPop3>")
+    totpop.m.tidx <- which(dp[,3] == "Males, Total, Age 0")
+    totpop.m <- sapply(lapply(dp[totpop.m.tidx + 1:81 - 1, timedat.idx], as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
+    totpop.f.tidx <- which(dp[,3] == "Females, Total, Age 0")
+    totpop.f <- sapply(lapply(dp[totpop.f.tidx + 1:81 - 1, timedat.idx], as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
   } else {
     totpop.m <- sapply(lapply(dpsub("<BigPop MV>", 3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
     totpop.f <- sapply(lapply(dpsub("<BigPop MV>", 81+3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
@@ -158,7 +160,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
 read_hivproj_param <- function(pjnz){
 
   ## read .DP file
-  dpfile <- grep(".DP", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
   dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
 
   dpsub <- function(tag, rows, cols, tagcol=1){
@@ -435,7 +437,7 @@ read_demog_param <- function(upd.file, age.intervals = 1){
 
 read_specdp_demog_param <- function(pjnz){
 
-  dpfile <- grep(".DP", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
   dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
 
   version <- paste("Spectrum", dp[which(dp[,1] == "<ValidVers MV>")+2, 4])

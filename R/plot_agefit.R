@@ -87,7 +87,7 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr){
       fit.yprev <- estci(fitincrr$agegr3prev[iagegr,isex,,])
       survdat <- subset(prev.agegr3sex.nat, country==icountry & sex == strsex & agegr3==stragegr)
       ##
-      plot(1999:2016, fit.yprev[,1], type="n", ylim=c(0, 0.05*ceiling(max(survdat$ci_u)/0.05)),
+      plot(1999:2016, fit.yprev[,1], type="n", ylim=c(0, 0.05*ceiling(max(survdat$ci_u, aggr.yprev[,1], fit.yprev[,1])/0.05)),
            ylab="", xlab="", main=paste(strsex, stragegr))
       cred.region(1999:2016, t(aggr.yprev[,3:4]), col=transp("grey30"))
       cred.region(1999:2016, t(fit.yprev[,3:4]), col=transp("darkred"))

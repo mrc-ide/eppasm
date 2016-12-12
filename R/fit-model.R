@@ -1,3 +1,37 @@
+## Prepare national fit. Aggregates ANC data from regional EPP files.
+prepare_national_fit <- function(pjnz, upd.path, proj.end=2013.5, hiv_steps_per_year = 10L){
+
+  ## spectrum
+  demp <- read_demog_param(upd.path)
+  projp <- read_hivproj_param(pjnz)
+
+  specfp <- create_spectrum_fixpar(projp, demp, proj_end = as.integer(proj.end), time_epi_start = projp$yr_start, hiv_steps_per_year= hiv_steps_per_year)  # Set time_epi_start tomatch EPP
+
+  ## epp
+  eppd <- read_epp_data(pjnz)
+  epp.subp <- read_epp_subpops(pjnz)
+  epp.input <- read_epp_input(pjnz)
+
+  ## output
+  val <- setNames(vector("list", length(eppd)), names(eppd))
+  val <- list()
+
+  attr(val, "eppd") <- list(anc.used = do.call(c, lapply(eppd, "[[", "anc.used")),
+                            anc.prev = do.call(rbind, lapply(eppd, "[[", "anc.prev")),
+                            anc.n = do.call(rbind, lapply(eppd, "[[", "anc.n")))
+  attr(val, "likdat") <- list(anclik.dat = with(attr(val, "eppd"), fnPrepareANCLikelihoodData(anc.prev, anc.n, anc.used, projp$yr_start)))
+  attr(val, "likdat")$lastdata.idx <- max(unlist(attr(val, "likdat")$anclik.dat$anc.idx.lst),
+                                          unlist(lapply(lapply(lapply(eppd, "[[", "hhs"), epp:::fnPrepareHHSLikData, projp$yr_start), "[[", "idx")))
+  attr(val, "likdat")$firstdata.idx <- min(unlist(attr(val, "likdat")$anclik.dat$anc.idx.lst),
+                                           unlist(lapply(lapply(lapply(eppd, "[[", "hhs"), epp:::fnPrepareHHSLikData, projp$yr_start), "[[", "idx")))
+  attr(val, "specfp") <- specfp
+  attr(val, "eppfp") <- fnCreateEPPFixPar(epp.input, proj.end = proj.end)
+  attr(val, "country") <- attr(eppd, "country")
+
+  return(val)
+}
+
+
 fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k = 500, D=0, opt_iter=0,
                    sample.prior=eppspectrum:::sample.prior,
                    prior=eppspectrum:::prior,

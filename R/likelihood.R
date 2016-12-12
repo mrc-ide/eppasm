@@ -37,6 +37,20 @@ sexincrr.pr.sd <- 0.2
 ageincrr.pr.mean <- c(-1.40707274, -0.23518703, 0.69314718, 0.78845736, -0.39975544, -0.70620810, -0.84054571, -0.02101324, -0.16382449, -0.37914407, -0.59639985, -0.82038300)
 ageincrr.pr.sd <- 0.5
 
+## log-normal age incrr prior parameters
+lognorm.a0.pr.mean <- 10
+lognorm.a0.pr.sd <- 5
+
+lognorm.meanlog.pr.mean <- 3
+lognorm.meanlog.pr.sd <- 2
+
+lognorm.logsdlog.pr.mean <- 0
+lognorm.logsdlog.pr.sd <- 1
+
+calc_lognorm_logagerr <- function(par, a=2.5+5*3:16, b=27.5){
+  dlnorm(a-par[1], par[2], exp(par[3]), log=TRUE) - dlnorm(b-par[1], par[2], exp(par[3]), log=TRUE)
+}
+
 
 
 fnCreateLogAgeSexIncrr <- function(logrr, fp){
@@ -85,7 +99,7 @@ fnCreateParam <- function(theta, fp){
   }
 
   if(inherits(fp, "specfp")){
-    if(exists("fitincrr", where=fp) && fp$fitincrr){
+    if(exists("fitincrr", where=fp) && fp$fitincrr==TRUE){
       nparam <- length(theta)
       param$sigma_agepen <- exp(theta[nparam])
 
@@ -103,6 +117,19 @@ fnCreateParam <- function(theta, fp){
       param$incrr_age[36:66,,] <- sweep(fp$incrr_age[36:66,,fp$ss$PROJ_YEARS], 2,
                                         param$incrr_age[35,,fp$ss$PROJ_YEARS]/fp$incrr_age[35,,fp$ss$PROJ_YEARS], "*")
     }
+    else if(exists("fitincrr", where=fp) && fp$fitincrr=="lognorm"){
+      nparam <- length(theta)
+
+      param$incrr_sex <- fp$incrr_sex
+      param$incrr_sex[] <- exp(theta[nparam-6])
+
+      param$logincrr_age <- cbind(calc_lognorm_logagerr(theta[nparam-5:3]),
+                                  calc_lognorm_logagerr(theta[nparam-2:0]))
+      param$incrr_age <- fp$incrr_age
+      param$incrr_age[,,] <- apply(exp(param$logincrr_age), 2, rep, c(rep(5, 13), 1))
+
+    }
+
   }
   
   return(param)
@@ -248,7 +275,7 @@ lprior <- function(theta, fp){
       dexp(exp(theta[9]), vinfl.prior.rate, TRUE) + theta[9]   # additional ANC variance
   }
 
-  if(exists("fitincrr", where=fp) && fp$fitincrr){
+  if(exists("fitincrr", where=fp) && fp$fitincrr==TRUE){
     nparam <- length(theta)
     
     lpr <- lpr +
@@ -256,6 +283,17 @@ lprior <- function(theta, fp){
       sum(dnorm(theta[nparam-12:1], ageincrr.pr.mean, ageincrr.pr.sd, log=TRUE)) +
       dnorm(theta[nparam], -1, 0.7, log=TRUE)
   }
+
+  if(exists("fitincrr", where=fp) && fp$fitincrr=="lognorm"){
+    nparam <- length(theta)
+    
+    lpr <- lpr +
+      dnorm(theta[nparam-6], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE) +
+      sum(dnorm(theta[nparam-c(5,2)], lognorm.a0.pr.mean, lognorm.a0.pr.sd, log=TRUE)) +
+      sum(dnorm(theta[nparam-c(4,1)], lognorm.meanlog.pr.mean, lognorm.meanlog.pr.sd, log=TRUE)) +
+      sum(dnorm(theta[nparam-c(3,0)], lognorm.logsdlog.pr.mean, lognorm.logsdlog.pr.sd, log=TRUE))
+  }
+
   
   return(lpr)
 }
@@ -265,7 +303,7 @@ ll <- function(theta, fp, likdat){
   theta.last <<- theta
   fp <- update(fp, list=fnCreateParam(theta, fp))
 
-  if(exists("fitincrr", where=fp) && fp$fitincrr){
+  if(exists("fitincrr", where=fp) && fp$fitincrr==TRUE){
     ll.incpen <- sum(dnorm(diff(fp$logincrr_age,diff=2), sd=fp$sigma_agepen, log=TRUE))
   } else
     ll.incpen <- 0
@@ -328,7 +366,8 @@ sample.prior <- function(n, fp){
     fp$eppmod <- "rspline"
 
   nparam <- if(fp$eppmod == "rspline") fp$numKnots+4 else 9
-  if(exists("fitincrr", where=fp) && fp$fitincrr) nparam <- nparam+14
+  if(exists("fitincrr", where=fp) && fp$fitincrr==TRUE) nparam <- nparam+14
+  if(exists("fitincrr", where=fp) && fp$fitincrr=="lognorm") nparam <- nparam+7
 
   mat <- matrix(NA, n, nparam)
   
@@ -354,10 +393,17 @@ sample.prior <- function(n, fp){
     mat[,9] <- log(rexp(n, vinfl.prior.rate))                      # v.infl
   }
 
-  if(exists("fitincrr", where=fp) && fp$fitincrr){
+  if(exists("fitincrr", where=fp) && fp$fitincrr==TRUE){
     mat[,nparam-13] <- rnorm(n, sexincrr.pr.mean, sexincrr.pr.sd)
     mat[,nparam-12:1] <- t(matrix(rnorm(n*12, ageincrr.pr.mean, ageincrr.pr.sd), nrow=12))
     mat[,nparam] <- rnorm(n, -1, 0.7)  # log variance of ageincrr difference penalty
+  }
+
+  if(exists("fitincrr", where=fp) && fp$fitincrr=="lognorm"){
+    mat[,nparam-6] <- rnorm(n, sexincrr.pr.mean, sexincrr.pr.sd)
+    mat[,nparam-c(5,2)] <- t(matrix(rnorm(n*2, lognorm.a0.pr.mean, lognorm.a0.pr.sd), nrow=2))
+    mat[,nparam-c(4,1)] <- t(matrix(rnorm(n*2, lognorm.meanlog.pr.mean, lognorm.meanlog.pr.sd), nrow=2))
+    mat[,nparam-c(3,0)] <- t(matrix(rnorm(n*2, lognorm.logsdlog.pr.mean, lognorm.logsdlog.pr.sd), nrow=2))
   }
 
   return(mat)

@@ -89,6 +89,12 @@ extern "C" {
     multi_array_ref<double, 2> cumsurv(REAL(getListElement(s_fp, "cumsurv")), extents[PROJ_YEARS][NG]);
     multi_array_ref<double, 2> cumnetmigr(REAL(getListElement(s_fp, "cumnetmigr")), extents[PROJ_YEARS][NG]);
 
+    int bin_popadjust = *INTEGER(getListElement(s_fp, "popadjust"));
+    double *ptr_targetpop;
+    if(bin_popadjust)
+      ptr_targetpop = REAL(getListElement(s_fp, "targetpop"));
+    multi_array_ref<double, 3> targetpop(ptr_targetpop, extents[PROJ_YEARS][NG][pAG]);
+
     // disease progression
     multi_array_ref<double, 3> cd4_initdist(REAL(getListElement(s_fp, "cd4_initdist")), extents[NG][hAG][hDS]);
     multi_array_ref<double, 3> cd4_prog(REAL(getListElement(s_fp, "cd4_prog")), extents[NG][hAG][hDS-1]);
@@ -197,6 +203,16 @@ extern "C" {
     setAttrib(s_pop, install("natdeaths"), s_natdeaths);
     multi_array_ref<double, 3> natdeaths(REAL(s_natdeaths), extents[PROJ_YEARS][NG][pAG]);
     memset(REAL(s_natdeaths), 0, length(s_natdeaths)*sizeof(double));
+
+    SEXP s_popadjust = PROTECT(allocVector(REALSXP, pAG * NG * PROJ_YEARS));
+    SEXP s_popadjust_dim = PROTECT(allocVector(INTSXP, 3));
+    INTEGER(s_popadjust_dim)[0] = pAG;
+    INTEGER(s_popadjust_dim)[1] = NG;
+    INTEGER(s_popadjust_dim)[2] = PROJ_YEARS;
+    setAttrib(s_popadjust, R_DimSymbol, s_popadjust_dim);
+    setAttrib(s_pop, install("popadjust"), s_popadjust);
+    multi_array_ref<double, 3> popadjust(REAL(s_popadjust), extents[PROJ_YEARS][NG][pAG]);
+    memset(REAL(s_popadjust), 0, length(s_popadjust)*sizeof(double));
 
     SEXP s_pregprevlag = PROTECT(allocVector(REALSXP, PROJ_YEARS));
     setAttrib(s_pop, install("pregprevlag"), s_pregprevlag);
@@ -669,6 +685,39 @@ extern "C" {
       }
       */
 
+
+      // adjust population to match target population
+      if(bin_popadjust){
+	for(int g = 0; g < NG; g++){
+	  int a = 0;
+	  for(int ha = 0; ha < hAG; ha++){
+	    double popadj_ha = 0, hivpop_ha = 0;
+	    for(int i = 0; i < hAG_SPAN[ha]; i++){
+	      
+	      hivpop_ha += pop[t][HIVP][g][a];
+	      
+	      double popadjrate_a = popadjust[t][g][a] = targetpop[t][g][a] / (pop[t][HIVN][g][a] + pop[t][HIVP][g][a]);
+	      pop[t][HIVN][g][a] *= popadjrate_a;
+	      double hpopadj_a = (popadjrate_a-1.0) * pop[t][HIVP][g][a];
+	      popadj_ha += hpopadj_a;
+	      pop[t][HIVP][g][a] += hpopadj_a;
+	      a++;
+	    }
+	    
+	    // population adjustment for hivpop
+	    double popadjrate_ha = hivpop_ha > 0 ? popadj_ha / hivpop_ha : 0.0;
+	    for(int hm = 0; hm < hDS; hm++){
+	      hivpop[t][g][ha][hm] *= 1+popadjrate_ha;
+	      if(t >= t_ART_start)
+		for(int hu = 0; hu < hTS; hu++)
+		  artpop[t][g][ha][hm][hu] *= 1+popadjrate_ha;
+	    } // loop over hm
+	  } // loop over ha
+	} // loop over g
+      } // if(bin_popadjust)
+
+      
+
       // prevalence among pregnant women
       
         double hivbirths = 0;
@@ -702,7 +751,7 @@ extern "C" {
 	incid15to49[t] /= hivn15to49[t-1];
     }
 
-    UNPROTECT(19);
+    UNPROTECT(21);
     return s_pop;
   }
 }

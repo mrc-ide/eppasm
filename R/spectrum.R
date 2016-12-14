@@ -1,5 +1,6 @@
 create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_start = projp$yr_start, proj_end = projp$yr_end,
-                                   AGE_START = 15L, relinfectART = projp$relinfectART, time_epi_start = projp$t0){
+                                   AGE_START = 15L, relinfectART = projp$relinfectART, time_epi_start = projp$t0,
+                                   popadjust=FALSE, targetpop=demp$basepop){
 
   
   ## ########################## ##
@@ -106,6 +107,14 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$cumnetmigr <- cumnetmigr
 
 
+  ## set population adjustment
+  fp$popadjust <- popadjust
+  if(!length(setdiff(proj_start:proj_end, dimnames(targetpop)[[3]])))
+    fp$targetpop <- targetpop[(AGE_START+1):81,,as.character(proj_start:proj_end)]
+  if(popadjust & is.null(fp$targetpop))
+    stop("targetpop does not span proj_start:proj_end")
+  
+  
   ## ###################### ##
   ##  HIV model parameters  ##
   ## ###################### ##
@@ -211,6 +220,8 @@ simmod.specfp <- function(fp, VERSION="C"){
 
   if(VERSION != "R"){
     fp$eppmodInt <- as.integer(fp$eppmod == "rtrend") # 0: r-spline; 1: r-trend
+    if(!exists("popadjust", where=fp))
+      fp$popadjust <- FALSE
     mod <- .Call(spectrumC, fp)
     class(mod) <- "spec"
     return(mod)
@@ -245,6 +256,8 @@ simmod.specfp <- function(fp, VERSION="C"){
   infections <- array(0, c(pAG, NG, PROJ_YEARS))
   hivdeaths <- array(0, c(pAG, NG, PROJ_YEARS))
   natdeaths <- array(0, c(pAG, NG, PROJ_YEARS))
+
+  popadj.prob <- array(0, c(pAG, NG, PROJ_YEARS))
 
   incrate15to49.ts.out <- rep(NA, length(fp$rvec))
   rvec <- if(fp$eppmod == "rtrend") rep(NA, length(fp$proj.steps)) else fp$rvec
@@ -442,7 +455,17 @@ simmod.specfp <- function(fp, VERSION="C"){
     ## pop[,,hivp.idx,i] <- pop[,,hivp.idx,i] + infections
 
     ## hivpop[1,,,,i] <- hivpop[1,,,,i] + sweep(fp$cd4.initdist, 2:3, apply(infections, 2, ctapply, ag.idx, sum), "*")
-    
+
+    ## adjust population to match target population size
+    if(exists("popadjust", where=fp) & fp$popadjust){
+      popadj.prob[,,i] <- fp$targetpop[,,i] / rowSums(pop[,,,i],,2)
+      hiv.popadj.prob <- apply(popadj.prob[,,i] * pop[,,2,i], 2, ctapply, ag.idx, sum) /  apply(pop[,,2,i], 2, ctapply, ag.idx, sum)
+      hiv.popadj.prob[is.nan(hiv.popadj.prob)] <- 0
+
+      pop[,,,i] <- sweep(pop[,,,i], 1:2, popadj.prob[,,i], "*")
+      hivpop[,,,,i] <- sweep(hivpop[,,,,i], 3:4, hiv.popadj.prob, "*")
+    }
+
     ## prevalence among pregnant women
     hivn.byage <- ctapply(rowMeans(pop[p.fert.idx, f.idx, hivn.idx,i-1:0]), ag.idx[p.fert.idx], sum)
     hivp.byage <- rowMeans(hivpop[,,h.fert.idx, f.idx,i-1:0],,3)
@@ -464,6 +487,8 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "infections") <- infections
   attr(pop, "hivdeaths") <- hivdeaths
   attr(pop, "natdeaths") <- natdeaths
+
+  attr(pop, "popadjust") <- popadj.prob
   
   attr(pop, "pregprevlag") <- pregprevlag
   attr(pop, "paedsurvout") <- paedsurvout

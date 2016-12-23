@@ -109,8 +109,10 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
 
   ## set population adjustment
   fp$popadjust <- popadjust
-  if(!length(setdiff(proj_start:proj_end, dimnames(targetpop)[[3]])))
+  if(!length(setdiff(proj_start:proj_end, dimnames(targetpop)[[3]]))){
+    fp$entrantpop <- targetpop[AGE_START,,as.character(proj_start:proj_end)]
     fp$targetpop <- targetpop[(AGE_START+1):81,,as.character(proj_start:proj_end)]
+  }
   if(popadjust & is.null(fp$targetpop))
     stop("targetpop does not span proj_start:proj_end")
   
@@ -279,10 +281,17 @@ simmod.specfp <- function(fp, VERSION="C"){
     pop[pAG,,,i] <- pop[pAG,,,i-1] + pop[pAG-1,,,i-1] # open age group
 
     ## Add lagged births into youngest age group
-    pop[1,,hivn.idx,i] <- birthslag[,i-1]*fp$cumsurv[,i-1]*(1-pregprevlag[i-1]*fp$verttrans) + fp$cumnetmigr[,i-1]*(1-pregprevlag[i-1]*fp$netmig_hivprob)
-    pop[1,,hivp.idx,i] <- birthslag[,i-1]*fp$cumsurv[,i-1]*pregprevlag[i-1]*fp$verttrans*fp$paedsurv + fp$cumnetmigr[,i-1]*pregprevlag[i-1]*fp$netmig_hivprob*fp$netmighivsurv
+    if(exists("popadjust", where=fp) & fp$popadjust){
+      entrant_prev <- pregprevlag[i-1]*fp$verttrans*fp$paedsurv
+      hivn_entrants <- fp$entrantpop[,i-1]*(1-entrant_prev)
+      hivp_entrants <- fp$entrantpop[,i-1]*entrant_prev
+    } else {
+      hivn_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*(1-pregprevlag[i-1]*fp$verttrans) + fp$cumnetmigr[,i-1]*(1-pregprevlag[i-1]*fp$netmig_hivprob)
+      hivp_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*pregprevlag[i-1]*fp$verttrans*fp$paedsurv + fp$cumnetmigr[,i-1]*pregprevlag[i-1]*fp$netmig_hivprob*fp$netmighivsurv
+    }
 
-    paedsurvout[i] <- sum(birthslag[,i-1]*fp$cumsurv[,i-1]*pregprevlag[i-1]*fp$verttrans*fp$paedsurv)
+    pop[1,,hivn.idx,i] <- hivn_entrants
+    pop[1,,hivp.idx,i] <- hivp_entrants
 
     hiv.ag.prob <- pop[aglast.idx,,hivp.idx,i-1] / apply(pop[,,hivp.idx,i-1], 2, ctapply, ag.idx, sum)
     hiv.ag.prob[is.nan(hiv.ag.prob)] <- 0
@@ -290,7 +299,7 @@ simmod.specfp <- function(fp, VERSION="C"){
     hivpop[,,,,i] <- hivpop[,,,,i-1]
     hivpop[,,-hAG,,i] <- hivpop[,,-hAG,,i] - sweep(hivpop[,,-hAG,,i-1], 3:4, hiv.ag.prob[-hAG,], "*")
     hivpop[,,-1,,i] <- hivpop[,,-1,,i] + sweep(hivpop[,,-hAG,,i-1], 3:4, hiv.ag.prob[-hAG,], "*")
-    hivpop[1,,1,,i] <- hivpop[1,,1,,i] + fp$paedsurv_cd4dist %o% (birthslag[,i-1]*fp$cumsurv[,i-1]*pregprevlag[i-1]*fp$verttrans*fp$paedsurv + fp$cumnetmigr[,i-1]*pregprevlag[i-1]*fp$netmig_hivprob*fp$netmighivsurv)
+    hivpop[1,,1,,i] <- hivpop[1,,1,,i] + fp$paedsurv_cd4dist %o% hivp_entrants
 
     ## survive the population
     deaths <- sweep(pop[,,,i], 1:2, (1-fp$Sx[,,i]), "*")
@@ -491,7 +500,6 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "popadjust") <- popadj.prob
   
   attr(pop, "pregprevlag") <- pregprevlag
-  attr(pop, "paedsurvout") <- paedsurvout
   attr(pop, "incrate15to49_ts") <- incrate15to49.ts.out
   attr(pop, "prev15to49_ts") <- prev15to49.ts.out
   class(pop) <- "spec"

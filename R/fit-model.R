@@ -1,5 +1,12 @@
 ## Prepare fit by EPP regions
-prepare_spec_fit <- function(pjnz, proj.end=2016.5){
+#'
+#' @param pjnz file path to Spectrum PJNZ file.
+#' @param proj.end end year for projection.
+#' @param popupdate logical should target population be updated to match
+#'   age-specific population size from DP file and %Urban from EPP XML.
+prepare_spec_fit <- function(pjnz, proj.end=2016.5, popupdate=TRUE){
+
+  ## popupdate: 
 
   ## epp
   eppd <- read_epp_data(pjnz)
@@ -12,7 +19,14 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5){
   demp <- read_specdp_demog_param(pjnz)
   projp <- read_hivproj_param(pjnz)
 
-  specfp.subp <- create_subpop_specfp(projp, demp, eppd, proj_end=proj.end)
+  ## If Urban/Rural fit, read percentage urban from EPP XML file
+  if(all(sort(substr(names(eppd), 1, 1)) == c("R", "U")))
+    perc_urban <- read_epp_perc_urban(pjnz) / 100
+  else
+    perc_urban <- NULL
+    
+  specfp.subp <- create_subpop_specfp(projp, demp, eppd, proj_end=proj.end,
+                                      popupdate=popupdate, perc_urban=perc_urban)
   
 
   ## output
@@ -32,7 +46,7 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5){
 }
 
 
-create_subpop_specfp <- function(projp, demp, eppd, ..., popadjust=TRUE){
+create_subpop_specfp <- function(projp, demp, eppd, ..., popadjust=TRUE, popupdate=TRUE, perc_urban=NULL){
 
   ## Urban/Rural target population database
   urpop <- readRDS(system.file("extdata", "urpop.RDS", package="eppspectrum"))
@@ -46,9 +60,48 @@ create_subpop_specfp <- function(projp, demp, eppd, ..., popadjust=TRUE){
             else if(subpop %in%  c("Rural", "Rurale")) "Rural"
             else subpop  # bloody French...
     demp.subpop[[subpop]] <- demp
-    demp.subpop[[subpop]]$basepop <- urpop[,,,subp, country]
+    demp.subpop[[subpop]]$basepop <- urpop[,,dimnames(demp$basepop)[[3]] ,subp, country]
     demp.subpop[[subpop]]$netmigr[] <- 0
   }
+
+  ## Compare demp population with subpopulations
+  ann_aggr_subpop <- colSums(Reduce("+", lapply(demp.subpop, "[[", "basepop")),,2)
+  ann_demp_bp <- colSums(demp$basepop,,2)
+  if(any(abs(ann_aggr_subpop[names(ann_demp_bp)] / ann_demp_bp - 1.0) > 0.05))
+    warning(paste("National popultion population differs from aggregated subpopulations >5%:", country))
+
+
+  if(popupdate){
+    ## Rake subpopulation size to match DP population by age and sex, and area
+    ## population distribution.
+
+    if(!all(sapply(lapply(lapply(demp.subpop, "[[", "basepop"), dim),
+                   identical, dim(demp$basepop))))
+      stop(paste("Dimensions of basepop do not match subpopulation dimensions:",
+                 attr(eppd, "country")))
+
+    subpops <- do.call(abind::abind, c(lapply(demp.subpop, "[[", "basepop"), along=4))
+    
+    ## adjusted population sizes
+    if(!is.null(perc_urban))
+      areapop <- colSums(demp$basepop,,2) * cbind(Urban=perc_urban, Rural=1-perc_urban)
+    else
+      areapop <- colSums(demp$basepop,,2) * prop.table(colSums(subpops,,2), 1)        
+    agesexpop <- demp$basepop
+    
+    ## Iteratively rescale population until difference < 0.1%
+    while(any(abs(range(rowSums(subpops,,3) / agesexpop - 1.0)) > 0.001)){
+      
+      ## Scale supopulation size to match national population by age/sex
+      subpops <- subpops <- sweep(subpops, 1:3, agesexpop / rowSums(subpops,,3), "*")
+      ## Scale subpopulations to match subpopulation distribution
+      subpops <- sweep(subpops, 3:4, areapop / colSums(subpops,,2), "*")
+    }
+
+    for(subpop in names(demp.subpop))
+      demp.subpop[[subpop]]$basepop <- subpops[,,,subpop]
+  }
+
 
   ## Apportion ART
   ## If national survey data are available, apportion ART according to relative average HH survey prevalence in each subpopulation,

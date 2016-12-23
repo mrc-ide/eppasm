@@ -91,9 +91,13 @@ extern "C" {
 
     int bin_popadjust = *INTEGER(getListElement(s_fp, "popadjust"));
     double *ptr_targetpop;
-    if(bin_popadjust)
+    double *ptr_entrantpop;
+    if(bin_popadjust){
       ptr_targetpop = REAL(getListElement(s_fp, "targetpop"));
+      ptr_entrantpop = REAL(getListElement(s_fp, "entrantpop"));
+    }
     multi_array_ref<double, 3> targetpop(ptr_targetpop, extents[PROJ_YEARS][NG][pAG]);
+    multi_array_ref<double, 2> entrantpop(ptr_entrantpop, extents[PROJ_YEARS][NG]);
 
     // disease progression
     multi_array_ref<double, 3> cd4_initdist(REAL(getListElement(s_fp, "cd4_initdist")), extents[NG][hAG][hDS]);
@@ -331,9 +335,17 @@ extern "C" {
 
       // add lagged births to youngest age group
       for(int g = 0; g < NG; g++){
-	pop[t][HIVN][g][0] = birthslag[t-1][g] * cumsurv[t-1][g] * (1.0-pregprevlag[t-1] * verttrans) + cumnetmigr[t-1][g] * (1.0-pregprevlag[t-1] * netmig_hivprob);
 
-	double paedsurv_g = birthslag[t-1][g] * cumsurv[t-1][g] * pregprevlag[t-1] * verttrans * paedsurv + cumnetmigr[t-1][g] * pregprevlag[t-1] * netmig_hivprob * netmighivsurv;
+	double paedsurv_g;
+	if(bin_popadjust){
+	  double entrant_prev = pregprevlag[t-1] * verttrans * paedsurv;
+	  pop[t][HIVN][g][0] =  entrantpop[t-1][g] * (1.0-entrant_prev);
+	  paedsurv_g = entrantpop[t-1][g] * entrant_prev;
+	} else {
+	  pop[t][HIVN][g][0] = birthslag[t-1][g] * cumsurv[t-1][g] * (1.0-pregprevlag[t-1] * verttrans) + cumnetmigr[t-1][g] * (1.0-pregprevlag[t-1] * netmig_hivprob);
+	  paedsurv_g = birthslag[t-1][g] * cumsurv[t-1][g] * pregprevlag[t-1] * verttrans * paedsurv + cumnetmigr[t-1][g] * pregprevlag[t-1] * netmig_hivprob * netmighivsurv;
+	}
+
 	pop[t][HIVP][g][0] = paedsurv_g;
 
         for(int hm = 0; hm < hDS; hm++){

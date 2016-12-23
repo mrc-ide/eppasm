@@ -535,3 +535,33 @@ read_specdp_demog_param <- function(pjnz){
 
   return(demp)
 }
+
+
+
+## Prepare fit by EPP regions
+#'
+#' @param pjnz file path to Spectrum PJNZ file.
+read_epp_perc_urban <- function(pjnz){
+
+  xmlfile <- grep(".xml", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  con <- unz(pjnz, xmlfile)
+  epp.xml <- scan(con, "character", sep="\n")
+  close(con)
+  
+  if (!require("XML", quietly = TRUE))
+    stop("read_epp_perc_urban() requires the package 'XML'. Please install it.", call. = FALSE)
+  
+  obj <- xmlTreeParse(epp.xml)
+  r <- xmlRoot(obj)[[1]]
+
+  yr_start <- as.integer(xmlToList(r[[which(xmlSApply(r, xmlAttrs) == "worksetStartYear")]][[1]]))
+  yr_end <- as.integer(xmlToList(r[[which(xmlSApply(r, xmlAttrs) == "worksetEndYear")]][[1]]))
+  perc_urban.idx <- which(xmlSApply(r, xmlAttrs) == "currentUrbanPercent")
+  if(length(perc_urban.idx) == 0){
+    warning(paste0("EPP file does not contain Urban/Rural stratification:\n", pjnz))
+    return(NULL)
+  }
+  perc_urban <- as.numeric(xmlSApply(r[[perc_urban.idx]][[1]], xmlSApply, xmlToList))
+
+  return(setNames(perc_urban, yr_start:yr_end))
+}

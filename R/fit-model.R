@@ -6,8 +6,6 @@
 #'   age-specific population size from DP file and %Urban from EPP XML.
 prepare_spec_fit <- function(pjnz, proj.end=2016.5, popupdate=TRUE){
 
-  ## popupdate: 
-
   ## epp
   eppd <- read_epp_data(pjnz)
   epp.subp <- read_epp_subpops(pjnz)
@@ -88,9 +86,9 @@ create_subpop_specfp <- function(projp, demp, eppd, ..., popadjust=TRUE, popupda
     else
       areapop <- colSums(demp$basepop,,2) * prop.table(colSums(subpops,,2), 1)        
     agesexpop <- demp$basepop
-    
+
     ## Iteratively rescale population until difference < 0.1%
-    while(any(abs(range(rowSums(subpops,,3) / agesexpop - 1.0)) > 0.001)){
+    while(any(abs(rowSums(subpops,,3) / agesexpop - 1.0) > 0.001)){
       
       ## Scale supopulation size to match national population by age/sex
       subpops <- subpops <- sweep(subpops, 1:3, agesexpop / rowSums(subpops,,3), "*")

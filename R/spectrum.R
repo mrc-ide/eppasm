@@ -401,7 +401,8 @@ simmod.specfp <- function(fp, VERSION="C"){
         if(fp$pw_artelig[i]){
           births.dist <- sweep(fp$frr_cd4 * hivpop[1,,h.fert.idx,f.idx,i], 2,
                                births.by.h.age / (ctapply(pop[p.fert.idx, f.idx, hivn.idx, i], ag.idx[p.fert.idx], sum) + colSums(fp$frr_cd4 * hivpop[1,,h.fert.idx,f.idx,i]) + colSums(fp$frr_art * hivpop[-1,,h.fert.idx,f.idx,i],,2)), "*")
-          art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] <- art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] + DT*births.dist[1:(fp$artcd4elig_idx[i]-1),] # multiply by DT to account for proportion of annual births occurring during this time step
+          if(fp$artcd4elig_idx[i] > 1)
+            art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] <- art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] + DT*births.dist[1:(fp$artcd4elig_idx[i]-1),] # multiply by DT to account for proportion of annual births occurring during this time step
         }
 
         ## calculate number to initiate ART based on number or percentage

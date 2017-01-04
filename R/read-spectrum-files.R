@@ -325,12 +325,25 @@ read_hivproj_param <- function(pjnz){
   artelig_specpop$idx <- match(as.integer(artelig_specpop$year), proj.years)
   rownames(artelig_specpop) <- artelig_specpop$pop
 
+  if(dp.vers=="Spectrum2016")
+    median_cd4init <- sapply(dpsub("<MedCD4CountInit MV>", 2, timedat.idx), as.numeric)
+  else
+    median_cd4init <- rep(0, length(timedat.idx))
+  names(median_cd4init) <- proj.years
+  
+  if(dp.vers=="Spectrum2016")
+    art_dropout <- sapply(dpsub("<PercLostFollowup MV>", 2, timedat.idx), as.numeric)
+  else
+    art_dropout <- rep(0, length(timedat.idx))
+  names(art_dropout) <- proj.years
+  
   projp <- list("yr_start"=yr_start, "yr_end"=yr_end, "t0"=t0,
                 "relinfectART"=relinfectART,
                 "fert_rat"=fert_rat, "incrr_sex"=incrr_sex, "incrr_age"=incrr_age,
                 "cd4_initdist"=cd4_initdist, "cd4_prog"=cd4_prog, "cd4_mort"=cd4_mort, "art_mort"=art_mort,
                 "art15plus_numperc"=art15plus_numperc, "art15plus_num"=art15plus_num,
-                "art15plus_eligthresh"=art15plus_eligthresh, "artelig_specpop"=artelig_specpop)
+                "art15plus_eligthresh"=art15plus_eligthresh, "artelig_specpop"=artelig_specpop,
+                "median_cd4init"=median_cd4init, "art_dropout"=art_dropout)
   class(projp) <- "projp"
   attr(projp, "version") <- version
   attr(projp, "validdate") <- validdate

@@ -1,6 +1,6 @@
 create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_start = projp$yr_start, proj_end = projp$yr_end,
                                    AGE_START = 15L, relinfectART = projp$relinfectART, time_epi_start = projp$t0,
-                                   popadjust=FALSE, targetpop=demp$basepop){
+                                   popadjust=FALSE, targetpop=demp$basepop, who34percelig=0){
 
   
   ## ########################## ##
@@ -159,6 +159,15 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$artcd4elig_idx <- findInterval(-projp$art15plus_eligthresh[as.character(proj_start:proj_end)], -c(999, 500, 350, 250, 200, 100, 50))
 
   fp$pw_artelig <- with(projp$artelig_specpop["PW",], rep(c(0, elig), c(year - proj_start+1, proj_end - year)))  # are pregnant women eligible (0/1)
+
+  ## percentage of those with CD4 <350 who are based on WHO Stage III/IV infection
+  fp$who34percelig <- who34percelig
+
+  fp$art_dropout <- projp$art_dropout[as.character(proj_start:proj_end)]/100
+  fp$median_cd4init <- projp$median_cd4init[as.character(proj_start:proj_end)]
+  fp$med_cd4init_input <- as.integer(fp$median_cd4init > 0)
+  fp$med_cd4init_cat <- replace(findInterval(-fp$median_cd4init, -CD4_UPP_LIM),
+                                !fp$med_cd4init_input, 0L)
 
   fp$tARTstart <- min(apply(fp$art15plus_num > 0, 1, which))
 
@@ -393,8 +402,16 @@ simmod.specfp <- function(fp, VERSION="C"){
       ## ART initiation
       if(sum(fp$art15plus_num[,i])>0){
 
+        ## ART dropout
+        ## remove proportion from all adult ART groups back to untreated pop
+        hivpop[1,,,,i] <- hivpop[1,,,,i] + DT*fp$art_dropout[i]*colSums(hivpop[-1,,,,i])
+        hivpop[-1,,,,i] <- hivpop[-1,,,,i] - DT*fp$art_dropout[i]*hivpop[-1,,,,i]
+
         ## calculate number eligible for ART
-        artcd4_percelig <- rep(c(fp$specpop_percelig[i], 1), times=c(fp$artcd4elig[i]-1, hDS - fp$artcd4elig[i]+1))
+        artcd4_percelig <- 1 - (1-rep(0:1, times=c(fp$artcd4elig[i]-1, hDS - fp$artcd4elig[i]+1))) *
+          (1-rep(c(0, fp$who34percelig), c(2, hDS-2))) *
+          (1-rep(fp$specpop_percelig[i], hDS))
+
         art15plus.elig <- sweep(hivpop[1,,h.age15plus.idx,,i], 1, artcd4_percelig, "*")
 
         ## calculate pregnant women
@@ -439,11 +456,41 @@ simmod.specfp <- function(fp, VERSION="C"){
         art15plus.inits <- pmax(artnum.ii - colSums(hivpop[-1,,h.age15plus.idx,,i],,3), 0)
 
         ## calculate ART initiation distribution
-        expect.mort.weight <- sweep(fp$cd4_mort[, h.age15plus.idx,], 3,
-                                    colSums(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,],,2), "/")
-        artinit.weight <- sweep(expect.mort.weight, 3, 1/colSums(art15plus.elig,,2), "+")/2
-        artinit <- pmin(sweep(artinit.weight * art15plus.elig, 3, art15plus.inits, "*"),
+        if(!fp$med_cd4init_input[i]){
+          expect.mort.weight <- sweep(fp$cd4_mort[, h.age15plus.idx,], 3,
+                                      colSums(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,],,2), "/")
+          artinit.weight <- sweep(expect.mort.weight, 3, 1/colSums(art15plus.elig,,2), "+")/2
+          artinit <- pmin(sweep(artinit.weight * art15plus.elig, 3, art15plus.inits, "*"),
                         art15plus.elig)
+        } else {
+
+          CD4_LOW_LIM <- c(500, 350, 250, 200, 100, 50, 0)
+          CD4_UPP_LIM <- c(1000, 500, 350, 250, 200, 100, 50)
+          
+          medcd4_idx <- fp$med_cd4init_cat[i]
+          
+          medcat_propbelow <- (fp$median_cd4init[i] - CD4_LOW_LIM[medcd4_idx]) / (CD4_UPP_LIM[medcd4_idx] - CD4_LOW_LIM[medcd4_idx])
+          
+          elig_below <- colSums(art15plus.elig[medcd4_idx,,,drop=FALSE],,2) * medcat_propbelow
+          if(medcd4_idx < hDS)
+            elig_below <- elig_below + colSums(art15plus.elig[(medcd4_idx+1):hDS,,,drop=FALSE],,2)
+          
+          elig_above <- colSums(art15plus.elig[medcd4_idx,,,drop=FALSE],,2) * (1.0-medcat_propbelow)
+          if(medcd4_idx > 1)
+            elig_above <- elig_above + colSums(art15plus.elig[1:(medcd4_idx-1),,,drop=FALSE],,2)
+          
+          initprob_below <- pmin(art15plus.inits * 0.5 / elig_below, 1.0)
+          initprob_above <- pmin(art15plus.inits * 0.5 / elig_above, 1.0)
+          initprob_medcat <- initprob_below * medcat_propbelow + initprob_above * (1-medcat_propbelow)
+
+          artinit <- array(0, dim=c(hDS, hAG, NG))
+
+          if(medcd4_idx < hDS)
+            artinit[(medcd4_idx+1):hDS,,] <- sweep(art15plus.elig[(medcd4_idx+1):hDS,,,drop=FALSE], 3, initprob_below, "*")
+          artinit[medcd4_idx,,] <- sweep(art15plus.elig[medcd4_idx,,,drop=FALSE], 3, initprob_medcat, "*")
+          if(medcd4_idx > 0)
+            artinit[1:(medcd4_idx-1),,] <- sweep(art15plus.elig[1:(medcd4_idx-1),,,drop=FALSE], 3, initprob_above, "*")
+        }
         
         hivpop[1,, h.age15plus.idx,, i] <- hivpop[1,, h.age15plus.idx,, i] - artinit
         hivpop[2,, h.age15plus.idx,, i] <- hivpop[2,, h.age15plus.idx,, i] + artinit

@@ -4,7 +4,7 @@
 #' @param proj.end end year for projection.
 #' @param popupdate logical should target population be updated to match
 #'   age-specific population size from DP file and %Urban from EPP XML.
-prepare_spec_fit <- function(pjnz, proj.end=2016.5, popupdate=TRUE){
+prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = TRUE, popupdate=TRUE){
 
   ## epp
   eppd <- read_epp_data(pjnz)
@@ -24,7 +24,7 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popupdate=TRUE){
     perc_urban <- NULL
     
   specfp.subp <- create_subpop_specfp(projp, demp, eppd, proj_end=proj.end,
-                                      popupdate=popupdate, perc_urban=perc_urban)
+                                      popadjust = popadjust, popupdate = popupdate, perc_urban = perc_urban)
   
 
   ## output
@@ -58,8 +58,10 @@ create_subpop_specfp <- function(projp, demp, eppd, ..., popadjust=TRUE, popupda
             else if(subpop %in%  c("Rural", "Rurale")) "Rural"
             else subpop  # bloody French...
     demp.subpop[[subpop]] <- demp
-    demp.subpop[[subpop]]$basepop <- urpop[,,dimnames(demp$basepop)[[3]] ,subp, country]
-    demp.subpop[[subpop]]$netmigr[] <- 0
+    if (popadjust) {
+      demp.subpop[[subpop]]$basepop <- urpop[,,dimnames(demp$basepop)[[3]] ,subp, country]
+      demp.subpop[[subpop]]$netmigr[] <- 0
+    }
   }
 
   ## Compare demp population with subpopulations

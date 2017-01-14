@@ -327,10 +327,10 @@ read_hivproj_param <- function(pjnz){
 
     ## Note: CD4 progression array has DS values, but should only be DS-1. Not sure what the last one is.
     cd4_prog[,,"Male"] <- array(as.numeric(dpsub("<AdultAnnRateProgressLowerCD4 MV>", 3, 4:31)), c(DS, 4))[1:(DS-1),]
-    cd4_prog[,,"Female"] <- array(as.numeric(dpsub("<AdultAnnRateProgressLowerCD4 MV>", 3, 4:31)), c(DS, 4))[1:(DS-1),]
+    cd4_prog[,,"Female"] <- array(as.numeric(dpsub("<AdultAnnRateProgressLowerCD4 MV>", 4, 4:31)), c(DS, 4))[1:(DS-1),]
 
     cd4_mort[,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4NoART MV>", 3, 4:31)), c(DS, 4))
-    cd4_mort[,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4NoART MV>", 3, 4:31)), c(DS, 4))
+    cd4_mort[,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4NoART MV>", 4, 4:31)), c(DS, 4))
     
     if(dp.vers == "Spectrum2016"){
       art_mort[1,,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART0to6 MV>", 3, 4:31)), c(DS, 4))

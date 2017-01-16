@@ -166,7 +166,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$art_dropout <- projp$art_dropout[as.character(proj_start:proj_end)]/100
   fp$median_cd4init <- projp$median_cd4init[as.character(proj_start:proj_end)]
   fp$med_cd4init_input <- as.integer(fp$median_cd4init > 0)
-  fp$med_cd4init_cat <- replace(findInterval(-fp$median_cd4init, -CD4_UPP_LIM),
+  fp$med_cd4init_cat <- replace(findInterval(-fp$median_cd4init, - c(1000, 500, 350, 250, 200, 100, 50)),
                                 !fp$med_cd4init_input, 0L)
 
   fp$tARTstart <- min(apply(fp$art15plus_num > 0, 1, which))

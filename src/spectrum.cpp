@@ -108,8 +108,8 @@ extern "C" {
     multi_array_ref<double, 4> art_mort(REAL(getListElement(s_fp, "art_mort")), extents[NG][hAG][hDS][hTS]);
 
     // sub-fertility
-    multi_array_ref<double, 2> frr_cd4(REAL(getListElement(s_fp, "frr_cd4")), extents[hAG_FERT][hDS]);
-    multi_array_ref<double, 3> frr_art(REAL(getListElement(s_fp, "frr_art")), extents[hAG_FERT][hDS][hTS]);
+    multi_array_ref<double, 3> frr_cd4(REAL(getListElement(s_fp, "frr_cd4")), extents[PROJ_YEARS][hAG_FERT][hDS]);
+    multi_array_ref<double, 4> frr_art(REAL(getListElement(s_fp, "frr_art")), extents[PROJ_YEARS][hAG_FERT][hDS][hTS]);
 
     // ART inputs
     int t_ART_start = *INTEGER(getListElement(s_fp, "tARTstart")) - 1; // -1 for 0-based indexing in C vs. 1-based in R
@@ -594,13 +594,13 @@ extern "C" {
                 for(int a =  hAG_START[ha]; a < hAG_START[ha]+hAG_SPAN[ha]; a++)
                   frr_pop_ha += pop[t][HIVN][g][a]; // add HIV- population
                 for(int hm = 0; hm < hDS; hm++){
-                  frr_pop_ha += frr_cd4[ha-hIDX_FERT][hm] * hivpop[t][g][ha][hm];
+                  frr_pop_ha += frr_cd4[t][ha-hIDX_FERT][hm] * hivpop[t][g][ha][hm];
                   for(int hu = 0; hu < hTS; hu++)
-                    frr_pop_ha += frr_art[ha-hIDX_FERT][hm][hu] * artpop[t][g][ha][hm][hu];
+                    frr_pop_ha += frr_art[t][ha-hIDX_FERT][hm][hu] * artpop[t][g][ha][hm][hu];
                 }
 
                 for(int hm = anyelig_idx; hm < cd4elig_idx; hm++){
-                  double pw_elig_hahm = DT * births_by_ha[ha-hIDX_FERT] * frr_cd4[ha-hIDX_FERT][hm] * hivpop[t][g][ha][hm] / frr_pop_ha;
+                  double pw_elig_hahm = DT * births_by_ha[ha-hIDX_FERT] * frr_cd4[t][ha-hIDX_FERT][hm] * hivpop[t][g][ha][hm] / frr_pop_ha;
                   artelig_hahm[ha-hIDX_15PLUS][hm] += pw_elig_hahm;
                   Xartelig_15plus += pw_elig_hahm;
                   expect_mort_artelig15plus += cd4_mort[g][ha][hm] * pw_elig_hahm;
@@ -678,7 +678,7 @@ extern "C" {
             for(int ha = hIDX_15PLUS; ha < hAG; ha++)
               for(int hm = anyelig_idx; hm < hDS; hm++){
                 double artinit_hahm = artinit_hts * artelig_hahm[ha-hIDX_15PLUS][hm] * 0.5 * (1.0/Xartelig_15plus + cd4_mort[g][ha][hm] / expect_mort_artelig15plus);
-                if(artinit_hahm > hivpop[t][g][ha][hm]) artinit_hahm = hivpop[t][g][ha][hm];
+                if(artinit_hahm > artelig_hahm[ha-hIDX_15PLUS][hm]) artinit_hahm = artelig_hahm[ha-hIDX_15PLUS][hm];
                 hivpop[t][g][ha][hm] -= artinit_hahm;
                 artpop[t][g][ha][hm][ART0MOS] += artinit_hahm;
               }
@@ -799,13 +799,13 @@ extern "C" {
 	  for(int a =  hAG_START[ha]; a < hAG_START[ha]+hAG_SPAN[ha]; a++)
             hivn_ha += (pop[t-1][HIVN][FEMALE][a] + pop[t][HIVN][FEMALE][a])/2;
 	  for(int hm = 0; hm < hDS; hm++){
-	    frr_hivpop_ha += frr_cd4[ha-hIDX_FERT][hm] * (hivpop[t-1][FEMALE][ha][hm]+hivpop[t][FEMALE][ha][hm])/2;
+	    frr_hivpop_ha += frr_cd4[t][ha-hIDX_FERT][hm] * (hivpop[t-1][FEMALE][ha][hm]+hivpop[t][FEMALE][ha][hm])/2;
 	    if(t == t_ART_start)
 	      for(int hu = 0; hu < hTS; hu++)
-		frr_hivpop_ha += frr_art[ha-hIDX_FERT][hm][hu] * artpop[t][FEMALE][ha][hm][hu]/2;
+		frr_hivpop_ha += frr_art[t][ha-hIDX_FERT][hm][hu] * artpop[t][FEMALE][ha][hm][hu]/2;
 	    else if(t > t_ART_start)
 	      for(int hu = 0; hu < hTS; hu++)
-		frr_hivpop_ha += frr_art[ha-hIDX_FERT][hm][hu] * (artpop[t-1][FEMALE][ha][hm][hu]+artpop[t][FEMALE][ha][hm][hu])/2;
+		frr_hivpop_ha += frr_art[t][ha-hIDX_FERT][hm][hu] * (artpop[t-1][FEMALE][ha][hm][hu]+artpop[t][FEMALE][ha][hm][hu])/2;
 	  }
 	  hivbirths += births_by_ha[ha-hIDX_FERT] * frr_hivpop_ha / (hivn_ha + frr_hivpop_ha);
 	}

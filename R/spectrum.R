@@ -1,6 +1,6 @@
 create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_start = projp$yr_start, proj_end = projp$yr_end,
                                    AGE_START = 15L, relinfectART = projp$relinfectART, time_epi_start = projp$t0,
-                                   popadjust=FALSE, targetpop=demp$basepop, who34percelig=0){
+                                   popadjust=FALSE, targetpop=demp$basepop, who34percelig=0, frr_art1yr=1.0){
 
   
   ## ########################## ##
@@ -137,13 +137,14 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fert_rat.h.ag <- findInterval(AGE_START + cumsum(h.ag.span[h.fert.idx]) - h.ag.span[h.fert.idx], seq(15, 45, 5))
   
 
-  fp$frr_cd4 <- array(1, c(hDS, length(h.fert.idx)))
-  fp$frr_cd4[,] <- rep(projp$fert_rat[fert_rat.h.ag, "2005"], each=hDS)
-
-  fp$frr_cd4[,] <- rep(projp$fert_rat[fert_rat.h.ag, "2005"], each=hDS)
+  fp$frr_cd4 <- array(1, c(hDS, length(h.fert.idx), PROJ_YEARS))
+  fp$frr_cd4[,,] <- rep(projp$fert_rat[fert_rat.h.ag, as.character(proj_start:proj_end)], each=hDS)
+  fp$frr_cd4 <- sweep(fp$frr_cd4, 1, projp$cd4fert_rat, "*")
   
-  fp$frr_art <- array(1, c(hTS, hDS, length(h.fert.idx)))
-  fp$frr_art[1:2,,] <- rep(projp$fert_rat[fert_rat.h.ag, "2005"], each=2*hDS)
+  fp$frr_art <- array(1, c(hTS, hDS, length(h.fert.idx), PROJ_YEARS))
+  fp$frr_art[1:2,,,] <- rep(fp$frr_cd4, each=2)
+
+  fp$frr_art[3,,,] <- frr_art1yr  # relative fertility of women on ART > 1 year
 
 
   ## ART eligibility and numbers on treatment
@@ -416,8 +417,8 @@ simmod.specfp <- function(fp, VERSION="C"){
 
         ## calculate pregnant women
         if(fp$pw_artelig[i]){
-          births.dist <- sweep(fp$frr_cd4 * hivpop[1,,h.fert.idx,f.idx,i], 2,
-                               births.by.h.age / (ctapply(pop[p.fert.idx, f.idx, hivn.idx, i], ag.idx[p.fert.idx], sum) + colSums(fp$frr_cd4 * hivpop[1,,h.fert.idx,f.idx,i]) + colSums(fp$frr_art * hivpop[-1,,h.fert.idx,f.idx,i],,2)), "*")
+          births.dist <- sweep(fp$frr_cd4[,,i] * hivpop[1,,h.fert.idx,f.idx,i], 2,
+                               births.by.h.age / (ctapply(pop[p.fert.idx, f.idx, hivn.idx, i], ag.idx[p.fert.idx], sum) + colSums(fp$frr_cd4[,,i] * hivpop[1,,h.fert.idx,f.idx,i]) + colSums(fp$frr_art[,,,i] * hivpop[-1,,h.fert.idx,f.idx,i],,2)), "*")
           if(fp$artcd4elig_idx[i] > 1)
             art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] <- art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] + DT*births.dist[1:(fp$artcd4elig_idx[i]-1),] # multiply by DT to account for proportion of annual births occurring during this time step
         }
@@ -454,7 +455,7 @@ simmod.specfp <- function(fp, VERSION="C"){
         }
 
         art15plus.inits <- pmax(artnum.ii - colSums(hivpop[-1,,h.age15plus.idx,,i],,3), 0)
-
+        
         ## calculate ART initiation distribution
         if(!fp$med_cd4init_input[i]){
           expect.mort.weight <- sweep(fp$cd4_mort[, h.age15plus.idx,], 3,
@@ -526,7 +527,7 @@ simmod.specfp <- function(fp, VERSION="C"){
     ## prevalence among pregnant women
     hivn.byage <- ctapply(rowMeans(pop[p.fert.idx, f.idx, hivn.idx,i-1:0]), ag.idx[p.fert.idx], sum)
     hivp.byage <- rowMeans(hivpop[,,h.fert.idx, f.idx,i-1:0],,3)
-    pregprev <- sum(births.by.h.age * (1 - hivn.byage / (hivn.byage + colSums(fp$frr_cd4 * hivp.byage[1,,]) + colSums(fp$frr_art * hivp.byage[-1,,],,2)))) / sum(births.by.age)
+    pregprev <- sum(births.by.h.age * (1 - hivn.byage / (hivn.byage + colSums(fp$frr_cd4[,,i] * hivp.byage[1,,]) + colSums(fp$frr_art[,,,i] * hivp.byage[-1,,],,2)))) / sum(births.by.age)
     if(i+AGE_START <= PROJ_YEARS)
       pregprevlag[i+AGE_START-1] <- pregprev
 

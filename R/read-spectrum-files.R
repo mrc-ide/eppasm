@@ -1,20 +1,31 @@
+get_dp_version <- function(dp){
+  dp.vers <- dp[2,1] # <General 3>: 2013, 2014 Spectrum files; <General5>: 2015 Spectrum files
+  if(!dp.vers %in% c("<General 3>", "<General5>"))
+    if(dp.vers == "<FirstYear MV>")
+      dp.vers <- "Spectrum2016"
+    else if(dp.vers == "<FirstYear MV2>")
+      dp.vers <- "Spectrum2017"
+    else
+      stop("Spectrum DP file version not recognized. Package probably needs to be updated to most recent Spectrum version.")
+  return(dp.vers)
+}
+  
 
 ###################################################
 ####  function to read HIV projection outputs  ####
 ###################################################
 
-read_hivproj_output <- function(specdp.file, single.age=TRUE){
+read_hivproj_output <- function(pjnz, single.age=TRUE){
 
   ## read .DP file
-  dp <- read.csv(specdp.file, as.is=TRUE)
+  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+
+  dp.vers <- get_dp_version(dp)
 
   dpsub <- function(tag, rows, cols, tagcol=1){
     dp[which(dp[,tagcol]==tag)+rows, cols]
   }
-
-  dp.vers <- dp[2,1] # <General 3>: 2013, 2014 Spectrum files; <General5>: 2015 Spectrum files
-  if(!dp.vers %in% c("<General 3>", "<General5>"))
-    dp.vers <- "Spectrum2016"
 
   if(dp.vers %in% c("<General 3>", "<General5>")){
     version <- as.numeric(dp[which(dp[,2] == "Version")+1,4])
@@ -22,6 +33,10 @@ read_hivproj_output <- function(specdp.file, single.age=TRUE){
     validversion <- dp[which(dp[,1] == "<ValidVers>")+2,4]
   } else if(dp.vers == "Spectrum2016") {
     version <- as.numeric(dpsub("<VersionNum MV>", 3, 4))
+    validdate <- dpsub("<ValidDate MV>",2,3)
+    validversion <- dpsub("<ValidVers MV>",2,4)
+  } else if(dp.vers == "Spectrum2017") {
+    version <- as.numeric(dpsub("<VersionNum MV2>", 3, 4))
     validdate <- dpsub("<ValidDate MV>",2,3)
     validversion <- dpsub("<ValidVers MV>",2,4)
   }
@@ -34,10 +49,13 @@ read_hivproj_output <- function(specdp.file, single.age=TRUE){
   } else if(dp.vers == "Spectrum2016"){
     yr_start <- as.integer(dpsub("<FirstYear MV>",3,4))
     yr_end <- as.integer(dpsub("<FinalYear MV>",3,4))
+  } else if(dp.vers == "Spectrum2017"){
+    yr_start <- as.integer(dpsub("<FirstYear MV2>",2,4))
+    yr_end <- as.integer(dpsub("<FinalYear MV2>",2,4))
+    t0 <- as.numeric(dpsub("<FirstYearOfEpidemic MV>",2,4))
   }
   proj.years <- yr_start:yr_end
   timedat.idx <- 4+1:length(proj.years)-1
-
 
   agegr.lab <- c(paste(0:15*5, 1:16*5, sep="-"), "80+")
 
@@ -73,9 +91,11 @@ read_hivproj_output <- function(specdp.file, single.age=TRUE){
     totpop.m <- sapply(dp[totpop.tidx + 1:17*7 + 6, timedat.idx], as.numeric)
     totpop.f <- sapply(dp[totpop.tidx + 1:17*7 + 8, timedat.idx], as.numeric)
   } else if(dp.vers == "<General5>"){
-    totpop.tidx <- which(dp[,1] == "<BigPop3>")
-    totpop.m <- sapply(lapply(dp[totpop.tidx + 1:81 + 1, timedat.idx], as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
-    totpop.f <- sapply(lapply(dp[totpop.tidx + 1:81 + 82, timedat.idx], as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
+    ## totpop.tidx <- which(dp[,1] == "<BigPop3>")
+    totpop.m.tidx <- which(dp[,3] == "Males, Total, Age 0")
+    totpop.m <- sapply(lapply(dp[totpop.m.tidx + 1:81 - 1, timedat.idx], as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
+    totpop.f.tidx <- which(dp[,3] == "Females, Total, Age 0")
+    totpop.f <- sapply(lapply(dp[totpop.f.tidx + 1:81 - 1, timedat.idx], as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
   } else {
     totpop.m <- sapply(lapply(dpsub("<BigPop MV>", 3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
     totpop.f <- sapply(lapply(dpsub("<BigPop MV>", 81+3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
@@ -106,9 +126,12 @@ read_hivproj_output <- function(specdp.file, single.age=TRUE){
   if(dp.vers %in% c("<General 3>", "<General5>")){
     natdeaths.m <- sapply(dpsub("Deaths - Male", 2:18, timedat.idx, 2), as.numeric)
     natdeaths.f <- sapply(dpsub("Deaths - Female", 2:18, timedat.idx, 2), as.numeric)
-  } else {
+  } else if(dp.vers == "Spectrum2016"){
     natdeaths.m <- sapply(dpsub("<Deaths MV>", 5:21, timedat.idx), as.numeric)
     natdeaths.f <- sapply(dpsub("<Deaths MV>", 24:40, timedat.idx), as.numeric)
+  } else if(dp.vers == "Spectrum2017"){
+    natdeaths.m <- sapply(dpsub("<Deaths MV2>", 4:20, timedat.idx), as.numeric)
+    natdeaths.f <- sapply(dpsub("<Deaths MV2>", 22:38, timedat.idx), as.numeric)
   }
   dimnames(natdeaths.m) <- dimnames(natdeaths.f) <- list(agegr.lab, proj.years)
 
@@ -116,9 +139,12 @@ read_hivproj_output <- function(specdp.file, single.age=TRUE){
   if(dp.vers %in% c("<General 3>", "<General5>")){
     aidsdeaths.m <- sapply(dpsub("AIDS deaths - Male", 2:18, timedat.idx, 2), as.numeric)
     aidsdeaths.f <- sapply(dpsub("AIDS deaths - Female", 2:18, timedat.idx, 2), as.numeric)
-  } else {
+  } else if(dp.vers == "Spectrum2016"){
     aidsdeaths.m <- sapply(dpsub("<AIDSDeaths MV>", 3:19, timedat.idx), as.numeric)
     aidsdeaths.f <- sapply(dpsub("<AIDSDeaths MV>", 22:38, timedat.idx), as.numeric)
+  } else if(dp.vers == "Spectrum2017"){
+    aidsdeaths.m <- sapply(dpsub("<AIDSDeaths MV2>", 4:20, timedat.idx), as.numeric)
+    aidsdeaths.f <- sapply(dpsub("<AIDSDeaths MV2>", 22:38, timedat.idx), as.numeric)
   }
   dimnames(aidsdeaths.m) <- dimnames(aidsdeaths.f) <- list(agegr.lab, proj.years)
 
@@ -140,6 +166,9 @@ read_hivproj_output <- function(specdp.file, single.age=TRUE){
   ##   <HIVBySingleAge>
   ## }
 
+  ## "<HIVBySingleAge MV>"
+  ## "<DeathsByAge MV>"
+
 
   class(specres) <- "specres"
 
@@ -151,26 +180,28 @@ read_hivproj_output <- function(specdp.file, single.age=TRUE){
 ####  function to read HIV projection parameters  ####
 ######################################################
 
-read_hivproj_param <- function(specdp.file){
+read_hivproj_param <- function(pjnz){
 
   ## read .DP file
-  dp <- read.csv(specdp.file, as.is=TRUE)
+  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+
+  dp.vers <- get_dp_version(dp)
 
   dpsub <- function(tag, rows, cols, tagcol=1){
     dp[which(dp[,tagcol]==tag)+rows, cols]
   }
-
-
-  dp.vers <- dp[2,1] # <General 3>: 2013, 2014 Spectrum files; <General5>: 2015 Spectrum files
-  if(!dp.vers %in% c("<General 3>", "<General5>"))
-    dp.vers <- "Spectrum2016"
 
   if(dp.vers %in% c("<General 3>", "<General5>")){
     version <- as.numeric(dp[which(dp[,2] == "Version")+1,4])
     validdate <- dp[which(dp[,1] == "<ValidDate>")+2,3]
     validversion <- as.numeric(dp[which(dp[,1] == "<ValidVers>")+2,4])
   } else if(dp.vers == "Spectrum2016") {
-    version <- as.numeric(dpsub("<VersionNum MV>", 3, 4))
+    version <- as.numeric(dpsub("<VersionNum MV>", 2, 4))
+    validdate <- dpsub("<ValidDate MV>",2,3)
+    validversion <- dpsub("<ValidVers MV>",2,4)
+  } else if(dp.vers == "Spectrum2017") {
+    version <- as.numeric(dpsub("<VersionNum MV2>", 3, 4))
     validdate <- dpsub("<ValidDate MV>",2,3)
     validversion <- dpsub("<ValidVers MV>",2,4)
   }
@@ -212,6 +243,10 @@ read_hivproj_param <- function(specdp.file){
     yr_start <- as.integer(dpsub("<FirstYear MV>",3,4))
     yr_end <- as.integer(dpsub("<FinalYear MV>",3,4))
     t0 <- as.numeric(dpsub("<FirstYearOfEpidemic MV>",2,4))
+  } else if(dp.vers == "Spectrum2017"){
+    yr_start <- as.integer(dpsub("<FirstYear MV2>",2,4))
+    yr_end <- as.integer(dpsub("<FinalYear MV2>",2,4))
+    t0 <- as.numeric(dpsub("<FirstYearOfEpidemic MV>",2,4))
   }
   proj.years <- yr_start:yr_end
   timedat.idx <- 4+1:length(proj.years)-1
@@ -220,7 +255,7 @@ read_hivproj_param <- function(specdp.file){
   ## scalar paramters
   if(dp.vers %in% c("<General 3>", "<General5>")){
      relinfectART <- 1.0 - as.numeric(dp[infectreduc.tidx+1, 4])
-  } else if(dp.vers == "Spectrum2016"){
+  } else if(dp.vers %in% c("Spectrum2016", "Spectrum2017")){
     relinfectART <- 1.0 - as.numeric(dpsub("<AdultInfectReduc MV>",2,4))
   }
 
@@ -231,8 +266,15 @@ read_hivproj_param <- function(specdp.file){
     fert_rat <- sapply(dp[hivtfr.tidx+2:8, 3+seq_along(proj.years)], as.numeric)
   } else if(dp.vers == "Spectrum2016") {
     fert_rat <- sapply(dpsub("<HIVTFR MV>", 2:8, timedat.idx), as.numeric)
+  } else if(dp.vers == "Spectrum2017") {
+    fert_rat <- sapply(dpsub("<HIVTFR MV2>", 2:8, timedat.idx), as.numeric)
   }
   dimnames(fert_rat) <- list(seq(15, 45, 5), proj.years)
+
+  if(dp.vers == "Spectrum2017")
+    cd4fert_rat <- as.numeric(dpsub("<FertCD4Discount MV>", 2, 4+1:DS))
+  else
+    cd4fert_rat <- rep(1.0, DS)
 
 
   ## sex/age-specific incidence ratios (time varying)
@@ -249,6 +291,10 @@ read_hivproj_param <- function(specdp.file){
     incrr_sex <- setNames(as.numeric(dpsub("<HIVSexRatio MV>", 2, timedat.idx)), proj.years)
     incrr_age[,"Male",] <- sapply(dpsub("<DistOfHIV MV>", 4:20, timedat.idx), as.numeric)
     incrr_age[,"Female",] <- sapply(dpsub("<DistOfHIV MV>", 22:38, timedat.idx), as.numeric)
+  } else if(dp.vers == "Spectrum2017") {
+    incrr_sex <- setNames(as.numeric(dpsub("<HIVSexRatio MV>", 2, timedat.idx)), proj.years)
+    incrr_age[,"Male",] <- sapply(dpsub("<DistOfHIV MV2>", 3:19, timedat.idx), as.numeric)
+    incrr_age[,"Female",] <- sapply(dpsub("<DistOfHIV MV2>", 20:36, timedat.idx), as.numeric)
   }
 
 
@@ -275,23 +321,32 @@ read_hivproj_param <- function(specdp.file){
     art_mort[3,,,"Male"] <- array(as.numeric(dp[nathist.tidx+16, 4:31]), c(DS, 4))
     art_mort[3,,,"Female"] <- array(as.numeric(dp[nathist.tidx+17, 4:31]), c(DS, 4))
     
-  } else if(dp.vers == "Spectrum2016") {
+  } else if(dp.vers %in% c("Spectrum2016", "Spectrum2017")) {
     cd4_initdist[,,"Male"] <- array(as.numeric(dpsub("<AdultDistNewInfectionsCD4 MV>", 3, 4:31))/100, c(DS, 4))
     cd4_initdist[,,"Female"] <- array(as.numeric(dpsub("<AdultDistNewInfectionsCD4 MV>", 4, 4:31))/100, c(DS, 4))
 
     ## Note: CD4 progression array has DS values, but should only be DS-1. Not sure what the last one is.
     cd4_prog[,,"Male"] <- array(as.numeric(dpsub("<AdultAnnRateProgressLowerCD4 MV>", 3, 4:31)), c(DS, 4))[1:(DS-1),]
-    cd4_prog[,,"Female"] <- array(as.numeric(dpsub("<AdultAnnRateProgressLowerCD4 MV>", 3, 4:31)), c(DS, 4))[1:(DS-1),]
+    cd4_prog[,,"Female"] <- array(as.numeric(dpsub("<AdultAnnRateProgressLowerCD4 MV>", 4, 4:31)), c(DS, 4))[1:(DS-1),]
 
     cd4_mort[,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4NoART MV>", 3, 4:31)), c(DS, 4))
-    cd4_mort[,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4NoART MV>", 3, 4:31)), c(DS, 4))
+    cd4_mort[,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4NoART MV>", 4, 4:31)), c(DS, 4))
     
-    art_mort[1,,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART0to6 MV>", 3, 4:31)), c(DS, 4))
-    art_mort[1,,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART0to6 MV>", 4, 4:31)), c(DS, 4))
-    art_mort[2,,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART7to12 MV>", 3, 4:31)), c(DS, 4))
-    art_mort[2,,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART7to12 MV>", 4, 4:31)), c(DS, 4))
-    art_mort[3,,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4WithARTGt12 MV>", 3, 4:31)), c(DS, 4))
-    art_mort[3,,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4WithARTGt12 MV>", 4, 4:31)), c(DS, 4))
+    if(dp.vers == "Spectrum2016"){
+      art_mort[1,,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART0to6 MV>", 3, 4:31)), c(DS, 4))
+      art_mort[1,,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART0to6 MV>", 4, 4:31)), c(DS, 4))
+      art_mort[2,,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART7to12 MV>", 3, 4:31)), c(DS, 4))
+      art_mort[2,,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART7to12 MV>", 4, 4:31)), c(DS, 4))
+      art_mort[3,,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4WithARTGt12 MV>", 3, 4:31)), c(DS, 4))
+      art_mort[3,,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4WithARTGt12 MV>", 4, 4:31)), c(DS, 4))
+    } else if(dp.vers == "Spectrum2017") {
+      art_mort[1,,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART0to6 MV2>", 2, 4:31)), c(DS, 4))
+      art_mort[1,,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART0to6 MV2>", 3, 4:31)), c(DS, 4))
+      art_mort[2,,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART7to12 MV2>", 2, 4:31)), c(DS, 4))
+      art_mort[2,,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART7to12 MV2>", 3, 4:31)), c(DS, 4))
+      art_mort[3,,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4WithARTGt12 MV2>", 2, 4:31)), c(DS, 4))
+      art_mort[3,,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4WithARTGt12 MV2>", 3, 4:31)), c(DS, 4))
+    }
   }
 
   
@@ -301,7 +356,7 @@ read_hivproj_param <- function(specdp.file){
     art15plus_num <- sapply(dp[adult.art.tidx+3:4, timedat.idx], as.numeric)
     art15plus_eligthresh <- setNames(as.numeric(dp[adult.arteligthresh.tidx+2, timedat.idx]), proj.years)
     artelig_specpop <- setNames(dp[specpopelig.tidx+1:7,2:6], c("description", "pop", "elig", "percent", "year"))
-  } else if(dp.vers == "Spectrum2016") {
+  } else if(dp.vers %in% c("Spectrum2016", "Spectrum2017")) {
     art15plus_numperc <- sapply(dpsub("<HAARTBySexPerNum MV>", 4:5, timedat.idx), as.numeric)
     art15plus_num <- sapply(dpsub("<HAARTBySex MV>", 4:5, timedat.idx), as.numeric)
     art15plus_eligthresh <- setNames(as.numeric(dpsub("<CD4ThreshHoldAdults MV>", 2, timedat.idx)), proj.years)
@@ -318,12 +373,27 @@ read_hivproj_param <- function(specdp.file){
   artelig_specpop$idx <- match(as.integer(artelig_specpop$year), proj.years)
   rownames(artelig_specpop) <- artelig_specpop$pop
 
+  if(dp.vers %in% c("Spectrum2016", "Spectrum2017"))
+    median_cd4init <- sapply(dpsub("<MedCD4CountInit MV>", 2, timedat.idx), as.numeric)
+  else
+    median_cd4init <- rep(0, length(timedat.idx))
+  names(median_cd4init) <- proj.years
+  
+  if(dp.vers %in% c("Spectrum2016", "Spectrum2017"))
+    art_dropout <- sapply(dpsub("<PercLostFollowup MV>", 2, timedat.idx), as.numeric)
+  else
+    art_dropout <- rep(0, length(timedat.idx))
+  names(art_dropout) <- proj.years
+  
   projp <- list("yr_start"=yr_start, "yr_end"=yr_end, "t0"=t0,
                 "relinfectART"=relinfectART,
-                "fert_rat"=fert_rat, "incrr_sex"=incrr_sex, "incrr_age"=incrr_age,
+                "fert_rat"=fert_rat,
+                "cd4fert_rat"=cd4fert_rat,
+                "incrr_sex"=incrr_sex, "incrr_age"=incrr_age,
                 "cd4_initdist"=cd4_initdist, "cd4_prog"=cd4_prog, "cd4_mort"=cd4_mort, "art_mort"=art_mort,
                 "art15plus_numperc"=art15plus_numperc, "art15plus_num"=art15plus_num,
-                "art15plus_eligthresh"=art15plus_eligthresh, "artelig_specpop"=artelig_specpop)
+                "art15plus_eligthresh"=art15plus_eligthresh, "artelig_specpop"=artelig_specpop,
+                "median_cd4init"=median_cd4init, "art_dropout"=art_dropout)
   class(projp) <- "projp"
   attr(projp, "version") <- version
   attr(projp, "validdate") <- validdate
@@ -428,15 +498,28 @@ read_demog_param <- function(upd.file, age.intervals = 1){
 
 ## Note: only parses Spectrum 2016 files, produces outputs by single-year age
 
-read_specdp_demog_param <- function(specdp.file){
+read_specdp_demog_param <- function(pjnz){
 
-  dp <- read.csv(specdp.file, as.is=TRUE)
+  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+
+  dp.vers <- get_dp_version(dp)
+
+  dpsub <- function(tag, rows, cols, tagcol=1){
+    dp[which(dp[,tagcol]==tag)+rows, cols]
+  }
 
   version <- paste("Spectrum", dp[which(dp[,1] == "<ValidVers MV>")+2, 4])
 
   ## projection parameters
-  yr_start <- as.integer(dp[which(dp[,1] == "<FirstYear MV>")+3,4])
-  yr_end <- as.integer(dp[which(dp[,1] == "<FinalYear MV>")+3,4])
+  if(dp.vers == "Spectrum2016"){
+    yr_start <- as.integer(dp[which(dp[,1] == "<FirstYear MV>")+3,4])
+    yr_end <- as.integer(dp[which(dp[,1] == "<FinalYear MV>")+3,4])
+  } else if(dp.vers == "Spectrum2017"){
+    yr_start <- as.integer(dpsub("<FirstYear MV2>",2,4))
+    yr_end <- as.integer(dpsub("<FinalYear MV2>",2,4))
+  } else
+    stop(paste("Demographic inputs not available from Spectrum DP file (dp.vers =", dp.vers))
   proj.years <- yr_start:yr_end
   timedat.idx <- 4+1:length(proj.years)-1
 
@@ -448,10 +531,14 @@ read_specdp_demog_param <- function(specdp.file){
   dimnames(basepop) <- list(0:80, c("Male", "Female"), proj.years)
 
   ## mx
-  sx.tidx <- which(dp[,1] == "<SurvRate MV>")
-  Sx <- dp[sx.tidx+3+c(0:79,81, 83+0:79, 83+81), timedat.idx]
+  if(dp.vers == "Spectrum2016"){
+    sx.tidx <- which(dp[,1] == "<SurvRate MV>")
+    Sx <- dp[sx.tidx+3+c(0:79,81, 83+0:79, 83+81), timedat.idx]
+  } else if(dp.vers == "Spectrum2017")
+    Sx <- dpsub("<SurvRate MV2>", 3+c(0:79, 81, 82+0:79, 82+81), timedat.idx)
   Sx <- array(as.numeric(unlist(Sx)), c(81, 2, length(proj.years)))
   dimnames(Sx) <- list(0:80, c("Male", "Female"), proj.years)
+
   mx <- -log(Sx)
 
   ## asfr
@@ -469,15 +556,20 @@ read_specdp_demog_param <- function(specdp.file){
   srb <- setNames(as.numeric(dp[srb.tidx + 2, timedat.idx]), proj.years)
 
   ## migration
-  migrrate.tidx <- which(dp[,1] == "<MigrRate MV>")
-  migaged.tidx <- which(dp[,1] == "<MigrAgeDist MV>")
+  if(dp.vers == "Spectrum2016"){
+    migrrate.tidx <- which(dp[,1] == "<MigrRate MV>")
+    totnetmig <- sapply(dp[migrrate.tidx+c(5,8), timedat.idx], as.numeric)
+  } else if(dp.vers == "Spectrum2017")
+    totnetmig <- sapply(dpsub("<MigrRate MV2>", c(4, 6), timedat.idx), as.numeric)
 
-  totnetmig <- sapply(dp[migrrate.tidx+c(5,8), timedat.idx], as.numeric)
-
-  ## note: age=0 is empty in DP file, inputs start in age=1
-  netmigagedist <- sapply(dp[migaged.tidx+6+c(1:17*2, 37+1:17*2), timedat.idx], as.numeric) / 100
+  if(dp.vers == "Spectrum2016"){
+    ## note: age=0 is empty in DP file, inputs start in age=1
+    migaged.tidx <- which(dp[,1] == "<MigrAgeDist MV>")
+    netmigagedist <- sapply(dp[migaged.tidx+6+c(1:17*2, 37+1:17*2), timedat.idx], as.numeric) / 100
+  } else if(dp.vers == "Spectrum2017")
+    netmigagedist <- sapply(dpsub("<MigrAgeDist MV2>", 2+1:34, timedat.idx), as.numeric) / 100
   netmigagedist <- array(c(netmigagedist), c(17, 2, length(proj.years)))
-
+    
   netmigr <- sweep(netmigagedist, 2:3, totnetmig, "*")
 
 
@@ -526,4 +618,34 @@ read_specdp_demog_param <- function(specdp.file){
   attr(demp, "version") <- version
 
   return(demp)
+}
+
+
+
+## Prepare fit by EPP regions
+#'
+#' @param pjnz file path to Spectrum PJNZ file.
+read_epp_perc_urban <- function(pjnz){
+
+  xmlfile <- grep(".xml", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  con <- unz(pjnz, xmlfile)
+  epp.xml <- scan(con, "character", sep="\n")
+  close(con)
+  
+  if (!require("XML", quietly = TRUE))
+    stop("read_epp_perc_urban() requires the package 'XML'. Please install it.", call. = FALSE)
+  
+  obj <- xmlTreeParse(epp.xml)
+  r <- xmlRoot(obj)[[1]]
+
+  yr_start <- as.integer(xmlToList(r[[which(xmlSApply(r, xmlAttrs) == "worksetStartYear")]][[1]]))
+  yr_end <- as.integer(xmlToList(r[[which(xmlSApply(r, xmlAttrs) == "worksetEndYear")]][[1]]))
+  perc_urban.idx <- which(xmlSApply(r, xmlAttrs) == "currentUrbanPercent")
+  if(length(perc_urban.idx) == 0){
+    warning(paste0("EPP file does not contain Urban/Rural stratification:\n", pjnz))
+    return(NULL)
+  }
+  perc_urban <- as.numeric(xmlSApply(r[[perc_urban.idx]][[1]], xmlSApply, xmlToList))
+
+  return(setNames(perc_urban, yr_start:yr_end))
 }

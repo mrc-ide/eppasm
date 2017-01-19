@@ -276,6 +276,7 @@ sim_mod_list <- function(fit, rwproj=fit$fp$eppmod == "rspline"){
   mod.list <- lapply(fp.list, simmod)
 
   ## strip unneeded attributes to preserve memory
+
   mod.list <- lapply(mod.list, function(mod){ attributes(mod)[!names(attributes(mod)) %in% c("class", "dim", "infections", "hivdeaths", "natdeaths", "rvec", "popadjust")] <- NULL; mod})
 
   return(mod.list)

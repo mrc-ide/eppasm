@@ -2,7 +2,7 @@ cred.region <- function(x, y, ...)
   polygon(c(x, rev(x)), c(y[1,], rev(y[2,])), border=NA, ...)
 
 transp <- function(col, alpha=0.5)
-  return(apply(col2rgb(col), 2, function(c) rgb(c[1]/255, c[2]/255, c[3]/255, alpha)))
+  return(replace(apply(col2rgb(col), 2, function(c) rgb(c[1]/255, c[2]/255, c[3]/255, alpha)), is.na(col), NA))
 
 estci <- function(x){val <- cbind(rowMeans(x), t(apply(x, 1, quantile, c(0.5, 0.025, 0.975)))); colnames(val) <- c("mean", "median", "lower", "upper"); val}
 
@@ -64,11 +64,11 @@ plot_compare_ageprev <- function(fit, fit2=NULL, fit3=NULL, ylim=NULL, col=c("gr
 
 
 
-plot_prev <- function(fit, ..., ylim=NULL, xlim=c(1980, 2016), col="blue", main=""){
+plot_prev <- function(fit, ..., ylim=NULL, xlim=c(1980, 2016), col="blue", main="", ylab="prevalence"){
   if(is.null(ylim))
     ylim <- c(0, 1.1*max(apply(fit$prev, 1, quantile, 0.975)))
   xx <- fit$fp$ss$proj_start-1+1:fit$fp$ss$PROJ_YEARS
-  plot(xx, rowMeans(fit$prev), type="n", ylim=ylim, xlim=xlim, ylab="prevalence", xlab="", yaxt="n", xaxt="n", main=main)
+  plot(xx, rowMeans(fit$prev), type="n", ylim=ylim, xlim=xlim, ylab=ylab, xlab="", yaxt="n", xaxt="n", main=main)
   axis(1, labels=TRUE)
   axis(2, labels=TRUE)
   dots <- list(...)
@@ -85,12 +85,12 @@ plot_prev <- function(fit, ..., ylim=NULL, xlim=c(1980, 2016), col="blue", main=
            y1=pnorm(fit$likdat$hhslik.dat$W.hhs + qnorm(0.975)*fit$likdat$hhslik.dat$sd.W.hhs))
 }
 
-plot_incid <- function(fit, ..., ylim=NULL, xlim=c(1980, 2016), col="blue", main=""){
+plot_incid <- function(fit, ..., ylim=NULL, xlim=c(1980, 2016), col="blue", main="", ylab="incidence rate"){
   if(is.null(ylim))
     ylim <- c(0, 1.1*max(apply(fit$incid, 1, quantile, 0.975)))
   xx <- fit$fp$ss$proj_start-1+1:fit$fp$ss$PROJ_YEARS
   plot(xx, rowMeans(fit$incid), type="n", ylim=ylim, xlim=xlim,
-       ylab="incidence rate", xlab="", yaxt="n", xaxt="n", main=main)
+       ylab=ylab, xlab="", yaxt="n", xaxt="n", main=main)
   axis(1, labels=TRUE)
   axis(2, labels=TRUE)
   dots <- list(...)
@@ -100,6 +100,10 @@ plot_incid <- function(fit, ..., ylim=NULL, xlim=c(1980, 2016), col="blue", main
   for(ii in seq_along(dots))
     lines(xx, rowMeans(dots[[ii]]$incid), col=col[1+ii],lwd=1.5)
   lines(xx, rowMeans(fit$incid), col=col, lwd=1.5)
+  ##
+  if(exists("hhsincid.dat", where=fit$likdat))
+    with(fit$likdat$hhsincid.dat,{ points(year, incid, pch=20);
+      segments(year, y0=exp(log_incid-qnorm(0.975)*log_incid.se), y1=exp(log_incid+qnorm(0.975)*log_incid.se))})
 }
 
 plot_rvec <- function(fit, ..., ylim=NULL, xlim=c(1980, 2016), col="blue"){

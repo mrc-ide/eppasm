@@ -605,7 +605,7 @@ calc_pregprev <- function(mod, fp){
 #'
 #' @param mod output of simmod of class \code{\link{spec}}.
 #' @return 3-dimensional array of mortality by age, sex, and year.
-agemx <- function(mod){
+agemx.spec <- function(mod){
   deaths <- attr(mod, "natdeaths") + attr(mod, "hivdeaths")
   pop <- mod[,,1,]+ mod[,,2,]
 
@@ -614,6 +614,42 @@ agemx <- function(mod){
 
   return(mx)
 }
+
+
+#' Non-HIV age-specific mortality
+#'
+#' Calculate all-cause mortality rate by single year of age and sex from a
+#' \code{spec} object.
+#'
+#' Mortality in year Y is calculated as the number of non-HIV deaths occurring
+#' from the mid-year of year Y-1 to mid-year Y, divided by the population size
+#' at the mid-year of year Y-1.
+#' !!! NOTE: This might be different from the calculation in Spectrum. Should
+#' confirm this with John Stover.
+#'
+#' @param mod output of simmod of class \code{\link{spec}}.
+#' @return 3-dimensional array of mortality by age, sex, and year.
+natagemx.spec <- function(mod){
+  deaths <- attr(mod, "natdeaths")
+  pop <- mod[,,1,]+ mod[,,2,]
+
+  mx <- array(0, dim=dim(pop))
+  mx[,,-1] <-deaths[,,-1] / pop[,,-dim(pop)[3]]
+
+  return(mx)
+}
+
+hivagemx.spec <- function(mod){
+  deaths <- attr(mod, "natdeaths")
+  pop <- mod[,,1,]+ mod[,,2,]
+
+  mx <- array(0, dim=dim(pop))
+  mx[,,-1] <-deaths[,,-1] / pop[,,-dim(pop)[3]]
+
+  return(mx)
+}
+
+
 
 #' Age-specific prevalence by 5-year age groups
 #'

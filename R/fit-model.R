@@ -19,7 +19,7 @@ prepare_national_fit <- function(pjnz, upd.path, proj.end=2013.5, hiv_steps_per_
   attr(val, "eppd") <- list(anc.used = do.call(c, lapply(eppd, "[[", "anc.used")),
                             anc.prev = do.call(rbind, lapply(eppd, "[[", "anc.prev")),
                             anc.n = do.call(rbind, lapply(eppd, "[[", "anc.n")))
-  attr(val, "likdat") <- list(anclik.dat = with(attr(val, "eppd"), fnPrepareANCLikelihoodData(anc.prev, anc.n, anc.used, projp$yr_start)))
+  attr(val, "likdat") <- list(anclik.dat = with(attr(val, "eppd"), anclik::fnPrepareANCLikelihoodData(anc.prev, anc.n, anc.used, projp$yr_start)))
   attr(val, "likdat")$lastdata.idx <- max(unlist(attr(val, "likdat")$anclik.dat$anc.idx.lst),
                                           unlist(lapply(lapply(lapply(eppd, "[[", "hhs"), epp:::fnPrepareHHSLikData, projp$yr_start), "[[", "idx")))
   attr(val, "likdat")$firstdata.idx <- min(unlist(attr(val, "likdat")$anclik.dat$anc.idx.lst),
@@ -132,7 +132,7 @@ sim_mod_list <- function(fit, rwproj=FALSE){
   mod.list <- lapply(fp.list, simmod)
 
   ## strip unneeded attributes to preserve memory
-  mod.list <- lapply(mod.list, function(mod){ attributes(mod)[!names(attributes(mod)) %in% c("class", "dim", "infections", "hivdeaths", "natdeaths", "rvec")] <- NULL; mod})
+  mod.list <- lapply(mod.list, function(mod){ attributes(mod)[!names(attributes(mod)) %in% c("class", "dim", "infections", "hivdeaths", "natdeaths", "rvec", "artpop")] <- NULL; mod})
 
   return(mod.list)
 }

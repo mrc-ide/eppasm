@@ -138,15 +138,19 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
                   "aidsdeaths.m" = aidsdeaths.m,
                   "aidsdeaths.f" = aidsdeaths.f)
 
-  ## if(single.age){
-  ##   ## !!! WORKING HERE
-  ##   <HIVBySingleAge>
-  ## }
-
-  ## "<HIVBySingleAge MV>"
-  ## "<DeathsByAge MV>"
-
-
+  if(single.age){
+    totpop <- array(sapply(dpsub("<BigPop MV>", 3:164, timedat.idx), as.numeric),
+                    c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    hivpop <- array(sapply(dpsub("<HIVBySingleAge MV>", c(3:83, 85:165), timedat.idx), as.numeric),
+                    c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    natdeaths <- array(sapply(dpsub("<DeathsByAge MV>", c(4:84, 86:166), timedat.idx), as.numeric),
+                       c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    hivdeaths <- array(sapply(dpsub("<AidsDeathsByAge MV>", c(4:84, 86:166), timedat.idx), as.numeric),
+                        c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    specres[c("totpop", "hivpop", "natdeaths", "hivdeaths")] <- list(totpop, hivpop, natdeaths, hivdeaths)
+  }
+    
+  
   class(specres) <- "specres"
 
   return(specres)

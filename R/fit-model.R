@@ -18,7 +18,7 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = TRUE, popupdate=
   projp <- read_hivproj_param(pjnz)
 
   ## If Urban/Rural fit, read percentage urban from EPP XML file
-  if(all(sort(substr(names(eppd), 1, 1)) == c("R", "U")))
+  if(length(eppd) == 2 && all(sort(substr(names(eppd), 1, 1)) == c("R", "U")))
     perc_urban <- read_epp_perc_urban(pjnz) / 100
   else
     perc_urban <- NULL
@@ -46,20 +46,19 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = TRUE, popupdate=
 
 create_subpop_specfp <- function(projp, demp, eppd, ..., popadjust=TRUE, popupdate=TRUE, perc_urban=NULL){
 
-  ## Urban/Rural target population database
-  urpop <- readRDS(system.file("extdata", "urpop.RDS", package="eppspectrum"))
-  
   country <- attr(eppd, "country")
+  country_code <- attr(eppd, "country_code")
 
   ## Update demp for subpopulation 
   demp.subpop <- list()
   for(subpop in names(eppd)){
-    subp <- if(subpop %in% c("Urbain", "Urbaine", "Urban")) "Urban"
-            else if(subpop %in%  c("Rural", "Rurale")) "Rural"
-            else subpop  # bloody French...
+    ## if(country != "Malawi")
+    strsubp <- if(subpop %in% c("Urbain", "Urbaine", "Urban")) "U"
+               else if(subpop %in%  c("Rural", "Rurale")) "R"
+               else subpop  # bloody French...
     demp.subpop[[subpop]] <- demp
     if (popadjust) {
-      demp.subpop[[subpop]]$basepop <- urpop[,,dimnames(demp$basepop)[[3]] ,subp, country]
+      demp.subpop[[subpop]]$basepop <- subp[[grep(country_code, names(subp))]][[strsubp]][,,dimnames(demp$basepop)[[3]]]
       demp.subpop[[subpop]]$netmigr[] <- 0
     }
   }

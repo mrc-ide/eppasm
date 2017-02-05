@@ -649,3 +649,62 @@ read_epp_perc_urban <- function(pjnz){
 
   return(setNames(perc_urban, yr_start:yr_end))
 }
+
+
+
+## Read percentage urban input into EPP XML file
+#'
+#' @param pjnz file path to Spectrum PJNZ file.
+read_epp_perc_urban <- function(pjnz){
+
+  xmlfile <- grep(".xml", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  con <- unz(pjnz, xmlfile)
+  epp.xml <- scan(con, "character", sep="\n")
+  close(con)
+  
+  if (!require("XML", quietly = TRUE))
+    stop("read_epp_perc_urban() requires the package 'XML'. Please install it.", call. = FALSE)
+  
+  obj <- xmlTreeParse(epp.xml)
+  r <- xmlRoot(obj)[[1]]
+
+  yr_start <- as.integer(xmlToList(r[[which(xmlSApply(r, xmlAttrs) == "worksetStartYear")]][[1]]))
+  yr_end <- as.integer(xmlToList(r[[which(xmlSApply(r, xmlAttrs) == "worksetEndYear")]][[1]]))
+  perc_urban.idx <- which(xmlSApply(r, xmlAttrs) == "currentUrbanPercent")
+  if(length(perc_urban.idx) == 0){
+    warning(paste0("EPP file does not contain Urban/Rural stratification:\n", pjnz))
+    return(NULL)
+  }
+  perc_urban <- as.numeric(xmlSApply(r[[perc_urban.idx]][[1]], xmlSApply, xmlToList))
+
+  return(setNames(perc_urban, yr_start:yr_end))
+}
+
+## Read subpopulation size input file
+#'
+#' @param filepath file path to .subp file
+read_subp_file <- function(filepath){
+
+  dat <- readLines(filepath)
+
+  AG <- as.integer(sub("AGEGROUPS=([0-9]*)", "\\1", grep("AGEGROUPS=([0-9]*)", dat, value=TRUE)))
+  startyear <- as.integer(sub("STARTYEAR=([0-9]*)", "\\1", grep("STARTYEAR=([0-9]*)", dat, value=TRUE)))
+  years <- as.integer(sub("YEARS=([0-9]*)", "\\1", grep("YEARS=([0-9]*)", dat, value=TRUE)))
+
+  startidx <- grep("DATASTART", dat)
+  endidx <- grep("DATAEND", dat)
+
+  datidx <- seq(startidx+1, endidx-1, AG+1)
+
+  header <- setNames(read.csv(text=dat[datidx], header=FALSE),
+                     c("country_code", "country", "region", "sex"))
+  header$sex <- factor(header$sex, c("Male", "Female"))
+
+  data <- lapply(datidx, function(idx) read.csv(text=dat[idx+1:AG], header=FALSE))
+  data <- lapply(tapply(setNames(data, header$sex), header$region, abind::abind, along=0),
+                 aperm, c(2,1,3))
+  data <- lapply(data, function(x) x[,c("Male", "Female"),])
+  data <- lapply(data, "dimnames<-", list(Age=0:(AG-1), Sex=c("Male", "Female"), Year=startyear+1:years-1L))
+
+  return(data)
+}

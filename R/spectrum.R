@@ -134,8 +134,9 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$cd4_mort <- projp$cd4_mort[,projp.h.ag,]
   fp$art_mort <- projp$art_mort[,,projp.h.ag,]
 
-  fert_rat.h.ag <- findInterval(AGE_START + cumsum(h.ag.span[h.fert.idx]) - h.ag.span[h.fert.idx], seq(15, 45, 5))
-  
+  frr_agecat <- as.integer(rownames(projp$fert_rat))
+  frr_agecat[frr_agecat == 18] <- 17
+  fert_rat.h.ag <- findInterval(AGE_START + cumsum(h.ag.span[h.fert.idx]) - h.ag.span[h.fert.idx], frr_agecat)
 
   fp$frr_cd4 <- array(1, c(hDS, length(h.fert.idx), PROJ_YEARS))
   fp$frr_cd4[,,] <- rep(projp$fert_rat[fert_rat.h.ag, as.character(proj_start:proj_end)], each=hDS)

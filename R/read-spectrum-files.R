@@ -269,7 +269,10 @@ read_hivproj_param <- function(pjnz){
   } else if(dp.vers == "Spectrum2017") {
     fert_rat <- sapply(dpsub("<HIVTFR MV2>", 2:8, timedat.idx), as.numeric)
   }
-  dimnames(fert_rat) <- list(seq(15, 45, 5), proj.years)
+  if(dp.vers == "Spectrum2017")
+    dimnames(fert_rat) <- list(c(15, 18, seq(20, 40, 5)), proj.years)
+  else
+    dimnames(fert_rat) <- list(seq(15, 45, 5), proj.years)
 
   if(dp.vers == "Spectrum2017")
     cd4fert_rat <- as.numeric(dpsub("<FertCD4Discount MV>", 2, 4+1:DS))

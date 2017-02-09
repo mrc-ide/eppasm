@@ -1,6 +1,6 @@
 create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_start = projp$yr_start, proj_end = projp$yr_end,
                                    AGE_START = 15L, relinfectART = projp$relinfectART, time_epi_start = projp$t0,
-                                   popadjust=FALSE, targetpop=demp$basepop, who34percelig=0, frr_art1yr=1.0){
+                                   popadjust=FALSE, targetpop=demp$basepop, artelig200adj=TRUE, who34percelig=0, frr_art6mos=1.0, frr_art1yr=1.0){
 
   
   ## ########################## ##
@@ -135,8 +135,9 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$cd4_mort <- projp$cd4_mort[,projp.h.ag,]
   fp$art_mort <- projp$art_mort[,,projp.h.ag,]
 
-  fert_rat.h.ag <- findInterval(AGE_START + cumsum(h.ag.span[h.fert.idx]) - h.ag.span[h.fert.idx], seq(15, 45, 5))
-  
+  frr_agecat <- as.integer(rownames(projp$fert_rat))
+  frr_agecat[frr_agecat == 18] <- 17
+  fert_rat.h.ag <- findInterval(AGE_START + cumsum(h.ag.span[h.fert.idx]) - h.ag.span[h.fert.idx], frr_agecat)
 
   fp$frr_cd4 <- array(1, c(hDS, length(h.fert.idx), PROJ_YEARS))
   fp$frr_cd4[,,] <- rep(projp$fert_rat[fert_rat.h.ag, as.character(proj_start:proj_end)], each=hDS)
@@ -145,7 +146,11 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$frr_art <- array(1, c(hTS, hDS, length(h.fert.idx), PROJ_YEARS))
   fp$frr_art[1:2,,,] <- rep(fp$frr_cd4, each=2)
 
-  fp$frr_art[3,,,] <- frr_art1yr  # relative fertility of women on ART > 1 year
+  if(!is.null(frr_art6mos))
+    fp$frr_art[2,,,] <- frr_art6mos
+
+  if(!is.null(frr_art1yr))
+    fp$frr_art[3,,,] <- frr_art1yr  # relative fertility of women on ART > 1 year
 
 
   ## ART eligibility and numbers on treatment
@@ -159,6 +164,11 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ## eligibility starts in projection year idx+1
   fp$specpop_percelig <- rowSums(with(projp$artelig_specpop[-1,], mapply(function(elig, percent, year) rep(c(0, percent*as.numeric(elig)), c(year - proj_start+1, proj_end - year)), elig, percent, year)))
   fp$artcd4elig_idx <- findInterval(-projp$art15plus_eligthresh[as.character(proj_start:proj_end)], -c(999, 500, 350, 250, 200, 100, 50))
+
+  ## Update eligibility threshold from CD4 <200 to <250 to account for additional
+  ## proportion eligible with WHO Stage 3/4.
+  if(artelig200adj)
+    fp$artcd4elig_idx <- replace(fp$artcd4elig_idx, fp$artcd4elig_idx==5L, 4L)
 
   fp$pw_artelig <- with(projp$artelig_specpop["PW",], rep(c(0, elig), c(year - proj_start+1, proj_end - year)))  # are pregnant women eligible (0/1)
 

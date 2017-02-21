@@ -6,7 +6,7 @@ transp <- function(col, alpha=0.5)
 
 estci <- function(x){val <- cbind(rowMeans(x), t(apply(x, 1, quantile, c(0.5, 0.025, 0.975)))); colnames(val) <- c("mean", "median", "lower", "upper"); val}
 
-plot_compare_ageprev <- function(fit, fit2=NULL, fit3=NULL, ylim=NULL, col=c("grey30", "darkred", "forestgreen")){
+plot_compare_ageprev <- function(fit, fit2=NULL, fit3=NULL, specres=NULL, ylim=NULL, col=c("grey30", "darkred", "forestgreen")){
   if(is.null(ylim))
     ylim <- c(0, 0.05*ceiling(max(fit$likdat$hhsage.dat$ci_u)/0.05))
   ####
@@ -55,6 +55,11 @@ plot_compare_ageprev <- function(fit, fit2=NULL, fit3=NULL, ylim=NULL, col=c("gr
         segments(xx+0.05, sp3$mean, xx+0.95, col=col[3], lwd=2)
       }
       ##
+      if(!is.null(specres)){
+        csex <- sub("(\\b[a-z]{1})", "\\U\\1" , isex, perl=TRUE)
+        specres.prev <- tapply(specres$hivpop[as.character(15:54), csex, isurv], rep(3:10, each=5), sum) / tapply(specres$totpop[as.character(15:54), csex, isurv], rep(3:10, each=5), sum)
+        segments(4:11+0.1, specres.prev, 4:11+0.9, lty=3, col="grey10", lwd=2)
+      }
       points(xx+0.5, sp$prev, pch=19)
       segments(x0=xx+0.5, y0=sp$ci_l, y1=sp$ci_u)
     }

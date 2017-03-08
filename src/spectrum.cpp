@@ -152,12 +152,11 @@ extern "C" {
     
 
     // vertical transmission and survival
-    double verttrans = *REAL(getListElement(s_fp, "verttrans"));
-    double paedsurv = *REAL(getListElement(s_fp, "paedsurv"));
+    double *verttrans_lag = REAL(getListElement(s_fp, "verttrans_lag"));
+    double *paedsurv_lag = REAL(getListElement(s_fp, "paedsurv_lag"));
     double netmig_hivprob = *REAL(getListElement(s_fp, "netmig_hivprob"));
     double netmighivsurv = *REAL(getListElement(s_fp, "netmighivsurv"));
     double *paedsurv_cd4dist = REAL(getListElement(s_fp, "paedsurv_cd4dist"));
-
 
     // initialize output
     SEXP s_pop = PROTECT(allocVector(REALSXP, pAG * NG * pDS * PROJ_YEARS));
@@ -347,12 +346,12 @@ extern "C" {
 
 	double paedsurv_g;
 	if(bin_popadjust){
-	  double entrant_prev = pregprevlag[t-1] * verttrans * paedsurv;
+	  double entrant_prev = pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1];
 	  pop[t][HIVN][g][0] =  entrantpop[t-1][g] * (1.0-entrant_prev);
 	  paedsurv_g = entrantpop[t-1][g] * entrant_prev;
 	} else {
-	  pop[t][HIVN][g][0] = birthslag[t-1][g] * cumsurv[t-1][g] * (1.0-pregprevlag[t-1] * verttrans) + cumnetmigr[t-1][g] * (1.0-pregprevlag[t-1] * netmig_hivprob);
-	  paedsurv_g = birthslag[t-1][g] * cumsurv[t-1][g] * pregprevlag[t-1] * verttrans * paedsurv + cumnetmigr[t-1][g] * pregprevlag[t-1] * netmig_hivprob * netmighivsurv;
+	  pop[t][HIVN][g][0] = birthslag[t-1][g] * cumsurv[t-1][g] * (1.0-pregprevlag[t-1] * verttrans_lag[t-1]) + cumnetmigr[t-1][g] * (1.0-pregprevlag[t-1] * netmig_hivprob);
+	  paedsurv_g = birthslag[t-1][g] * cumsurv[t-1][g] * pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1] + cumnetmigr[t-1][g] * pregprevlag[t-1] * netmig_hivprob * netmighivsurv;
 	}
 
 	pop[t][HIVP][g][0] = paedsurv_g;

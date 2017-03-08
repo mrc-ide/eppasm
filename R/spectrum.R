@@ -187,8 +187,8 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ## (fixed values assuming AGE_START = 15)
   ## NOTE: !! THIS COMPONENT OF THE MODEL NEEDS UPDATING
   
-  fp$verttrans <- 0.4
-  fp$paedsurv <- 0.09
+  fp$verttrans_lag <- rep(0.4, PROJ_YEARS)
+  fp$paedsurv_lag <- rep(0.09, PROJ_YEARS)
   fp$paedsurv_cd4dist <- c(0.056,0.112,0.112,0.07,0.14,0.23,0.28)
   
   fp$netmig_hivprob <- 0.4*0.22
@@ -249,7 +249,7 @@ simmod.specfp <- function(fp, VERSION="C"){
     return(mod)
   }
 
-  ##################################################################################
+##################################################################################
 
   if(requireNamespace("fastmatch", quietly = TRUE))
     ctapply <- fastmatch::ctapply
@@ -286,6 +286,9 @@ simmod.specfp <- function(fp, VERSION="C"){
 
   prev15to49.ts.out <- rep(NA, length(fp$rvec))
 
+  entrant_prev_out <- numeric(PROJ_YEARS)
+  hivp_entrants_out <- array(0, c(NG, PROJ_YEARS))
+
   ## store last prevalence value (for r-trend model)
   prevlast <- prevcurr <- 0
 
@@ -302,13 +305,22 @@ simmod.specfp <- function(fp, VERSION="C"){
 
     ## Add lagged births into youngest age group
     if(exists("popadjust", where=fp) & fp$popadjust){
-      entrant_prev <- pregprevlag[i-1]*fp$verttrans*fp$paedsurv
+        entrant_prev <- pregprevlag[i-1]*fp$verttrans_lag[i-1]*fp$paedsurv_lag[i-1]
       hivn_entrants <- fp$entrantpop[,i-1]*(1-entrant_prev)
       hivp_entrants <- fp$entrantpop[,i-1]*entrant_prev
     } else {
-      hivn_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*(1-pregprevlag[i-1]*fp$verttrans) + fp$cumnetmigr[,i-1]*(1-pregprevlag[i-1]*fp$netmig_hivprob)
-      hivp_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*pregprevlag[i-1]*fp$verttrans*fp$paedsurv + fp$cumnetmigr[,i-1]*pregprevlag[i-1]*fp$netmig_hivprob*fp$netmighivsurv
+      if(exists("age15pop", where=fp)){
+        hivn_entrants <- fp$age15pop[1]*c(1.03, 1)/2.03*(1-pregprevlag[i-1]*fp$verttrans_lag[i-1])
+        hivp_entrants <- fp$age15pop[1]*c(1.03, 1)/2.03*pregprevlag[i-1]*fp$verttrans_lag[i-1]*fp$paedsurv_lag[i-1]
+      } else {
+        hivn_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*(1-pregprevlag[i-1]*fp$verttrans_lag[i-1]) + fp$cumnetmigr[,i-1]*(1-pregprevlag[i-1]*fp$netmig_hivprob)
+        hivp_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*pregprevlag[i-1]*fp$verttrans_lag[i-1]*fp$paedsurv_lag[i-1] + fp$cumnetmigr[,i-1]*pregprevlag[i-1]*fp$netmig_hivprob*fp$netmighivsurv
+      }
+      entrant_prev <- sum(hivp_entrants) / sum(hivn_entrants+hivp_entrants)
     }
+
+    entrant_prev_out[i] <- entrant_prev
+    hivp_entrants_out[,i] <- hivp_entrants
 
     pop[1,,hivn.idx,i] <- hivn_entrants
     pop[1,,hivp.idx,i] <- hivp_entrants
@@ -561,6 +573,9 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "pregprevlag") <- pregprevlag
   attr(pop, "incrate15to49_ts") <- incrate15to49.ts.out
   attr(pop, "prev15to49_ts") <- prev15to49.ts.out
+
+  attr(pop, "entrant_prev") <- entrant_prev_out
+  attr(pop, "hivp_entrants") <- hivp_entrants_out
   class(pop) <- "spec"
   return(pop)
 }

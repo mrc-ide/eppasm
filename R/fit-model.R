@@ -58,7 +58,7 @@ create_subpop_specfp <- function(projp, demp, eppd, ..., popadjust=TRUE, popupda
                else subpop  # bloody French...
     demp.subpop[[subpop]] <- demp
     if (popadjust) {
-      demp.subpop[[subpop]]$basepop <- subp[[grep(country_code, names(subp))]][[strsubp]][,,dimnames(demp$basepop)[[3]]]
+      demp.subpop[[subpop]]$basepop <- subp[[grep(paste0("^", country_code, "_"), names(subp))]][[strsubp]][,,dimnames(demp$basepop)[[3]]]
       demp.subpop[[subpop]]$netmigr[] <- 0
     }
   }
@@ -234,6 +234,8 @@ simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FA
 
   if(pregprev)
     fit$pregprev <- sapply(mod.list, fnPregPrev)
+
+    fit$entrantprev <- sapply(mod.list, attr, "entrantprev")
 
   if(ageprevdat)
     fit$ageprevdat <- sapply(mod.list, ageprev, arridx=fit$likdat$hhsage.dat$arridx, agspan=5)

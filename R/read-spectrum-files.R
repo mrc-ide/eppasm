@@ -188,6 +188,8 @@ read_hivproj_param <- function(pjnz){
 
   dp.vers <- get_dp_version(dp)
 
+  exists_dptag <- function(tag, tagcol=1){tag %in% dp[,tagcol]}
+
   dpsub <- function(tag, rows, cols, tagcol=1){
     dp[which(dp[,tagcol]==tag)+rows, cols]
   }
@@ -387,7 +389,32 @@ read_hivproj_param <- function(pjnz){
   else
     art_dropout <- rep(0, length(timedat.idx))
   names(art_dropout) <- proj.years
+
+
+  ## vertical transmission and paediatric survival
+
+  verttrans <- setNames(sapply(dpsub("<PerinatalTransmission MV>", 2, timedat.idx), as.numeric)/100, proj.years)
+
+  if(exists_dptag("<HIVBySingleAge MV>"))
+    hivpop <- array(sapply(dpsub("<HIVBySingleAge MV>", c(3:83, 85:165), timedat.idx), as.numeric),
+                    c(81, NG, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+  else if(exists_dptag("<HIVBySingleAge MV2>"))
+    hivpop <- array(sapply(dpsub("<HIVBySingleAge MV2>", 3:164, timedat.idx), as.numeric),
+                    c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+  else
+    hivpop <- NULL
   
+  
+  if(exists_dptag("<AidsDeathsByAge MV>"))
+    hivdeaths <- array(sapply(dpsub("<AidsDeathsByAge MV>", c(4:84, 86:166), timedat.idx), as.numeric),
+                       c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+  else if(exists_dptag("<AidsDeathsByAge MV2>"))
+    hivdeaths <- array(sapply(dpsub("<AidsDeathsByAge MV2>", 3:164, timedat.idx), as.numeric),
+                       c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+  else
+    hivpop <- NULL
+
+    
   projp <- list("yr_start"=yr_start, "yr_end"=yr_end, "t0"=t0,
                 "relinfectART"=relinfectART,
                 "fert_rat"=fert_rat,
@@ -396,7 +423,8 @@ read_hivproj_param <- function(pjnz){
                 "cd4_initdist"=cd4_initdist, "cd4_prog"=cd4_prog, "cd4_mort"=cd4_mort, "art_mort"=art_mort,
                 "art15plus_numperc"=art15plus_numperc, "art15plus_num"=art15plus_num,
                 "art15plus_eligthresh"=art15plus_eligthresh, "artelig_specpop"=artelig_specpop,
-                "median_cd4init"=median_cd4init, "art_dropout"=art_dropout)
+                "median_cd4init"=median_cd4init, "art_dropout"=art_dropout,
+                "verttrans"=verttrans, "hivpop"=hivpop, "hivdeaths"=hivdeaths)
   class(projp) <- "projp"
   attr(projp, "version") <- version
   attr(projp, "validdate") <- validdate

@@ -8,7 +8,8 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ## ########################## ##
 
   ## Parameters defining the model projection period and state-space
-  ss <- list(PROJ_YEARS = as.integer(proj_end - proj_start + 1L),
+  ss <- list(proj_start = proj_start,
+             PROJ_YEARS = as.integer(proj_end - proj_start + 1L),
              AGE_START  = as.integer(AGE_START),
              hiv_steps_per_year = as.integer(hiv_steps_per_year),
              time_epi_start=time_epi_start)
@@ -214,11 +215,13 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ## ######################### ##
 
   fp$iota <- 0.0025
-  proj.dur <- diff(range(fp$proj.steps))
+  fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - (fp$ss$time_epi_start+0.5)))]
   fp$numKnots <- 7
-  rvec.knots <- seq(min(fp$proj.steps) - 3*proj.dur/(fp$numKnots-3), max(fp$proj.steps) + 3*proj.dur/(fp$numKnots-3), proj.dur/(fp$numKnots-3))
-  fp$rvec.spldes <- splines::splineDesign(rvec.knots, fp$proj.steps)
-  fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - fp$ss$time_epi_start))]
+  epi_steps <- fp$proj.steps[fp$proj.steps >= fp$tsEpidemicStart]
+  proj.dur <- diff(range(epi_steps))
+  rvec.knots <- seq(min(epi_steps) - 3*proj.dur/(fp$numKnots-3), max(epi_steps) + 3*proj.dur/(fp$numKnots-3), proj.dur/(fp$numKnots-3))
+  fp$rvec.spldes <- rbind(matrix(0, length(fp$proj.steps) - length(epi_steps), fp$numKnots),
+                          splines::splineDesign(rvec.knots, epi_steps))
 
   fp$eppmod <- "rspline"  # default to r-spline model
   
@@ -236,15 +239,17 @@ prepare_rtrend_model <- function(fp, iota=0.0025){
 }
 
 
-prepare_rspline_model <- function(fp, numKnots=7, tsEpidemicStart=fp$ss$time_epi_start){
+prepare_rspline_model <- function(fp, numKnots=7, tsEpidemicStart=fp$ss$time_epi_start+0.5){
 
-  proj.dur <- diff(range(fp$proj.steps))
-  fp$numKnots <- 7
-  rvec.knots <- seq(min(fp$proj.steps) - 3*proj.dur/(fp$numKnots-3), max(fp$proj.steps) + 3*proj.dur/(fp$numKnots-3), proj.dur/(fp$numKnots-3))
-  fp$rvec.spldes <- splines::splineDesign(rvec.knots, fp$proj.steps)
+  fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - tsEpidemicStart))]
+  fp$numKnots <- numKnots
+  epi_steps <- fp$proj.steps[fp$proj.steps >= fp$tsEpidemicStart]
+  proj.dur <- diff(range(epi_steps))
+  rvec.knots <- seq(min(epi_steps) - 3*proj.dur/(fp$numKnots-3), max(epi_steps) + 3*proj.dur/(fp$numKnots-3), proj.dur/(fp$numKnots-3))
+  fp$rvec.spldes <- rbind(matrix(0, length(fp$proj.steps) - length(epi_steps), fp$numKnots),
+                          splines::splineDesign(rvec.knots, epi_steps))
 
   fp$eppmod <- "rspline"
-  fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - tsEpidemicStart))]
   fp$iota <- NULL
 
   return(fp)

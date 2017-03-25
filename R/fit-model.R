@@ -35,7 +35,6 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = TRUE, popupdate=
     mapply(function(set, value){ attributes(set)[[attrib]] <- value; set}, obj, value.lst)
 
   val <- set.list.attr(val, "eppd", eppd)
-  val <- set.list.attr(val, "likdat", lapply(eppd, fnCreateLikDat, anchor.year=epp.input$start.year))
   val <- set.list.attr(val, "eppfp", lapply(epp.subp.input, fnCreateEPPFixPar, proj.end = proj.end))
   val <- set.list.attr(val, "specfp", specfp.subp)
   val <- set.list.attr(val, "country", attr(eppd, "country"))
@@ -185,7 +184,30 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   else
     fp <- update(attr(obj, 'specfp'), ...)
 
-  likdat <- attr(obj, 'likdat')
+
+  ## Prepare likelihood data
+  eppd <- attr(obj, "eppd")
+  
+  if(exists("ancrt", fp) && fp$ancrt == "none")
+    eppd$ancrtcens <- eppd$ancrtsite.prev <- eppd$ancrtsite.n <- NULL
+  else if(exists("ancrt", fp) && fp$ancrt == "census")
+    eppd$ancrtsite.prev <- eppd$ancrtsite.n <- NULL
+  else if(exists("ancrt", fp) && fp$ancrt == "site")
+    eppd$ancrtcens <- NULL
+
+  if(is.null(eppd$ancrtcens) && is.null(eppd$ancrtsite.prev)){
+    fp$ancrt <- "none"
+    fp$ancrtsite.beta <- 0
+  } else if(!is.null(eppd$ancrtcens) && is.null(eppd$ancrtsite.prev)){
+    fp$ancrt <- "census"
+    fp$ancrtsite.beta <- 0
+  } else if(!is.null(eppd$ancrtcens) && is.null(eppd$ancrtsite.prev))
+    fp$ancrt <- "site"
+  else
+    fp$ancrt <- "both"
+
+  likdat <- fnCreateLikDat(eppd, floor(fp$proj.steps[1]))
+
 
 
   ## If IMIS fails, start again
@@ -218,7 +240,7 @@ simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FA
     if(exists("eppmod", where=fit$fp) && fit$fp$eppmod == "rtrend")
       stop("Random-walk projection is only used with r-spline model")
 
-    fit$rvec.spline <- sapply(fit$param, "[[", "rvec")
+    ## fit$rvec.spline <- sapply(fit$param, "[[", "rvec")
     firstidx <- which(fit$fp$proj.steps == fit$fp$tsEpidemicStart)
     lastidx <- (fit$likdat$lastdata.idx-1)*fit$fp$ss$hiv_steps_per_year+1
 
@@ -229,7 +251,7 @@ simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FA
   fp.list <- lapply(fit$param, function(par) update(fit$fp, list=par))
   mod.list <- lapply(fp.list, simmod)
   
-  fit$rvec <- sapply(mod.list, attr, "rvec")
+  fit$rvec <- sapply(mod.list, attr, "rvec_ts")
   fit$prev <- sapply(mod.list, prev)
   fit$incid <- mapply(incid, mod = mod.list, fp = fp.list)
   fit$popsize <- sapply(mod.list, colSums, dims=3)

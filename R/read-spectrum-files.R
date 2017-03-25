@@ -192,6 +192,8 @@ read_hivproj_param <- function(pjnz){
 
   dp.vers <- get_dp_version(dp)
 
+  exists_dptag <- function(tag, tagcol=1){tag %in% dp[,tagcol]}
+
   dpsub <- function(tag, rows, cols, tagcol=1){
     dp[which(dp[,tagcol]==tag)+rows, cols]
   }
@@ -214,9 +216,7 @@ read_hivproj_param <- function(pjnz){
   ## find tag indexes (tidx)
   if(dp.vers == "<General 3>"){
     aids5.tidx <- which(dp[,1] == "<AIDS5>")
-    epidemfirstyr.tidx <- aids5.tidx
   } else if(dp.vers == "<General5>"){
-    epidemfirstyr.tidx <- which(dp[,1] == "<FirstYearOfEpidemic>")
     hivtfr.tidx <- which(dp[,1] == "<HIVTFR2>")
     hivsexrat.tidx <- which(dp[,1] == "<HIVSexRatio>")
     hivagedist.tidx <- which(dp[,1] == "<HIVDistribution2>")
@@ -242,19 +242,15 @@ read_hivproj_param <- function(pjnz){
   if(dp.vers %in% c("<General 3>", "<General5>")){
     yr_start <- as.integer(dp[which(dp[,2] == "First year")+1,4])
     yr_end <- as.integer(dp[which(dp[,2] == "Final year")+1,4])
-    t0 <- as.numeric(dp[epidemfirstyr.tidx+2,4])
   } else if(dp.vers == "Spectrum2016"){
     yr_start <- as.integer(dpsub("<FirstYear MV>",3,4))
     yr_end <- as.integer(dpsub("<FinalYear MV>",3,4))
-    t0 <- as.numeric(dpsub("<FirstYearOfEpidemic MV>",2,4))
   } else if(dp.vers == "Spectrum2017"){
     yr_start <- as.integer(dpsub("<FirstYear MV2>",2,4))
     yr_end <- as.integer(dpsub("<FinalYear MV2>",2,4))
-    t0 <- as.numeric(dpsub("<FirstYearOfEpidemic MV>",2,4))
   }
   proj.years <- yr_start:yr_end
   timedat.idx <- 4+1:length(proj.years)-1
-    
   
   ## scalar paramters
   if(dp.vers %in% c("<General 3>", "<General5>")){
@@ -391,8 +387,33 @@ read_hivproj_param <- function(pjnz){
   else
     art_dropout <- rep(0, length(timedat.idx))
   names(art_dropout) <- proj.years
+
+
+  ## vertical transmission and paediatric survival
+
+  verttrans <- setNames(sapply(dpsub("<PerinatalTransmission MV>", 2, timedat.idx), as.numeric)/100, proj.years)
+
+  if(exists_dptag("<HIVBySingleAge MV>"))
+    hivpop <- array(sapply(dpsub("<HIVBySingleAge MV>", c(3:83, 85:165), timedat.idx), as.numeric),
+                    c(81, NG, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+  else if(exists_dptag("<HIVBySingleAge MV2>"))
+    hivpop <- array(sapply(dpsub("<HIVBySingleAge MV2>", 3:164, timedat.idx), as.numeric),
+                    c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+  else
+    hivpop <- NULL
   
-  projp <- list("yr_start"=yr_start, "yr_end"=yr_end, "t0"=t0,
+  
+  if(exists_dptag("<AidsDeathsByAge MV>"))
+    hivdeaths <- array(sapply(dpsub("<AidsDeathsByAge MV>", c(4:84, 86:166), timedat.idx), as.numeric),
+                       c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+  else if(exists_dptag("<AidsDeathsByAge MV2>"))
+    hivdeaths <- array(sapply(dpsub("<AidsDeathsByAge MV2>", 3:164, timedat.idx), as.numeric),
+                       c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+  else
+    hivpop <- NULL
+
+    
+  projp <- list("yr_start"=yr_start, "yr_end"=yr_end,
                 "relinfectART"=relinfectART,
                 "fert_rat"=fert_rat,
                 "cd4fert_rat"=cd4fert_rat,
@@ -400,7 +421,8 @@ read_hivproj_param <- function(pjnz){
                 "cd4_initdist"=cd4_initdist, "cd4_prog"=cd4_prog, "cd4_mort"=cd4_mort, "art_mort"=art_mort,
                 "art15plus_numperc"=art15plus_numperc, "art15plus_num"=art15plus_num,
                 "art15plus_eligthresh"=art15plus_eligthresh, "artelig_specpop"=artelig_specpop,
-                "median_cd4init"=median_cd4init, "art_dropout"=art_dropout)
+                "median_cd4init"=median_cd4init, "art_dropout"=art_dropout,
+                "verttrans"=verttrans, "hivpop"=hivpop, "hivdeaths"=hivdeaths)
   class(projp) <- "projp"
   attr(projp, "version") <- version
   attr(projp, "validdate") <- validdate
@@ -629,7 +651,7 @@ read_specdp_demog_param <- function(pjnz){
 
 
 
-## Prepare fit by EPP regions
+## Read percentage urban input from EPP XML file
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
 read_epp_perc_urban <- function(pjnz){
@@ -656,36 +678,36 @@ read_epp_perc_urban <- function(pjnz){
 
   return(setNames(perc_urban, yr_start:yr_end))
 }
-
-
-
-## Read percentage urban input into EPP XML file
+    
+## Read epidemic start year from EPP XML file
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
-read_epp_perc_urban <- function(pjnz){
-
+#' @return vector of epidemic start year for each EPP subregion with region names
+read_epp_t0 <- function(pjnz){
+  
   xmlfile <- grep(".xml", unzip(pjnz, list=TRUE)$Name, value=TRUE)
   con <- unz(pjnz, xmlfile)
-  epp.xml <- scan(con, "character", sep="\n")
-  close(con)
-  
+  epp.xml <- scan(con, "character", sep="\n", quiet=TRUE)
+  on.exit(close(con), TRUE)
+
   if (!require("XML", quietly = TRUE))
-    stop("read_epp_perc_urban() requires the package 'XML'. Please install it.", call. = FALSE)
-  
+    stop("read_epp_t0() requires the package 'XML'. Please install it.", call. = FALSE)
+      
   obj <- xmlTreeParse(epp.xml)
   r <- xmlRoot(obj)[[1]]
+  eppSetChildren.idx <- which(xmlSApply(r, xmlAttrs) == "eppSetChildren")
 
-  yr_start <- as.integer(xmlToList(r[[which(xmlSApply(r, xmlAttrs) == "worksetStartYear")]][[1]]))
-  yr_end <- as.integer(xmlToList(r[[which(xmlSApply(r, xmlAttrs) == "worksetEndYear")]][[1]]))
-  perc_urban.idx <- which(xmlSApply(r, xmlAttrs) == "currentUrbanPercent")
-  if(length(perc_urban.idx) == 0){
-    warning(paste0("EPP file does not contain Urban/Rural stratification:\n", pjnz))
-    return(NULL)
+  t0 <- list()
+  for(eppSet.idx in 1:xmlSize(r[[eppSetChildren.idx]])){
+
+    eppSet <- r[[eppSetChildren.idx]][[eppSet.idx]][[1]]
+    eppName <- xmlToList(eppSet[[which(xmlSApply(eppSet, xmlAttrs) == "name")]][["string"]])
+    t0[[eppName]] <- as.integer(xmlToList(eppSet[[which(xmlSApply(eppSet, xmlAttrs) == "priorT0vr")]][[1]]))
   }
-  perc_urban <- as.numeric(xmlSApply(r[[perc_urban.idx]][[1]], xmlSApply, xmlToList))
 
-  return(setNames(perc_urban, yr_start:yr_end))
+  return(unlist(t0))
 }
+
 
 ## Read subpopulation size input file
 #'

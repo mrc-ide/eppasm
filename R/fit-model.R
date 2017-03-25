@@ -16,6 +16,7 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = TRUE, popupdate=
   ## spectrum
   demp <- read_specdp_demog_param(pjnz)
   projp <- read_hivproj_param(pjnz)
+  epp_t0 <- read_epp_t0(pjnz)
 
   ## If Urban/Rural fit, read percentage urban from EPP XML file
   if(length(eppd) == 2 && all(sort(substr(names(eppd), 1, 1)) == c("R", "U")))
@@ -23,7 +24,7 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = TRUE, popupdate=
   else
     perc_urban <- NULL
     
-  specfp.subp <- create_subpop_specfp(projp, demp, eppd, proj_end=proj.end,
+  specfp.subp <- create_subpop_specfp(projp, demp, eppd, proj_end=proj.end, epp_t0=epp_t0,
                                       popadjust = popadjust, popupdate = popupdate, perc_urban = perc_urban)
   
 
@@ -44,7 +45,7 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = TRUE, popupdate=
 }
 
 
-create_subpop_specfp <- function(projp, demp, eppd, ..., popadjust=TRUE, popupdate=TRUE, perc_urban=NULL){
+create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, length(eppd)), names(eppd)), ..., popadjust=TRUE, popupdate=TRUE, perc_urban=NULL){
 
   country <- attr(eppd, "country")
   country_code <- attr(eppd, "country_code")
@@ -128,7 +129,7 @@ create_subpop_specfp <- function(projp, demp, eppd, ..., popadjust=TRUE, popupda
 
   specfp.subpop <- list()
   for(subpop in names(eppd))
-    specfp.subpop[[subpop]] <- create_spectrum_fixpar(projp.subpop[[subpop]], demp.subpop[[subpop]], ..., popadjust=popadjust)
+    specfp.subpop[[subpop]] <- create_spectrum_fixpar(projp.subpop[[subpop]], demp.subpop[[subpop]], ..., popadjust=popadjust, time_epi_start=epp_t0[subpop])
 
   return(specfp.subpop)
 }
@@ -143,8 +144,9 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps
   else
     demp <- read_specdp_demog_param(pjnz)
   projp <- read_hivproj_param(pjnz)
+  epp_t0 <- read_epp_t0(pjnz)
 
-  specfp <- create_spectrum_fixpar(projp, demp, proj_end = as.integer(proj.end), time_epi_start = projp$yr_start, hiv_steps_per_year= hiv_steps_per_year)  # Set time_epi_start tomatch EPP
+  specfp <- create_spectrum_fixpar(projp, demp, proj_end = as.integer(proj.end), time_epi_start = epp_t0[1], hiv_steps_per_year= hiv_steps_per_year)  # Set time_epi_start to match first EPP population
 
   ## epp
   eppd <- read_epp_data(pjnz)

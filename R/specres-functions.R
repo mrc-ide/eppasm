@@ -40,3 +40,11 @@ aggr_specres <- function(specreslist){
   class(out) <- "specres"
   return(out)
 }
+
+
+pop15to49.specres <- function(specres){colSums(specres$totpop[as.character(15:49),,],,2)}
+artpop15to49.specres <- function(specres){colSums(specres$artnum.m[4:10,]+specres$artnum.f[4:10,])}
+artpop15plus.specres <- function(specres){colSums(specres$artnum.m[4:17,]+specres$artnum.f[4:17,])}
+artcov15to49.specres <- function(specres){colSums(specres$artnum.m[4:10,]+specres$artnum.f[4:10,]) / colSums(specres$hivnum.m[4:10,]+specres$hivnum.f[4:10,])}
+artcov15plus.specres <- function(specres){colSums(specres$artnum.m[4:17,]+specres$artnum.f[4:17,]) / colSums(specres$hivnum.m[4:17,]+specres$hivnum.f[4:17,])}
+age15pop.specres <- function(specres){colSums(specres$totpop["15",,])}

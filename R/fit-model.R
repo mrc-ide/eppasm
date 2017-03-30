@@ -202,12 +202,12 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   } else if(!is.null(eppd$ancrtcens) && is.null(eppd$ancrtsite.prev)){
     fp$ancrt <- "census"
     fp$ancrtsite.beta <- 0
-  } else if(!is.null(eppd$ancrtcens) && is.null(eppd$ancrtsite.prev))
+  } else if(is.null(eppd$ancrtcens) && !is.null(eppd$ancrtsite.prev))
     fp$ancrt <- "site"
   else
     fp$ancrt <- "both"
 
-  likdat <- fnCreateLikDat(eppd, floor(fp$proj.steps[1]))
+  likdat <- prepare_likdat(eppd, fp)
 
 
   ## If IMIS fails, start again

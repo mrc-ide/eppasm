@@ -648,8 +648,11 @@ calc_pregprev <- function(mod, fp){
 #'
 #' @param mod output of simmod of class \code{\link{spec}}.
 #' @return 3-dimensional array of mortality by age, sex, and year.
-agemx.spec <- function(mod){
-  deaths <- attr(mod, "natdeaths") + attr(mod, "hivdeaths")
+agemx.spec <- function(mod, nonhiv=TRUE){
+  if(nonhiv)
+    deaths <- attr(mod, "natdeaths")
+  else
+    deaths <- attr(mod, "natdeaths") + attr(mod, "hivdeaths")
   pop <- mod[,,1,]+ mod[,,2,]
 
   mx <- array(0, dim=dim(pop))
@@ -723,3 +726,18 @@ ageprev <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL)
     prev <- array(prev, c(length(aidx), length(sidx), length(yidx)))
   return(prev)
 }
+
+
+
+calc_nqx.spec <- function(mod, fp, n=45, x=15, nonhiv=FALSE){
+  mx <- agemx(mod, nonhiv)
+  return(1-exp(-colSums(mx[x+1:n-fp$ss$AGE_START,,])))
+}
+
+
+pop15to49.spec <- function(mod){colSums(mod[1:35,,,],,3)}
+artpop15to49.spec <- function(mod){colSums(attr(mod, "artpop")[,,1:8,,],,4)}
+artpop15plus.spec <- function(mod){colSums(attr(mod, "artpop"),,4)}
+artcov15to49.spec <- function(mod){colSums(attr(mod, "artpop")[,,1:8,,],,4) / (colSums(attr(mod, "hivpop")[,1:8,,],,3) + colSums(attr(mod, "artpop")[,,1:8,,],,4))}
+artcov15plus.spec <- function(mod){colSums(attr(mod, "artpop"),,4) / (colSums(attr(mod, "hivpop"),,3) + colSums(attr(mod, "artpop"),,4))}
+age15pop.spec <- function(mod){colSums(mod[1,,,],,2)}

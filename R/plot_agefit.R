@@ -1,4 +1,5 @@
-plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=NULL, cols=c("grey30", "darkred", "darkgreen"), pages=1:3){
+plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=NULL, cols=c("grey30", "darkred", "darkgreen"), pages=1:3,
+                        agegr3dat = subset(prev.agegr3sex.nat, country==icountry)){
   if(1 %in% pages){
     par(oma=c(1, 1, 2.5, 1), mfrow=c(3, 2), mar=c(3.5, 3.5, 3, 1), tcl=-0.25, mgp=c(2.5, 0.5, 0), cex=1, las=1)
     ##
@@ -107,14 +108,14 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
     if(!is.null(fit3))
       segments(xx+0.1, logincrrage3[xx+offset3,1], xx+0.9, col=cols[3], lwd=2)
     ##
-    mtext(paste0(icountry, ", ", eppmod, " model; posterior distribution"), 3, 0.5, outer=TRUE, font=2, cex=1.3)
+    mtext(paste0(icountry, ", ", eppmod, "; posterior distribution"), 3, 0.5, outer=TRUE, font=2, cex=1.3)
   }
   ##
   ##  Age specific prevalence compared to survey
   ##
   if(2 %in% pages){
     plot_compare_ageprev(fitaggr, fitincrr, fit3, specres, col=cols)
-    mtext(paste0(icountry, ", ", eppmod, " model; Age-specific prevalence"), 3, 0.5, outer=TRUE, font=2, cex=1.3)
+    mtext(paste0(icountry, ", ", eppmod, "; Age-specific prevalence"), 3, 0.5, outer=TRUE, font=2, cex=1.3)
   }
   ##
   ##
@@ -131,7 +132,7 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
         fit.yprev <- estci(fitincrr$agegr3prev[iagegr,isex,,])
         if(!is.null(fit3))
           fit3.yprev <- estci(fit3$agegr3prev[iagegr,isex,,])
-        survdat <- subset(prev.agegr3sex.nat, country==icountry & sex == strsex & agegr3==stragegr)
+        survdat <- subset(agegr3dat, sex == strsex & agegr3==stragegr)
         ##
         xx <- 1998+seq_len(nrow(fit.yprev))
         plot(xx, fit.yprev[,1], type="n", ylim=c(0, 0.05*ceiling(max(survdat$ci_u, aggr.yprev[,1], fit.yprev[,1])/0.05)),
@@ -155,7 +156,7 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
         segments(survdat$year, y0=survdat$ci_l, y1=survdat$ci_u)
       }
     }
-    mtext(paste0(icountry, ", ", eppmod, " model; Prevalence trend by age group"), 3, 0.5, outer=TRUE, font=2, cex=1.3)
+    mtext(paste0(icountry, ", ", eppmod, "; Prevalence trend by age group"), 3, 0.5, outer=TRUE, font=2, cex=1.3)
   }
   ##
   ##

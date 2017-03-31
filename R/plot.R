@@ -35,9 +35,12 @@ plot_compare_ageprev <- function(fit, fit2=NULL, fit3=NULL, specres=NULL, ylim=N
         sp3 <- subset(survprev3[[isurv]], sex==isex & as.integer(agegr) %in% 3:11)
       ##
       xx <- as.integer(sp$agegr)
+      main <- if(!is.null(sp$region))
+                paste0(sp$country[1], " ", gsub("(\\w)(\\w*)", "\\U\\1\\L\\2", sp$region[1], perl=TRUE), " ", survprev[[isurv]]$survyear[1], ", ", isex)
+              else
+                paste0(sp$country[1], " ", survprev[[isurv]]$survyear[1], ", ", isex)
       plot(xx+0.5, sp$prev, type="n", xlim=c(4, 12), ylim=ylim, xaxt="n",
-           main=paste0(sp$country[1], " ", survprev[[isurv]]$survyear[1], ", ", isex),
-           xlab="", ylab="")
+           main=main, xlab="", ylab="")
       axis(1, xx+0.5, sp$agegr)
       ##
       rect(xx+0.05, sp$lower, xx+0.95, sp$upper,
@@ -130,4 +133,43 @@ plot_rvec <- function(fit, ..., ylim=NULL, xlim=c(1980, 2016), col="blue"){
     lines(xx, rowMeans(dots[[ii]]$rvec[idx,], na.rm=TRUE)[idx], col=col[1+ii])
   lines(xx, rowMeans(fit$rvec[idx,], na.rm=TRUE)[idx], col=col[1])
   return(invisible())
+}
+
+plot_ancprev <- function(fit, ..., data=fit$likdat, ylim=NULL, xlim=c(1980, 2016), col="blue", main="", ylab="ANC prevalence"){
+  
+  ## Calculate parameters for bias term
+  param <- apply(fit$resample, 1, fnCreateParam, fit$fp)
+  ancrtcens.bias <- sapply(param, "[[", "ancrtcens.bias")
+  ancrtcens.vinfl <- sapply(param, "[[", "ancrtcens.vinfl")
+  ancrt.prev <- pnorm(sweep(qnorm(fit$pregprev), 2, ancrtcens.bias, "+"))
+
+  dots <- list(...)
+  dots_param <- lapply(dots, function(fit) apply(fit$resample, 1, fnCreateParam, fit$fp))
+  dots_ancrtcens.bias <- lapply(dots_param, sapply, "[[", "ancrtcens.bias")
+  dots_ancrtcens.vinfl <- lapply(dots_param, sapply, "[[", "ancrtcens.vinfl")
+  dots_ancrt.prev <- mapply(function(fit, bias) pnorm(sweep(qnorm(fit$pregprev), 2, bias, "+")), dots, dots_ancrtcens.bias, SIMPLIFY=FALSE)
+
+  if(is.null(ylim))
+    ylim <- c(0, 1.1*max(apply(ancrt.prev, 1, quantile, 0.975)))
+  xx <- fit$fp$ss$proj_start-1+1:fit$fp$ss$PROJ_YEARS
+  plot(xx, rowMeans(fit$pregprev), type="n", ylim=ylim, xlim=xlim, ylab=ylab, xlab="", yaxt="n", xaxt="n", main=main)
+  axis(1, labels=TRUE)
+  axis(2, labels=TRUE)
+  for(ii in seq_along(dots))
+    cred.region(xx, apply(dots_ancrt.prev[[ii]], 1, quantile, c(0.025, 0.975)), col=transp(col[1+ii], 0.3))
+  cred.region(xx, apply(ancrt.prev, 1, quantile, c(0.025, 0.975)), col=transp(col[1], 0.3))
+  for(ii in seq_along(dots))
+    lines(xx, rowMeans(dots_ancrt.prev[[ii]]), col=col[1+ii], lwd=1.5)
+  lines(xx, rowMeans(ancrt.prev), col=col[1], lwd=1.5)
+  ##
+  if(!is.null(data$ancrtcens.dat)){
+    vinfl <- if(!is.null(fit$fp$ancrtcens.vinfl)) fit$fp$ancrtcens.vinfl else mean(ancrtcens.vinfl)
+    with(data$ancrtcens.dat, segments(x0=year, col="grey50",
+                                      y0=pnorm(qnorm(prev) - qnorm(0.975)*sqrt(v.ancrt+vinfl)),
+                                      y1=pnorm(qnorm(prev) + qnorm(0.975)*sqrt(v.ancrt+vinfl))))
+    with(data$ancrtcens.dat, segments(year,
+                                      y0=pnorm(qnorm(prev) - qnorm(0.975)*sqrt(v.ancrt)),
+                                      y1=pnorm(qnorm(prev) + qnorm(0.975)*sqrt(v.ancrt))))
+    with(data$ancrtcens.dat, points(year, prev, pch=20))
+  }
 }

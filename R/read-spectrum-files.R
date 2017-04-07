@@ -23,6 +23,8 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
 
   dp.vers <- get_dp_version(dp)
 
+  exists_dptag <- function(tag, tagcol=1){tag %in% dp[,tagcol]}
+
   dpsub <- function(tag, rows, cols, tagcol=1){
     dp[which(dp[,tagcol]==tag)+rows, cols]
   }
@@ -161,15 +163,30 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
                   "aidsdeaths.m" = aidsdeaths.m,
                   "aidsdeaths.f" = aidsdeaths.f)
 
-  ## if(single.age){
-  ##   ## !!! WORKING HERE
-  ##   <HIVBySingleAge>
-  ## }
-
-  ## "<HIVBySingleAge MV>"
-  ## "<DeathsByAge MV>"
-
-
+  if(single.age){
+    totpop <- array(sapply(dpsub("<BigPop MV>", 3:164, timedat.idx), as.numeric),
+                    c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    if(exists_dptag("<HIVBySingleAge MV>"))
+      hivpop <- array(sapply(dpsub("<HIVBySingleAge MV>", c(3:83, 85:165), timedat.idx), as.numeric),
+                      c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    else
+      hivpop <- array(sapply(dpsub("<HIVBySingleAge MV2>", 3:164, timedat.idx), as.numeric),
+                      c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    if(exists_dptag("<DeathsByAge MV>"))
+      natdeaths <- array(sapply(dpsub("<DeathsByAge MV>", c(4:84, 86:166), timedat.idx), as.numeric),
+                         c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    else
+      natdeaths <- array(sapply(dpsub("<DeathsByAge MV2>", 3:164, timedat.idx), as.numeric),
+                         c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    if(exists_dptag("<AidsDeathsByAge MV>"))
+      hivdeaths <- array(sapply(dpsub("<AidsDeathsByAge MV>", c(4:84, 86:166), timedat.idx), as.numeric),
+                         c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    else
+      hivdeaths <- array(sapply(dpsub("<AidsDeathsByAge MV2>", 3:164, timedat.idx), as.numeric),
+                         c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    specres[c("totpop", "hivpop", "natdeaths", "hivdeaths")] <- list(totpop, hivpop, natdeaths, hivdeaths)
+  }
+    
   class(specres) <- "specres"
 
   return(specres)

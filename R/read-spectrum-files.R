@@ -98,9 +98,12 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
     totpop.m <- sapply(lapply(dp[totpop.m.tidx + 1:81 - 1, timedat.idx], as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
     totpop.f.tidx <- which(dp[,3] == "Females, Total, Age 0")
     totpop.f <- sapply(lapply(dp[totpop.f.tidx + 1:81 - 1, timedat.idx], as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
-  } else {
+  } else if(exists_dptag("<BigPop MV>")){
     totpop.m <- sapply(lapply(dpsub("<BigPop MV>", 3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
     totpop.f <- sapply(lapply(dpsub("<BigPop MV>", 81+3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
+  } else {
+    totpop.m <- sapply(lapply(dpsub("<BigPop MV2>", 3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
+    totpop.f <- sapply(lapply(dpsub("<BigPop MV2>", 243+3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
   }
   dimnames(totpop.m) <- dimnames(totpop.f) <- list(agegr.lab, proj.years)
 
@@ -164,8 +167,12 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
                   "aidsdeaths.f" = aidsdeaths.f)
 
   if(single.age){
-    totpop <- array(sapply(dpsub("<BigPop MV>", 3:164, timedat.idx), as.numeric),
-                    c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    if(exists_dptag("<BigPop MV>"))
+      totpop <- array(sapply(dpsub("<BigPop MV>", 3:164, timedat.idx), as.numeric),
+                      c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    else
+      totpop <- array(sapply(dpsub("<BigPop MV2>", c(3+0:80, 246+0:80), timedat.idx), as.numeric),
+                      c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
     if(exists_dptag("<HIVBySingleAge MV>"))
       hivpop <- array(sapply(dpsub("<HIVBySingleAge MV>", c(3:83, 85:165), timedat.idx), as.numeric),
                       c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
@@ -540,13 +547,22 @@ read_demog_param <- function(upd.file, age.intervals = 1){
 
 ## Note: only parses Spectrum 2016 files, produces outputs by single-year age
 
-read_specdp_demog_param <- function(pjnz){
+read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
 
-  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  if(use_ep5)
+    dpfile <- grep(".ep5$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  else
+    dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  
   dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
 
-  dp.vers <- get_dp_version(dp)
+  if(use_ep5)
+    dp.vers <- "Spectrum2017"
+  else
+    dp.vers <- get_dp_version(dp)
 
+  exists_dptag <- function(tag, tagcol=1){tag %in% dp[,tagcol]}
+  
   dpsub <- function(tag, rows, cols, tagcol=1){
     dp[which(dp[,tagcol]==tag)+rows, cols]
   }
@@ -567,10 +583,12 @@ read_specdp_demog_param <- function(pjnz){
 
 
   ## population size
-  bp.tidx <- which(dp[,1] == "<BigPop MV>")
-  basepop <- dp[bp.tidx+3+0:161, timedat.idx]
-  basepop <- array(as.numeric(unlist(basepop)), c(81, 2, length(proj.years)))
-  dimnames(basepop) <- list(0:80, c("Male", "Female"), proj.years)
+  if(exists_dptag("<BigPop MV>"))
+    basepop <- array(sapply(dpsub("<BigPop MV>", 3:164, timedat.idx), as.numeric),
+                    c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+  else
+    basepop <- array(sapply(dpsub("<BigPop MV2>", c(3+0:80, 246+0:80), timedat.idx), as.numeric),
+                    c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
 
   ## mx
   if(dp.vers == "Spectrum2016"){

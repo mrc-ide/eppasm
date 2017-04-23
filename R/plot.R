@@ -72,7 +72,7 @@ plot_compare_ageprev <- function(fit, fit2=NULL, fit3=NULL, specres=NULL, ylim=N
 
 
 
-plot_prev <- function(fit, ..., ylim=NULL, xlim=c(1980, 2016), col="blue", main="", ylab="prevalence"){
+plot_prev <- function(fit, ..., ylim=NULL, xlim=c(1980, with(fit$fp$ss, proj_start+PROJ_YEARS-1)), col="blue", main="", ylab="prevalence"){
   if(is.null(ylim))
     ylim <- c(0, 1.1*max(apply(fit$prev, 1, quantile, 0.975)))
   xx <- fit$fp$ss$proj_start-1+1:fit$fp$ss$PROJ_YEARS
@@ -93,7 +93,7 @@ plot_prev <- function(fit, ..., ylim=NULL, xlim=c(1980, 2016), col="blue", main=
            y1=pnorm(fit$likdat$hhslik.dat$W.hhs + qnorm(0.975)*fit$likdat$hhslik.dat$sd.W.hhs))
 }
 
-plot_incid <- function(fit, ..., ylim=NULL, xlim=c(1980, 2016), col="blue", main="", ylab="incidence rate"){
+plot_incid <- function(fit, ..., ylim=NULL, xlim=c(1980, with(fit$fp$ss, proj_start+PROJ_YEARS-1)), col="blue", main="", ylab="incidence rate"){
   if(is.null(ylim))
     ylim <- c(0, 1.1*max(apply(fit$incid, 1, quantile, 0.975)))
   xx <- fit$fp$ss$proj_start-1+1:fit$fp$ss$PROJ_YEARS
@@ -114,7 +114,7 @@ plot_incid <- function(fit, ..., ylim=NULL, xlim=c(1980, 2016), col="blue", main
       segments(year, y0=exp(log_incid-qnorm(0.975)*log_incid.se), y1=exp(log_incid+qnorm(0.975)*log_incid.se))})
 }
 
-plot_rvec <- function(fit, ..., ylim=NULL, xlim=c(1980, 2016), col="blue"){
+plot_rvec <- function(fit, ..., ylim=NULL, xlim=c(1980, with(fit$fp$ss, proj_start+PROJ_YEARS-1)), col="blue"){
   dots <- list(...)
   fit$rvec <- sapply(seq_len(ncol(fit$rvec)), function(i) replace(fit$rvec[,i], fit$fp$proj.steps < fit$param[[i]]$tsEpidemicStart, NA))
   idx <- seq_len(length(fit$fp$proj.steps)-1)
@@ -135,7 +135,7 @@ plot_rvec <- function(fit, ..., ylim=NULL, xlim=c(1980, 2016), col="blue"){
   return(invisible())
 }
 
-plot_ancprev <- function(fit, ..., data=fit$likdat, ylim=NULL, xlim=c(1980, 2016), col="blue", main="", ylab="ANC prevalence"){
+plot_ancprev <- function(fit, ..., data=fit$likdat, ylim=NULL, xlim=c(1980, with(fit$fp$ss, proj_start+PROJ_YEARS-1)), col="blue", main="", ylab="ANC prevalence"){
   
   ## Calculate parameters for bias term
   param <- apply(fit$resample, 1, fnCreateParam, fit$fp)

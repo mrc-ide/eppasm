@@ -305,6 +305,15 @@ fnCreateParam <- function(theta, fp){
     else
       incrr_nparam <- 0
 
+    if(exists("incrrinteract", where=fp) && fp$incrrinteract){
+      paramcurr <- paramcurr+1
+      agetime_logslope <- theta[paramcurr] / 10
+      incrr_age_time <- exp(agetime_logslope * (rep(c(3:9, 3:9), each=5)*5+2.5 - 27.5) %o% (1970:2020 - 2005))
+      param$incrr_age[fp$ss$p.age15to49.idx,,] <- param$incrr_age[fp$ss$p.age15to49.idx,,] * c(incrr_age_time)
+      param$incrr_age[36:66,,] <- sweep(fp$incrr_age[36:66,,fp$ss$PROJ_YEARS], 2,
+                                        param$incrr_age[35,,fp$ss$PROJ_YEARS]/fp$incrr_age[35,,fp$ss$PROJ_YEARS], "*")
+    }
+    
     if(exists("natmx", where=fp) && fp$fitmx==TRUE){
       natmx_nparam <- 3
       theta_natmx <- theta[paramcurr+1:natmx_nparam]
@@ -550,6 +559,11 @@ lprior <- function(theta, fp){
       sum(dnorm(theta_incrr[c(3,6)], lognorm.meanlog.pr.mean, lognorm.meanlog.pr.sd, log=TRUE)) +
       sum(dnorm(theta_incrr[c(4,7)], lognorm.logsdlog.pr.mean, lognorm.logsdlog.pr.sd, log=TRUE))
   }
+
+  if(exists("incrrinteract", where=fp) && fp$incrrinteract){
+    paramcurr <- paramcurr+1
+    lpr <- lpr + dnorm(theta[paramcurr], 0.02, 0.05)
+  }
   
   return(lpr)
 }
@@ -660,6 +674,9 @@ sample.prior <- function(n, fp){
   if(exists("fitincrr", where=fp) && fp$fitincrr==TRUE) nparam <- nparam+14
   if(exists("fitincrr", where=fp) && fp$fitincrr=="lognorm") nparam <- nparam+7
 
+  if(exists("incrrinteract", where=fp) && fp$incrrinteract) nparam <- nparam+1
+ 
+
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
   
@@ -722,6 +739,11 @@ sample.prior <- function(n, fp){
   } else
     incrr_nparam <- 0
   paramcurr <- paramcurr+incrr_nparam
+
+  if(exists("incrrinteract", where=fp) && fp$incrrinteract){
+    paramcurr <- paramcurr+1
+    mat[,paramcurr] <- rnorm(n, 0.02, 0.05)
+  }
 
   return(mat)
 }

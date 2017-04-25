@@ -167,30 +167,39 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
                   "aidsdeaths.f" = aidsdeaths.f)
 
   if(single.age){
-    if(exists_dptag("<BigPop MV>"))
-      totpop <- array(sapply(dpsub("<BigPop MV>", 3:164, timedat.idx), as.numeric),
-                      c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
-    else
-      totpop <- array(sapply(dpsub("<BigPop MV2>", c(3+0:80, 246+0:80), timedat.idx), as.numeric),
-                      c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    if(exists_dptag("<BigPop3>"))
+      totpop <- sapply(dpsub("<BigPop3>", 2:163, timedat.idx), as.numeric)
+    else if(exists_dptag("<BigPop MV>"))
+      totpop <- sapply(dpsub("<BigPop MV>", 3:164, timedat.idx), as.numeric)
+    else if(exists_dptag("<BigPop MV>"))
+      totpop <- sapply(dpsub("<BigPop MV2>", c(3+0:80, 246+0:80), timedat.idx), as.numeric)
+    totpop <- array(totpop, c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+                      
     if(exists_dptag("<HIVBySingleAge MV>"))
       hivpop <- array(sapply(dpsub("<HIVBySingleAge MV>", c(3:83, 85:165), timedat.idx), as.numeric),
                       c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    else if(exists_dptag("<HIVBySingleAge MV2>"))
+      hivpop <- sapply(dpsub("<HIVBySingleAge MV2>", 3:164, timedat.idx), as.numeric)
     else
-      hivpop <- array(sapply(dpsub("<HIVBySingleAge MV2>", 3:164, timedat.idx), as.numeric),
-                      c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+      hivpop <- NA
+    hivpop <- array(hivpop, c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    
     if(exists_dptag("<DeathsByAge MV>"))
-      natdeaths <- array(sapply(dpsub("<DeathsByAge MV>", c(4:84, 86:166), timedat.idx), as.numeric),
-                         c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+      natdeaths <- sapply(dpsub("<DeathsByAge MV>", c(4:84, 86:166), timedat.idx), as.numeric)
+    else if(exists_dptag("<DeathsByAge MV2>"))
+      natdeaths <- sapply(dpsub("<DeathsByAge MV2>", 3:164, timedat.idx), as.numeric)
     else
-      natdeaths <- array(sapply(dpsub("<DeathsByAge MV2>", 3:164, timedat.idx), as.numeric),
-                         c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+      natdeaths <- NA
+    natdeaths <- array(natdeaths, c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    
     if(exists_dptag("<AidsDeathsByAge MV>"))
-      hivdeaths <- array(sapply(dpsub("<AidsDeathsByAge MV>", c(4:84, 86:166), timedat.idx), as.numeric),
-                         c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+      hivdeaths <- sapply(dpsub("<AidsDeathsByAge MV>", c(4:84, 86:166), timedat.idx), as.numeric)
+    else if(exists_dptag("<AidsDeathsByAge MV2>"))
+      hivdeaths <- sapply(dpsub("<AidsDeathsByAge MV2>", 3:164, timedat.idx), as.numeric)
     else
-      hivdeaths <- array(sapply(dpsub("<AidsDeathsByAge MV2>", 3:164, timedat.idx), as.numeric),
-                         c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+      hivdeaths <- NA
+    hivdeaths <- array(hivdeaths, c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    
     specres[c("totpop", "hivpop", "natdeaths", "hivdeaths")] <- list(totpop, hivpop, natdeaths, hivdeaths)
   }
     

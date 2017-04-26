@@ -171,7 +171,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
       totpop <- sapply(dpsub("<BigPop3>", 2:163, timedat.idx), as.numeric)
     else if(exists_dptag("<BigPop MV>"))
       totpop <- sapply(dpsub("<BigPop MV>", 3:164, timedat.idx), as.numeric)
-    else if(exists_dptag("<BigPop MV>"))
+    else if(exists_dptag("<BigPop MV2>"))
       totpop <- sapply(dpsub("<BigPop MV2>", c(3+0:80, 246+0:80), timedat.idx), as.numeric)
     totpop <- array(totpop, c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
                       

@@ -214,16 +214,9 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ##  Prepare EPP r(t) models  ##
   ## ######################### ##
 
-  fp$iota <- 0.0025
-  fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - (fp$ss$time_epi_start+0.5)))]
+  ## Prepare default rspline model
   fp$numKnots <- 7
-  epi_steps <- fp$proj.steps[fp$proj.steps >= fp$tsEpidemicStart]
-  proj.dur <- diff(range(epi_steps))
-  rvec.knots <- seq(min(epi_steps) - 3*proj.dur/(fp$numKnots-3), max(epi_steps) + 3*proj.dur/(fp$numKnots-3), proj.dur/(fp$numKnots-3))
-  fp$rvec.spldes <- rbind(matrix(0, length(fp$proj.steps) - length(epi_steps), fp$numKnots),
-                          splines::splineDesign(rvec.knots, epi_steps))
-
-  fp$eppmod <- "rspline"  # default to r-spline model
+  fp <- prepare_rspline_model(fp)
   
   class(fp) <- "specfp"
 
@@ -239,17 +232,22 @@ prepare_rtrend_model <- function(fp, iota=0.0025){
 }
 
 
-prepare_rspline_model <- function(fp, numKnots=7, tsEpidemicStart=fp$ss$time_epi_start+0.5){
+prepare_rspline_model <- function(fp, numKnots=NULL, tsEpidemicStart=fp$ss$time_epi_start+0.5){
+
+  if(!exists("numKnots", fp))
+    fp$numKnots <- 7
 
   fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - tsEpidemicStart))]
-  fp$numKnots <- numKnots
   epi_steps <- fp$proj.steps[fp$proj.steps >= fp$tsEpidemicStart]
   proj.dur <- diff(range(epi_steps))
   rvec.knots <- seq(min(epi_steps) - 3*proj.dur/(fp$numKnots-3), max(epi_steps) + 3*proj.dur/(fp$numKnots-3), proj.dur/(fp$numKnots-3))
   fp$rvec.spldes <- rbind(matrix(0, length(fp$proj.steps) - length(epi_steps), fp$numKnots),
                           splines::splineDesign(rvec.knots, epi_steps))
 
-  fp$eppmod <- "rspline"
+  if(!exists("rtpenord", fp))
+    fp$rtpenord <- 2L
+  if(!exists("eppmod", fp))
+    fp$eppmod <- "rspline"
   fp$iota <- NULL
 
   return(fp)

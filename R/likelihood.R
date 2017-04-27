@@ -221,15 +221,19 @@ fnCreateParam <- function(theta, fp){
   
   if(fp$eppmod %in% c("rspline", "logrspline")){
     epp_nparam <- fp$numKnots+2
-    
+
     u <- theta[1:fp$numKnots]
-    beta <- numeric(fp$numKnots)
-    beta[1] <- u[1]
-    beta[2] <- u[1]+u[2]
-    for(i in 3:fp$numKnots)
-      beta[i] <- -beta[i-2] + 2*beta[i-1] + u[i]
+    if(fp$rtpenord == 2){
+      beta <- numeric(fp$numKnots)
+      beta[1] <- u[1]
+      beta[2] <- u[1]+u[2]
+      for(i in 3:fp$numKnots)
+        beta[i] <- -beta[i-2] + 2*beta[i-1] + u[i]
+    } else # first order penalty
+      beta <- cumsum(u)
     
-    param <- list(rvec = as.vector(fp$rvec.spldes %*% beta),
+    param <- list(beta = beta,
+                  rvec = as.vector(fp$rvec.spldes %*% beta),
                   iota = exp(theta[fp$numKnots+1]))
     
     if(fp$eppmod == "logrspline")
@@ -488,8 +492,8 @@ lprior <- function(theta, fp){
     
     nk <- fp$numKnots
     tau2 <- exp(theta[nk+2])
-    
-    lpr <- sum(dnorm(theta[3:nk], 0, sqrt(tau2), log=TRUE)) +
+
+    lpr <- sum(dnorm(theta[(1+fp$rtpenord):nk], 0, sqrt(tau2), log=TRUE)) +
       dunif(theta[nk+1], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE) + 
       ldinvgamma(tau2, invGammaParameter, invGammaParameter) + log(tau2)   # + log(tau2): multiply likelihood by jacobian of exponential transformation
   

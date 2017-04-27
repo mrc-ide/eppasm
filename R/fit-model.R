@@ -210,6 +210,12 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   likdat <- prepare_likdat(eppd, fp)
 
 
+  ## Prepare the EPP model
+  if(!exists("eppmod", fp) || fp$eppmod %in% c("rspline", "logrspline"))
+    fp <- prepare_rspline_model(fp)
+  else if(fp$eppmod == "rtrend")
+    fp <- prepare_rtrend_model(fp)
+
   ## If IMIS fails, start again
   fit <- try(stop(""), TRUE)
   while(inherits(fit, "try-error")){

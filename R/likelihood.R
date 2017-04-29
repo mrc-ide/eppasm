@@ -44,7 +44,8 @@ ancbias.pr.sd <- 1.0
 vinfl.prior.rate <- 1/0.015
 
 ancrtsite.beta.pr.mean <- 0
-ancrtsite.beta.pr.sd <- 1.0
+## ancrtsite.beta.pr.sd <- 1.0
+ancrtsite.beta.pr.sd <- 0.05
 ancrtsite.vinfl.pr.rate <- 1/0.015
 
 
@@ -139,7 +140,8 @@ ll_anc <- function(qM, coef=c(0, 0), vinfl=0, anclik.dat){
 
 ## prior parameters for ANCRT census
 ancrtcens.bias.pr.mean <- 0
-ancrtcens.bias.pr.sd <- 1.0
+## ancrtcens.bias.pr.sd <- 1.0
+ancrtcens.bias.pr.sd <- 0.1
 ancrtcens.vinfl.pr.rate <- 1/0.015
 
 prepare_ancrtcens_likdat <- function(dat, anchor.year){

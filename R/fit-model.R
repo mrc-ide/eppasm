@@ -217,6 +217,8 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   tsEpidemicStart <- if(epp) fp$tsEpidemicStart else fp$ss$time_epi_start+0.5
   if(!exists("eppmod", fp) || fp$eppmod %in% c("rspline", "logrspline"))
     fp <- prepare_rspline_model(fp, tsEpidemicStart=tsEpidemicStart)
+  else if(fp$eppmod %in% c("ospline", "logospline"))
+    fp <- prepare_ospline_model(fp, tsEpidemicStart=tsEpidemicStart)
   else if(fp$eppmod == "rtrend")
     fp <- prepare_rtrend_model(fp)
 
@@ -287,6 +289,36 @@ simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FA
     fit$aidsdeaths <- sapply(lapply(mod.list, attr, "hivdeaths"), colSums, dims=2)
   
     
+  return(fit)
+}
+
+simfit.eppfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", pregprev=TRUE){
+
+  fit$param <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
+
+  if(rwproj){
+    if(exists("eppmod", where=fit$fp) && fit$fp$eppmod == "rtrend")
+      stop("Random-walk projection is only used with r-spline model")
+
+    fit$rvec.spline <- sapply(fit$param, "[[", "rvec")
+    firstidx <- which(fit$fp$proj.steps == fit$fp$tsEpidemicStart)
+    lastidx <- (fit$likdat$lastdata.idx-1)/fit$fp$dt+1
+
+    ## replace rvec with random-walk simulated rvec
+    fit$param <- lapply(fit$param, function(par){par$rvec <- sim_rvec_rwproj(par$rvec, firstidx, lastidx, fit$fp$dt); par})
+  }
+  
+  fp.list <- lapply(fit$param, function(par) update(fit$fp, list=par))
+  mod.list <- lapply(fp.list, simmod)
+  
+  fit$rvec <- sapply(mod.list, attr, "rvec")
+  fit$prev <- sapply(mod.list, prev)
+  fit$incid <- mapply(incid, mod = mod.list, fp = fp.list)
+  fit$popsize <- sapply(mod.list, pop15to49)
+
+  if(pregprev)
+    fit$pregprev <- mapply(fnPregPrev, mod.list, fp.list)
+
   return(fit)
 }
 

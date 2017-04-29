@@ -221,24 +221,27 @@ fnCreateParam <- function(theta, fp){
   if(!exists("eppmod", where = fp))  # backward compatibility
     fp$eppmod <- "rspline"
   
-  if(fp$eppmod %in% c("rspline", "logrspline")){
+  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline")){
     epp_nparam <- fp$numKnots+2
 
-    u <- theta[1:fp$numKnots]
-    if(fp$rtpenord == 2){
-      beta <- numeric(fp$numKnots)
-      beta[1] <- u[1]
-      beta[2] <- u[1]+u[2]
-      for(i in 3:fp$numKnots)
-        beta[i] <- -beta[i-2] + 2*beta[i-1] + u[i]
-    } else # first order penalty
-      beta <- cumsum(u)
+    if(fp$eppmod %in% c("rspline", "logrspline")){
+      u <- theta[1:fp$numKnots]
+      if(fp$rtpenord == 2){
+        beta <- numeric(fp$numKnots)
+        beta[1] <- u[1]
+        beta[2] <- u[1]+u[2]
+        for(i in 3:fp$numKnots)
+          beta[i] <- -beta[i-2] + 2*beta[i-1] + u[i]
+      } else # first order penalty
+        beta <- cumsum(u)
+    } else if(fp$eppmod %in% c("ospline", "logospline"))
+      beta <- theta[1:fp$numKnots]
     
     param <- list(beta = beta,
                   rvec = as.vector(fp$rvec.spldes %*% beta),
                   iota = exp(theta[fp$numKnots+1]))
     
-    if(fp$eppmod == "logrspline")
+    if(fp$eppmod %in% c("logrspline", "logospline"))
       param$rvec <- exp(param$rvec)
     
   } else { # rtrend
@@ -489,7 +492,7 @@ lprior <- function(theta, fp){
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
 
-  if(fp$eppmod %in% c("rspline", "logrspline")){
+  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline")){
     epp_nparam <- fp$numKnots+2
     
     nk <- fp$numKnots
@@ -570,7 +573,7 @@ ll <- function(theta, fp, likdat){
   } else
     ll.incpen <- 0
 
-  if (!exists("eppmod", where = fp) || fp$eppmod == "rspline") 
+  if (!exists("eppmod", where = fp) || fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline"))
     if (min(fp$rvec) < 0 || max(fp$rvec) > 20) 
         return(-Inf)
 
@@ -641,7 +644,7 @@ sample.prior <- function(n, fp){
   }
 
   ## Calculate number of parameters
-  if(fp$eppmod %in% c("rspline", "logrspline"))
+  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline"))
     epp_nparam <- fp$numKnots+2L
   else
     epp_nparam <- 7
@@ -671,7 +674,7 @@ sample.prior <- function(n, fp){
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
   
-  if(fp$eppmod %in% c("rspline", "logrspline")){
+  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline")){
     epp_nparam <- fp$numKnots+2
        
     ## sample penalty variance
@@ -679,7 +682,9 @@ sample.prior <- function(n, fp){
 
     if(fp$eppmod == "rspline")
       mat[,1] <- rnorm(n, 1.5, 1)                                                   # u[1]
-    else # logrspline
+    if(fp$eppmod == "ospline")
+      mat[,1] <- rnorm(n, 0.5, 1)
+    else # logrspline, logospline
       mat[,1] <- rnorm(n, 0.2, 1)                                                   # u[1]
     mat[,2:fp$numKnots] <- rnorm(n*(fp$numKnots-1), 0, sqrt(tau2))                  # u[2:numKnots]
     mat[,fp$numKnots+1] <-  runif(n, logiota.unif.prior[1], logiota.unif.prior[2])  # iota

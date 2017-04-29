@@ -9,3 +9,7 @@
 - Allow order of spline model penalty to vary (fp$rtpenord)
 - Allow number of knots to vary (fp$numKnots)
 - Return spline coefficients in fnCreateParam()
+
+# eppspectrum 0.1.5
+
+- Implemented O-spline model (penalized B-spline) using mgcv to construct

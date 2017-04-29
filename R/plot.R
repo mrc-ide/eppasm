@@ -8,7 +8,7 @@ estci <- function(x){val <- cbind(rowMeans(x), t(apply(x, 1, quantile, c(0.5, 0.
 
 plot_compare_ageprev <- function(fit, fit2=NULL, fit3=NULL, specres=NULL, ylim=NULL, col=c("grey30", "darkred", "forestgreen")){
   if(is.null(ylim))
-    ylim <- c(0, 0.05*ceiling(max(fit$likdat$hhsage.dat$ci_u)/0.05))
+    ylim <- c(0, 0.05*ceiling(max(1.3*fit$likdat$hhsage.dat$prev)/0.05))
   ####
   survprev <- data.frame(fit$likdat$hhsage.dat,
                          estci(fit$ageprevdat))

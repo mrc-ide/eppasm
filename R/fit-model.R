@@ -207,12 +207,16 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   else
     fp$ancrt <- "both"
 
+  if(epp)
+    eppd$hhsage <- eppd$sibmx <- NULL
+
   likdat <- prepare_likdat(eppd, fp)
 
 
   ## Prepare the EPP model
+  tsEpidemicStart <- if(epp) fp$tsEpidemicStart else fp$ss$time_epi_start+0.5
   if(!exists("eppmod", fp) || fp$eppmod %in% c("rspline", "logrspline"))
-    fp <- prepare_rspline_model(fp)
+    fp <- prepare_rspline_model(fp, tsEpidemicStart=tsEpidemicStart)
   else if(fp$eppmod == "rtrend")
     fp <- prepare_rtrend_model(fp)
 

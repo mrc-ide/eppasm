@@ -587,7 +587,9 @@ ll <- function(theta, fp, likdat){
   if(exists("ancprev", where=fp) && !fp$ancprev)
     ll.anc <- 0
   else
-    ll.anc <- log(anclik::fnANClik(qM.preg+fp$ancbias, likdat$anclik.dat, fp$v.infl))
+    ll.anc <- ll_anc(qM.preg, coef=c(fp$ancbias, fp$ancrtsite.beta), vinfl=fp$v.infl, likdat$anclik.dat)
+
+  
 
   if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both"))
     ll.ancrt <- ll_ancrtcens(qM.preg, likdat$ancrtcens.dat, fp)

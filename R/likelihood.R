@@ -14,6 +14,7 @@ ldbinom <- function(x, size, prob){
 
 ## r-spline prior parameters
 logiota.unif.prior <- c(log(1e-14), log(0.0025))
+r0logiotaratio.unif.prior <- c(-25, -5)
 tau2.prior.rate <- 0.5
 
 invGammaParameter <- 0.001   #Inverse gamma parameter for tau^2 prior for spline
@@ -72,7 +73,7 @@ prepare_ancsite_likdat <- function(eppd, anchor.year=1970L){
 
   X.lst <- mapply(cbind, Intercept=lapply(nobs, rep, x=1), ancrt=lapply(nobs, rep, x=0), SIMPLIFY=FALSE)
 
-  if(exists("ancrtsite.prev", where=eppd)){
+  if(exists("ancrtsite.prev", where=eppd) && !is.null(eppd$ancrtsite.prev)){
     ancrtsite.prev <- eppd$ancrtsite.prev
     ancrtsite.n <- eppd$ancrtsite.n
     
@@ -221,25 +222,32 @@ fnCreateParam <- function(theta, fp){
   if(!exists("eppmod", where = fp))  # backward compatibility
     fp$eppmod <- "rspline"
   
-  if(fp$eppmod %in% c("rspline", "logrspline")){
+  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline")){
     epp_nparam <- fp$numKnots+2
 
-    u <- theta[1:fp$numKnots]
-    if(fp$rtpenord == 2){
-      beta <- numeric(fp$numKnots)
-      beta[1] <- u[1]
-      beta[2] <- u[1]+u[2]
-      for(i in 3:fp$numKnots)
-        beta[i] <- -beta[i-2] + 2*beta[i-1] + u[i]
-    } else # first order penalty
-      beta <- cumsum(u)
+    if(fp$eppmod %in% c("rspline", "logrspline")){
+      u <- theta[1:fp$numKnots]
+      if(fp$rtpenord == 2){
+        beta <- numeric(fp$numKnots)
+        beta[1] <- u[1]
+        beta[2] <- u[1]+u[2]
+        for(i in 3:fp$numKnots)
+          beta[i] <- -beta[i-2] + 2*beta[i-1] + u[i]
+      } else # first order penalty
+        beta <- cumsum(u)
+    } else if(fp$eppmod %in% c("ospline", "logospline"))
+      beta <- theta[1:fp$numKnots]
     
     param <- list(beta = beta,
-                  rvec = as.vector(fp$rvec.spldes %*% beta),
-                  iota = exp(theta[fp$numKnots+1]))
+                  rvec = as.vector(fp$rvec.spldes %*% beta))
     
-    if(fp$eppmod == "logrspline")
+    if(fp$eppmod %in% c("logrspline", "logospline"))
       param$rvec <- exp(param$rvec)
+
+    if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
+      param$iota <- exp(param$rvec[fp$proj.steps == fp$tsEpidemicStart] * theta[fp$numKnots+1])
+    else
+      param$iota <- exp(theta[fp$numKnots+1])
     
   } else { # rtrend
     epp_nparam <- 7
@@ -489,15 +497,20 @@ lprior <- function(theta, fp){
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
 
-  if(fp$eppmod %in% c("rspline", "logrspline")){
+  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline")){
     epp_nparam <- fp$numKnots+2
     
     nk <- fp$numKnots
     tau2 <- exp(theta[nk+2])
 
     lpr <- sum(dnorm(theta[(1+fp$rtpenord):nk], 0, sqrt(tau2), log=TRUE)) +
-      dunif(theta[nk+1], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE) + 
+
       ldinvgamma(tau2, invGammaParameter, invGammaParameter) + log(tau2)   # + log(tau2): multiply likelihood by jacobian of exponential transformation
+
+    if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
+      lpr <- lpr + dunif(theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
+    else
+      lpr <- lpr + dunif(theta[nk+1], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
   
   } else { # rtrend
 
@@ -570,7 +583,7 @@ ll <- function(theta, fp, likdat){
   } else
     ll.incpen <- 0
 
-  if (!exists("eppmod", where = fp) || fp$eppmod == "rspline") 
+  if (!exists("eppmod", where = fp) || fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline"))
     if (min(fp$rvec) < 0 || max(fp$rvec) > 20) 
         return(-Inf)
 
@@ -641,7 +654,7 @@ sample.prior <- function(n, fp){
   }
 
   ## Calculate number of parameters
-  if(fp$eppmod %in% c("rspline", "logrspline"))
+  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline"))
     epp_nparam <- fp$numKnots+2L
   else
     epp_nparam <- 7
@@ -671,7 +684,7 @@ sample.prior <- function(n, fp){
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
   
-  if(fp$eppmod %in% c("rspline", "logrspline")){
+  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline")){
     epp_nparam <- fp$numKnots+2
        
     ## sample penalty variance
@@ -679,10 +692,17 @@ sample.prior <- function(n, fp){
 
     if(fp$eppmod == "rspline")
       mat[,1] <- rnorm(n, 1.5, 1)                                                   # u[1]
-    else # logrspline
+    if(fp$eppmod == "ospline")
+      mat[,1] <- rnorm(n, 0.5, 1)
+    else # logrspline, logospline
       mat[,1] <- rnorm(n, 0.2, 1)                                                   # u[1]
     mat[,2:fp$numKnots] <- rnorm(n*(fp$numKnots-1), 0, sqrt(tau2))                  # u[2:numKnots]
-    mat[,fp$numKnots+1] <-  runif(n, logiota.unif.prior[1], logiota.unif.prior[2])  # iota
+
+    if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
+      mat[,fp$numKnots+1] <-  runif(n, r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2])  # ratio r0 / log(iota)
+    else
+      mat[,fp$numKnots+1] <-  runif(n, logiota.unif.prior[1], logiota.unif.prior[2])  # iota
+    
     mat[,fp$numKnots+2] <- log(tau2)                                                # tau2
 
   } else { # r-trend

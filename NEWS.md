@@ -13,3 +13,4 @@
 # eppspectrum 0.1.5
 
 - Implemented O-spline model (penalized B-spline) using mgcv to construct
+- Added `r0logiotaratio` option to estimate ratio of r(t0) and log of initial seed, reduces correation. Not set as default.

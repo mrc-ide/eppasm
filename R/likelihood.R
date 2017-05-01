@@ -14,6 +14,7 @@ ldbinom <- function(x, size, prob){
 
 ## r-spline prior parameters
 logiota.unif.prior <- c(log(1e-14), log(0.0025))
+r0logiotaratio.unif.prior <- c(-25, -5)
 tau2.prior.rate <- 0.5
 
 invGammaParameter <- 0.001   #Inverse gamma parameter for tau^2 prior for spline
@@ -72,7 +73,7 @@ prepare_ancsite_likdat <- function(eppd, anchor.year=1970L){
 
   X.lst <- mapply(cbind, Intercept=lapply(nobs, rep, x=1), ancrt=lapply(nobs, rep, x=0), SIMPLIFY=FALSE)
 
-  if(exists("ancrtsite.prev", where=eppd)){
+  if(exists("ancrtsite.prev", where=eppd) && !is.null(eppd$ancrtsite.prev)){
     ancrtsite.prev <- eppd$ancrtsite.prev
     ancrtsite.n <- eppd$ancrtsite.n
     
@@ -238,11 +239,15 @@ fnCreateParam <- function(theta, fp){
       beta <- theta[1:fp$numKnots]
     
     param <- list(beta = beta,
-                  rvec = as.vector(fp$rvec.spldes %*% beta),
-                  iota = exp(theta[fp$numKnots+1]))
+                  rvec = as.vector(fp$rvec.spldes %*% beta))
     
     if(fp$eppmod %in% c("logrspline", "logospline"))
       param$rvec <- exp(param$rvec)
+
+    if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
+      param$iota <- exp(param$rvec[fp$proj.steps == fp$tsEpidemicStart] * theta[fp$numKnots+1])
+    else
+      param$iota <- exp(theta[fp$numKnots+1])
     
   } else { # rtrend
     epp_nparam <- 7
@@ -499,8 +504,13 @@ lprior <- function(theta, fp){
     tau2 <- exp(theta[nk+2])
 
     lpr <- sum(dnorm(theta[(1+fp$rtpenord):nk], 0, sqrt(tau2), log=TRUE)) +
-      dunif(theta[nk+1], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE) + 
+
       ldinvgamma(tau2, invGammaParameter, invGammaParameter) + log(tau2)   # + log(tau2): multiply likelihood by jacobian of exponential transformation
+
+    if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
+      lpr <- lpr + dunif(theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
+    else
+      lpr <- lpr + dunif(theta[nk+1], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
   
   } else { # rtrend
 
@@ -687,7 +697,12 @@ sample.prior <- function(n, fp){
     else # logrspline, logospline
       mat[,1] <- rnorm(n, 0.2, 1)                                                   # u[1]
     mat[,2:fp$numKnots] <- rnorm(n*(fp$numKnots-1), 0, sqrt(tau2))                  # u[2:numKnots]
-    mat[,fp$numKnots+1] <-  runif(n, logiota.unif.prior[1], logiota.unif.prior[2])  # iota
+
+    if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
+      mat[,fp$numKnots+1] <-  runif(n, r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2])  # ratio r0 / log(iota)
+    else
+      mat[,fp$numKnots+1] <-  runif(n, logiota.unif.prior[1], logiota.unif.prior[2])  # iota
+    
     mat[,fp$numKnots+2] <- log(tau2)                                                # tau2
 
   } else { # r-trend

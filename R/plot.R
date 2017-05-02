@@ -72,7 +72,7 @@ plot_compare_ageprev <- function(fit, fit2=NULL, fit3=NULL, specres=NULL, ylim=N
 
 
 
-plot_prev <- function(fit, ..., ylim=NULL, xlim=c(1980, with(fit$fp$ss, proj_start+PROJ_YEARS-1)), col="blue", main="", ylab="prevalence"){
+plot_prev <- function(fit, ..., ylim=NULL, xlim=c(1980, with(fit$fp$ss, proj_start+PROJ_YEARS-1)), col="blue", main="", ylab="prevalence", plotancdata=FALSE){
   if(is.null(ylim))
     ylim <- c(0, 1.1*max(apply(fit$prev, 1, quantile, 0.975)))
   xx <- fit$fp$ss$proj_start-1+1:fit$fp$ss$PROJ_YEARS
@@ -80,6 +80,12 @@ plot_prev <- function(fit, ..., ylim=NULL, xlim=c(1980, with(fit$fp$ss, proj_sta
   axis(1, labels=TRUE)
   axis(2, labels=TRUE)
   dots <- list(...)
+
+  if(plotancdata){
+    with(fit$likdat$anclik.dat, mapply(function(idx, W) points(idx+1970-1, pnorm(W), col=adjustcolor("grey", 0.5), pch=15), anc.idx.lst, W.lst))
+    with(fit$likdat$anclik.dat, mapply(function(idx, W) lines(idx+1970-1, pnorm(W), col=adjustcolor("grey", 0.5), pch=15), anc.idx.lst, W.lst))
+  }
+    
   for(ii in seq_along(dots))
     cred.region(xx, apply(dots[[ii]]$prev, 1, quantile, c(0.025, 0.975)), col=transp(col[1+ii], 0.3))
   cred.region(xx, apply(fit$prev, 1, quantile, c(0.025, 0.975)), col=transp(col[1], 0.3))

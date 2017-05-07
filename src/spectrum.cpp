@@ -152,12 +152,11 @@ extern "C" {
     
 
     // vertical transmission and survival
-    double verttrans = *REAL(getListElement(s_fp, "verttrans"));
-    double paedsurv = *REAL(getListElement(s_fp, "paedsurv"));
+    double *verttrans_lag = REAL(getListElement(s_fp, "verttrans_lag"));
+    double *paedsurv_lag = REAL(getListElement(s_fp, "paedsurv_lag"));
     double netmig_hivprob = *REAL(getListElement(s_fp, "netmig_hivprob"));
     double netmighivsurv = *REAL(getListElement(s_fp, "netmighivsurv"));
     double *paedsurv_cd4dist = REAL(getListElement(s_fp, "paedsurv_cd4dist"));
-
 
     // initialize output
     SEXP s_pop = PROTECT(allocVector(REALSXP, pAG * NG * pDS * PROJ_YEARS));
@@ -259,6 +258,11 @@ extern "C" {
     double *incid15to49 = REAL(s_incid15to49);
     memset(incid15to49, 0, length(s_incid15to49)*sizeof(double));
 
+    SEXP s_entrantprev_out = PROTECT(allocVector(REALSXP, PROJ_YEARS));
+    setAttrib(s_pop, install("entrantprev"), s_entrantprev_out);
+    double *entrantprev_out = REAL(s_entrantprev_out);
+    memset(entrantprev_out, 0, length(s_entrantprev_out)*sizeof(double));
+
     double *hivn15to49 = (double*) R_alloc(PROJ_YEARS, sizeof(double));
     double *hivp15to49 = (double*) R_alloc(PROJ_YEARS, sizeof(double));
     memset(hivn15to49, 0, PROJ_YEARS*sizeof(double));
@@ -346,19 +350,22 @@ extern "C" {
       for(int g = 0; g < NG; g++){
 
 	double paedsurv_g;
+	double entrant_prev;
 	if(bin_popadjust){
-	  double entrant_prev = pregprevlag[t-1] * verttrans * paedsurv;
+	  entrant_prev = pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1];
 	  pop[t][HIVN][g][0] =  entrantpop[t-1][g] * (1.0-entrant_prev);
 	  paedsurv_g = entrantpop[t-1][g] * entrant_prev;
 	} else {
-	  pop[t][HIVN][g][0] = birthslag[t-1][g] * cumsurv[t-1][g] * (1.0-pregprevlag[t-1] * verttrans) + cumnetmigr[t-1][g] * (1.0-pregprevlag[t-1] * netmig_hivprob);
-	  paedsurv_g = birthslag[t-1][g] * cumsurv[t-1][g] * pregprevlag[t-1] * verttrans * paedsurv + cumnetmigr[t-1][g] * pregprevlag[t-1] * netmig_hivprob * netmighivsurv;
+	  pop[t][HIVN][g][0] = birthslag[t-1][g] * cumsurv[t-1][g] * (1.0-pregprevlag[t-1] * verttrans_lag[t-1]) + cumnetmigr[t-1][g] * (1.0-pregprevlag[t-1] * netmig_hivprob);
+	  paedsurv_g = birthslag[t-1][g] * cumsurv[t-1][g] * pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1] + cumnetmigr[t-1][g] * pregprevlag[t-1] * netmig_hivprob * netmighivsurv;
 	}
 
 	pop[t][HIVP][g][0] = paedsurv_g;
 
+	entrantprev_out[t] = (pop[t][HIVP][MALE][0] + pop[t][HIVP][FEMALE][0]) / (pop[t][HIVN][MALE][0] + pop[t][HIVN][FEMALE][0] + pop[t][HIVP][MALE][0] + pop[t][HIVP][FEMALE][0]);
+
         for(int hm = 0; hm < hDS; hm++){
-          hivpop[t][g][0][hm] = (1-hiv_ag_prob[g][0]) * hivpop[t-1][g][0][hm] + paedsurv_g * paedsurv_cd4dist[hm]; // !!! UPDATE FOR VERTICAL TRANSMISSION
+          hivpop[t][g][0][hm] = (1-hiv_ag_prob[g][0]) * hivpop[t-1][g][0][hm] + paedsurv_g * paedsurv_cd4dist[hm];
           if(t > t_ART_start)
             for(int hu = 0; hu < hTS; hu++)
               artpop[t][g][0][hm][hu] = (1-hiv_ag_prob[g][0]) * artpop[t-1][g][0][hm][hu];
@@ -824,7 +831,7 @@ extern "C" {
 	incid15to49[t] /= hivn15to49[t-1];
     }
 
-    UNPROTECT(21);
+    UNPROTECT(22);
     return s_pop;
   }
 }

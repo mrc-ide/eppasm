@@ -41,10 +41,34 @@ aggr_specres <- function(specreslist){
   return(out)
 }
 
-
 pop15to49.specres <- function(specres){colSums(specres$totpop[as.character(15:49),,],,2)}
 artpop15to49.specres <- function(specres){colSums(specres$artnum.m[4:10,]+specres$artnum.f[4:10,])}
 artpop15plus.specres <- function(specres){colSums(specres$artnum.m[4:17,]+specres$artnum.f[4:17,])}
 artcov15to49.specres <- function(specres){colSums(specres$artnum.m[4:10,]+specres$artnum.f[4:10,]) / colSums(specres$hivnum.m[4:10,]+specres$hivnum.f[4:10,])}
 artcov15plus.specres <- function(specres){colSums(specres$artnum.m[4:17,]+specres$artnum.f[4:17,]) / colSums(specres$hivnum.m[4:17,]+specres$hivnum.f[4:17,])}
 age15pop.specres <- function(specres){colSums(specres$totpop["15",,])}
+
+ageprev.specres <- function(specres, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL){
+
+  if(is.null(arridx)){
+    if(length(agspan)==1)
+      agspan <- rep(agspan, length(aidx))
+    
+    dims <- dim(mod)
+    idx <- expand.grid(aidx=aidx, sidx=sidx, yidx=yidx)
+    arridx <- idx$aidx + (idx$sidx-1)*dims[1] + (idx$yidx-1)*dims[1]*dims[2]
+    agspan <- rep(agspan, times=length(sidx)*length(yidx))
+  } else if(length(agspan)==1)
+    agspan <- rep(agspan, length(arridx))
+  
+  agidx <- rep(arridx, agspan)
+  allidx <- agidx + unlist(sapply(agspan, seq_len))-1
+  
+  hivn <- fastmatch::ctapply(mod[,,1,][allidx], agidx, sum)
+  hivp <- fastmatch::ctapply(mod[,,2,][allidx], agidx, sum)
+  
+  prev <- hivp/(hivn+hivp)
+  if(!is.null(aidx))
+    prev <- array(prev, c(length(aidx), length(sidx), length(yidx)))
+  return(prev)
+}

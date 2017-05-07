@@ -61,6 +61,9 @@ prepare_ancsite_likdat <- function(eppd, anchor.year=1970L){
   anc.n <- eppd$anc.n
   anc.used <- eppd$anc.used
 
+  anc.prev <- anc.prev[anc.used,,drop=FALSE]  # keep only used sites
+  anc.n <- anc.n[anc.used,,drop=FALSE]        # keep only used sites
+
   ancobs.idx <- mapply(intersect, lapply(as.data.frame(t(!is.na(anc.prev))), which),
                        lapply(as.data.frame(t(!is.na(anc.n))), which), SIMPLIFY=FALSE)
   ## limit to years with both prevalence and N observations (likely input errors in EPP if not)

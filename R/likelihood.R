@@ -71,13 +71,24 @@ fnCreateLogAgeSexIncrr <- function(logrr, fp){
   return(logincrr.agesex)
 }
 
+create_natmx_param <- function(theta_natmx, fp){
+
+  ## linear trend in logmx
+  par <- list(natmx_b0 = theta_natmx[1],
+              natmx_b1 = theta_natmx[2])
+  par$Sx <- with(fp$natmx, exp(-exp(outer(logmx0, par$natmx_b0 + natmx_b1*x, "+"))))
+  return(par)
+}
+              
+
 fnCreateParam <- function(theta, fp){
 
   
   if(!exists("eppmod", where = fp))  # backward compatibility
     fp$eppmod <- "rspline"
   
-  if(fp$eppmod == "rspline"){
+  if(fp$eppmod %in% c("rspline", "logrspline")){
+    epp_nparam <- fp$numKnots+4
     u <- theta[1:fp$numKnots]
     beta <- numeric(fp$numKnots)
     beta[1] <- u[1]
@@ -89,7 +100,10 @@ fnCreateParam <- function(theta, fp){
                   iota = exp(theta[fp$numKnots+1]),
                   ancbias = theta[fp$numKnots+2],
                   v.infl = exp(theta[fp$numKnots+4]))
+    if(fp$eppmod == "logrspline")
+      param$rvec <- exp(param$rvec)
   } else { # rtrend
+    epp_nparam <- 9
     param <- list(tsEpidemicStart = fp$proj.steps[which.min(abs(fp$proj.steps - theta[1]))], # t0
                   rtrend = list(tStabilize = theta[1]+theta[2],  # t0 + t1
                                 r0 = exp(theta[3]),              # r0
@@ -100,14 +114,16 @@ fnCreateParam <- function(theta, fp){
 
   if(inherits(fp, "specfp")){
     if(exists("fitincrr", where=fp) && fp$fitincrr==TRUE){
-      nparam <- length(theta)
-      param$sigma_agepen <- exp(theta[nparam])
+      incrr_nparam <- 14
+      theta_incrr <- theta[epp_nparam+1:incrr_nparam]
+      
+      param$sigma_agepen <- exp(theta_incrr[incrr_nparam])
 
       param$incrr_sex <- fp$incrr_sex
-      param$incrr_sex[] <- exp(theta[nparam-13])
+      param$incrr_sex[] <- exp(theta_incrr[1])
 
       param$logincrr_age <- array(0, c(7, 2))
-      param$logincrr_age[-3,] <- theta[nparam-12:1]
+      param$logincrr_age[-3,] <- theta_incrr[2:13]
 
       param$incrr_age <- fp$incrr_age
       if(exists("linincrr", where=fp) && fp$linincrr)
@@ -116,20 +132,34 @@ fnCreateParam <- function(theta, fp){
         param$incrr_age[fp$ss$p.age15to49.idx,,] <- apply(exp(param$logincrr_age), 2, rep, each=5)
       param$incrr_age[36:66,,] <- sweep(fp$incrr_age[36:66,,fp$ss$PROJ_YEARS], 2,
                                         param$incrr_age[35,,fp$ss$PROJ_YEARS]/fp$incrr_age[35,,fp$ss$PROJ_YEARS], "*")
-    }
-    else if(exists("fitincrr", where=fp) && fp$fitincrr=="lognorm"){
-      nparam <- length(theta)
 
+    } else if(exists("fitincrr", where=fp) && fp$fitincrr=="lognorm"){
+      incrr_nparam <- 7
+      theta_incrr <- theta[epp_nparam+1:incrr_nparam]
+      
       param$incrr_sex <- fp$incrr_sex
-      param$incrr_sex[] <- exp(theta[nparam-6])
+      param$incrr_sex[] <- exp(theta_incrr[1])
 
-      param$logincrr_age <- cbind(calc_lognorm_logagerr(theta[nparam-5:3]),
-                                  calc_lognorm_logagerr(theta[nparam-2:0]))
+      param$logincrr_age <- cbind(calc_lognorm_logagerr(theta_incrr[2:4]),
+                                  calc_lognorm_logagerr(theta_incrr[5:7]))
       param$incrr_age <- fp$incrr_age
       param$incrr_age[,,] <- apply(exp(param$logincrr_age), 2, rep, c(rep(5, 13), 1))
 
-    }
+    } else
+      incrr_nparam <- 0
 
+    if(exists("natmx", where=fp) && fp$fitmx==TRUE){
+      natmx_nparam <- 3
+      theta_natmx <- theta[epp_nparam+incrr_nparam+1:natmx_nparam]
+
+      b0 <- theta_natmx[1]
+      b1 <- theta_natmx[2]/10
+      mx_lsexrat <- theta_natmx[3]
+      
+      param$natmx_par <- list(b0=b0, b1=b1, mx_lsexrat=mx_lsexrat)
+      param$Sx <- with(fp$natmx, exp(-exp(outer(sweep(logmx0, 2, c(0, mx_lsexrat), "+"), b0 + b1*x, "+"))))
+    }
+    
   }
   
   return(param)
@@ -203,6 +233,8 @@ prepare_sibmx_likdat <- function(sibmxdat, fp){
   sibmxdat$yidx <- sibmxdat$period - (anchor.year - 1)
   sibmxdat$tipsidx <- sibmxdat$tips+1L
 
+  sibmxdat <- subset(sibmxdat, aidx > 0)
+
   sibmxdat$arridx <- sibmxdat$aidx + (sibmxdat$sidx-1)*AG + (sibmxdat$yidx-1)*NG*AG
 
   return(sibmxdat)
@@ -254,8 +286,9 @@ ll_sibmx <- function(mx, tipscoef, theta, sibmx.dat){
 
 lprior <- function(theta, fp){
 
-
-  if(fp$eppmod == "rspline"){
+  if(fp$eppmod %in% c("rspline", "logrspline")){
+    epp_nparam <- fp$numKnots+4
+    
     nk <- fp$numKnots
     tau2 <- exp(theta[nk+3])
     
@@ -267,6 +300,8 @@ lprior <- function(theta, fp){
   
   } else { # rtrend
 
+    epp_nparam <- 9
+
     lpr <- dunif(theta[1], t0.unif.prior[1], t0.unif.prior[2], log=TRUE) +
       dunif(theta[2], t1.unif.prior[1], t1.unif.prior[2], log=TRUE) +
       dunif(theta[3], logr0.unif.prior[1], logr0.unif.prior[2], log=TRUE) +
@@ -276,22 +311,24 @@ lprior <- function(theta, fp){
   }
 
   if(exists("fitincrr", where=fp) && fp$fitincrr==TRUE){
-    nparam <- length(theta)
+    incrr_nparam <- 14
+    theta_incrr <- theta[epp_nparam+1:incrr_nparam]
     
     lpr <- lpr +
-      dnorm(theta[nparam-13], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE) +
-      sum(dnorm(theta[nparam-12:1], ageincrr.pr.mean, ageincrr.pr.sd, log=TRUE)) +
-      dnorm(theta[nparam], -1, 0.7, log=TRUE)
+      dnorm(theta_incrr[1], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE) +
+      sum(dnorm(theta_incrr[2:13], ageincrr.pr.mean, ageincrr.pr.sd, log=TRUE)) +
+      dnorm(theta_incrr[14], -1, 0.7, log=TRUE)
   }
 
   if(exists("fitincrr", where=fp) && fp$fitincrr=="lognorm"){
-    nparam <- length(theta)
+    incrr_nparam <- 7
+    theta_incrr <- theta[epp_nparam+1:incrr_nparam]
     
     lpr <- lpr +
-      dnorm(theta[nparam-6], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE) +
-      sum(dnorm(theta[nparam-c(5,2)], lognorm.a0.pr.mean, lognorm.a0.pr.sd, log=TRUE)) +
-      sum(dnorm(theta[nparam-c(4,1)], lognorm.meanlog.pr.mean, lognorm.meanlog.pr.sd, log=TRUE)) +
-      sum(dnorm(theta[nparam-c(3,0)], lognorm.logsdlog.pr.mean, lognorm.logsdlog.pr.sd, log=TRUE))
+      dnorm(theta_incrr[1], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE) +
+      sum(dnorm(theta_incrr[c(2,5)], lognorm.a0.pr.mean, lognorm.a0.pr.sd, log=TRUE)) +
+      sum(dnorm(theta_incrr[c(3,6)], lognorm.meanlog.pr.mean, lognorm.meanlog.pr.sd, log=TRUE)) +
+      sum(dnorm(theta_incrr[c(4,7)], lognorm.logsdlog.pr.mean, lognorm.logsdlog.pr.sd, log=TRUE))
   }
 
   

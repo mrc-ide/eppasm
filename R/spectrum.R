@@ -670,7 +670,7 @@ calc_pregprev <- function(mod, fp){
 #'
 #' @param mod output of simmod of class \code{\link{spec}}.
 #' @return 3-dimensional array of mortality by age, sex, and year.
-agemx.spec <- function(mod, nonhiv=TRUE){
+agemx.spec <- function(mod, nonhiv=FALSE){
   if(nonhiv)
     deaths <- attr(mod, "natdeaths")
   else

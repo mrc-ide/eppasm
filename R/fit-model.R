@@ -160,11 +160,7 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps
   attr(val, "eppd") <- list(anc.used = do.call(c, lapply(eppd, "[[", "anc.used")),
                             anc.prev = do.call(rbind, lapply(eppd, "[[", "anc.prev")),
                             anc.n = do.call(rbind, lapply(eppd, "[[", "anc.n")))
-  attr(val, "likdat") <- list(anclik.dat = with(attr(val, "eppd"), anclik::fnPrepareANCLikelihoodData(anc.prev, anc.n, anc.used, projp$yr_start)))
-  attr(val, "likdat")$lastdata.idx <- max(unlist(attr(val, "likdat")$anclik.dat$anc.idx.lst),
-                                          unlist(lapply(lapply(lapply(eppd, "[[", "hhs"), epp:::fnPrepareHHSLikData, projp$yr_start), "[[", "idx")))
-  attr(val, "likdat")$firstdata.idx <- min(unlist(attr(val, "likdat")$anclik.dat$anc.idx.lst),
-                                           unlist(lapply(lapply(lapply(eppd, "[[", "hhs"), epp:::fnPrepareHHSLikData, projp$yr_start), "[[", "idx")))
+
   attr(val, "specfp") <- specfp
   attr(val, "eppfp") <- fnCreateEPPFixPar(epp.input, proj.end = proj.end)
   attr(val, "country") <- attr(eppd, "country")

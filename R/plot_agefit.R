@@ -22,40 +22,43 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
     mtext("HIV incidence rate, age 15-49y", 3, 0.5, font=2, cex=1.2)
     ##
     ## r-trend
-    if(!is.null(fit3))
-      plot_rvec(fitaggr, fitincrr, fit3, col=cols)
-    else
-      plot_rvec(fitaggr, fitincrr, col=cols)
-    mtext("r(t)", 3, 0.5, font=2, cex=1.2)
+    if(!is.null(fitaggr$rvec[[1]])){
+      if(!is.null(fit3))
+        plot_rvec(fitaggr, fitincrr, fit3, col=cols)
+      else
+        plot_rvec(fitaggr, fitincrr, col=cols)
+      mtext("r(t)", 3, 0.5, font=2, cex=1.2)
+    }
     ##
     ## vinfl
     ##
     ## sex incrr
-    logincrrsex <- log(sapply(fitincrr$param, "[[", "incrr_sex")[1,])
-    dens <- density(logincrrsex)
-    densCI <- which(dens$x >= quantile(logincrrsex, 0.025) &
-                    dens$x <= quantile(logincrrsex, 0.975))
-    if(!is.null(fit3)){
-      logincrrsex3 <- log(sapply(fit3$param, "[[", "incrr_sex")[1,])
-      dens3 <- density(logincrrsex3)
-      dens3CI <- which(dens3$x >= quantile(logincrrsex3, 0.025) &
-                       dens3$x <= quantile(logincrrsex3, 0.975))
-    }
-    plot(dens, xlim=c(-0.1, 0.75), col=cols[2],
-         main="F:M incidence rate ratio, posterior density", xlab="log F:M IRR")
-    polygon(dens$x[c(min(densCI), densCI, max(densCI))], c(0, dens$y[densCI], 0),
-            col=transp(cols[2]), border=NA)
-    if(!is.null(fit3)){
-      lines(dens3, col=cols[3])
-      polygon(dens3$x[c(min(dens3CI), dens3CI, max(dens3CI))], c(0, dens3$y[dens3CI], 0),
-              col=transp(cols[3]), border=NA)
-    }
-    segments(x0=mean(log(sapply(fitincrr$param, "[[", "incrr_sex")[1,])), y0=0, y1=6, col=cols[2], lwd=2)
-    if(!is.null(fit3))
-      segments(x0=mean(log(sapply(fit3$param, "[[", "incrr_sex")[1,])), y0=0, y1=6, col=cols[3], lwd=2)
-    segments(x0=log(tail(fitaggr$fp$incrr_sex, 1)), y0=0, y1=6, col=cols[1], lwd=2)
-    lines(seq(-0.1, 0.75, 0.01), dnorm(seq(-0.1, 0.75, 0.01), eppspectrum:::sexincrr.pr.mean, eppspectrum:::sexincrr.pr.sd), col="darkblue", lty=2)
-    segments(x0=eppspectrum:::sexincrr.pr.mean, y0=0, y1=2, col="darkblue", lwd=2, lty=2)
+    if(!is.null(fitincrr$param)){
+      logincrrsex <- log(sapply(fitincrr$param, "[[", "incrr_sex")[1,])
+      dens <- density(logincrrsex)
+      densCI <- which(dens$x >= quantile(logincrrsex, 0.025) &
+                      dens$x <= quantile(logincrrsex, 0.975))
+      if(!is.null(fit3)){
+        logincrrsex3 <- log(sapply(fit3$param, "[[", "incrr_sex")[1,])
+        dens3 <- density(logincrrsex3)
+        dens3CI <- which(dens3$x >= quantile(logincrrsex3, 0.025) &
+                         dens3$x <= quantile(logincrrsex3, 0.975))
+      }
+      plot(dens, xlim=c(-0.1, 0.75), col=cols[2],
+           main="F:M incidence rate ratio, posterior density", xlab="log F:M IRR")
+      polygon(dens$x[c(min(densCI), densCI, max(densCI))], c(0, dens$y[densCI], 0),
+              col=transp(cols[2]), border=NA)
+      if(!is.null(fit3)){
+        lines(dens3, col=cols[3])
+        polygon(dens3$x[c(min(dens3CI), dens3CI, max(dens3CI))], c(0, dens3$y[dens3CI], 0),
+                col=transp(cols[3]), border=NA)
+      }
+      segments(x0=mean(log(sapply(fitincrr$param, "[[", "incrr_sex")[1,])), y0=0, y1=6, col=cols[2], lwd=2)
+      if(!is.null(fit3))
+        segments(x0=mean(log(sapply(fit3$param, "[[", "incrr_sex")[1,])), y0=0, y1=6, col=cols[3], lwd=2)
+      segments(x0=log(tail(fitaggr$fp$incrr_sex, 1)), y0=0, y1=6, col=cols[1], lwd=2)
+      lines(seq(-0.1, 0.75, 0.01), dnorm(seq(-0.1, 0.75, 0.01), eppspectrum:::sexincrr.pr.mean, eppspectrum:::sexincrr.pr.sd), col="darkblue", lty=2)
+      segments(x0=eppspectrum:::sexincrr.pr.mean, y0=0, y1=2, col="darkblue", lwd=2, lty=2)
     ##
     ## age incrr
     xx <- c(1:2, 4:7)
@@ -107,7 +110,8 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
     segments(xx+0.1, logincrrage[xx+offset,1], xx+0.9, col=cols[2], lwd=2)
     if(!is.null(fit3))
       segments(xx+0.1, logincrrage3[xx+offset3,1], xx+0.9, col=cols[3], lwd=2)
-    ##
+      ##
+    }
     mtext(paste0(icountry, ", ", eppmod, "; posterior distribution"), 3, 0.5, outer=TRUE, font=2, cex=1.3)
   }
   ##

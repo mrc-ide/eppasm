@@ -14,3 +14,6 @@
 
 - Implemented O-spline model (penalized B-spline) using mgcv to construct
 - Added `r0logiotaratio` option to estimate ratio of r(t0) and log of initial seed, reduces correation. Not set as default.
+# eppspectrum 0.1.6
+
+- Estimate HIV+:HIV- FRR adjustment.

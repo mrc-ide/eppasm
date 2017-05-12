@@ -145,15 +145,15 @@ plot_ancprev <- function(fit, ..., data=fit$likdat, ylim=NULL, xlim=c(1980, with
   
   ## Calculate parameters for bias term
   param <- apply(fit$resample, 1, fnCreateParam, fit$fp)
-  ancrtcens.bias <- sapply(param, "[[", "ancrtcens.bias")
+  ## ancrtcens.bias <- sapply(param, "[[", "ancrtcens.bias")
   ancrtcens.vinfl <- sapply(param, "[[", "ancrtcens.vinfl")
-  ancrt.prev <- pnorm(sweep(qnorm(fit$pregprev), 2, ancrtcens.bias, "+"))
+  ancrt.prev <- fit$pregprev
 
   dots <- list(...)
   dots_param <- lapply(dots, function(fit) apply(fit$resample, 1, fnCreateParam, fit$fp))
-  dots_ancrtcens.bias <- lapply(dots_param, sapply, "[[", "ancrtcens.bias")
+  ## dots_ancrtcens.bias <- lapply(dots_param, sapply, "[[", "ancrtcens.bias")
   dots_ancrtcens.vinfl <- lapply(dots_param, sapply, "[[", "ancrtcens.vinfl")
-  dots_ancrt.prev <- mapply(function(fit, bias) pnorm(sweep(qnorm(fit$pregprev), 2, bias, "+")), dots, dots_ancrtcens.bias, SIMPLIFY=FALSE)
+  dots_ancrt.prev <- lapply(dots, "[[", "pregprev")
 
   if(is.null(ylim))
     ylim <- c(0, 1.1*max(apply(ancrt.prev, 1, quantile, 0.975)))

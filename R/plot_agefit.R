@@ -156,7 +156,7 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
         segments(survdat$year, y0=survdat$ci_l, y1=survdat$ci_u)
       }
     }
-    mtext(paste0(icountry, ", ", eppmod, "; Prevalence trend by age group"), 3, 0.5, outer=TRUE, font=2, cex=1.3)
+    mtext(paste0(icountry, ", ", eppmod, "\nPrevalence trend by age group"), 3, 0, outer=TRUE, font=2, cex=1.3)
   }
   ##
   ##

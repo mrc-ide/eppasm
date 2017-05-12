@@ -4,9 +4,12 @@ prev.specres <- function(x) colSums(x$hivnum.m[4:10,]+x$hivnum.f[4:10,])/colSums
 
 aidsdeaths.specres <- function(x) colSums(x$aidsdeaths.m[-(1:3),]+x$aidsdeaths.f[-(1:3),])
 
-agemx.specres <- function(specres){
+agemx.specres <- function(specres, nonhiv=FALSE){
 
-  deaths <- with(specres, natdeaths+hivdeaths)
+  if(nonhiv)
+    deaths <- specres$natdeaths
+  else
+    deaths <- with(specres, natdeaths+hivdeaths)
   pop <- with(specres, (totpop[,,-1]+totpop[,,-dim(totpop)[3]])/2)
 
   mx <- array(0, dim=dim(deaths), dimnames(deaths))

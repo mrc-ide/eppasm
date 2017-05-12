@@ -19,3 +19,4 @@
 # eppspectrum 0.2.0
 
 - Estimate non-HIV mortality trend.
+- Add outputs and plot functions for 45q15, 35q15, and age specific mortality

@@ -160,11 +160,7 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps
   attr(val, "eppd") <- list(anc.used = do.call(c, lapply(eppd, "[[", "anc.used")),
                             anc.prev = do.call(rbind, lapply(eppd, "[[", "anc.prev")),
                             anc.n = do.call(rbind, lapply(eppd, "[[", "anc.n")))
-  attr(val, "likdat") <- list(anclik.dat = with(attr(val, "eppd"), anclik::fnPrepareANCLikelihoodData(anc.prev, anc.n, anc.used, projp$yr_start)))
-  attr(val, "likdat")$lastdata.idx <- max(unlist(attr(val, "likdat")$anclik.dat$anc.idx.lst),
-                                          unlist(lapply(lapply(lapply(eppd, "[[", "hhs"), epp:::fnPrepareHHSLikData, projp$yr_start), "[[", "idx")))
-  attr(val, "likdat")$firstdata.idx <- min(unlist(attr(val, "likdat")$anclik.dat$anc.idx.lst),
-                                           unlist(lapply(lapply(lapply(eppd, "[[", "hhs"), epp:::fnPrepareHHSLikData, projp$yr_start), "[[", "idx")))
+
   attr(val, "specfp") <- specfp
   attr(val, "eppfp") <- fnCreateEPPFixPar(epp.input, proj.end = proj.end)
   attr(val, "country") <- attr(eppd, "country")
@@ -245,7 +241,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
 
 ## simulate incidence and prevalence
-simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FALSE, agegr3=FALSE, aidsdeaths=FALSE, pregprev=TRUE, entrantprev=TRUE){
+simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FALSE, agegr3=FALSE, mxoutputs=FALSE, aidsdeaths=FALSE, pregprev=TRUE, entrantprev=TRUE){
 
   fit$param <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
 
@@ -287,7 +283,26 @@ simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FA
 
   if(aidsdeaths)
     fit$aidsdeaths <- sapply(lapply(mod.list, attr, "hivdeaths"), colSums, dims=2)
-  
+
+  if(mxoutputs){
+    fit$agemx <- abind::abind(lapply(mod.list, agemx), rev.along=0)
+    dimnames(fit$agemx) <- with(fit$fp$ss, list(age=with(fit$fp$ss, AGE_START+0:(pAG-1)), sex=c("male", "female"), proj_start + 0:(PROJ_YEARS-1), NULL))
+    
+    fit$natagemx <- abind::abind(lapply(mod.list, agemx, nonhiv=TRUE), rev.along=0)
+    dimnames(fit$natagemx) <- with(fit$fp$ss, list(age=with(fit$fp$ss, AGE_START+0:(pAG-1)), sex=c("male", "female"), proj_start + 0:(PROJ_YEARS-1), NULL))
+    
+    fit$q4515 <- abind::abind(lapply(mod.list, calc_nqx, fp=fit$fp, n=45, x=15), rev.along=0)
+    dimnames(fit$q4515) <- with(fit$fp$ss, list(sex=c("male", "female"), proj_start + 0:(PROJ_YEARS-1), NULL))
+    
+    fit$q3515 <- abind::abind(lapply(mod.list, calc_nqx, fp=fit$fp, n=35, x=15), rev.along=0)
+    dimnames(fit$q3515) <- with(fit$fp$ss, list(sex=c("male", "female"), proj_start + 0:(PROJ_YEARS-1), NULL))
+    
+    fit$natq4515 <- abind::abind(lapply(mod.list, calc_nqx, fp=fit$fp, n=45, x=15, nonhiv=TRUE), rev.along=0)
+    dimnames(fit$natq4515) <- with(fit$fp$ss, list(sex=c("male", "female"), proj_start + 0:(PROJ_YEARS-1), NULL))
+    
+    fit$natq3515 <- abind::abind(lapply(mod.list, calc_nqx, fp=fit$fp, n=35, x=15, nonhiv=TRUE), rev.along=0)
+    dimnames(fit$natq3515) <- with(fit$fp$ss, list(sex=c("male", "female"), proj_start + 0:(PROJ_YEARS-1), NULL))
+  }
     
   return(fit)
 }

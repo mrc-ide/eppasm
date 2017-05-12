@@ -1,5 +1,7 @@
-cred.region <- function(x, y, ...)
+cred.region <- function(x, y, ...){
+  if(nrow(y) != 2) y <- t(y)
   polygon(c(x, rev(x)), c(y[1,], rev(y[2,])), border=NA, ...)
+}
 
 transp <- function(col, alpha=0.5)
   return(replace(apply(col2rgb(col), 2, function(c) rgb(c[1]/255, c[2]/255, c[3]/255, alpha)), is.na(col), NA))

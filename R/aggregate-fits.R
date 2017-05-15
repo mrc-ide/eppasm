@@ -8,7 +8,7 @@ create_aggr_input <- function(inputlist){
   anc.prev.list <- lapply(eppdlist, "[[", "anc.prev")
   anc.prev.list <- lapply(anc.prev.list, function(x) x[,Reduce(intersect, lapply(anc.prev.list, colnames))])
 
-  anc.n.list <- lapply(eppdlist, "[[", "anc.prev")
+  anc.n.list <- lapply(eppdlist, "[[", "anc.n")
   anc.n.list <- lapply(anc.n.list, function(x) x[,Reduce(intersect, lapply(anc.n.list, colnames))])
 
   ## !! NEEDS ANC-RT DATA ADDED

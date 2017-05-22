@@ -19,4 +19,10 @@
 # eppspectrum 0.2.0
 
 - Estimate non-HIV mortality trend.
-- Add outputs and plot functions for 45q15, 35q15, and age specific mortality
+- Add outputs and plot functions for 45q15, 35q15, and age specific mortality.
+
+
+# eppspectrum 0.2.1
+
+- Implement Wilmoth et al. log-quadratic model.
+- Implement incidence rate ratio time x age interaction.

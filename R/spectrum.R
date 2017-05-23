@@ -261,12 +261,15 @@ prepare_ospline_model <- function(fp, numKnots=NULL, tsEpidemicStart=fp$ss$time_
   if(!exists("rtpenord", fp))
     fp$rtpenord <- 2L
 
+  if(exists("knots", fp))
+    fp$numKnots <- length(fp$knots) - 4
+
   fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - tsEpidemicStart))]
   epi_steps <- fp$proj.steps[fp$proj.steps >= fp$tsEpidemicStart]
 
   ## Use mgcv to setup cubic B-spline basis and design matrix with penalty absorbed
   sm <- mgcv::smoothCon(mgcv::s(epi_steps, bs="bs", k=fp$numKnots, m=c(3, fp$rtpenord)),
-                        data.frame(epi_steps=epi_steps), absorb.cons=TRUE, diagonal.penalty=TRUE)[[1]]
+                        data.frame(epi_steps=epi_steps), knots=list(epi_steps=fp$knots), absorb.cons=TRUE, diagonal.penalty=TRUE)[[1]]
   fp$rvec.spldes <- rbind(matrix(0, length(fp$proj.steps) - length(epi_steps), fp$numKnots),
                           cbind(1, sm$X[,c(ncol(sm$X), 1:(ncol(sm$X)-1))]))
 

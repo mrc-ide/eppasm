@@ -207,16 +207,6 @@ fnCreateLogAgeSexIncrr <- function(logrr, fp){
   return(logincrr.agesex)
 }
 
-create_natmx_param <- function(theta_natmx, fp){
-
-  ## linear trend in logmx
-  par <- list(natmx_b0 = theta_natmx[1],
-              natmx_b1 = theta_natmx[2])
-  par$Sx <- with(fp$natmx, exp(-exp(outer(logmx0, par$natmx_b0 + natmx_b1*x, "+"))))
-  return(par)
-}
-              
-
 fnCreateParam <- function(theta, fp){
 
   
@@ -344,7 +334,7 @@ fnCreateParam <- function(theta, fp){
         mx_lsexrat <- theta_natmx[3]    # change in log mortality sex ratio
         
         param$natmx_par <- list(b0=b0, b1=b1, mx_lsexrat=mx_lsexrat)
-        param$Sx <- with(fp$natmx, exp(-exp(outer(sweep(logmx0, 2, c(0, mx_lsexrat), "+"), b0 + b1*x, "+"))))
+        param$Sx <- with(fp$natmx, exp(-exp(outer(sweep(logmx0, 2, c(0, mx_lsexrat), "+"), b0 + b1*(x-mean(x)), "+"))))
         param$sibmx.theta <- exp(theta_natmx[4])
       } else if(fp$fitmx == "logquad"){
         natmx_nparam <- 7
@@ -362,14 +352,21 @@ fnCreateParam <- function(theta, fp){
                                 h_mfdiff_b0 = h_mfdiff_b0, h_mfdiff_b1 = h_mfdiff_b1,
                                 v_f=v_f, v_m=v_m)
 
-        h_f <- h_f_b0 + h_f_b1*fp$natmx$x
-        h_m <- h_f + h_mfdiff_b0 + h_mfdiff_b1*fp$natmx$x
+        h_f <- h_f_b0 + h_f_b1*(fp$natmx$x - mean(fp$natmx$x))
+        h_m <- h_f + h_mfdiff_b0 + h_mfdiff_b1*(fp$natmx$x - mean(fp$natmx$x))
         param$Sx <- exp(-logquad_mx(h_m, v_m, h_f, v_f))
 
         param$sibmx.theta <- exp(theta_natmx[7])
       }
+      else if(fp$fitmx == "logquadS"){
+        natmx_nparam <- fp$natmx$nparam + 1  # +1 for negbin scale parameter
+        theta_natmx <- theta[paramcurr+1:natmx_nparam]
+        paramcurr <- paramcurr+natmx_nparam
+
+        natmxpar <- create_natmx_param(theta_natmx, fp)
+        param[names(natmxpar)] <- natmxpar
+      }
     }
-    
   }
   
   return(param)
@@ -465,10 +462,14 @@ lprior_natmx <- function(theta_natmx, fp){
       dnorm(theta_natmx[2], natmx.b1.mean, natmx.b1.sd, log=TRUE) +
       dnorm(theta_natmx[3], natmx.lsexrat.mean, natmx.lsexrat.sd, log=TRUE) +
       dgamma(exp(theta_natmx[4]), natmx.sibmxtheta.shape, scale=natmx.sibmxtheta.scale, log=TRUE) + theta_natmx[4]
-    
-  } else if(fp$fitmx == "logquad"){
+  }
+  else if(fp$fitmx == "logquad"){
     lpr <- sum(dnorm(theta_natmx[1:6], lq_mean, lq_sd, log=TRUE)) +
       dgamma(exp(theta_natmx[7]), natmx.sibmxtheta.shape, scale=natmx.sibmxtheta.scale, log=TRUE) + theta_natmx[7]
+  }
+  else if(fp$fitmx == "logquadS"){
+    lpr <- sum(dnorm(theta_natmx[1:(fp$natmx$nparam)], fp$natmx$lq_mean, fp$natmx$lq_sd, log=TRUE)) +
+      dgamma(exp(theta_natmx[fp$natmx$nparam+1]), natmx.sibmxtheta.shape, scale=natmx.sibmxtheta.scale, log=TRUE) + theta_natmx[fp$natmx$nparam+1]
   }
 
   return(lpr)
@@ -668,6 +669,8 @@ lprior <- function(theta, fp){
       natmx_nparam <- 4
     else if(fp$fitmx == "logquad")
       natmx_nparam <- 7
+    else if(fp$fitmx == "logquadS")
+      natmx_nparam <- fp$natmx$nparam+1  # +1 for negbin scale parameter
     
     theta_natmx <- theta[paramcurr+1:natmx_nparam]
     paramcurr <- paramcurr+natmx_nparam
@@ -793,6 +796,9 @@ sample.prior <- function(n, fp){
       nparam <- nparam+4
     else if(fp$fitmx == "logquad")
       nparam <- nparam+7
+    else if(fp$fitmx == "logquadS")
+      nparam <- nparam + fp$natmx$nparam+1  # +1 for negbin scale parameter
+  
 
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
@@ -885,7 +891,15 @@ sample.prior <- function(n, fp){
       mat[,paramcurr+7] <- log(rgamma(n, natmx.sibmxtheta.shape, scale=natmx.sibmxtheta.scale))
 
       paramcurr <- paramcurr+natmx_nparam
+    } else if(fp$fitmx == "logquadS") {
+    
+      natmx_nparam <- fp$natmx$nparam+1  # +1 for negbin scale parameter
+      mat[,paramcurr+1:fp$natmx$nparam] <- t(matrix(rnorm(n*fp$natmx$nparam, fp$natmx$lq_mean, fp$natmx$lq_sd), nrow=fp$natmx$nparam))
+      mat[,paramcurr+fp$natmx$nparam+1] <- log(rgamma(n, natmx.sibmxtheta.shape, scale=natmx.sibmxtheta.scale))
     }
+    else
+      natmx_nparam <- 0
+    paramcurr <- paramcurr+natmx_nparam
   }
 
   return(mat)

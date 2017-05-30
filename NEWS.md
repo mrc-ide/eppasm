@@ -32,3 +32,4 @@
 
 - Implement Wilmoth et al. log-quadratic model.
 - Implement incidence rate ratio time x age interaction.
+- Trend in h parameter of LogQuad model specified as penalised B-spline with fixed penalty

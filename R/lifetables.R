@@ -142,12 +142,6 @@ lq1_f <- structure(c(-3.20121258170136, -3.15658205488728, -3.1099288731249,
                      0.00691204527927337, 0.00520649521142891),
                    .Dim = c(66L, 4L), .Dimnames = list(NULL, c("ax_f", "bx_f", "cx_f", "vx_f")))
 
-lq1 <- rbind(lq1_m, lq1_f)
-
-h_m <- log(0.1) + -10:10*0.1
-h_f <- log(0.1) + -10:10*0.1
-v_m <- 0
-v_f <- 0
 
 ## Note: age groups 15:80 are hard coded
 logquad_mx <- function(h_m, v_m, h_f, v_f){
@@ -168,4 +162,72 @@ logquad_mx <- function(h_m, v_m, h_f, v_f){
 logquad_nqx <- function(h_m, v_m, h_f, v_f, n=45, x=15){
   mx <- logquad_mx(h_m, v_m, h_f, v_f)
   return(1-exp(-colSums(mx[x-15+1:n,,])))
+}
+
+
+prepare_natmx_model <- function(fp, k=7){
+  natmx <- list(mxmod="logquadS", k=k)
+  natmx$x <- with(fp$ss, proj_start + seq_len(PROJ_YEARS)-1)
+  
+  sm <- mgcv::smoothCon(mgcv::s(x, bs="bs", k=k), data.frame(x=natmx$x), absorb.cons=TRUE, diagonal.penalty=TRUE)[[1]]
+  
+  ## Null space parameterised as constant and linear trend; then take penalized component of sm$X
+  natmx$X <- cbind(1, (natmx$x - mean(natmx$x))/10, sm$X[,1:(k-2)])
+
+
+  ## Prepare prior
+
+  natmx$lq_mean <- c(h_f.b0 = -2.5,
+                     h_f.b1 = -0.15,
+                     h_f.spl = rep(0, natmx$k-2),
+                     h_mfdiff_b0 = 0,
+                     h_mfdiff_b1 = 0,
+                     h_mfdiff.spl = rep(0, natmx$k-2),
+                     v_f.mean = 0,
+                     v_m.mean = 0)
+  
+  natmx$lq_sd <- c(h_f.b0.sd = 0.5,
+                   h_f.b1.sd = 0.15,
+                   h_f.spl = rep(1, natmx$k-2),  # N(0, 1), multiply by SD parameter
+                   h_mfdiff_b0.sd = 0.5,
+                   h_mfdiff_b1.sd = 0.1,
+                   h_mfdifff.spl = rep(1, natmx$k-2),  # N(0, 1), multiply by SD parameter
+                   v_f.sd = 0.75,
+                   v_m.sd = 0.75)
+
+  natmx$nparam <- length(natmx$lq_mean) 
+
+  natmx$h_f_pen_sd <- 0.05
+  natmx$h_mfdiff_pen_sd <- 0.05
+
+  fp$natmx <- natmx
+
+  return(fp)
+}
+
+
+create_natmx_param <- function(theta_natmx, fp){
+
+  beta_h_f <- c(theta_natmx[1:2], theta_natmx[3:fp$natmx$k]*fp$natmx$h_f_pen_sd)
+  h_f <- as.vector(fp$natmx$X %*% beta_h_f)
+
+  idx0 <- fp$natmx$k
+  beta_h_mfdiff <- c(theta_natmx[idx0+1:2], theta_natmx[idx0+3:fp$natmx$k]*fp$natmx$h_mfdiff_pen_sd)
+  h_mfdiff <- as.vector(fp$natmx$X %*% beta_h_mfdiff)
+
+  v_f <- theta_natmx[2*fp$natmx$k + 1]
+  v_m <- theta_natmx[2*fp$natmx$k + 2]
+
+  Sx <- exp(-logquad_mx(h_f+h_mfdiff, v_m, h_f, v_f))
+
+  natmx_par <- list(beta_h_f=beta_h_f,
+                    beta_h_mfdiff=beta_h_mfdiff,
+                    v_f = v_f,
+                    v_m = v_m)
+
+
+
+  return(list(natmx_par = natmx_par,
+              Sx = Sx,
+              sibmx.theta = exp(theta_natmx[fp$natmx$nparam+1])))
 }

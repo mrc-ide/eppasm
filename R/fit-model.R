@@ -218,6 +218,11 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   else if(fp$eppmod == "rtrend")
     fp <- prepare_rtrend_model(fp)
 
+
+  ## Prepare non-HIV mortality model
+  if(exists("fitmx", fp) && fp$fitmx == "logquadS")
+    fp <- prepare_natmx_model(fp)
+
   ## If IMIS fails, start again
   fit <- try(stop(""), TRUE)
   while(inherits(fit, "try-error")){
@@ -247,7 +252,6 @@ fitoptim <- function(obj, init, ..., method="BFGS", epp=FALSE){
   else
     fp <- update(attr(obj, 'specfp'), ...)
 
-
   fp$ancrtsite.beta <- 0
   likdat <- likdat <- prepare_likdat(attr(obj, 'eppd'), fp)
 
@@ -261,6 +265,9 @@ fitoptim <- function(obj, init, ..., method="BFGS", epp=FALSE){
   else if(fp$eppmod == "rtrend")
     fp <- prepare_rtrend_model(fp)
 
+  ## Prepare non-HIV mortality model
+  if(exists("fitmx", fp) && fp$fitmx == "logquadS")
+    fp <- prepare_natmx_model(fp)
 
   optfn <- function(theta, fp, likdat) lprior(theta, fp) + ll(theta, fp, likdat)
   opt <- optim(init, optfn, fp=fp, likdat=likdat, method=method, control=list(fnscale=-1, trace=4, maxit=1e3))

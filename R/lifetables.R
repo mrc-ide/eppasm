@@ -200,6 +200,13 @@ prepare_natmx_model <- function(fp, k=7){
   natmx$h_f_pen_sd <- 0.05
   natmx$h_mfdiff_pen_sd <- 0.05
 
+  if(exists("sibmx", fp) && fp$sibmx==TRUE){
+    if(is.null(fp$sibmxbias_sd))
+      fp$sibmxbias_sd <- 0.1
+
+    natmx$tips_L <- chol(tips_V + fp$sibmxbias_sd^2)
+  }
+
   fp$natmx <- natmx
 
   return(fp)
@@ -225,9 +232,5 @@ create_natmx_param <- function(theta_natmx, fp){
                     v_f = v_f,
                     v_m = v_m)
 
-
-
-  return(list(natmx_par = natmx_par,
-              Sx = Sx,
-              sibmx.theta = exp(theta_natmx[fp$natmx$nparam+1])))
+  return(list(natmx_par = natmx_par, Sx = Sx))
 }

@@ -118,25 +118,3 @@ lq1_f <- as.matrix(subset(lqcoef1, age %in% 15:59, c("ax_f", "bx_f", "cx_f", "vx
 
 lq1_m <- as.matrix(lqcoef1[,c("ax_m", "bx_m", "cx_m", "vx_m")])
 lq1_f <- as.matrix(lqcoef1[,c("ax_f", "bx_f", "cx_f", "vx_f")])
-
-  
-
-library(mgcv)
-
-
-
-xx <- seq(1975, 2020, 0.1)
-sm15 <- smoothCon(s(xx, bs="bs", k=15), data.frame(xx=xx), absorb.cons=TRUE, diagonal.penalty=TRUE)[[1]]
-sim15 <- sm15$X %*% rbind(matrix(rnorm(10000*13, 0, 0.1), 13), 0)
-
-
-sm50 <- smoothCon(s(xx, bs="bs", k=50), data.frame(xx=xx), absorb.cons=TRUE, diagonal.penalty=TRUE)[[1]]
-sim50 <- sm50$X %*% rbind(matrix(rnorm(10000*48, 0, 0.1), 48), 0)
-
-matplot(xx, sim, type="l")
-
-matplot(xx, t(apply(sim, 1, quantile, c(.025, 0.975))), type="l", lty=1, col=1)
-
-matplot(xx, t(apply(sim15, 1, quantile, c(.025, 0.975))), type="l", lty=1, col=2)
-
-matplot(xx, t(apply(sim50, 1, quantile, c(.025, 0.975))), type="l", lty=1, col=2)

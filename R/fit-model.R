@@ -220,8 +220,13 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
 
   ## Prepare non-HIV mortality model
-  if(exists("fitmx", fp) && fp$fitmx == "logquadS")
-    fp <- prepare_natmx_model(fp)
+  if(exists("fitmx", fp) && fp$fitmx == "logquadS"){
+    if(exists("lqs_h_knots", fp) && !is.null(fp$lqs_h_knots))
+      k <- fp$lqs_h_knots
+    else
+      k <- 7
+    fp <- prepare_natmx_model(fp, k=k)
+  }
 
   ## If IMIS fails, start again
   fit <- try(stop(""), TRUE)
@@ -266,8 +271,13 @@ fitoptim <- function(obj, init, ..., method="BFGS", epp=FALSE){
     fp <- prepare_rtrend_model(fp)
 
   ## Prepare non-HIV mortality model
-  if(exists("fitmx", fp) && fp$fitmx == "logquadS")
-    fp <- prepare_natmx_model(fp)
+  if(exists("fitmx", fp) && fp$fitmx == "logquadS"){
+    if(exists("lqs_h_knots", fp) && !is.null(fp$lqs_h_knots))
+      k <- fp$lqs_h_knots
+    else
+      k <- 7
+    fp <- prepare_natmx_model(fp, k=k)
+  }
 
   optfn <- function(theta, fp, likdat) lprior(theta, fp) + ll(theta, fp, likdat)
   opt <- optim(init, optfn, fp=fp, likdat=likdat, method=method, control=list(fnscale=-1, trace=4, maxit=1e3))

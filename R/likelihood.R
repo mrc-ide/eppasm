@@ -325,7 +325,7 @@ fnCreateParam <- function(theta, fp){
 
     if(exists("natmx", where=fp)){
       if(fp$fitmx==TRUE){
-        natmx_nparam <- 4
+        natmx_nparam <- 3
         theta_natmx <- theta[paramcurr+1:natmx_nparam]
         paramcurr <- paramcurr+natmx_nparam
         
@@ -335,9 +335,8 @@ fnCreateParam <- function(theta, fp){
         
         param$natmx_par <- list(b0=b0, b1=b1, mx_lsexrat=mx_lsexrat)
         param$Sx <- with(fp$natmx, exp(-exp(outer(sweep(logmx0, 2, c(0, mx_lsexrat), "+"), b0 + b1*(x-mean(x)), "+"))))
-        param$sibmx.theta <- exp(theta_natmx[4])
       } else if(fp$fitmx == "logquad"){
-        natmx_nparam <- 7
+        natmx_nparam <- 6
         theta_natmx <- theta[paramcurr+1:natmx_nparam]
         paramcurr <- paramcurr+natmx_nparam
         
@@ -355,17 +354,25 @@ fnCreateParam <- function(theta, fp){
         h_f <- h_f_b0 + h_f_b1*(fp$natmx$x - mean(fp$natmx$x))
         h_m <- h_f + h_mfdiff_b0 + h_mfdiff_b1*(fp$natmx$x - mean(fp$natmx$x))
         param$Sx <- exp(-logquad_mx(h_m, v_m, h_f, v_f))
-
-        param$sibmx.theta <- exp(theta_natmx[7])
       }
       else if(fp$fitmx == "logquadS"){
-        natmx_nparam <- fp$natmx$nparam + 1  # +1 for negbin scale parameter
+        natmx_nparam <- fp$natmx$nparam
         theta_natmx <- theta[paramcurr+1:natmx_nparam]
         paramcurr <- paramcurr+natmx_nparam
 
         natmxpar <- create_natmx_param(theta_natmx, fp)
         param[names(natmxpar)] <- natmxpar
       }
+    }
+
+    ## Sibling history model parameters
+    if(exists("sibmx", fp) && fp$sibmx==TRUE){
+      sibmx_nparam <- 16
+      theta_sibmx <- theta[paramcurr+1:sibmx_nparam]
+      paramcurr <- paramcurr+sibmx_nparam
+
+      sibmxpar <- create_sibmx_param(theta_sibmx, fp)
+      param[names(sibmxpar)] <- sibmxpar
     }
   }
   
@@ -435,8 +442,6 @@ natmx.b1.mean <- -0.1
 natmx.b1.sd <- 0.1
 natmx.lsexrat.mean <- 0
 natmx.lsexrat.sd <- 0.2
-natmx.sibmxtheta.shape <- 3.2
-natmx.sibmxtheta.scale <- 2/3
 
 ## LogQuad model
 
@@ -460,84 +465,18 @@ lprior_natmx <- function(theta_natmx, fp){
 
     lpr <- dnorm(theta_natmx[1], natmx.b0.mean, natmx.b0.sd, log=TRUE) +
       dnorm(theta_natmx[2], natmx.b1.mean, natmx.b1.sd, log=TRUE) +
-      dnorm(theta_natmx[3], natmx.lsexrat.mean, natmx.lsexrat.sd, log=TRUE) +
-      dgamma(exp(theta_natmx[4]), natmx.sibmxtheta.shape, scale=natmx.sibmxtheta.scale, log=TRUE) + theta_natmx[4]
+      dnorm(theta_natmx[3], natmx.lsexrat.mean, natmx.lsexrat.sd, log=TRUE)
   }
   else if(fp$fitmx == "logquad"){
-    lpr <- sum(dnorm(theta_natmx[1:6], lq_mean, lq_sd, log=TRUE)) +
-      dgamma(exp(theta_natmx[7]), natmx.sibmxtheta.shape, scale=natmx.sibmxtheta.scale, log=TRUE) + theta_natmx[7]
+    lpr <- sum(dnorm(theta_natmx[1:6], lq_mean, lq_sd, log=TRUE))
   }
   else if(fp$fitmx == "logquadS"){
-    lpr <- sum(dnorm(theta_natmx[1:(fp$natmx$nparam)], fp$natmx$lq_mean, fp$natmx$lq_sd, log=TRUE)) +
-      dgamma(exp(theta_natmx[fp$natmx$nparam+1]), natmx.sibmxtheta.shape, scale=natmx.sibmxtheta.scale, log=TRUE) + theta_natmx[fp$natmx$nparam+1]
+    lpr <- sum(dnorm(theta_natmx[1:(fp$natmx$nparam)], fp$natmx$lq_mean, fp$natmx$lq_sd, log=TRUE))
   }
 
   return(lpr)
 }
   
-
-#' Prepare sibling history mortality likelihood data
-#' 
-prepare_sibmx_likdat <- function(sibmxdat, fp){
-  anchor.year <- floor(min(fp$proj.steps))
-  nyears <- fp$ss$PROJ_YEARS
-  NG <- fp$ss$NG
-  AG <- fp$ss$pAG
-
-  sibmxdat$sidx <- as.integer(sibmxdat$sex)
-  sibmxdat$aidx <- sibmxdat$agegr - (fp$ss$AGE_START-1)
-  sibmxdat$yidx <- sibmxdat$period - (anchor.year - 1)
-  sibmxdat$tipsidx <- sibmxdat$tips+1L
-
-  sibmxdat <- subset(sibmxdat, aidx > 0)
-
-  sibmxdat$arridx <- sibmxdat$aidx + (sibmxdat$sidx-1)*AG + (sibmxdat$yidx-1)*NG*AG
-
-  return(sibmxdat)
-}
-
-#' Log negative binomial density
-#'
-#' Log negative binomial density, mu parameterization
-#' 
-#' Log-density of negative binomial distribution. Parameter names and
-#' parameterization matches the 'mu' parameterization of \code{\link{dnbinom}}.
-#'
-#' @param x vector of number of events.
-#' @param size dispersion parameter.
-#' @param mu mean expected number of events.
-ldnbinom <- function(x, size, mu){
-  prob <- size/(size+mu)
-  lgamma(x+size) - lgamma(size) - lgamma(x+1) + size*log(prob) + x*log(1-prob)
-}
-
-
-
-#' Log-likelihood for sibling history mortality data
-#'
-#' Calculate the log-likelihood for sibling history mortality data
-#'
-#' !!! NOTE: does not account for complex survey design
-#'
-#' @param mx Array of age/sex-specific mortality rates for each year, output
-#'   from function \code{\link{agemx}}.
-#' @param tipscoef Vector of TIPS (time preceding survey) coefficients for
-#'   relative risk of underreporting deceased siblings.
-#' @param theta Overdispersion of negative binomial distribution.
-#' @param sibmx.dat Data frame consisting of sibling history mortality data. 
-ll_sibmx <- function(mx, tipscoef, theta, sibmx.dat){
-
-  ## predicted deaths: product of predicted mortality, tips coefficient, and person-years
-  mu.pred <- mx[sibmx.dat$arridx] * tipscoef[sibmx.dat$tipsidx] * sibmx.dat$pys
-  if(any(mu.pred < 0)) return(-Inf)
-
-  return(sum(ldnbinom(sibmx.dat$deaths, theta, mu.pred)))
-}
-
-
-
-
-
 
 ###############################
 ####  Likelihood function  ####
@@ -666,16 +605,25 @@ lprior <- function(theta, fp){
   ## Mortality parameters
   if(exists("fitmx", fp) && fp$fitmx != FALSE){
     if(fp$fitmx == TRUE)
-      natmx_nparam <- 4
+      natmx_nparam <- 3
     else if(fp$fitmx == "logquad")
-      natmx_nparam <- 7
+      natmx_nparam <- 6
     else if(fp$fitmx == "logquadS")
-      natmx_nparam <- fp$natmx$nparam+1  # +1 for negbin scale parameter
-    
+      natmx_nparam <- fp$natmx$nparam
+
     theta_natmx <- theta[paramcurr+1:natmx_nparam]
     paramcurr <- paramcurr+natmx_nparam
 
     lpr <- lpr + lprior_natmx(theta_natmx, fp)
+  }
+
+  ## Sibling history model parameters
+  if(exists("sibmx", fp) && fp$sibmx == TRUE){
+    sibmx_nparam <- 16
+    theta_sibmx <- theta[paramcurr+1:sibmx_nparam]
+    paramcurr <- paramcurr+sibmx_nparam
+
+    lpr <- lpr + lprior_sibmx(theta_sibmx, fp)
   }
 
   return(lpr)
@@ -793,12 +741,19 @@ sample.prior <- function(n, fp){
 
   if(exists("fitmx", fp))
     if(fp$fitmx == TRUE)
-      nparam <- nparam+4
+      nparam <- nparam+3
     else if(fp$fitmx == "logquad")
-      nparam <- nparam+7
+      nparam <- nparam+6
     else if(fp$fitmx == "logquadS")
-      nparam <- nparam + fp$natmx$nparam+1  # +1 for negbin scale parameter
-  
+      nparam <- nparam + fp$natmx$nparam
+
+
+  ## Sibling history model parameters
+  if(exists("sibmx", fp) && fp$sibmx == TRUE){
+    sibmx_nparam <- 16
+    nparam <- nparam+sibmx_nparam
+  }
+
 
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
@@ -877,29 +832,28 @@ sample.prior <- function(n, fp){
 
   if(exists("fitmx", fp)){
     if(fp$fitmx == TRUE){
-    natmx_nparam <- 4
-
-    mat[,paramcurr+1] <- rnorm(n, natmx.b0.mean, natmx.b0.sd)
-    mat[,paramcurr+2] <- rnorm(n, natmx.b1.mean, natmx.b1.sd)
-    mat[,paramcurr+3] <- rnorm(n, natmx.lsexrat.mean, natmx.lsexrat.sd)
-    mat[,paramcurr+4] <- log(rgamma(n, natmx.sibmxtheta.shape, scale=natmx.sibmxtheta.scale))
-
+      natmx_nparam <- 3
+      mat[,paramcurr+1] <- rnorm(n, natmx.b0.mean, natmx.b0.sd)
+      mat[,paramcurr+2] <- rnorm(n, natmx.b1.mean, natmx.b1.sd)
+      mat[,paramcurr+3] <- rnorm(n, natmx.lsexrat.mean, natmx.lsexrat.sd)
     } else if(fp$fitmx == "logquad"){
-
-      natmx_nparam <- 7
+      natmx_nparam <- 6
       mat[,paramcurr+1:6] <- t(matrix(rnorm(n*6, lq_mean, lq_sd), nrow=6))
-      mat[,paramcurr+7] <- log(rgamma(n, natmx.sibmxtheta.shape, scale=natmx.sibmxtheta.scale))
-
-      paramcurr <- paramcurr+natmx_nparam
     } else if(fp$fitmx == "logquadS") {
-    
-      natmx_nparam <- fp$natmx$nparam+1  # +1 for negbin scale parameter
+      natmx_nparam <- fp$natmx$nparam
       mat[,paramcurr+1:fp$natmx$nparam] <- t(matrix(rnorm(n*fp$natmx$nparam, fp$natmx$lq_mean, fp$natmx$lq_sd), nrow=fp$natmx$nparam))
-      mat[,paramcurr+fp$natmx$nparam+1] <- log(rgamma(n, natmx.sibmxtheta.shape, scale=natmx.sibmxtheta.scale))
     }
     else
       natmx_nparam <- 0
     paramcurr <- paramcurr+natmx_nparam
+  }
+
+  ## Sibling history model parameters
+  if(exists("sibmx", fp) && fp$sibmx == TRUE){
+    sibmx_nparam <- 16
+    mat[,paramcurr+1] <- log(rgamma(n, sibmx_theta.shape, scale=sibmx_theta.scale))
+    mat[,paramcurr+2:16] <- rnorm(15*n, 0, 1)  # sample N(0, 1) variables and transform with TIPS prior mean and covariance
+    paramcurr <- paramcurr+sibmx_nparam
   }
 
   return(mat)

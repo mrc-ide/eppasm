@@ -4,7 +4,7 @@
 #' @param proj.end end year for projection.
 #' @param popupdate logical should target population be updated to match
 #'   age-specific population size from DP file and %Urban from EPP XML.
-prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = TRUE, popupdate=TRUE){
+prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=TRUE, use_ep5=FALSE){
 
   ## epp
   eppd <- read_epp_data(pjnz)
@@ -14,9 +14,13 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = TRUE, popupdate=
   epp.subp.input <- fnCreateEPPSubpops(epp.input, epp.subp, eppd)
 
   ## spectrum
-  demp <- read_specdp_demog_param(pjnz)
-  projp <- read_hivproj_param(pjnz)
+  demp <- read_specdp_demog_param(pjnz, use_ep5=use_ep5)
+  projp <- read_hivproj_param(pjnz, use_ep5=use_ep5)
   epp_t0 <- read_epp_t0(pjnz)
+
+  ## If popadjust = NULL, look for subp if more than 1 EPP region
+  if(is.null(popadjust))
+    popadjust <- length(eppd) > 1
 
   ## If Urban/Rural fit, read percentage urban from EPP XML file
   if(length(eppd) == 2 && all(sort(substr(names(eppd), 1, 1)) == c("R", "U")))
@@ -135,15 +139,14 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
 
 
 ## Prepare national fit. Aggregates ANC data from regional EPP files.
-prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps_per_year = 10L){
+prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps_per_year = 10L, use_ep5=use_ep5){
 
   ## spectrum
   if(!is.null(upd.path))
     demp <- read_demog_param(upd.path)
   else
-    demp <- read_specdp_demog_param(pjnz)
-
-  projp <- read_hivproj_param(pjnz)
+    demp <- read_specdp_demog_param(pjnz, use_ep5=use_ep5)
+  projp <- read_hivproj_param(pjnz, use_ep5=use_ep5)
   epp_t0 <- read_epp_t0(pjnz)
 
   specfp <- create_spectrum_fixpar(projp, demp, proj_end = as.integer(proj.end), time_epi_start = epp_t0[1], hiv_steps_per_year= hiv_steps_per_year)  # Set time_epi_start to match first EPP population

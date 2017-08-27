@@ -203,7 +203,6 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
     specres[c("totpop", "hivpop", "natdeaths", "hivdeaths")] <- list(totpop, hivpop, natdeaths, hivdeaths)
   }
     
-  
   class(specres) <- "specres"
 
   return(specres)
@@ -214,13 +213,20 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
 ####  function to read HIV projection parameters  ####
 ######################################################
 
-read_hivproj_param <- function(pjnz){
+read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 
   ## read .DP file
-  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  if(use_ep5)
+    dpfile <- grep(".ep5$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  else
+    dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  
   dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
 
-  dp.vers <- get_dp_version(dp)
+  if(use_ep5)
+    dp.vers <- "Spectrum2017"
+  else
+    dp.vers <- get_dp_version(dp)
 
   exists_dptag <- function(tag, tagcol=1){tag %in% dp[,tagcol]}
 

@@ -4,7 +4,7 @@
 #' @param proj.end end year for projection.
 #' @param popupdate logical should target population be updated to match
 #'   age-specific population size from DP file and %Urban from EPP XML.
-prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = TRUE, popupdate=TRUE, use_ep5=FALSE){
+prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=TRUE, use_ep5=FALSE){
 
   ## epp
   eppd <- read_epp_data(pjnz)
@@ -17,6 +17,10 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = TRUE, popupdate=
   demp <- read_specdp_demog_param(pjnz, use_ep5=use_ep5)
   projp <- read_hivproj_param(pjnz, use_ep5=use_ep5)
   epp_t0 <- read_epp_t0(pjnz)
+
+  ## If popadjust = NULL, look for subp if more than 1 EPP region
+  if(is.null(popadjust))
+    popadjust <- length(eppd) > 1
 
   ## If Urban/Rural fit, read percentage urban from EPP XML file
   if(length(eppd) == 2 && all(sort(substr(names(eppd), 1, 1)) == c("R", "U")))

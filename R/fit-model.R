@@ -93,7 +93,7 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
     agesexpop <- demp$basepop
 
     ## Iteratively rescale population until difference < 0.1%
-    while(any(abs(rowSums(subpops,,3) / agesexpop - 1.0) > 0.001)){
+    while(any(abs(rowSums(subpops,,3) / agesexpop - 1.0) > 0.001, na.rm=TRUE)){
       
       ## Scale supopulation size to match national population by age/sex
       subpops <- subpops <- sweep(subpops, 1:3, agesexpop / rowSums(subpops,,3), "*")

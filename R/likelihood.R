@@ -388,7 +388,10 @@ ll_hhsage <- function(mod, hhsage.dat){
 ll_hhsage_binom <- function(mod, hhsage.dat){
   prevM.age <- suppressWarnings(ageprev(mod, arridx=hhsage.dat$arridx, agspan=5))
   if(any(is.na(prevM.age)) || any(prevM.age >= 1)) return(-Inf)
-  sum(ldbinom(hhsage.dat$x_eff, hhsage.dat$n_eff, prevM.age))
+  ll <- sum(ldbinom(hhsage.dat$x_eff, hhsage.dat$n_eff, prevM.age))
+  if(is.na(ll))
+    return(-Inf)
+  return(ll)
 }
 
 

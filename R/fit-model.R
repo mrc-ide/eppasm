@@ -176,8 +176,8 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps
 }
 
 
-fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k = 500, D=0, opt_iter=0,
-                   sample.prior=eppspectrum:::sample.prior,
+fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k = 500, opt_iter=0, 
+                   sample_prior=eppspectrum:::sample.prior,
                    prior=eppspectrum:::prior,
                    likelihood=eppspectrum:::likelihood){
 
@@ -229,8 +229,8 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   fit <- try(stop(""), TRUE)
   while(inherits(fit, "try-error")){
     start.time <- proc.time()
-    fit <- try(IMIS(B0, B, B.re, number_k, D, opt_iter, fp=fp, likdat=likdat,
-                    sample.prior=sample.prior, prior=prior, likelihood=likelihood))
+    fit <- try(imis(B0, B, B.re, number_k, opt_iter, fp=fp, likdat=likdat,
+                    sample_prior=sample.prior, prior=prior, likelihood=likelihood))
     fit.time <- proc.time() - start.time
   }
   fit$fp <- fp

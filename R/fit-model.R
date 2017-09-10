@@ -7,11 +7,11 @@
 prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=TRUE, use_ep5=FALSE){
 
   ## epp
-  eppd <- read_epp_data(pjnz)
-  epp.subp <- read_epp_subpops(pjnz)
-  epp.input <- read_epp_input(pjnz)
+  eppd <- epp::read_epp_data(pjnz)
+  epp.subp <- epp::read_epp_subpops(pjnz)
+  epp.input <- epp::read_epp_input(pjnz)
 
-  epp.subp.input <- fnCreateEPPSubpops(epp.input, epp.subp, eppd)
+  epp.subp.input <- epp::fnCreateEPPSubpops(epp.input, epp.subp, eppd)
 
   ## spectrum
   demp <- read_specdp_demog_param(pjnz, use_ep5=use_ep5)
@@ -39,7 +39,7 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
     mapply(function(set, value){ attributes(set)[[attrib]] <- value; set}, obj, value.lst)
 
   val <- set.list.attr(val, "eppd", eppd)
-  val <- set.list.attr(val, "eppfp", lapply(epp.subp.input, fnCreateEPPFixPar, proj.end = proj.end))
+  val <- set.list.attr(val, "eppfp", lapply(epp.subp.input, epp::fnCreateEPPFixPar, proj.end = proj.end))
   val <- set.list.attr(val, "specfp", specfp.subp)
   val <- set.list.attr(val, "country", attr(eppd, "country"))
   val <- set.list.attr(val, "region", names(eppd))
@@ -139,7 +139,7 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
 
 
 ## Prepare national fit. Aggregates ANC data from regional EPP files.
-prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps_per_year = 10L, use_ep5=use_ep5){
+prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps_per_year = 10L, use_ep5=FALSE){
 
   ## spectrum
   if(!is.null(upd.path))
@@ -152,9 +152,9 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps
   specfp <- create_spectrum_fixpar(projp, demp, proj_end = as.integer(proj.end), time_epi_start = epp_t0[1], hiv_steps_per_year= hiv_steps_per_year)  # Set time_epi_start to match first EPP population
 
   ## epp
-  eppd <- read_epp_data(pjnz)
-  epp.subp <- read_epp_subpops(pjnz)
-  epp.input <- read_epp_input(pjnz)
+  eppd <- epp::read_epp_data(pjnz)
+  epp.subp <- epp::read_epp_subpops(pjnz)
+  epp.input <- epp::read_epp_input(pjnz)
 
   ## output
   val <- setNames(vector("list", length(eppd)), names(eppd))
@@ -169,7 +169,7 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps
   attr(val, "likdat")$firstdata.idx <- min(unlist(attr(val, "likdat")$anclik.dat$anc.idx.lst),
                                            unlist(lapply(lapply(lapply(eppd, "[[", "hhs"), epp:::fnPrepareHHSLikData, projp$yr_start), "[[", "idx")))
   attr(val, "specfp") <- specfp
-  attr(val, "eppfp") <- fnCreateEPPFixPar(epp.input, proj.end = proj.end)
+  attr(val, "eppfp") <- epp::fnCreateEPPFixPar(epp.input, proj.end = proj.end)
   attr(val, "country") <- attr(eppd, "country")
 
   return(val)

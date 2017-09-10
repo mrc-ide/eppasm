@@ -1,4 +1,4 @@
-Package: eppspectrum
+Package: eppasm
 Title: Age-structured EPP Model for HIV Epidemic Estimates
 Version: 0.2.0
 Authors@R: person("Jeff", "Eaton", email = "jeffrey.eaton@imperial.ac.uk", role = c("aut", "cre"))

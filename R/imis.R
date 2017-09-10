@@ -19,9 +19,9 @@
 #'
 #' @return list with items resample, stat, and center
 imis <- function(B0, B, B_re, number_k, opt_k=NULL, fp, likdat,
-                 prior=eppspectrum::prior,
-                 likelihood=eppspectrum::likelihood,
-                 sample_prior=eppspectrum::sample.prior,
+                 prior=eppasm::prior,
+                 likelihood=eppasm::likelihood,
+                 sample_prior=eppasm::sample.prior,
                  dsamp = prior, save_all=FALSE){
 
   ## Draw initial samples from prior distribution

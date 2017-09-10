@@ -177,9 +177,9 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps
 
 
 fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k = 500, opt_iter=0, 
-                   sample_prior=eppspectrum:::sample.prior,
-                   prior=eppspectrum:::prior,
-                   likelihood=eppspectrum:::likelihood){
+                   sample_prior=eppasm:::sample.prior,
+                   prior=eppasm:::prior,
+                   likelihood=eppasm:::likelihood){
 
   ## ... : updates to fixed parameters (fp) object to specify fitting options
 

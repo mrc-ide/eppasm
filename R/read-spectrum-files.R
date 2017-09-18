@@ -784,3 +784,36 @@ read_subp_file <- function(filepath){
 
   return(data)
 }
+
+
+#' Read CSAVR input data
+#'
+#' @param pjnz file path to Spectrum PJNZ file.
+read_csavr_data <- function(pjnz){
+
+  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+
+  exists_dptag <- function(tag, tagcol=1){tag %in% dp[,tagcol]}
+  dpsub <- function(tag, rows, cols, tagcol=1){
+    dp[which(dp[,tagcol]==tag)+rows, cols]
+  }
+
+  yr_start <- as.integer(dpsub("<FirstYear MV2>",2,4))
+  yr_end <- as.integer(dpsub("<FinalYear MV2>",2,4))
+  proj_years <- yr_start:yr_end
+
+
+  if(exists_dptag("<FitIncidenceEditorValues MV2>")){
+    val <- data.frame(year = proj_years, 
+                      t(sapply(dpsub("<FitIncidenceEditorValues MV2>", 2:10, 3+seq_along(proj_years)), as.numeric)),
+                      row.names=proj_years)
+    names(val) <- c("year", "plhiv", "plhiv_undercount", "new_cases", "new_cases_undercount", "new_cases_lag",
+                    "aids_deaths", "aids_deaths_undercount", "deaths_hivp", "deaths_hivp_undercount")
+    
+    attr(val, "agegroup") <-  c("All ages", "Adults 15-49", "Adults 15+")[as.integer(dpsub("<IncidenceAgeGroupIndex MV>", 2, 4))+1L]
+  } else
+    val <- NULL
+
+  return(val)
+}

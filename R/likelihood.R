@@ -387,8 +387,11 @@ ll_hhsage <- function(mod, hhsage.dat){
 #' Log likelihood for age-specific household survey prevalence using binomial approximation
 ll_hhsage_binom <- function(mod, hhsage.dat){
   prevM.age <- suppressWarnings(ageprev(mod, arridx=hhsage.dat$arridx, agspan=5))
-  if(any(is.na(prevM.age))) return(-Inf)
-  sum(ldbinom(hhsage.dat$x_eff, hhsage.dat$n_eff, prevM.age))
+  if(any(is.na(prevM.age)) || any(prevM.age >= 1)) return(-Inf)
+  ll <- sum(ldbinom(hhsage.dat$x_eff, hhsage.dat$n_eff, prevM.age))
+  if(is.na(ll))
+    return(-Inf)
+  return(ll)
 }
 
 
@@ -631,7 +634,7 @@ ll <- function(theta, fp, likdat){
   qM.all <- suppressWarnings(qnorm(prev(mod)))
   qM.preg <- if(exists("pregprev", where=fp) && !fp$pregprev) qM.all else suppressWarnings(qnorm(fnPregPrev(mod, fp)))
 
-  if(any(is.na(qM.preg)) ||
+  if(any(is.na(qM.preg)) || any(is.na(qM.all)) ||
      any(qM.preg[likdat$firstdata.idx:likdat$lastdata.idx] == -Inf) ||
      any(qM.preg[likdat$firstdata.idx:likdat$lastdata.idx] > 2)) # prevalence not greater than pnorm(2) = 0.977
     return(-Inf)

@@ -101,9 +101,13 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
   } else if(exists_dptag("<BigPop MV>")){
     totpop.m <- sapply(lapply(dpsub("<BigPop MV>", 3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
     totpop.f <- sapply(lapply(dpsub("<BigPop MV>", 81+3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
-  } else {
+  } else if(exists_dptag("<BigPop MV2>")){
     totpop.m <- sapply(lapply(dpsub("<BigPop MV2>", 3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
     totpop.f <- sapply(lapply(dpsub("<BigPop MV2>", 243+3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
+  }
+} else if(exists_dptag("<BigPop MV3>")){
+    totpop.m <- sapply(lapply(dpsub("<BigPop MV3>", 3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
+    totpop.f <- sapply(lapply(dpsub("<BigPop MV3>", 84:164, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
   }
   dimnames(totpop.m) <- dimnames(totpop.f) <- list(agegr.lab, proj.years)
 
@@ -173,6 +177,8 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
       totpop <- sapply(dpsub("<BigPop MV>", 3:164, timedat.idx), as.numeric)
     else if(exists_dptag("<BigPop MV2>"))
       totpop <- sapply(dpsub("<BigPop MV2>", c(3+0:80, 246+0:80), timedat.idx), as.numeric)
+    else if(exists_dptag("<BigPop MV3>"))
+      totpop <- sapply(dpsub("<BigPop MV3>", 3:164, timedat.idx), as.numeric)
     totpop <- array(totpop, c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
                       
     if(exists_dptag("<HIVBySingleAge MV>"))
@@ -303,10 +309,10 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   } else if(dp.vers == "Spectrum2016") {
     fert_rat <- sapply(dpsub("<HIVTFR MV>", 2:8, timedat.idx), as.numeric)
   } else if(dp.vers == "Spectrum2017") {
-    fert_rat <- sapply(dpsub("<HIVTFR MV2>", 2:8, timedat.idx), as.numeric)
+    fert_rat <- sapply(dpsub("<HIVTFR MV2>", 2:7, timedat.idx), as.numeric)
   }
   if(dp.vers == "Spectrum2017")
-    dimnames(fert_rat) <- list(c(15, 18, seq(20, 40, 5)), proj.years)
+    dimnames(fert_rat) <- list(c(15, 18, seq(20, 35, 5)), proj.years)
   else
     dimnames(fert_rat) <- list(seq(15, 45, 5), proj.years)
 
@@ -602,10 +608,16 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   if(exists_dptag("<BigPop MV>"))
     basepop <- array(sapply(dpsub("<BigPop MV>", 3:164, timedat.idx), as.numeric),
                     c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
-  else
+  else if(exists_dptag("<BigPop MV2>"))
     basepop <- array(sapply(dpsub("<BigPop MV2>", c(3+0:80, 246+0:80), timedat.idx), as.numeric),
-                    c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
-
+                     c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+  else if(exists_dptag("<BigPop MV3>"))
+    basepop <- array(sapply(dpsub("<BigPop MV3>", 3+0:161, timedat.idx), as.numeric),
+                     c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+  else
+    stop("No recognized <BigPop MV[X]> tag, basepop not found.")
+    
+  
   ## mx
   if(dp.vers == "Spectrum2016"){
     sx.tidx <- which(dp[,1] == "<SurvRate MV>")

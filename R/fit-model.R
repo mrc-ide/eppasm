@@ -248,24 +248,28 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
 
 ## simulate incidence and prevalence
-simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FALSE, agegr3=FALSE, aidsdeaths=FALSE, pregprev=TRUE, entrantprev=TRUE){
+simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FALSE, agegr3=FALSE, aidsdeaths=FALSE, pregprev=TRUE, entrantprev=TRUE, mod.list=NULL){
 
-  fit$param <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
+  if(is.null(mod.list)){
+    fit$param <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
+    
+    if(rwproj){
+      if(exists("eppmod", where=fit$fp) && fit$fp$eppmod == "rtrend")
+        stop("Random-walk projection is only used with r-spline model")
 
-  if(rwproj){
-    if(exists("eppmod", where=fit$fp) && fit$fp$eppmod == "rtrend")
-      stop("Random-walk projection is only used with r-spline model")
-
-    ## fit$rvec.spline <- sapply(fit$param, "[[", "rvec")
-    firstidx <- which(fit$fp$proj.steps == fit$fp$tsEpidemicStart)
-    lastidx <- (fit$likdat$lastdata.idx-1)*fit$fp$ss$hiv_steps_per_year+1
-
-    ## replace rvec with random-walk simulated rvec
-    fit$param <- lapply(fit$param, function(par){par$rvec <- epp:::sim_rvec_rwproj(par$rvec, firstidx, lastidx, 1/fit$fp$ss$hiv_steps_per_year); par})
-  }
+      ## fit$rvec.spline <- sapply(fit$param, "[[", "rvec")
+      firstidx <- which(fit$fp$proj.steps == fit$fp$tsEpidemicStart)
+      lastidx <- (fit$likdat$lastdata.idx-1)*fit$fp$ss$hiv_steps_per_year+1
+      
+      ## replace rvec with random-walk simulated rvec
+      fit$param <- lapply(fit$param, function(par){par$rvec <- epp:::sim_rvec_rwproj(par$rvec, firstidx, lastidx, 1/fit$fp$ss$hiv_steps_per_year); par})
+    }
   
-  fp.list <- lapply(fit$param, function(par) update(fit$fp, list=par))
-  mod.list <- lapply(fp.list, simmod)
+    fp.list <- lapply(fit$param, function(par) update(fit$fp, list=par))
+    mod.list <- lapply(fp.list, simmod)
+  } else {
+    fp.list <- rep(fit$fp, length(mod.list))
+  }
   
   fit$rvec <- sapply(mod.list, attr, "rvec_ts")
   fit$prev <- sapply(mod.list, prev)

@@ -9,6 +9,13 @@ get_dp_version <- function(dp){
       stop("Spectrum DP file version not recognized. Package probably needs to be updated to most recent Spectrum version.")
   return(dp.vers)
 }
+
+read_dp <- function(pjnz){
+  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+  return(dp)
+}
+  
   
 
 ###################################################
@@ -18,8 +25,7 @@ get_dp_version <- function(dp){
 read_hivproj_output <- function(pjnz, single.age=TRUE){
 
   ## read .DP file
-  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+  dp <- read_dp(pjnz)
 
   dp.vers <- get_dp_version(dp)
 
@@ -104,8 +110,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
   } else if(exists_dptag("<BigPop MV2>")){
     totpop.m <- sapply(lapply(dpsub("<BigPop MV2>", 3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
     totpop.f <- sapply(lapply(dpsub("<BigPop MV2>", 243+3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
-  }
-} else if(exists_dptag("<BigPop MV3>")){
+  } else if(exists_dptag("<BigPop MV3>")){
     totpop.m <- sapply(lapply(dpsub("<BigPop MV3>", 3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
     totpop.f <- sapply(lapply(dpsub("<BigPop MV3>", 84:164, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
   }
@@ -222,6 +227,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
 read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 
   ## read .DP file
+
   if(use_ep5)
     dpfile <- grep(".ep5$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
   else

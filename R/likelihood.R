@@ -427,7 +427,11 @@ ll_hhsage <- function(mod, hhsage.dat){
 #' Log likelihood for age-specific household survey prevalence using binomial approximation
 ll_hhsage_binom <- function(mod, hhsage.dat){
   prevM.age <- suppressWarnings(ageprev(mod, arridx=hhsage.dat$arridx, agspan=5))
-  sum(ldbinom(hhsage.dat$x_eff, hhsage.dat$n_eff, prevM.age))
+  if(any(is.na(prevM.age)) || any(prevM.age >= 1)) return(-Inf)
+  ll <- sum(ldbinom(hhsage.dat$x_eff, hhsage.dat$n_eff, prevM.age))
+  if(is.na(ll))
+    return(-Inf)
+  return(ll)
 }
 
 
@@ -476,7 +480,37 @@ lprior_natmx <- function(theta_natmx, fp){
 
   return(lpr)
 }
+
+#########################################
+####  Incidence likelihood function  ####
+#########################################
+
+#' Prepare household survey incidence likelihood data
+prepare_hhsincid_likdat <- function(hhsincid, fp){
+  anchor.year <- floor(min(fp$proj.steps))
   
+  hhsincid$idx <- hhsincid$year - (anchor.year - 1)
+  hhsincid$log_incid <- log(hhsincid$incid)
+  hhsincid$log_incid.se <- hhsincid$se/hhsincid$incid
+  
+  return(hhsincid)
+}
+
+#' Log-likelhood for direct incidence estimate from household survey
+#'
+#' Calculate log-likelihood for nationally representative incidence
+#' estimates from a household survey. Currently implements likelihood
+#' for a log-transformed direct incidence estimate and standard error.
+#' Needs to be updated to handle incidence assay outputs.
+#'
+#' @param mod model output, object of class `spec`.
+#' @param hhsincid.dat prepared houshold survey incidence estimates (see perp
+ll_hhsincid <- function(mod, hhsincid.dat){
+  logincid <- log(incid(mod, fp))
+  ll.incid <- sum(dnorm(hhsincid.dat$log_incid, logincid[hhsincid.dat$idx], hhsincid.dat$log_incid.se, TRUE))
+  return(ll.incid)
+}
+
 
 ###############################
 ####  Likelihood function  ####
@@ -492,6 +526,8 @@ prepare_likdat <- function(eppd, fp){
     likdat$ancrtcens.dat <- prepare_ancrtcens_likdat(eppd$ancrtcens, anchor.year=anchor_year)
   if(exists("hhsage", where=eppd))
     likdat$hhsage.dat <- prepare_hhsageprev_likdat(eppd$hhsage, fp)
+  if(exists("hhsincid", where=eppd))
+    likdat$hhsincid.dat <- prepare_hhsincid_likdat(eppd$hhsincid, fp)
   if(exists("sibmx", where=eppd))
     likdat$sibmx.dat <- prepare_sibmx_likdat(eppd$sibmx, fp)
   
@@ -499,14 +535,15 @@ prepare_likdat <- function(eppd, fp){
                              likdat$hhslik.dat$idx,
                              likdat$ancrtcens.dat$idx,
                              likdat$hhsage.dat$idx,
+                             likdat$hhsincid.dat$idx,
                              likdat$sibmx.dat$idx)
   likdat$firstdata.idx <- min(unlist(likdat$anclik.dat$anc.idx.lst),
                               likdat$hhslik.dat$idx,
                               likdat$ancrtcens.dat$idx,
                               likdat$ancrtcens.dat$idx,
                               likdat$hhsage.dat$idx,
+                              likdat$hhsincid.dat$idx,
                               likdat$sibmx.dat$idx)
-
 
   return(likdat)
 }
@@ -537,7 +574,7 @@ lprior <- function(theta, fp){
     if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
       lpr <- lpr + dunif(theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
     else
-      lpr <- lpr + dunif(theta[nk+1], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
+     lpr <- lpr + dunif(theta[nk+1], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
   
   } else { # rtrend
 
@@ -649,7 +686,7 @@ ll <- function(theta, fp, likdat){
   qM.all <- suppressWarnings(qnorm(prev(mod)))
   qM.preg <- if(exists("pregprev", where=fp) && !fp$pregprev) qM.all else suppressWarnings(qnorm(fnPregPrev(mod, fp)))
 
-  if(any(is.na(qM.preg)) ||
+  if(any(is.na(qM.preg)) || any(is.na(qM.all)) ||
      any(qM.preg[likdat$firstdata.idx:likdat$lastdata.idx] == -Inf) ||
      any(qM.preg[likdat$firstdata.idx:likdat$lastdata.idx] > 2)) # prevalence not greater than pnorm(2) = 0.977
     return(-Inf)
@@ -676,6 +713,12 @@ ll <- function(theta, fp, likdat){
   else 
     ll.hhs <- ll_hhs(qM.all, likdat$hhslik.dat)
 
+  if(!is.null(likdat$hhsincid.dat))
+    ll.incid <- ll_hhsincid(mod, likdat$hhsincid.dat)
+  else
+    ll.incid <- 0
+
+
   if(exists("sibmx", where=fp) && fp$sibmx){
     M.agemx <- agemx(mod)
     ll.sibmx <- ll_sibmx(M.agemx, fp$tipscoef, fp$sibmx.theta, likdat$sibmx.dat)
@@ -691,7 +734,7 @@ ll <- function(theta, fp, likdat){
     ll.rprior <- 0
   
   ## return(ll.anc+ll.hhs+ll.incpen+ll.rprior)
-  return(ll.anc + ll.ancrt + ll.hhs + ll.sibmx + ll.rprior + ll.incpen)
+  return(ll.anc + ll.ancrt + ll.hhs + ll.incid + ll.sibmx + ll.rprior + ll.incpen)
 }
 
 

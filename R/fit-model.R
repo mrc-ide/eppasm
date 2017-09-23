@@ -4,19 +4,23 @@
 #' @param proj.end end year for projection.
 #' @param popupdate logical should target population be updated to match
 #'   age-specific population size from DP file and %Urban from EPP XML.
-prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = TRUE, popupdate=TRUE){
+prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=TRUE, use_ep5=FALSE){
 
   ## epp
-  eppd <- read_epp_data(pjnz)
-  epp.subp <- read_epp_subpops(pjnz)
-  epp.input <- read_epp_input(pjnz)
+  eppd <- epp::read_epp_data(pjnz)
+  epp.subp <- epp::read_epp_subpops(pjnz)
+  epp.input <- epp::read_epp_input(pjnz)
 
-  epp.subp.input <- fnCreateEPPSubpops(epp.input, epp.subp, eppd)
+  epp.subp.input <- epp::fnCreateEPPSubpops(epp.input, epp.subp, eppd)
 
   ## spectrum
-  demp <- read_specdp_demog_param(pjnz)
-  projp <- read_hivproj_param(pjnz)
+  demp <- read_specdp_demog_param(pjnz, use_ep5=use_ep5)
+  projp <- read_hivproj_param(pjnz, use_ep5=use_ep5)
   epp_t0 <- read_epp_t0(pjnz)
+
+  ## If popadjust = NULL, look for subp if more than 1 EPP region
+  if(is.null(popadjust))
+    popadjust <- length(eppd) > 1
 
   ## If Urban/Rural fit, read percentage urban from EPP XML file
   if(length(eppd) == 2 && all(sort(substr(names(eppd), 1, 1)) == c("R", "U")))
@@ -35,7 +39,7 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = TRUE, popupdate=
     mapply(function(set, value){ attributes(set)[[attrib]] <- value; set}, obj, value.lst)
 
   val <- set.list.attr(val, "eppd", eppd)
-  val <- set.list.attr(val, "eppfp", lapply(epp.subp.input, fnCreateEPPFixPar, proj.end = proj.end))
+  val <- set.list.attr(val, "eppfp", lapply(epp.subp.input, epp::fnCreateEPPFixPar, proj.end = proj.end))
   val <- set.list.attr(val, "specfp", specfp.subp)
   val <- set.list.attr(val, "country", attr(eppd, "country"))
   val <- set.list.attr(val, "region", names(eppd))
@@ -89,7 +93,7 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
     agesexpop <- demp$basepop
 
     ## Iteratively rescale population until difference < 0.1%
-    while(any(abs(rowSums(subpops,,3) / agesexpop - 1.0) > 0.001)){
+    while(any(abs(rowSums(subpops,,3) / agesexpop - 1.0) > 0.001, na.rm=TRUE)){
       
       ## Scale supopulation size to match national population by age/sex
       subpops <- subpops <- sweep(subpops, 1:3, agesexpop / rowSums(subpops,,3), "*")
@@ -135,23 +139,22 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
 
 
 ## Prepare national fit. Aggregates ANC data from regional EPP files.
-prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps_per_year = 10L){
+prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps_per_year = 10L, use_ep5=FALSE){
 
   ## spectrum
   if(!is.null(upd.path))
     demp <- read_demog_param(upd.path)
   else
-    demp <- read_specdp_demog_param(pjnz)
-
-  projp <- read_hivproj_param(pjnz)
+    demp <- read_specdp_demog_param(pjnz, use_ep5=use_ep5)
+  projp <- read_hivproj_param(pjnz, use_ep5=use_ep5)
   epp_t0 <- read_epp_t0(pjnz)
 
   specfp <- create_spectrum_fixpar(projp, demp, proj_end = as.integer(proj.end), time_epi_start = epp_t0[1], hiv_steps_per_year= hiv_steps_per_year)  # Set time_epi_start to match first EPP population
 
   ## epp
-  eppd <- read_epp_data(pjnz)
-  epp.subp <- read_epp_subpops(pjnz)
-  epp.input <- read_epp_input(pjnz)
+  eppd <- epp::read_epp_data(pjnz)
+  epp.subp <- epp::read_epp_subpops(pjnz)
+  epp.input <- epp::read_epp_input(pjnz)
 
   ## output
   val <- setNames(vector("list", length(eppd)), names(eppd))
@@ -162,17 +165,17 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps
                             anc.n = do.call(rbind, lapply(eppd, "[[", "anc.n")))
 
   attr(val, "specfp") <- specfp
-  attr(val, "eppfp") <- fnCreateEPPFixPar(epp.input, proj.end = proj.end)
+  attr(val, "eppfp") <- epp::fnCreateEPPFixPar(epp.input, proj.end = proj.end)
   attr(val, "country") <- attr(eppd, "country")
 
   return(val)
 }
 
 
-fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k = 500, D=0, opt_iter=0,
-                   sample.prior=eppspectrum:::sample.prior,
-                   prior=eppspectrum:::prior,
-                   likelihood=eppspectrum:::likelihood){
+fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k = 500, opt_iter=0, 
+                   sample_prior=eppasm:::sample.prior,
+                   prior=eppasm:::prior,
+                   likelihood=eppasm:::likelihood){
 
   ## ... : updates to fixed parameters (fp) object to specify fitting options
 
@@ -232,8 +235,8 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   fit <- try(stop(""), TRUE)
   while(inherits(fit, "try-error")){
     start.time <- proc.time()
-    fit <- try(IMIS(B0, B, B.re, number_k, D, opt_iter, fp=fp, likdat=likdat,
-                    sample.prior=sample.prior, prior=prior, likelihood=likelihood))
+    fit <- try(imis(B0, B, B.re, number_k, opt_iter, fp=fp, likdat=likdat,
+                    sample_prior=sample.prior, prior=prior, likelihood=likelihood))
     fit.time <- proc.time() - start.time
   }
   fit$fp <- fp
@@ -247,7 +250,6 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
   return(fit)
 }
-
 
 
 fitoptim <- function(obj, init, ..., method="BFGS", epp=FALSE){
@@ -295,8 +297,6 @@ fitoptim <- function(obj, init, ..., method="BFGS", epp=FALSE){
 }
 
 
-
-
 ## simulate incidence and prevalence
 simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FALSE, agegr3=FALSE, mxoutputs=FALSE, aidsdeaths=FALSE, pregprev=TRUE, entrantprev=TRUE, mod.list=NULL){
 
@@ -314,13 +314,12 @@ simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FA
       ## replace rvec with random-walk simulated rvec
       fit$param <- lapply(fit$param, function(par){par$rvec <- epp:::sim_rvec_rwproj(par$rvec, firstidx, lastidx, 1/fit$fp$ss$hiv_steps_per_year); par})
     }
-    
+  
     fp.list <- lapply(fit$param, function(par) update(fit$fp, list=par))
     mod.list <- lapply(fp.list, simmod)
   } else {
     fp.list <- rep(fit$fp, length(mod.list))
   }
-  
   
   fit$rvec <- sapply(mod.list, attr, "rvec_ts")
   fit$prev <- sapply(mod.list, prev)

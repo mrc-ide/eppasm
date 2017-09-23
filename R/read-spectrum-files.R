@@ -9,6 +9,13 @@ get_dp_version <- function(dp){
       stop("Spectrum DP file version not recognized. Package probably needs to be updated to most recent Spectrum version.")
   return(dp.vers)
 }
+
+read_dp <- function(pjnz){
+  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+  return(dp)
+}
+  
   
 
 ###################################################
@@ -18,8 +25,7 @@ get_dp_version <- function(dp){
 read_hivproj_output <- function(pjnz, single.age=TRUE){
 
   ## read .DP file
-  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+  dp <- read_dp(pjnz)
 
   dp.vers <- get_dp_version(dp)
 
@@ -101,9 +107,12 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
   } else if(exists_dptag("<BigPop MV>")){
     totpop.m <- sapply(lapply(dpsub("<BigPop MV>", 3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
     totpop.f <- sapply(lapply(dpsub("<BigPop MV>", 81+3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
-  } else {
+  } else if(exists_dptag("<BigPop MV2>")){
     totpop.m <- sapply(lapply(dpsub("<BigPop MV2>", 3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
     totpop.f <- sapply(lapply(dpsub("<BigPop MV2>", 243+3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
+  } else if(exists_dptag("<BigPop MV3>")){
+    totpop.m <- sapply(lapply(dpsub("<BigPop MV3>", 3:83, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
+    totpop.f <- sapply(lapply(dpsub("<BigPop MV3>", 84:164, timedat.idx), as.numeric), tapply, c(rep(1:16, each=5), 17), sum)
   }
   dimnames(totpop.m) <- dimnames(totpop.f) <- list(agegr.lab, proj.years)
 
@@ -173,6 +182,8 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
       totpop <- sapply(dpsub("<BigPop MV>", 3:164, timedat.idx), as.numeric)
     else if(exists_dptag("<BigPop MV2>"))
       totpop <- sapply(dpsub("<BigPop MV2>", c(3+0:80, 246+0:80), timedat.idx), as.numeric)
+    else if(exists_dptag("<BigPop MV3>"))
+      totpop <- sapply(dpsub("<BigPop MV3>", 3:164, timedat.idx), as.numeric)
     totpop <- array(totpop, c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
                       
     if(exists_dptag("<HIVBySingleAge MV>"))
@@ -208,7 +219,6 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
   specres$hivpregwomen <- setNames(as.numeric(dpsub("<ChildNeedPMTCT MV>", 2, timedat.idx)), proj.years)
   specres$receivepmtct <- setNames(as.numeric(dpsub("<ChildOnPMTCT MV>", 2, timedat.idx)), proj.years)
   
-  
   class(specres) <- "specres"
 
   return(specres)
@@ -219,13 +229,21 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
 ####  function to read HIV projection parameters  ####
 ######################################################
 
-read_hivproj_param <- function(pjnz){
+read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 
   ## read .DP file
-  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+
+  if(use_ep5)
+    dpfile <- grep(".ep5$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  else
+    dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  
   dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
 
-  dp.vers <- get_dp_version(dp)
+  if(use_ep5)
+    dp.vers <- "Spectrum2017"
+  else
+    dp.vers <- get_dp_version(dp)
 
   exists_dptag <- function(tag, tagcol=1){tag %in% dp[,tagcol]}
 
@@ -302,10 +320,10 @@ read_hivproj_param <- function(pjnz){
   } else if(dp.vers == "Spectrum2016") {
     fert_rat <- sapply(dpsub("<HIVTFR MV>", 2:8, timedat.idx), as.numeric)
   } else if(dp.vers == "Spectrum2017") {
-    fert_rat <- sapply(dpsub("<HIVTFR MV2>", 2:8, timedat.idx), as.numeric)
+    fert_rat <- sapply(dpsub("<HIVTFR MV2>", 2:7, timedat.idx), as.numeric)
   }
   if(dp.vers == "Spectrum2017")
-    dimnames(fert_rat) <- list(c(15, 18, seq(20, 40, 5)), proj.years)
+    dimnames(fert_rat) <- list(c(15, 18, seq(20, 35, 5)), proj.years)
   else
     dimnames(fert_rat) <- list(seq(15, 45, 5), proj.years)
 
@@ -601,10 +619,16 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   if(exists_dptag("<BigPop MV>"))
     basepop <- array(sapply(dpsub("<BigPop MV>", 3:164, timedat.idx), as.numeric),
                     c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
-  else
+  else if(exists_dptag("<BigPop MV2>"))
     basepop <- array(sapply(dpsub("<BigPop MV2>", c(3+0:80, 246+0:80), timedat.idx), as.numeric),
-                    c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
-
+                     c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+  else if(exists_dptag("<BigPop MV3>"))
+    basepop <- array(sapply(dpsub("<BigPop MV3>", 3+0:161, timedat.idx), as.numeric),
+                     c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+  else
+    stop("No recognized <BigPop MV[X]> tag, basepop not found.")
+    
+  
   ## mx
   if(dp.vers == "Spectrum2016"){
     sx.tidx <- which(dp[,1] == "<SurvRate MV>")
@@ -782,4 +806,37 @@ read_subp_file <- function(filepath){
   data <- lapply(data, "dimnames<-", list(Age=0:(AG-1), Sex=c("Male", "Female"), Year=startyear+1:years-1L))
 
   return(data)
+}
+
+
+#' Read CSAVR input data
+#'
+#' @param pjnz file path to Spectrum PJNZ file.
+read_csavr_data <- function(pjnz){
+
+  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+
+  exists_dptag <- function(tag, tagcol=1){tag %in% dp[,tagcol]}
+  dpsub <- function(tag, rows, cols, tagcol=1){
+    dp[which(dp[,tagcol]==tag)+rows, cols]
+  }
+
+  yr_start <- as.integer(dpsub("<FirstYear MV2>",2,4))
+  yr_end <- as.integer(dpsub("<FinalYear MV2>",2,4))
+  proj_years <- yr_start:yr_end
+
+
+  if(exists_dptag("<FitIncidenceEditorValues MV2>")){
+    val <- data.frame(year = proj_years, 
+                      t(sapply(dpsub("<FitIncidenceEditorValues MV2>", 2:10, 3+seq_along(proj_years)), as.numeric)),
+                      row.names=proj_years)
+    names(val) <- c("year", "plhiv", "plhiv_undercount", "new_cases", "new_cases_undercount", "new_cases_lag",
+                    "aids_deaths", "aids_deaths_undercount", "deaths_hivp", "deaths_hivp_undercount")
+    
+    attr(val, "agegroup") <-  c("All ages", "Adults 15-49", "Adults 15+")[as.integer(dpsub("<IncidenceAgeGroupIndex MV>", 2, 4))+1L]
+  } else
+    val <- NULL
+
+  return(val)
 }

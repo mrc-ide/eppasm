@@ -39,6 +39,7 @@ fnAddHHSLikDat <- function(obj){
 
   attr(obj, "eppd")$hhs <- subset(prev.15to49.nat, country==objcountry)
   attr(obj, "eppd")$hhsage <- subset(prev.agesex.nat, country==objcountry)
+
   attr(obj, "eppd")$sibmx <- subset(sib.mx.tips, country==objcountry)
 
   return(obj)

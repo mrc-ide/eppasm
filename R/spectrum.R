@@ -181,7 +181,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$med_cd4init_cat <- replace(findInterval(-fp$median_cd4init, - c(1000, 500, 350, 250, 200, 100, 50)),
                                 !fp$med_cd4init_input, 0L)
 
-  fp$tARTstart <- min(apply(fp$art15plus_num > 0, 1, which))
+  fp$tARTstart <- min(unlist(apply(fp$art15plus_num > 0, 1, which)))
 
   
   ## Vertical transmission and survival to AGE_START for lagged births

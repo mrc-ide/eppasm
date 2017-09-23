@@ -57,8 +57,8 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
       if(!is.null(fit3))
         segments(x0=mean(log(sapply(fit3$param, "[[", "incrr_sex")[1,])), y0=0, y1=6, col=cols[3], lwd=2)
       segments(x0=log(tail(fitaggr$fp$incrr_sex, 1)), y0=0, y1=6, col=cols[1], lwd=2)
-      lines(seq(-0.1, 0.75, 0.01), dnorm(seq(-0.1, 0.75, 0.01), eppspectrum:::sexincrr.pr.mean, eppspectrum:::sexincrr.pr.sd), col="darkblue", lty=2)
-      segments(x0=eppspectrum:::sexincrr.pr.mean, y0=0, y1=2, col="darkblue", lwd=2, lty=2)
+      lines(seq(-0.1, 0.75, 0.01), dnorm(seq(-0.1, 0.75, 0.01), eppasm:::sexincrr.pr.mean, eppasm:::sexincrr.pr.sd), col="darkblue", lty=2)
+      segments(x0=eppasm:::sexincrr.pr.mean, y0=0, y1=2, col="darkblue", lwd=2, lty=2)
     ##
     ## age incrr
     xx <- c(1:2, 4:7)
@@ -72,9 +72,9 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
     abline(h=0, col="grey")
     points(3.5, 0, pch=4, lwd=2.5, col=1, cex=1.2)
     rect(xx+0.1,
-         eppspectrum:::ageincrr.pr.mean[1:6]-qnorm(0.975)*eppspectrum:::ageincrr.pr.sd,
+         eppasm:::ageincrr.pr.mean[1:6]-qnorm(0.975)*eppasm:::ageincrr.pr.sd,
          xx+0.9,
-         eppspectrum:::ageincrr.pr.mean[1:6]+qnorm(0.975)*eppspectrum:::ageincrr.pr.sd,
+         eppasm:::ageincrr.pr.mean[1:6]+qnorm(0.975)*eppasm:::ageincrr.pr.sd,
          col=transp("darkblue", 0.1), border=transp("darkblue", 0.5), lty=2)
     ##
     rect(xx+0.1,  logincrrage[xx,3], xx+0.9, logincrrage[xx,4], col=transp(cols[2]), border=NA)
@@ -82,7 +82,7 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
       rect(xx+0.1,  logincrrage3[xx,3], xx+0.9, logincrrage3[xx,4], col=transp(cols[3]), border=NA)
     defaultincrr <- log(fitaggr$fp$incrr_age[(xx-1)*5+1,1,fitaggr$fp$ss$PROJ_YEARS])
     segments(xx+0.1, defaultincrr, xx+0.9, col=cols[1], lwd=2)
-    segments(xx+0.1, eppspectrum:::ageincrr.pr.mean[1:6], xx+0.9, col=transp("darkblue", 0.5), lwd=1.5, lty=2)
+    segments(xx+0.1, eppasm:::ageincrr.pr.mean[1:6], xx+0.9, col=transp("darkblue", 0.5), lwd=1.5, lty=2)
     segments(xx+0.1, logincrrage[xx,1], xx+0.9, col=cols[2], lwd=2)
     if(!is.null(fit3))
       segments(xx+0.1, logincrrage3[xx,1], xx+0.9, col=cols[3], lwd=2)
@@ -93,9 +93,9 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
     abline(h=0, col="grey")
     points(3.5, 0, pch=4, lwd=2.5, col=1, cex=1.2)
     rect(xx+0.1,
-         eppspectrum:::ageincrr.pr.mean[7:12]-qnorm(0.975)*eppspectrum:::ageincrr.pr.sd,
+         eppasm:::ageincrr.pr.mean[7:12]-qnorm(0.975)*eppasm:::ageincrr.pr.sd,
          xx+0.9,
-         eppspectrum:::ageincrr.pr.mean[7:12]+qnorm(0.975)*eppspectrum:::ageincrr.pr.sd,
+         eppasm:::ageincrr.pr.mean[7:12]+qnorm(0.975)*eppasm:::ageincrr.pr.sd,
          col=transp("darkblue", 0.1), border=transp("darkblue", 0.5), lty=2)
     ##
     offset <- nrow(logincrrage)/2
@@ -106,7 +106,7 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
     }
     defaultincrr <- log(fitaggr$fp$incrr_age[(xx-1)*5+1,2,fitaggr$fp$ss$PROJ_YEARS])
     segments(xx+0.1, defaultincrr, xx+0.9, col=cols[1], lwd=2)
-    segments(xx+0.1, eppspectrum:::ageincrr.pr.mean[7:12], xx+0.9, col=transp("darkblue", 0.5), lwd=1.5, lty=2)
+    segments(xx+0.1, eppasm:::ageincrr.pr.mean[7:12], xx+0.9, col=transp("darkblue", 0.5), lwd=1.5, lty=2)
     segments(xx+0.1, logincrrage[xx+offset,1], xx+0.9, col=cols[2], lwd=2)
     if(!is.null(fit3))
       segments(xx+0.1, logincrrage3[xx+offset3,1], xx+0.9, col=cols[3], lwd=2)

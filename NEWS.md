@@ -27,7 +27,7 @@
 - Bug fix: in create_spectrum_fixpar(), handle case where ART initiation starts in different years for men and women.
 
 
-# eppasm 0.2.0
+# eppasm 0.3.0
 
 - Rename package `eppasm`.
 - Add IMIS function to eppasm package. In this version of IMIS, at each iteration a new mixture component is constructed either centered on input with greatest weight or based on optimizer. Allows optimizers to be run at arbitrary iterations, but doesn't implment multiple optimizers which might still be usful. Covariance for optimizer mixture component when Hessian is degenerate still needs further work.

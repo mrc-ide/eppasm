@@ -11,14 +11,28 @@ create_aggr_input <- function(inputlist){
   anc.n.list <- lapply(eppdlist, "[[", "anc.n")
   anc.n.list <- lapply(anc.n.list, function(x) x[,Reduce(intersect, lapply(anc.n.list, colnames))])
 
-  ## !! NEEDS ANC-RT DATA ADDED
+  ancrtsite.prev.list <- lapply(eppdlist, "[[", "ancrtsite.prev")
+  ancrtsite.prev.list <- lapply(ancrtsite.prev.list, function(x) x[,Reduce(intersect, lapply(ancrtsite.prev.list, colnames))])
+
+  ancrtsite.n.list <- lapply(eppdlist, "[[", "ancrtsite.n")
+  ancrtsite.n.list <- lapply(ancrtsite.n.list, function(x) x[,Reduce(intersect, lapply(ancrtsite.n.list, colnames))])
+
+
+  ## aggregate census data across regions
+  ancrtcens <- do.call(rbind, lapply(eppdlist, "[[", "ancrtcens"))
+  if(nrow(ancrtcens)){
+    ancrtcens$x <- ancrtcens$prev * ancrtcens$n
+    ancrtcens <- aggregate(cbind(x,n) ~ year, ancrtcens, sum)
+    ancrtcens$prev <- ancrtcens$x / ancrtcens$n
+  }
+  ancrtcens <- ancrtcens[c("year", "prev", "n")]
 
   attr(val, "eppd") <- list(anc.used = do.call(c, lapply(eppdlist, "[[", "anc.used")),
                             anc.prev = do.call(rbind, anc.prev.list),
-                            anc.n = do.call(rbind, anc.n.list))
-  ## attr(val, "likdat") <- list(anclik.dat = with(attr(val, "eppd"), anclik::fnPrepareANCLikelihoodData(anc.prev, anc.n, anc.used, attr(val, "specfp")$ss$proj_start)))
-  ## attr(val, "likdat")$lastdata.idx <- max(unlist(attr(val, "likdat")$anclik.dat$anc.idx.lst))
-  ## attr(val, "likdat")$firstdata.idx <- min(unlist(attr(val, "likdat")$anclik.dat$anc.idx.lst))
+                            anc.n = do.call(rbind, anc.n.list),
+                            ancrtsite.prev = do.call(rbind, ancrtsite.prev.list),
+                            ancrtsite.n = do.call(rbind, ancrtsite.n.list),
+                            ancrtcens = ancrtcens)
 
   artnumperc <- !attr(inputlist[[1]], "specfp")$art15plus_isperc
   artnumlist <- lapply(lapply(inputlist, attr, "specfp"), "[[", "art15plus_num")

@@ -160,14 +160,22 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps
   val <- setNames(vector("list", length(eppd)), names(eppd))
   val <- list()
 
+  ## aggregate census data across regions
+  ancrtcens <- do.call(rbind, lapply(eppd, "[[", "ancrtcens"))
+  if(nrow(ancrtcens)){
+    ancrtcens$x <- ancrtcens$prev * ancrtcens$n
+    ancrtcens <- aggregate(cbind(x,n) ~ year, ancrtcens, sum)
+    ancrtcens$prev <- ancrtcens$x / ancrtcens$n
+  }
+  ancrtcens <- ancrtcens[c("year", "prev", "n")]
+  
   attr(val, "eppd") <- list(anc.used = do.call(c, lapply(eppd, "[[", "anc.used")),
                             anc.prev = do.call(rbind, lapply(eppd, "[[", "anc.prev")),
-                            anc.n = do.call(rbind, lapply(eppd, "[[", "anc.n")))
-  attr(val, "likdat") <- list(anclik.dat = with(attr(val, "eppd"), anclik::fnPrepareANCLikelihoodData(anc.prev, anc.n, anc.used, projp$yr_start)))
-  attr(val, "likdat")$lastdata.idx <- max(unlist(attr(val, "likdat")$anclik.dat$anc.idx.lst),
-                                          unlist(lapply(lapply(lapply(eppd, "[[", "hhs"), epp:::fnPrepareHHSLikData, projp$yr_start), "[[", "idx")))
-  attr(val, "likdat")$firstdata.idx <- min(unlist(attr(val, "likdat")$anclik.dat$anc.idx.lst),
-                                           unlist(lapply(lapply(lapply(eppd, "[[", "hhs"), epp:::fnPrepareHHSLikData, projp$yr_start), "[[", "idx")))
+                            anc.n = do.call(rbind, lapply(eppd, "[[", "anc.n")),
+                            ancrtsite.prev = do.call(rbind, lapply(eppd, "[[", "ancrtsite.prev")),
+                            ancrtsite.n = do.call(rbind, lapply(eppd, "[[", "ancrtsite.n")),
+                            ancrtcens = ancrtcens)
+
   attr(val, "specfp") <- specfp
   attr(val, "eppfp") <- epp::fnCreateEPPFixPar(epp.input, proj.end = proj.end)
   attr(val, "country") <- attr(eppd, "country")

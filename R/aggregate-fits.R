@@ -20,12 +20,12 @@ create_aggr_input <- function(inputlist){
 
   ## aggregate census data across regions
   ancrtcens <- do.call(rbind, lapply(eppdlist, "[[", "ancrtcens"))
-  if(nrow(ancrtcens)){
+  if(!is.null(ancrtcens) && nrow(ancrtcens)){
     ancrtcens$x <- ancrtcens$prev * ancrtcens$n
     ancrtcens <- aggregate(cbind(x,n) ~ year, ancrtcens, sum)
     ancrtcens$prev <- ancrtcens$x / ancrtcens$n
+    ancrtcens <- ancrtcens[c("year", "prev", "n")]
   }
-  ancrtcens <- ancrtcens[c("year", "prev", "n")]
 
   attr(val, "eppd") <- list(anc.used = do.call(c, lapply(eppdlist, "[[", "anc.used")),
                             anc.prev = do.call(rbind, anc.prev.list),

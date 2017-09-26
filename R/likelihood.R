@@ -17,7 +17,8 @@ logiota.unif.prior <- c(log(1e-14), log(0.0025))
 r0logiotaratio.unif.prior <- c(-25, -5)
 tau2.prior.rate <- 0.5
 
-invGammaParameter <- 0.001   #Inverse gamma parameter for tau^2 prior for spline
+tau2_prior_shape <- 0.001   # Inverse gamma parameter for tau^2 prior for spline
+tau2_prior_scale <- 0.001
 muSS <- 1/11.5               #1/duration for r steady state prior
 
 ## r-trend prior parameters
@@ -545,8 +546,7 @@ lprior <- function(theta, fp){
     tau2 <- exp(theta[nk+2])
 
     lpr <- sum(dnorm(theta[(1+fp$rtpenord):nk], 0, sqrt(tau2), log=TRUE)) +
-
-      ldinvgamma(tau2, invGammaParameter, invGammaParameter) + log(tau2)   # + log(tau2): multiply likelihood by jacobian of exponential transformation
+      ldinvgamma(tau2, tau2_prior_shape, tau2_prior_scale) + log(tau2)   # + log(tau2): multiply likelihood by jacobian of exponential transformation
 
     if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
       lpr <- lpr + dunif(theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
@@ -801,6 +801,99 @@ sample.prior <- function(n, fp){
   return(mat)
 }
 
+ldsamp <- function(theta, fp){
+
+  if(!exists("eppmod", where = fp))  # backward compatibility
+    fp$eppmod <- "rspline"
+
+  if(exists("prior_args", where = fp)){
+    for(i in seq_along(fp$prior_args))
+      assign(names(fp$prior_args)[i], fp$prior_args[[i]])
+  }
+
+  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline")){
+    epp_nparam <- fp$numKnots+2
+    
+    nk <- fp$numKnots
+    tau2 <- exp(theta[nk+2])
+
+    if(fp$eppmod == "rspline")  # u[1]
+      lpr <- dnorm(theta[1], 1.5, 1, log=TRUE)
+    if(fp$eppmod == "ospline")
+      lpr <- dnorm(theta[1], 0.5, 1, log=TRUE)
+    else # logrspline, logospline
+      lpr <- dnorm(theta[1], 0.2, 1, log=TRUE)
+
+    lpr <- lpr + sum(dnorm(theta[2:nk], 0, sqrt(tau2), log=TRUE))  # in sample.prior theta[2:nk] all come from N(0, tau), even if higher order
+    lpr <- lpr + dexp(tau2, tau2.prior.rate, log=TRUE)  # tau2
+
+    if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
+      lpr <- lpr + dunif(theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
+    else
+     lpr <- lpr + dunif(theta[nk+1], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
+  
+  } else { # rtrend
+
+    epp_nparam <- 7
+
+    lpr <- dunif(round(theta[1]), t0.unif.prior[1], t0.unif.prior[2], log=TRUE) +
+      ## dunif(theta[2], t1.unif.prior[1], t1.unif.prior[2], log=TRUE) +
+      dnorm(round(theta[2]), t1.pr.mean, t1.pr.sd, log=TRUE) +
+      ## dunif(theta[3], logr0.unif.prior[1], logr0.unif.prior[2], log=TRUE) +
+      dnorm(theta[3], logr0.pr.mean, logr0.pr.sd, log=TRUE) +
+      sum(dnorm(theta[4:7], rtrend.beta.pr.mean, rtrend.beta.pr.sd, log=TRUE))
+  }
+  
+  lpr <- lpr + dnorm(theta[epp_nparam+1], ancbias.pr.mean, ancbias.pr.sd, log=TRUE)
+  if(!exists("v.infl", where=fp)){
+    anclik_nparam <- 2
+    lpr <- lpr + dexp(exp(theta[epp_nparam+2]), vinfl.prior.rate, TRUE) + theta[epp_nparam+2]         # additional ANC variance
+  } else
+    anclik_nparam <- 1
+
+  paramcurr <- epp_nparam+anclik_nparam
+  if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
+    lpr <- lpr + dnorm(theta[paramcurr+1], ancrtcens.bias.pr.mean, ancrtcens.bias.pr.sd, log=TRUE)
+    if(!exists("ancrtcens.vinfl", fp)){
+      lpr <- lpr + dexp(exp(theta[paramcurr+2]), ancrtcens.vinfl.pr.rate, TRUE) + theta[paramcurr+2]
+      paramcurr <- paramcurr+2
+    } else 
+      paramcurr <- paramcurr+1
+  }
+  if(exists("ancrt", fp) && fp$ancrt %in% c("site", "both")){
+    lpr <- lpr + dnorm(theta[paramcurr+1], ancrtsite.beta.pr.mean, ancrtsite.beta.pr.sd, log=TRUE) ## +
+    ## dexp(exp(theta[np]), ancrtsite.vinfl.pr.rate, TRUE) + theta[np]
+    paramcurr <- paramcurr+1
+  }
+  
+  
+  if(exists("fitincrr", where=fp) && fp$fitincrr==TRUE){
+    incrr_nparam <- 14
+    theta_incrr <- theta[paramcurr+1:incrr_nparam]
+    paramcurr <- paramcurr+incrr_nparam
+    
+    lpr <- lpr +
+      dnorm(theta_incrr[1], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE) +
+      sum(dnorm(theta_incrr[2:13], ageincrr.pr.mean, ageincrr.pr.sd, log=TRUE)) +
+      dnorm(theta_incrr[14], -1, 0.7, log=TRUE)
+  }
+
+  if(exists("fitincrr", where=fp) && fp$fitincrr=="lognorm"){
+    incrr_nparam <- 7
+    theta_incrr <- theta[paramcurr+1:incrr_nparam]
+    paramcurr <- paramcurr+incrr_nparam
+
+    lpr <- lpr +
+      dnorm(theta_incrr[1], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE) +
+      sum(dnorm(theta_incrr[c(2,5)], lognorm.a0.pr.mean, lognorm.a0.pr.sd, log=TRUE)) +
+      sum(dnorm(theta_incrr[c(3,6)], lognorm.meanlog.pr.mean, lognorm.meanlog.pr.sd, log=TRUE)) +
+      sum(dnorm(theta_incrr[c(4,7)], lognorm.logsdlog.pr.mean, lognorm.logsdlog.pr.sd, log=TRUE))
+  }
+  
+  return(lpr)
+}
+
+
 prior <- function(theta, fp, log=FALSE){
   if(is.vector(theta))
     lval <- lprior(theta, fp)
@@ -817,6 +910,17 @@ likelihood <- function(theta, fp, likdat, log=FALSE){
     lval <- ll(theta, fp, likdat)
   else
     lval <- unlist(lapply(seq_len(nrow(theta)), function(i) ll(theta[i,], fp, likdat)))
+  if(log)
+    return(lval)
+  else
+    return(exp(lval))
+}
+
+dsamp <- function(theta, fp, log=FALSE){
+  if(is.vector(theta))
+    lval <- ldsamp(theta, fp)
+  else
+    lval <- unlist(lapply(seq_len(nrow(theta)), function(i) (ldsamp(theta[i,], fp))))
   if(log)
     return(lval)
   else

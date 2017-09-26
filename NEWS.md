@@ -34,3 +34,5 @@
 
 - Change from dependency to imports epp package.
 - Add ANC-RT data to aggregate national fits (prepare_national_fit() and create_aggr_input()).
+
+- Implement dsamp() to calculate density for initial IMIS samples. This allows different initial sampling density from prior distribution.

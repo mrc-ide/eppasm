@@ -22,92 +22,97 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
     mtext("HIV incidence rate, age 15-49y", 3, 0.5, font=2, cex=1.2)
     ##
     ## r-trend
-    if(!is.null(fit3))
-      plot_rvec(fitaggr, fitincrr, fit3, col=cols)
-    else
-      plot_rvec(fitaggr, fitincrr, col=cols)
-    mtext("r(t)", 3, 0.5, font=2, cex=1.2)
+    if(!is.null(fitaggr$rvec[[1]])){
+      if(!is.null(fit3))
+        plot_rvec(fitaggr, fitincrr, fit3, col=cols)
+      else
+        plot_rvec(fitaggr, fitincrr, col=cols)
+      mtext("r(t)", 3, 0.5, font=2, cex=1.2)
+    }
     ##
     ## vinfl
     ##
     ## sex incrr
-    logincrrsex <- log(sapply(fitincrr$param, "[[", "incrr_sex")[1,])
-    dens <- density(logincrrsex)
-    densCI <- which(dens$x >= quantile(logincrrsex, 0.025) &
-                    dens$x <= quantile(logincrrsex, 0.975))
-    if(!is.null(fit3)){
-      logincrrsex3 <- log(sapply(fit3$param, "[[", "incrr_sex")[1,])
-      dens3 <- density(logincrrsex3)
-      dens3CI <- which(dens3$x >= quantile(logincrrsex3, 0.025) &
-                       dens3$x <= quantile(logincrrsex3, 0.975))
+    if(!is.null(fitincrr$param)){
+      logincrrsex <- log(sapply(fitincrr$param, "[[", "incrr_sex")[1,])
+      dens <- density(logincrrsex)
+      densCI <- which(dens$x >= quantile(logincrrsex, 0.025) &
+                      dens$x <= quantile(logincrrsex, 0.975))
+      if(!is.null(fit3)){
+        logincrrsex3 <- log(sapply(fit3$param, "[[", "incrr_sex")[1,])
+        dens3 <- density(logincrrsex3)
+        dens3CI <- which(dens3$x >= quantile(logincrrsex3, 0.025) &
+                         dens3$x <= quantile(logincrrsex3, 0.975))
+      }
+      plot(dens, xlim=c(-0.1, 0.75), col=cols[2],
+           main="F:M incidence rate ratio, posterior density", xlab="log F:M IRR")
+      polygon(dens$x[c(min(densCI), densCI, max(densCI))], c(0, dens$y[densCI], 0),
+              col=transp(cols[2]), border=NA)
+      if(!is.null(fit3)){
+        lines(dens3, col=cols[3])
+        polygon(dens3$x[c(min(dens3CI), dens3CI, max(dens3CI))], c(0, dens3$y[dens3CI], 0),
+                col=transp(cols[3]), border=NA)
+      }
+      segments(x0=mean(log(sapply(fitincrr$param, "[[", "incrr_sex")[1,])), y0=0, y1=6, col=cols[2], lwd=2)
+      if(!is.null(fit3))
+        segments(x0=mean(log(sapply(fit3$param, "[[", "incrr_sex")[1,])), y0=0, y1=6, col=cols[3], lwd=2)
+      segments(x0=log(tail(fitaggr$fp$incrr_sex, 1)), y0=0, y1=6, col=cols[1], lwd=2)
+      lines(seq(-0.1, 0.75, 0.01), dnorm(seq(-0.1, 0.75, 0.01), eppasm:::sexincrr.pr.mean, eppasm:::sexincrr.pr.sd), col="darkblue", lty=2)
+      segments(x0=eppasm:::sexincrr.pr.mean, y0=0, y1=2, col="darkblue", lwd=2, lty=2)
+
+      ##
+      ## age incrr
+      xx <- c(1:2, 4:7)
+      logincrrage <- estci(sapply(fitincrr$param, "[[", "logincrr_age"))
+      if(!is.null(fit3))
+        logincrrage3 <- estci(sapply(fit3$param, "[[", "logincrr_age"))
+      ## plot men
+      plot(1:7+0.5, 1:7, type="n",  xlim=c(1, 8), ylim=c(-2.5, 2),
+           xlab="Age group", ylab="log IRR", main = "Male incidence rate ratios (log)", xaxt="n")
+      axis(1, 1:7+0.5, paste0(3:9*5, "-", 3:9*5+4))
+      abline(h=0, col="grey")
+      points(3.5, 0, pch=4, lwd=2.5, col=1, cex=1.2)
+      rect(xx+0.1,
+           eppasm:::ageincrr.pr.mean[1:6]-qnorm(0.975)*eppasm:::ageincrr.pr.sd,
+           xx+0.9,
+           eppasm:::ageincrr.pr.mean[1:6]+qnorm(0.975)*eppasm:::ageincrr.pr.sd,
+           col=transp("darkblue", 0.1), border=transp("darkblue", 0.5), lty=2)
+      ##
+      rect(xx+0.1,  logincrrage[xx,3], xx+0.9, logincrrage[xx,4], col=transp(cols[2]), border=NA)
+      if(!is.null(fit3))
+        rect(xx+0.1,  logincrrage3[xx,3], xx+0.9, logincrrage3[xx,4], col=transp(cols[3]), border=NA)
+      defaultincrr <- log(fitaggr$fp$incrr_age[(xx-1)*5+1,1,fitaggr$fp$ss$PROJ_YEARS])
+      segments(xx+0.1, defaultincrr, xx+0.9, col=cols[1], lwd=2)
+      segments(xx+0.1, eppasm:::ageincrr.pr.mean[1:6], xx+0.9, col=transp("darkblue", 0.5), lwd=1.5, lty=2)
+      segments(xx+0.1, logincrrage[xx,1], xx+0.9, col=cols[2], lwd=2)
+      if(!is.null(fit3))
+        segments(xx+0.1, logincrrage3[xx,1], xx+0.9, col=cols[3], lwd=2)
+      ## plot women
+      plot(1:7+0.5, 1:7, type="n",  xlim=c(1, 8), ylim=c(-2.5, 2),
+           xlab="Age group", ylab="log IRR", main = "Female incidence rate ratios (log)", xaxt="n")
+      axis(1, 1:7+0.5, paste0(3:9*5, "-", 3:9*5+4))
+      abline(h=0, col="grey")
+      points(3.5, 0, pch=4, lwd=2.5, col=1, cex=1.2)
+      rect(xx+0.1,
+           eppasm:::ageincrr.pr.mean[7:12]-qnorm(0.975)*eppasm:::ageincrr.pr.sd,
+           xx+0.9,
+           eppasm:::ageincrr.pr.mean[7:12]+qnorm(0.975)*eppasm:::ageincrr.pr.sd,
+           col=transp("darkblue", 0.1), border=transp("darkblue", 0.5), lty=2)
+      ##
+      offset <- nrow(logincrrage)/2
+      rect(xx+0.1,  logincrrage[xx+offset,3], xx+0.9, logincrrage[xx++offset,4], col=transp(cols[2]), border=NA)
+      if(!is.null(fit3)){
+        offset3 <- nrow(logincrrage3)/2
+        rect(xx+0.1,  logincrrage3[xx+offset3,3], xx+0.9, logincrrage3[xx++offset3,4], col=transp(cols[3]), border=NA)
+      }
+      defaultincrr <- log(fitaggr$fp$incrr_age[(xx-1)*5+1,2,fitaggr$fp$ss$PROJ_YEARS])
+      segments(xx+0.1, defaultincrr, xx+0.9, col=cols[1], lwd=2)
+      segments(xx+0.1, eppasm:::ageincrr.pr.mean[7:12], xx+0.9, col=transp("darkblue", 0.5), lwd=1.5, lty=2)
+      segments(xx+0.1, logincrrage[xx+offset,1], xx+0.9, col=cols[2], lwd=2)
+      if(!is.null(fit3))
+        segments(xx+0.1, logincrrage3[xx+offset3,1], xx+0.9, col=cols[3], lwd=2)
+      ##
     }
-    plot(dens, xlim=c(-0.1, 0.75), col=cols[2],
-         main="F:M incidence rate ratio, posterior density", xlab="log F:M IRR")
-    polygon(dens$x[c(min(densCI), densCI, max(densCI))], c(0, dens$y[densCI], 0),
-            col=transp(cols[2]), border=NA)
-    if(!is.null(fit3)){
-      lines(dens3, col=cols[3])
-      polygon(dens3$x[c(min(dens3CI), dens3CI, max(dens3CI))], c(0, dens3$y[dens3CI], 0),
-              col=transp(cols[3]), border=NA)
-    }
-    segments(x0=mean(log(sapply(fitincrr$param, "[[", "incrr_sex")[1,])), y0=0, y1=6, col=cols[2], lwd=2)
-    if(!is.null(fit3))
-      segments(x0=mean(log(sapply(fit3$param, "[[", "incrr_sex")[1,])), y0=0, y1=6, col=cols[3], lwd=2)
-    segments(x0=log(tail(fitaggr$fp$incrr_sex, 1)), y0=0, y1=6, col=cols[1], lwd=2)
-    lines(seq(-0.1, 0.75, 0.01), dnorm(seq(-0.1, 0.75, 0.01), eppasm:::sexincrr.pr.mean, eppasm:::sexincrr.pr.sd), col="darkblue", lty=2)
-    segments(x0=eppasm:::sexincrr.pr.mean, y0=0, y1=2, col="darkblue", lwd=2, lty=2)
-    ##
-    ## age incrr
-    xx <- c(1:2, 4:7)
-    logincrrage <- estci(sapply(fitincrr$param, "[[", "logincrr_age"))
-    if(!is.null(fit3))
-      logincrrage3 <- estci(sapply(fit3$param, "[[", "logincrr_age"))
-    ## plot men
-    plot(1:7+0.5, 1:7, type="n",  xlim=c(1, 8), ylim=c(-2.5, 2),
-         xlab="Age group", ylab="log IRR", main = "Male incidence rate ratios (log)", xaxt="n")
-    axis(1, 1:7+0.5, paste0(3:9*5, "-", 3:9*5+4))
-    abline(h=0, col="grey")
-    points(3.5, 0, pch=4, lwd=2.5, col=1, cex=1.2)
-    rect(xx+0.1,
-         eppasm:::ageincrr.pr.mean[1:6]-qnorm(0.975)*eppasm:::ageincrr.pr.sd,
-         xx+0.9,
-         eppasm:::ageincrr.pr.mean[1:6]+qnorm(0.975)*eppasm:::ageincrr.pr.sd,
-         col=transp("darkblue", 0.1), border=transp("darkblue", 0.5), lty=2)
-    ##
-    rect(xx+0.1,  logincrrage[xx,3], xx+0.9, logincrrage[xx,4], col=transp(cols[2]), border=NA)
-    if(!is.null(fit3))
-      rect(xx+0.1,  logincrrage3[xx,3], xx+0.9, logincrrage3[xx,4], col=transp(cols[3]), border=NA)
-    defaultincrr <- log(fitaggr$fp$incrr_age[(xx-1)*5+1,1,fitaggr$fp$ss$PROJ_YEARS])
-    segments(xx+0.1, defaultincrr, xx+0.9, col=cols[1], lwd=2)
-    segments(xx+0.1, eppasm:::ageincrr.pr.mean[1:6], xx+0.9, col=transp("darkblue", 0.5), lwd=1.5, lty=2)
-    segments(xx+0.1, logincrrage[xx,1], xx+0.9, col=cols[2], lwd=2)
-    if(!is.null(fit3))
-      segments(xx+0.1, logincrrage3[xx,1], xx+0.9, col=cols[3], lwd=2)
-    ## plot women
-    plot(1:7+0.5, 1:7, type="n",  xlim=c(1, 8), ylim=c(-2.5, 2),
-         xlab="Age group", ylab="log IRR", main = "Female incidence rate ratios (log)", xaxt="n")
-    axis(1, 1:7+0.5, paste0(3:9*5, "-", 3:9*5+4))
-    abline(h=0, col="grey")
-    points(3.5, 0, pch=4, lwd=2.5, col=1, cex=1.2)
-    rect(xx+0.1,
-         eppasm:::ageincrr.pr.mean[7:12]-qnorm(0.975)*eppasm:::ageincrr.pr.sd,
-         xx+0.9,
-         eppasm:::ageincrr.pr.mean[7:12]+qnorm(0.975)*eppasm:::ageincrr.pr.sd,
-         col=transp("darkblue", 0.1), border=transp("darkblue", 0.5), lty=2)
-    ##
-    offset <- nrow(logincrrage)/2
-    rect(xx+0.1,  logincrrage[xx+offset,3], xx+0.9, logincrrage[xx++offset,4], col=transp(cols[2]), border=NA)
-    if(!is.null(fit3)){
-      offset3 <- nrow(logincrrage3)/2
-      rect(xx+0.1,  logincrrage3[xx+offset3,3], xx+0.9, logincrrage3[xx++offset3,4], col=transp(cols[3]), border=NA)
-    }
-    defaultincrr <- log(fitaggr$fp$incrr_age[(xx-1)*5+1,2,fitaggr$fp$ss$PROJ_YEARS])
-    segments(xx+0.1, defaultincrr, xx+0.9, col=cols[1], lwd=2)
-    segments(xx+0.1, eppasm:::ageincrr.pr.mean[7:12], xx+0.9, col=transp("darkblue", 0.5), lwd=1.5, lty=2)
-    segments(xx+0.1, logincrrage[xx+offset,1], xx+0.9, col=cols[2], lwd=2)
-    if(!is.null(fit3))
-      segments(xx+0.1, logincrrage3[xx+offset3,1], xx+0.9, col=cols[3], lwd=2)
-    ##
     mtext(paste0(icountry, ", ", eppmod, "; posterior distribution"), 3, 0.5, outer=TRUE, font=2, cex=1.3)
   }
   ##
@@ -156,7 +161,7 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
         segments(survdat$year, y0=survdat$ci_l, y1=survdat$ci_u)
       }
     }
-    mtext(paste0(icountry, ", ", eppmod, "; Prevalence trend by age group"), 3, 0.5, outer=TRUE, font=2, cex=1.3)
+    mtext(paste0(icountry, ", ", eppmod, "\nPrevalence trend by age group"), 3, 0, outer=TRUE, font=2, cex=1.3)
   }
   ##
   ##

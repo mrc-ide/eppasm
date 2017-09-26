@@ -213,7 +213,12 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
     
     specres[c("totpop", "hivpop", "natdeaths", "hivdeaths")] <- list(totpop, hivpop, natdeaths, hivdeaths)
   }
-    
+
+  specres$births <- setNames(as.numeric(dpsub("<Births MV>", 2, timedat.idx)), proj.years)
+  specres$hivpregwomen <- setNames(as.numeric(dpsub("<ChildNeedPMTCT MV>", 2, timedat.idx)), proj.years)
+  specres$hivpregwomen <- setNames(as.numeric(dpsub("<ChildNeedPMTCT MV>", 2, timedat.idx)), proj.years)
+  specres$receivepmtct <- setNames(as.numeric(dpsub("<ChildOnPMTCT MV>", 2, timedat.idx)), proj.years)
+  
   class(specres) <- "specres"
 
   return(specres)

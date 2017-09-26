@@ -20,7 +20,6 @@
 - Implemented O-spline model (penalized B-spline) using mgcv to construct
 - Added `r0logiotaratio` option to estimate ratio of r(t0) and log of initial seed, reduces correation. Not set as default.
 
-
 # eppspectrum 0.1.6
 
 - Bug fix: add check in ll_hhage_binom() that ldbinom() does not return NaN.
@@ -36,3 +35,7 @@
 - Add ANC-RT data to aggregate national fits (prepare_national_fit() and create_aggr_input()).
 
 - Implement dsamp() to calculate density for initial IMIS samples. This allows different initial sampling density from prior distribution.
+
+- Specify knot locations for o-spline model
+- Estimate HIV+:HIV- FRR adjustment.
+- Specify knot locations for o-spline model

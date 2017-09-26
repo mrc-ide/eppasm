@@ -144,9 +144,9 @@ ll_anc <- function(qM, coef=c(0, 0), vinfl=0, anclik.dat){
 #############################################
 
 ## prior parameters for ANCRT census
-ancrtcens.bias.pr.mean <- 0
+log_frr_adjust.pr.mean <- 0
 ## ancrtcens.bias.pr.sd <- 1.0
-ancrtcens.bias.pr.sd <- 0.1
+log_frr_adjust.pr.sd <- 0.2
 ancrtcens.vinfl.pr.rate <- 1/0.015
 
 prepare_ancrtcens_likdat <- function(dat, anchor.year){
@@ -160,9 +160,7 @@ prepare_ancrtcens_likdat <- function(dat, anchor.year){
 }
 
 ll_ancrtcens <- function(qM.preg, ancrtcens.dat, fp){
-  sum(dnorm(ancrtcens.dat$W.ancrt,
-            qM.preg[ancrtcens.dat$idx] + fp$ancrtcens.bias,
-            sqrt(ancrtcens.dat$v.ancrt + fp$ancrtcens.vinfl), log=TRUE))
+  sum(dnorm(ancrtcens.dat$W.ancrt, qM.preg[ancrtcens.dat$idx], sqrt(ancrtcens.dat$v.ancrt + fp$ancrtcens.vinfl), log=TRUE))
 }
 
 
@@ -271,7 +269,11 @@ fnCreateParam <- function(theta, fp){
   
   paramcurr <- epp_nparam+anclik_nparam
   if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
-    param$ancrtcens.bias <- theta[paramcurr+1]
+    param$log_frr_adjust <- theta[paramcurr+1]
+    param$frr_cd4 <- fp$frr_cd4 * exp(param$log_frr_adjust)
+    param$frr_art <- fp$frr_art
+    param$frr_art[1:2,,,] <- param$frr_art[1:2,,,] * exp(param$log_frr_adjust)
+    
     if(!exists("ancrtcens.vinfl", fp)){
       param$ancrtcens.vinfl <- exp(theta[paramcurr+2])
       paramcurr <- paramcurr+2
@@ -574,7 +576,7 @@ lprior <- function(theta, fp){
 
   paramcurr <- epp_nparam+anclik_nparam
   if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
-    lpr <- lpr + dnorm(theta[paramcurr+1], ancrtcens.bias.pr.mean, ancrtcens.bias.pr.sd, log=TRUE)
+    lpr <- lpr + dnorm(theta[paramcurr+1], log_frr_adjust.pr.mean, log_frr_adjust.pr.sd, log=TRUE)
     if(!exists("ancrtcens.vinfl", fp)){
       lpr <- lpr + dexp(exp(theta[paramcurr+2]), ancrtcens.vinfl.pr.rate, TRUE) + theta[paramcurr+2]
       paramcurr <- paramcurr+2
@@ -620,7 +622,7 @@ ll <- function(theta, fp, likdat){
   fp <- update(fp, list=fnCreateParam(theta, fp))
 
   if(exists("fitincrr", where=fp) && fp$fitincrr==TRUE){
-    ll.incpen <- sum(dnorm(diff(fp$logincrr_age,diff=2), sd=fp$sigma_agepen, log=TRUE))
+    ll.incpen <- sum(dnorm(diff(fp$logincrr_age, differences=2), sd=fp$sigma_agepen, log=TRUE))
   } else
     ll.incpen <- 0
 
@@ -770,7 +772,7 @@ sample.prior <- function(n, fp){
   ## sample ANCRT parameters
   paramcurr <- epp_nparam+anclik_nparam
   if(exists("ancrt", where=fp) && fp$ancrt %in% c("census", "both")){
-    mat[,paramcurr+1] <- rnorm(n, ancrtcens.bias.pr.mean, ancrtcens.bias.pr.sd)
+    mat[,paramcurr+1] <- rnorm(n, log_frr_adjust.pr.mean, log_frr_adjust.pr.sd)
     if(!exists("ancrtcens.vinfl", fp)){
       mat[,paramcurr+2] <- log(rexp(n, ancrtcens.vinfl.pr.rate))
       paramcurr <- paramcurr+2
@@ -852,8 +854,8 @@ ldsamp <- function(theta, fp){
     anclik_nparam <- 1
 
   paramcurr <- epp_nparam+anclik_nparam
-  if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
-    lpr <- lpr + dnorm(theta[paramcurr+1], ancrtcens.bias.pr.mean, ancrtcens.bias.pr.sd, log=TRUE)
+    if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
+    lpr <- lpr + dnorm(theta[paramcurr+1], log_frr_adjust.pr.mean, log_frr_adjust.pr.sd, log=TRUE)
     if(!exists("ancrtcens.vinfl", fp)){
       lpr <- lpr + dexp(exp(theta[paramcurr+2]), ancrtcens.vinfl.pr.rate, TRUE) + theta[paramcurr+2]
       paramcurr <- paramcurr+2

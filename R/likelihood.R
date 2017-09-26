@@ -361,8 +361,8 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
     hhsage$n_eff <- hhsage$n/hhsage$deff
   hhsage$x_eff <- hhsage$n_eff * hhsage$prev
 
-  hhsage$sidx <- as.integer(hhsage$sex)
-  hhsage$aidx <- 5*(as.integer(hhsage$agegr)-1) - fp$ss$AGE_START+1L
+  hhsage$sidx <- match(hhsage$sex, c("male", "female"))
+  hhsage$aidx <- as.integer(substr(hhsage$agegr, 1, 2)) - fp$ss$AGE_START+1L
   hhsage$yidx <- hhsage$year - (anchor.year - 1)
 
   hhsage$arridx <- hhsage$aidx + (hhsage$sidx-1)*fp$ss$pAG + (hhsage$yidx-1)*fp$ss$NG*fp$ss$pAG

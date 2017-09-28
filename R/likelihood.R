@@ -15,10 +15,13 @@ ldbinom <- function(x, size, prob){
 ## r-spline prior parameters
 logiota.unif.prior <- c(log(1e-14), log(0.0025))
 r0logiotaratio.unif.prior <- c(-25, -5)
-tau2.prior.rate <- 0.5
+
+## tau2.prior.rate <- 0.5  # initial sampling distribution for tau2 parameter
+tau2_init_shape <- 3
+tau2_init_rate <- 4
 
 tau2_prior_shape <- 0.001   # Inverse gamma parameter for tau^2 prior for spline
-tau2_prior_scale <- 0.001
+tau2_prior_rate <- 0.001
 muSS <- 1/11.5               #1/duration for r steady state prior
 
 ## r-trend prior parameters
@@ -48,7 +51,7 @@ vinfl.prior.rate <- 1/0.015
 ancrtsite.beta.pr.mean <- 0
 ## ancrtsite.beta.pr.sd <- 1.0
 ancrtsite.beta.pr.sd <- 0.05
-ancrtsite.vinfl.pr.rate <- 1/0.015
+## ancrtsite.vinfl.pr.rate <- 1/0.015
 
 
 #' Prepare site-level ANC prevalence data for EPP random-effects likelihood
@@ -225,7 +228,7 @@ fnCreateParam <- function(theta, fp){
     fp$eppmod <- "rspline"
   
   if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline")){
-    epp_nparam <- fp$numKnots+2
+    epp_nparam <- fp$numKnots+1
 
     if(fp$eppmod %in% c("rspline", "logrspline")){
       u <- theta[1:fp$numKnots]
@@ -542,13 +545,11 @@ lprior <- function(theta, fp){
   }
 
   if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline")){
-    epp_nparam <- fp$numKnots+2
+    epp_nparam <- fp$numKnots+1
     
     nk <- fp$numKnots
-    tau2 <- exp(theta[nk+2])
 
-    lpr <- sum(dnorm(theta[(1+fp$rtpenord):nk], 0, sqrt(tau2), log=TRUE)) +
-      ldinvgamma(tau2, tau2_prior_shape, tau2_prior_scale) + log(tau2)   # + log(tau2): multiply likelihood by jacobian of exponential transformation
+    lpr <- mvtnorm::dmvt(theta[(1+fp$rtpenord):nk], sigma=diag(nk-fp$rtpenord) / (tau2_prior_shape / tau2_prior_rate), df=2*tau2_prior_shape)
 
     if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
       lpr <- lpr + dunif(theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
@@ -704,7 +705,7 @@ sample.prior <- function(n, fp){
 
   ## Calculate number of parameters
   if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline"))
-    epp_nparam <- fp$numKnots+2L
+    epp_nparam <- fp$numKnots+1L
   else
     epp_nparam <- 7
   
@@ -734,26 +735,22 @@ sample.prior <- function(n, fp){
   mat <- matrix(NA, n, nparam)
   
   if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline")){
-    epp_nparam <- fp$numKnots+2
+    epp_nparam <- fp$numKnots+1
        
-    ## sample penalty variance
-    tau2 <- rexp(n, tau2.prior.rate)                  # variance of second-order spline differences
-
     if(fp$eppmod == "rspline")
       mat[,1] <- rnorm(n, 1.5, 1)                                                   # u[1]
     if(fp$eppmod == "ospline")
       mat[,1] <- rnorm(n, 0.5, 1)
     else # logrspline, logospline
       mat[,1] <- rnorm(n, 0.2, 1)                                                   # u[1]
-    mat[,2:fp$numKnots] <- rnorm(n*(fp$numKnots-1), 0, sqrt(tau2))                  # u[2:numKnots]
+
+    mat[,2:fp$numKnots] <- mvtnorm::rmvt(n, sigma=diag(fp$numKnots-1) / (tau2_init_shape / tau2_init_rate), df=2*tau2_init_shape)  # u[2:numKnots]
 
     if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
       mat[,fp$numKnots+1] <-  runif(n, r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2])  # ratio r0 / log(iota)
     else
       mat[,fp$numKnots+1] <-  runif(n, logiota.unif.prior[1], logiota.unif.prior[2])  # iota
     
-    mat[,fp$numKnots+2] <- log(tau2)                                                # tau2
-
   } else { # r-trend
 
     mat[,1] <- runif(n, t0.unif.prior[1], t0.unif.prior[2])        # t0
@@ -814,10 +811,9 @@ ldsamp <- function(theta, fp){
   }
 
   if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline")){
-    epp_nparam <- fp$numKnots+2
+    epp_nparam <- fp$numKnots+1
     
     nk <- fp$numKnots
-    tau2 <- exp(theta[nk+2])
 
     if(fp$eppmod == "rspline")  # u[1]
       lpr <- dnorm(theta[1], 1.5, 1, log=TRUE)
@@ -826,8 +822,7 @@ ldsamp <- function(theta, fp){
     else # logrspline, logospline
       lpr <- dnorm(theta[1], 0.2, 1, log=TRUE)
 
-    lpr <- lpr + sum(dnorm(theta[2:nk], 0, sqrt(tau2), log=TRUE))  # in sample.prior theta[2:nk] all come from N(0, tau), even if higher order
-    lpr <- lpr + dexp(tau2, tau2.prior.rate, log=TRUE)  # tau2
+    lpr <- mvtnorm::dmvt(theta[2:nk], sigma=diag(nk-1) / (tau2_prior_shape / tau2_prior_rate), df=2*tau2_prior_shape)
 
     if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
       lpr <- lpr + dunif(theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)

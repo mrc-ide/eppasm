@@ -39,3 +39,7 @@
 - Specify knot locations for o-spline model
 - Estimate HIV+:HIV- FRR adjustment.
 - Specify knot locations for o-spline model
+
+# eppasm 0.3.2
+
+- Integrate random effects variance parameter out of likelihood.

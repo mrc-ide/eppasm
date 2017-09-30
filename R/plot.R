@@ -184,3 +184,26 @@ plot_ancprev <- function(fit, ..., data=fit$likdat, ylim=NULL, xlim=c(1980, with
     with(data$ancrtcens.dat, points(year, prev, pch=20))
   }
 }
+
+
+plot_log_rvec <- function(fit, ..., ylim=NULL, xlim=c(1980, with(fit$fp$ss, proj_start+PROJ_YEARS-1)), col="blue"){
+  dots <- list(...)
+  fit$rvec <- sapply(seq_len(ncol(fit$rvec)), function(i) replace(fit$rvec[,i], fit$fp$proj.steps < fit$param[[i]]$tsEpidemicStart, NA))
+  idx <- seq_len(length(fit$fp$proj.steps)-1)
+  xx <- fit$fp$proj.steps[idx]
+  for(ii in seq_along(dots))
+    dots[[ii]]$rvec <- sapply(seq_len(ncol(dots[[ii]]$rvec)), function(i) replace(dots[[ii]]$rvec[,i], dots[[ii]]$fp$proj.steps < dots[[ii]]$param[[i]]$tsEpidemicStart, NA))
+  if(is.null(ylim))
+    ylim <- c(max(quantile(apply(log(fit$rvec), 1, quantile, 0.025, na.rm=TRUE), 0.025, na.rm=TRUE), -6),
+              min(quantile(apply(log(fit$rvec), 1, quantile, 0.975, na.rm=TRUE), 0.975, na.rm=TRUE), 5))
+  plot(xx, rowMeans(log(fit$rvec), na.rm=TRUE)[idx], type="n", ylim=ylim, xlim=xlim, ylab="log r(t)", yaxt="n", xlab="")
+  axis(1, labels=TRUE)
+  axis(2, labels=TRUE)
+  for(ii in seq_along(dots))
+    cred.region(xx, apply(log(dots[[ii]]$rvec[idx,]), 1, quantile, c(0.025, 0.975), na.rm=TRUE), col=transp(col[1+ii], 0.3))
+  cred.region(xx, apply(log(fit$rvec[idx,]), 1, quantile, c(0.025, 0.975), na.rm=TRUE), col=transp(col[1], 0.3))
+  for(ii in seq_along(dots))
+    lines(xx, rowMeans(log(dots[[ii]]$rvec[idx,]), na.rm=TRUE)[idx], col=col[1+ii])
+  lines(xx, rowMeans(log(fit$rvec[idx,]), na.rm=TRUE)[idx], col=col[1])
+  return(invisible())
+}

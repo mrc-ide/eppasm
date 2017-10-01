@@ -232,6 +232,10 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
     fp <- prepare_ospline_model(fp, tsEpidemicStart=tsEpidemicStart)
   else if(fp$eppmod == "rtrend")
     fp <- prepare_rtrend_model(fp)
+  else if(fp$eppmod == "rhybrid")
+    fp <- prepare_hybrid_r(fp)
+  else if(fp$eppmod == "logrw")
+    fp <- prepare_logrw(fp)
 
   ## If IMIS fails, start again
   fit <- try(stop(""), TRUE)

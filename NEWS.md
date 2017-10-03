@@ -43,3 +43,5 @@
 # eppasm 0.3.2
 
 - Integrate random effects variance parameter out of likelihood.
+- Implement hybrid o-spline and RW model for r(t).
+- Implement logistic model for log r(t).

@@ -90,3 +90,16 @@ prepare_logrw <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5){
   
   return(fp)
 }
+
+
+rlog_pr_mean <- c(log(0.35), log(0.09), log(0.6), 1993)
+rlog_pr_sd <- c(0.5, 0.3, 0.15, 5)
+                
+rlogistic <- function(t, p){
+  ## p[1] = log r(0)    : log r(t) at the start of the epidemic (exponential growth)
+  ## p[2] = log r(Inf)  : endemic value for log r(t)
+  ## p[3] = alpha       : rate of change in log r(t)
+  ## p[4] = t_mid       : inflection point for logistic curve
+
+  p[1] - (p[1] - p[2]) / (1 + exp(-p[3] * (t - p[4])))
+}

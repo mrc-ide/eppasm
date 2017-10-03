@@ -268,6 +268,15 @@ fnCreateParam <- function(theta, fp){
     else
       param$iota <- exp(theta[fp$numKnots+1])
     
+  } else if(fp$eppmod == "rlogistic") {
+    epp_nparam <- 5
+    par <- theta[1:4]
+    par[3] <- exp(theta[3])
+    ## par[1:3] <- exp(par[1:3])
+    param <- list()
+    param$rvec <- exp(rlogistic(fp$proj.steps, par))
+    ## param$rvec <- rlogistic(fp$proj.steps, par)
+    param$iota <- exp(theta[5])
   } else { # rtrend
     epp_nparam <- 7
     param <- list(tsEpidemicStart = fp$proj.steps[which.min(abs(fp$proj.steps - (round(theta[1]-0.5)+0.5)))], # t0
@@ -574,8 +583,12 @@ lprior <- function(theta, fp){
     if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
       lpr <- lpr + dunif(theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
     else
-     lpr <- lpr + dunif(theta[nk+1], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
-  
+      lpr <- lpr + dunif(theta[nk+1], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
+    
+  } else if(fp$eppmod == "rlogistic") {
+    epp_nparam <- 5
+    lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE)) +
+      dunif(theta[5], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
   } else { # rtrend
 
     epp_nparam <- 7
@@ -726,7 +739,9 @@ sample.prior <- function(n, fp){
   ## Calculate number of parameters
   if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "rhybrid", "logrw"))
     epp_nparam <- fp$numKnots+1L
-  else
+  else if(fp$eppmod == "rlogistic")
+    epp_nparam <- 5
+  else  # rtrend
     epp_nparam <- 7
   
   if(!exists("v.infl", fp))
@@ -777,10 +792,13 @@ sample.prior <- function(n, fp){
       mat[,fp$numKnots+1] <-  runif(n, r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2])  # ratio r0 / log(iota)
     else
       mat[,fp$numKnots+1] <-  runif(n, logiota.unif.prior[1], logiota.unif.prior[2])  # iota
-    
+
+  } else if(fp$eppmod == "rlogistic"){
+    mat[,1:4] <- t(matrix(rnorm(4*n, rlog_pr_mean, rlog_pr_sd), 4))
+    mat[,5] <- runif(n, logiota.unif.prior[1], logiota.unif.prior[2])  # iota
   } else { # r-trend
 
-    mat[,1] <- runif(n, t0.unif.prior[1], t0.unif.prior[2])        # t0
+    mat[,1] <- runif(n, t0.unif.prior[1], t0.unif.prior[2])           # t0
     ## mat[,2] <- runif(n, t1.unif.prior[1], t1.unif.prior[2])        # t1
     mat[,2] <- rnorm(n, t1.pr.mean, t1.pr.sd)
     ## mat[,3] <- runif(n, logr0.unif.prior[1], logr0.unif.prior[2])  # r0
@@ -862,7 +880,11 @@ ldsamp <- function(theta, fp){
       lpr <- lpr + dunif(theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
     else
      lpr <- lpr + dunif(theta[nk+1], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
-  
+
+  } else if(fp$eppmod == "rlogistic") {
+    epp_nparam <- 5
+    lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE)) +
+      dunif(theta[5], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
   } else { # rtrend
 
     epp_nparam <- 7

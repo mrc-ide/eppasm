@@ -40,6 +40,8 @@
 - Estimate HIV+:HIV- FRR adjustment.
 - Specify knot locations for o-spline model
 
+- Add functions to read country and subnational region from Spectrum PJN file.
+
 # eppasm 0.3.2
 
 - Integrate random effects variance parameter out of likelihood.

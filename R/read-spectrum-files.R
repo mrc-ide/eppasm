@@ -15,8 +15,28 @@ read_dp <- function(pjnz){
   dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
   return(dp)
 }
-  
-  
+
+read_pjn <- function(pjnz){
+  dpfile <- grep(".PJN$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+  return(dp)
+}
+
+
+read_region <- function(pjnz){
+  pjn <- read_pjn(pjnz)
+  region <- pjn[which(pjn[,1] == "<Projection Parameters - Subnational Region Name2>")+2, 4]
+  if(region == "")
+    return(NULL)
+  else
+    return(region)
+}
+
+read_country <- function(pjnz){
+  pjn <- read_pjn(pjnz)
+  cc <- as.integer(pjn[which(pjn[,1] == "<Projection Parameters>")+2, 4])
+  return(with(spectrum5_countrylist, Country[Code == cc]))
+}  
 
 ###################################################
 ####  function to read HIV projection outputs  ####
@@ -220,6 +240,8 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
   specres$receivepmtct <- setNames(as.numeric(dpsub("<ChildOnPMTCT MV>", 2, timedat.idx)), proj.years)
   
   class(specres) <- "specres"
+  attr(specres, "country") <- read_country(pjnz)
+  attr(specres, "region") <- read_region(pjnz)
 
   return(specres)
 }

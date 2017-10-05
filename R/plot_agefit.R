@@ -24,10 +24,10 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
     ## r-trend
     if(!is.null(fitaggr$rvec[[1]])){
       if(!is.null(fit3))
-        plot_rvec(fitaggr, fitincrr, fit3, col=cols)
+        plot_log_rvec(fitaggr, fitincrr, fit3, col=cols)
       else
-        plot_rvec(fitaggr, fitincrr, col=cols)
-      mtext("r(t)", 3, 0.5, font=2, cex=1.2)
+        plot_log_rvec(fitaggr, fitincrr, col=cols)
+      mtext("log r(t)", 3, 0.5, font=2, cex=1.2)
     }
     ##
     ## vinfl

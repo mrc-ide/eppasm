@@ -300,15 +300,18 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     fert_rat <- array(rep(fert_rat, length(proj.years)), c(7, length(proj.years)))
   } else if(dp.vers == "<General5>") {
     fert_rat <- sapply(dp[hivtfr.tidx+2:8, 3+seq_along(proj.years)], as.numeric)
+    dimnames(fert_rat) <- list(seq(15, 45, 5), proj.years)
   } else if(dp.vers == "Spectrum2016") {
     fert_rat <- sapply(dpsub("<HIVTFR MV>", 2:8, timedat.idx), as.numeric)
-  } else if(dp.vers == "Spectrum2017") {
-    fert_rat <- sapply(dpsub("<HIVTFR MV2>", 2:8, timedat.idx), as.numeric)
-  }
-  if(dp.vers == "Spectrum2017")
-    dimnames(fert_rat) <- list(c(15, 18, seq(20, 40, 5)), proj.years)
-  else
     dimnames(fert_rat) <- list(seq(15, 45, 5), proj.years)
+  } else if(exists_dptag("<HIVTFR MV2>")) {
+    fert_rat <- sapply(dpsub("<HIVTFR MV2>", 2:7, timedat.idx), as.numeric)
+   ## this version of Spectrum stratified fertility reduction by 15-17, 18-19, 20-24, ...
+    dimnames(fert_rat) <- list(c(15, 18, seq(20, 35, 5)), proj.years)  
+  } else if(exists_dptag("<HIVTFR MV3>")){
+    fert_rat <- sapply(dpsub("<HIVTFR MV3>", 2:8, timedat.idx), as.numeric)
+    dimnames(fert_rat) <- list(seq(15, 45, 5), proj.years)
+  }
 
   if(dp.vers == "Spectrum2017")
     cd4fert_rat <- as.numeric(dpsub("<FertCD4Discount MV>", 2, 4+1:DS))

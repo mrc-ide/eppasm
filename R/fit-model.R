@@ -223,6 +223,10 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
   likdat <- prepare_likdat(eppd, fp)
 
+  if(fp$eppmod %in% c("rhybrid", "logrw", "rlogistic_rw")){  # THIS IS REALLY MESSY, NEED TO REFACTOR CODE
+    fp$ss$PROJ_YEARS <- as.integer(likdat$lastdata.idx)
+    fp$proj.steps <- seq(fp$ss$proj_start+0.5, fp$ss$proj_start-1+fp$ss$PROJ_YEARS+0.5, by=1/fp$ss$hiv_steps_per_year)
+  }
 
   ## Prepare the EPP model
   tsEpidemicStart <- if(epp) fp$tsEpidemicStart else fp$ss$time_epi_start+0.5
@@ -236,6 +240,8 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
     fp <- prepare_hybrid_r(fp)
   else if(fp$eppmod == "logrw")
     fp <- prepare_logrw(fp)
+  else if(fp$eppmod == "rlogistic_rw")
+    fp <- prepare_rlogistic_rw(fp)
 
   ## If IMIS fails, start again
   fit <- try(stop(""), TRUE)

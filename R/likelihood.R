@@ -277,12 +277,17 @@ fnCreateParam <- function(theta, fp){
     param$rvec <- exp(rlogistic(fp$proj.steps, par))
     ## param$rvec <- rlogistic(fp$proj.steps, par)
     param$iota <- exp(theta[5])
-  } else { # rtrend
+  } else if(fp$eppmod == "rtrend"){ # rtrend
     epp_nparam <- 7
     param <- list(tsEpidemicStart = fp$proj.steps[which.min(abs(fp$proj.steps - (round(theta[1]-0.5)+0.5)))], # t0
                   rtrend = list(tStabilize = round(theta[1]-0.5)+0.5+round(theta[2]),  # t0 + t1
                                 r0 = exp(theta[3]),              # r0
                                 beta = theta[4:7]))
+  } else {
+    epp_nparam <- fp$rt$n_param+1
+    param <- list()
+    param$rvec <- create_rvec(theta[1:fp$rt$n_param], fp$rt)
+    param$iota <- exp(theta[fp$rt$n_param+1])
   }
   
   param$ancbias <- theta[epp_nparam+1]
@@ -589,7 +594,7 @@ lprior <- function(theta, fp){
     epp_nparam <- 5
     lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE)) +
       dunif(theta[5], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
-  } else { # rtrend
+  } else if(fp$eppmod == "rtrend"){ # rtrend
 
     epp_nparam <- 7
 
@@ -599,6 +604,11 @@ lprior <- function(theta, fp){
       ## dunif(theta[3], logr0.unif.prior[1], logr0.unif.prior[2], log=TRUE) +
       dnorm(theta[3], logr0.pr.mean, logr0.pr.sd, log=TRUE) +
       sum(dnorm(theta[4:7], rtrend.beta.pr.mean, rtrend.beta.pr.sd, log=TRUE))
+  } else if(fp$eppmod == "rlogistic_rw"){
+    epp_nparam <- fp$rt$n_param+1
+    lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE)) +
+      bayes_lmvt(theta[4+1:fp$rt$n_rw], rw_prior_shape, rw_prior_rate) +
+      dunif(theta[fp$rt$n_param+1], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
   }
   
   lpr <- lpr + dnorm(theta[epp_nparam+1], ancbias.pr.mean, ancbias.pr.sd, log=TRUE)
@@ -741,8 +751,10 @@ sample.prior <- function(n, fp){
     epp_nparam <- fp$numKnots+1L
   else if(fp$eppmod == "rlogistic")
     epp_nparam <- 5
-  else  # rtrend
+  else if(fp$eppmod == "rtrend")
     epp_nparam <- 7
+  else if(fp$eppmod == "rlogistic_rw")
+    epp_nparam <- fp$rt$n_param+1
   
   if(!exists("v.infl", fp))
     anclik_nparam <- 2
@@ -796,7 +808,7 @@ sample.prior <- function(n, fp){
   } else if(fp$eppmod == "rlogistic"){
     mat[,1:4] <- t(matrix(rnorm(4*n, rlog_pr_mean, rlog_pr_sd), 4))
     mat[,5] <- runif(n, logiota.unif.prior[1], logiota.unif.prior[2])  # iota
-  } else { # r-trend
+  } else if(fp$eppmod == "rtrend"){ # r-trend
 
     mat[,1] <- runif(n, t0.unif.prior[1], t0.unif.prior[2])           # t0
     ## mat[,2] <- runif(n, t1.unif.prior[1], t1.unif.prior[2])        # t1
@@ -804,6 +816,10 @@ sample.prior <- function(n, fp){
     ## mat[,3] <- runif(n, logr0.unif.prior[1], logr0.unif.prior[2])  # r0
     mat[,3] <- rnorm(n, logr0.pr.mean, logr0.pr.sd)  # r0
     mat[,4:7] <- t(matrix(rnorm(4*n, rtrend.beta.pr.mean, rtrend.beta.pr.sd), 4, n))  # beta
+  } else if(fp$eppmod == "rlogistic_rw") {
+    mat[,1:4] <- t(matrix(rnorm(4*n, rlog_pr_mean, rlog_pr_sd), 4))
+    mat[,4+1:fp$rt$n_rw] <- bayes_rmvt(n, fp$rt$n_rw, rw_prior_shape, rw_prior_rate)  # u[2:numKnots]
+    mat[,fp$rt$n_param+1] <- runif(n, logiota.unif.prior[1], logiota.unif.prior[2])  # iota
   }
 
   ## sample ANC bias paramters
@@ -885,7 +901,7 @@ ldsamp <- function(theta, fp){
     epp_nparam <- 5
     lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE)) +
       dunif(theta[5], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
-  } else { # rtrend
+  } else if(fp$eppmod == "rtrend"){ # rtrend
 
     epp_nparam <- 7
 
@@ -895,6 +911,11 @@ ldsamp <- function(theta, fp){
       ## dunif(theta[3], logr0.unif.prior[1], logr0.unif.prior[2], log=TRUE) +
       dnorm(theta[3], logr0.pr.mean, logr0.pr.sd, log=TRUE) +
       sum(dnorm(theta[4:7], rtrend.beta.pr.mean, rtrend.beta.pr.sd, log=TRUE))
+  } else if(fp$eppmod == "rlogistic_rw"){
+    epp_nparam <- fp$rt$n_param+1
+    lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE)) +
+      bayes_lmvt(theta[4+1:fp$rt$n_rw], rw_prior_shape, rw_prior_rate) +
+      dunif(theta[fp$rt$n_param+1], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
   }
   
   lpr <- lpr + dnorm(theta[epp_nparam+1], ancbias.pr.mean, ancbias.pr.sd, log=TRUE)

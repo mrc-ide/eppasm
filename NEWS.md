@@ -46,3 +46,4 @@
 
 - Integrate random effects variance parameter out of likelihood.
 - Add optimization option to fitmod().
+- Add option to fit without site-level ANC data.

@@ -79,6 +79,7 @@ extern "C" {
     for(int ha = 1; ha < hAG; ha++)
       hAG_START[ha] = hAG_START[ha-1] + hAG_SPAN[ha-1];
 
+    int SIM_YEARS = *INTEGER(getListElement(s_fp, "SIM_YEARS"));
     double *projsteps = REAL(getListElement(s_fp, "proj.steps"));
 
     // demographic projection
@@ -313,7 +314,7 @@ extern "C" {
     ////  do population projection  ////
     ////////////////////////////////////
 
-    for(int t = 1; t < PROJ_YEARS; t++){
+    for(int t = 1; t < SIM_YEARS; t++){
 
       // age the population one year
       for(int m = 0; m < pDS; m++)

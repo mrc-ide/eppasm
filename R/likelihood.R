@@ -680,7 +680,8 @@ ll <- function(theta, fp, likdat){
   qM.all <- suppressWarnings(qnorm(prev(mod)))
   qM.preg <- if(exists("pregprev", where=fp) && !fp$pregprev) qM.all else suppressWarnings(qnorm(fnPregPrev(mod, fp)))
 
-  if(any(is.na(qM.preg)) || any(is.na(qM.all)) ||
+  if(any(is.na(qM.preg[likdat$firstdata.idx:likdat$lastdata.idx])) ||
+     any(is.na(qM.all[likdat$firstdata.idx:likdat$lastdata.idx])) ||
      any(qM.preg[likdat$firstdata.idx:likdat$lastdata.idx] == -Inf) ||
      any(qM.preg[likdat$firstdata.idx:likdat$lastdata.idx] > 2)) # prevalence not greater than pnorm(2) = 0.977
     return(-Inf)

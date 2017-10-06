@@ -167,14 +167,14 @@ sample_invgamma_post <- function(x, prior_shape, prior_rate){
 extend_projection <- function(fit, proj_years){
 
 
-  ## TODO: insert a check to ensure that proj_years is not greater than
-  ## the Spectrum file.
+  if(proj_years > fit$fp$ss$PROJ_YEARS)
+    stop("Cannot extend projection beyond duration of projection file")
   
   fp <- fit$fp
   fpnew <- fp
 
-  fpnew$ss$PROJ_YEARS <- as.integer(proj_years)
-  fpnew$proj.steps <- with(fpnew$ss, seq(proj_start+0.5, proj_start-1+PROJ_YEARS+0.5, by=1/hiv_steps_per_year))
+  fpnew$SIM_YEARS <- as.integer(proj_years)
+  fpnew$proj.steps <- with(fpnew$ss, seq(proj_start+0.5, proj_start-1+fpnew$SIM_YEARS+0.5, by=1/hiv_steps_per_year))
 
   if(fp$eppmod == "rlogistic_rw"){
     fpnew <- prepare_rlogistic_rw(fpnew, rw_dk=diff(fp$rt$rw_knots[1:2]))
@@ -191,8 +191,7 @@ extend_projection <- function(fit, proj_years){
 
     idx1 <- 5  # start of random walk parameters
     idx2 <- 4+fp$rt$n_rw
-fpnew$rt$n_rw
-
+    
     theta <- fit$resample[,idx1:idx2]
     rw_sigma <- sqrt(sample_invgamma_post(theta, sh, rate))
 

@@ -48,7 +48,8 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   invisible(list2env(ss, environment())) # put ss variables in environment for convenience
 
   fp <- list(ss=ss)
-  fp$proj.steps <- proj_start + 0.5 + 0:(ss$hiv_steps_per_year * (ss$PROJ_YEARS-1)) / ss$hiv_steps_per_year
+  fp$SIM_YEARS <- ss$PROJ_YEARS
+  fp$proj.steps <- proj_start + 0.5 + 0:(ss$hiv_steps_per_year * (ss$SIM_YEARS-1)) / ss$hiv_steps_per_year
   
   ## ######################## ##
   ##  Demographic parameters  ##
@@ -337,7 +338,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   prevlast <- prevcurr <- 0
 
 
-  for(i in 2:PROJ_YEARS){
+  for(i in 2:fp$SIM_YEARS){
 
     ## ################################### ##
     ##  Single-year population projection  ##
@@ -431,7 +432,7 @@ simmod.specfp <- function(fp, VERSION="C"){
       ## calculate r(t)
       prevlast <- prevcurr
       prev15to49.ts.out[ts] <- prevcurr <- hivp.ii / (hivn.ii+hivp.ii)
-      if(fp$eppmod=="rtrend")
+      if(fp$eppmod %in% c("rtrend", "rtrend_rw"))
         rvec[ts] <- calc.rt(fp$proj.steps[ts], fp, rvec[ts-1L], prevlast, prevcurr)
       
       incrate15to49.ts <- rvec[ts] * hivp.ii * (1 - (1-fp$relinfectART)*propart.ii) / (hivn.ii+hivp.ii) + fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)

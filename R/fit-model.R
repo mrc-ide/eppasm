@@ -187,7 +187,8 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps
 fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k = 500, opt_iter=0, 
                    sample_prior=eppasm:::sample.prior,
                    prior=eppasm:::prior,
-                   likelihood=eppasm:::likelihood){
+                   likelihood=eppasm:::likelihood,
+                   optfit=FALSE, opt_method="BFGS", opt_init=NULL){
 
   ## ... : updates to fixed parameters (fp) object to specify fitting options
 
@@ -244,6 +245,27 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
     fp <- prepare_logrw(fp)
   else if(fp$eppmod == "rlogistic_rw")
     fp <- prepare_rlogistic_rw(fp)
+
+  ## Fit using optimization
+  if(optfit){
+    optfn <- function(theta, fp, likdat) lprior(theta, fp) + ll(theta, fp, likdat)
+    if(is.null(opt_init)){
+      X0 <- sample_prior(B0, fp)
+      lpost0 <- likelihood(X0, fp, likdat, log=TRUE) + prior(X0, fp, log=TRUE)
+      opt_init <- X0[which.max(lpost0)[1],]
+    }
+    opt <- optim(opt_init, optfn, fp=fp, likdat=likdat, method=opt_method, control=list(fnscale=-1, trace=4, maxit=1e3))
+    opt$fp <- fp
+    opt$likdat <- likdat
+    opt$param <- fnCreateParam(opt$par, fp)
+    opt$mod <- simmod(update(fp, list=opt$param))
+    if(epp)
+      class(opt) <- "eppopt"
+    else
+      class(opt) <- "specopt"
+    
+    return(opt)
+  }
 
   ## If IMIS fails, start again
   fit <- try(stop(""), TRUE)

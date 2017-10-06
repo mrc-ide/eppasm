@@ -224,6 +224,8 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
   likdat <- prepare_likdat(eppd, fp)
 
+  fp$ancsitedata <- as.logical(length(likdat$anclik.dat$W.lst))
+
 
   ## Prepare the EPP model
   tsEpidemicStart <- if(epp) fp$tsEpidemicStart else fp$ss$time_epi_start+0.5

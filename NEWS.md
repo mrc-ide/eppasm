@@ -45,3 +45,4 @@
 # eppasm 0.3.2
 
 - Integrate random effects variance parameter out of likelihood.
+- Add optimization option to fitmod().

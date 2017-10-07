@@ -410,6 +410,7 @@ simmod.specfp <- function(fp, VERSION="C"){
 
     ## events at dt timestep
     for(ii in seq_len(hiv_steps_per_year)){
+
       grad <- array(0, c(hTS+1L, hDS, hAG, NG))
 
       ## HIV population size at ts
@@ -547,8 +548,8 @@ simmod.specfp <- function(fp, VERSION="C"){
           if(medcd4_idx > 1)
             elig_above <- elig_above + colSums(art15plus.elig[1:(medcd4_idx-1),,,drop=FALSE],,2)
           
-          initprob_below <- pmin(art15plus.inits * 0.5 / elig_below, 1.0)
-          initprob_above <- pmin(art15plus.inits * 0.5 / elig_above, 1.0)
+          initprob_below <- pmin(art15plus.inits * 0.5 / elig_below, 1.0, na.rm=TRUE)
+          initprob_above <- pmin(art15plus.inits * 0.5 / elig_above, 1.0, na.rm=TRUE)
           initprob_medcat <- initprob_below * medcat_propbelow + initprob_above * (1-medcat_propbelow)
 
           artinit <- array(0, dim=c(hDS, hAG, NG))

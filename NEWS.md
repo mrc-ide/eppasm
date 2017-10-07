@@ -40,9 +40,13 @@
 - Estimate HIV+:HIV- FRR adjustment.
 - Specify knot locations for o-spline model
 
+- Add functions to read country and subnational region from Spectrum PJN file.
+
 # eppasm 0.3.2
 
 - Integrate random effects variance parameter out of likelihood.
 - Implement hybrid o-spline and RW model for r(t).
 - Implement logistic model for log r(t) (rlogistic), and version with random walk (rlogistic_rw).
 - Add optimization option to fitmod().
+- Add option to fit without site-level ANC data.
+

@@ -335,7 +335,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   hivp_entrants_out <- array(0, c(NG, PROJ_YEARS))
 
   ## store last prevalence value (for r-trend model)
-  prevlast <- prevcurr <- 0
+  prevlast <- 0
 
 
   for(i in 2:fp$SIM_YEARS){
@@ -410,37 +410,18 @@ simmod.specfp <- function(fp, VERSION="C"){
 
     ## events at dt timestep
     for(ii in seq_len(hiv_steps_per_year)){
-      grad <- array(0, c(hTS+1L, hDS, hAG, NG))
 
-      ## HIV population size at ts
       ts <- (i-2)/DT + ii
 
-      hivn.ii <- sum(pop[p.age15to49.idx,,hivn.idx,i])
-      hivn.ii <- hivn.ii - sum(pop[p.age15to49.idx[1],,hivn.idx,i])*(1-DT*(ii-1))
-      hivn.ii <- hivn.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivn.idx,i])*(1-DT*(ii-1))
+      grad <- array(0, c(hTS+1L, hDS, hAG, NG))
 
-      hivp.ii <- sum(pop[p.age15to49.idx,,hivp.idx,i])
-      hivp.ii <- hivp.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i])*(1-DT*(ii-1))
-      hivp.ii <- hivp.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i])*(1-DT*(ii-1))
-
-      ## there is an approximation here since this is the 15-49 pop (doesn't account for the slight offset in age group)
-      propart.ii <- ifelse(hivp.ii > 0, sum(hivpop[-1,,h.age15to49.idx,,i])/sum(hivpop[,,h.age15to49.idx,,i]), 0)  
-
-      
       ## incidence
-
-      ## calculate r(t)
-      prevlast <- prevcurr
-      prev15to49.ts.out[ts] <- prevcurr <- hivp.ii / (hivn.ii+hivp.ii)
-      if(fp$eppmod %in% c("rtrend", "rtrend_rw"))
-        rvec[ts] <- calc.rt(fp$proj.steps[ts], fp, rvec[ts-1L], prevlast, prevcurr)
+      infections.ts <- calc_infections_eppspectrum(fp, pop, hivpop, i, ii, rvec[ts-1], prevlast)
       
-      incrate15to49.ts <- rvec[ts] * hivp.ii * (1 - (1-fp$relinfectART)*propart.ii) / (hivn.ii+hivp.ii) + fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
-      sexinc15to49.ts <- incrate15to49.ts*c(1, fp$incrr_sex[i])*sum(pop[p.age15to49.idx,,hivn.idx,i])/(sum(pop[p.age15to49.idx,m.idx,hivn.idx,i]) + fp$incrr_sex[i]*sum(pop[p.age15to49.idx, f.idx,hivn.idx,i]))
-      agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc15to49.ts/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$incrr_age[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
-      infections.ts <- agesex.inc * pop[,,hivn.idx,i]
-
-      incrate15to49.ts.out[ts] <- incrate15to49.ts
+      rvec[ts] <- attr(infections.ts, "rvec")
+      incrate15to49.ts.out[ts] <- attr(infections.ts, "incrate15to49.ts")
+      prev15to49.ts.out[ts] <- attr(infections.ts, "prevcurr")
+      prevlast <- attr(infections.ts, "prevcurr")
 
       pop[,,hivn.idx,i] <- pop[,,hivn.idx,i] - DT*infections.ts
       pop[,,hivp.idx,i] <- pop[,,hivp.idx,i] + DT*infections.ts
@@ -625,16 +606,6 @@ simmod.specfp <- function(fp, VERSION="C"){
   return(pop)
 }
 
-calc.rt <- function(t, fp, rveclast, prevlast, prevcurr){
-  if(t > fp$tsEpidemicStart){
-    par <- fp$rtrend
-    gamma.t <- if(t < par$tStabilize) 0 else (prevcurr-prevlast)*(t - par$tStabilize) / (fp$ss$DT*prevlast)
-    logr.diff <- par$beta[2]*(par$beta[1] - rveclast) + par$beta[3]*prevlast + par$beta[4]*gamma.t
-      return(exp(log(rveclast) + logr.diff))
-    } else
-      return(fp$rtrend$r0)
-}
-
 update.specfp <- epp::update.eppfp
 
 
@@ -764,6 +735,17 @@ calc_nqx.spec <- function(mod, fp, n=45, x=15, nonhiv=FALSE){
 pop15to49.spec <- function(mod){colSums(mod[1:35,,,],,3)}
 artpop15to49.spec <- function(mod){colSums(attr(mod, "artpop")[,,1:8,,],,4)}
 artpop15plus.spec <- function(mod){colSums(attr(mod, "artpop"),,4)}
-artcov15to49.spec <- function(mod){colSums(attr(mod, "artpop")[,,1:8,,],,4) / (colSums(attr(mod, "hivpop")[,1:8,,],,3) + colSums(attr(mod, "artpop")[,,1:8,,],,4))}
-artcov15plus.spec <- function(mod){colSums(attr(mod, "artpop"),,4) / (colSums(attr(mod, "hivpop"),,3) + colSums(attr(mod, "artpop"),,4))}
+
+artcov15to49.spec <- function(mod, sex=1:2){
+  n_art <- colSums(attr(mod, "artpop")[,,1:8,sex,,drop=FALSE],,4)
+  n_hiv <- colSums(attr(mod, "hivpop")[,1:8,sex,,drop=FALSE],,3)
+  return(n_art / (n_hiv+n_art))
+}
+
+artcov15plus.spec <- function(mod, sex=1:2){
+  n_art <- colSums(attr(mod, "artpop")[,,,sex,,drop=FALSE],,4)
+  n_hiv <- colSums(attr(mod, "hivpop")[,,sex,,drop=FALSE],,3)
+  return(n_art / (n_hiv+n_art))
+}
+
 age15pop.spec <- function(mod){colSums(mod[1,,,],,2)}

@@ -46,3 +46,8 @@
 - Implement hybrid o-spline and RW model for r(t).
 - Implement logistic model for log r(t) (rlogistic), and version with random walk (rlogistic_rw).
 - Add optimization option to fitmod().
+
+
+# eppasm 0.3.3
+
+- Modularize code for calculating new infections.

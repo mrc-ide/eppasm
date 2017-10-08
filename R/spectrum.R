@@ -287,10 +287,15 @@ prepare_ospline_model <- function(fp, numKnots=NULL, tsEpidemicStart=fp$ss$time_
 
 simmod.specfp <- function(fp, VERSION="C"){
 
+  if(!exists("popadjust", where=fp))
+    fp$popadjust <- FALSE
+
+  if(!exists("incidmod", where=fp))
+    fp$incidmod <- "eppspectrum"
+  
   if(VERSION != "R"){
     fp$eppmodInt <- as.integer(fp$eppmod == "rtrend") # 0: r-spline; 1: r-trend
-    if(!exists("popadjust", where=fp))
-      fp$popadjust <- FALSE
+    fp$incidmodInt <- match(fp$incidmod, c("eppspectrum", "transm"))-1L  # -1 for 0-based indexing
     mod <- .Call(spectrumC, fp)
     class(mod) <- "spec"
     return(mod)

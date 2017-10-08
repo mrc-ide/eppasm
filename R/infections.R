@@ -59,7 +59,7 @@ calc_infections_simpletransm <- function(fp, pop, hivpop, i, ii, r_ts){
                                c(0, 0)))
                         
 
-  hivp_noart.ii <- colSums(colSums(hivpop[1,,c(h.age15to49.idx, haM),,i]) * prop_include)
+  hivp_noart.ii <- colSums(colSums(sweep(hivpop[1,,c(h.age15to49.idx, haM),,i], 1, fp$relsexact_cd4cat, "*")) * prop_include)
   art.ii <- colSums(colSums(hivpop[-1,,c(h.age15to49.idx, haM),,i],,2) * prop_include)
   
   ## Prevalence of unsuppressed viral load among sexually active population

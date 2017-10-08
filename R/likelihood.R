@@ -188,6 +188,9 @@ ll_ancrtcens <- function(qM.preg, ancrtcens.dat, fp){
 sexincrr.pr.mean <- log(1.38)
 sexincrr.pr.sd <- 0.2
 
+mf_transm_rr.pr.mean <- log(1.9)
+mf_transm_rr.pr.sd <- 0.4
+
 ageincrr.pr.mean <- c(-1.40707274, -0.23518703, 0.69314718, 0.78845736, -0.39975544, -0.70620810, -0.84054571, -0.02101324, -0.16382449, -0.37914407, -0.59639985, -0.82038300)
 ageincrr.pr.sd <- 0.5
 
@@ -325,8 +328,12 @@ fnCreateParam <- function(theta, fp){
       
       param$sigma_agepen <- exp(theta_incrr[incrr_nparam])
 
-      param$incrr_sex <- fp$incrr_sex
-      param$incrr_sex[] <- exp(theta_incrr[1])
+      if(fp$incidmod == "eppspectrum"){
+        param$incrr_sex <- fp$incrr_sex
+        param$incrr_sex[] <- exp(theta_incrr[1])
+      } else if(fp$incidmod == "transm") {
+        param$mf_transm_rr <- exp(theta_incrr[1])
+      }
 
       param$logincrr_age <- array(0, c(7, 2))
       param$logincrr_age[-3,] <- theta_incrr[2:13]
@@ -343,9 +350,13 @@ fnCreateParam <- function(theta, fp){
       incrr_nparam <- 7
       theta_incrr <- theta[paramcurr+1:incrr_nparam]
       paramcurr <- paramcurr+incrr_nparam
-      
-      param$incrr_sex <- fp$incrr_sex
-      param$incrr_sex[] <- exp(theta_incrr[1])
+
+      if(fp$incidmod == "eppspectrum"){
+        param$incrr_sex <- fp$incrr_sex
+        param$incrr_sex[] <- exp(theta_incrr[1])
+      } else if(fp$incidmod == "transm") {
+        param$mf_transm_rr <- exp(theta_incrr[1])
+      }
 
       param$logincrr_age <- cbind(calc_lognorm_logagerr(theta_incrr[2:4]),
                                   calc_lognorm_logagerr(theta_incrr[5:7]))
@@ -639,8 +650,12 @@ lprior <- function(theta, fp){
     theta_incrr <- theta[paramcurr+1:incrr_nparam]
     paramcurr <- paramcurr+incrr_nparam
     
+    if(fp$incidmod == "eppspectrum")
+      lpr <- lpr + dnorm(theta_incrr[1], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE)
+    else if(fp$incidmod == "transm")
+      lpr <- lpr + dnorm(theta_incrr[1], mf_transm_rr.pr.mean, mf_transm_rr.pr.sd, log=TRUE)
+
     lpr <- lpr +
-      dnorm(theta_incrr[1], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE) +
       sum(dnorm(theta_incrr[2:13], ageincrr.pr.mean, ageincrr.pr.sd, log=TRUE)) +
       dnorm(theta_incrr[14], -1, 0.7, log=TRUE)
   }
@@ -650,8 +665,12 @@ lprior <- function(theta, fp){
     theta_incrr <- theta[paramcurr+1:incrr_nparam]
     paramcurr <- paramcurr+incrr_nparam
 
+    if(fp$incidmod == "eppspectrum")
+      lpr <- lpr + dnorm(theta_incrr[1], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE)
+    else if(fp$incidmod == "transm")
+      lpr <- lpr + dnorm(theta_incrr[1], mf_transm_rr.pr.mean, mf_transm_rr.pr.sd, log=TRUE)
+        
     lpr <- lpr +
-      dnorm(theta_incrr[1], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE) +
       sum(dnorm(theta_incrr[c(2,5)], lognorm.a0.pr.mean, lognorm.a0.pr.sd, log=TRUE)) +
       sum(dnorm(theta_incrr[c(3,6)], lognorm.meanlog.pr.mean, lognorm.meanlog.pr.sd, log=TRUE)) +
       sum(dnorm(theta_incrr[c(4,7)], lognorm.logsdlog.pr.mean, lognorm.logsdlog.pr.sd, log=TRUE))
@@ -846,12 +865,22 @@ sample.prior <- function(n, fp){
   
   if(exists("fitincrr", where=fp) && fp$fitincrr==TRUE){
     incrr_nparam <- 14
-    mat[,paramcurr+1] <- rnorm(n, sexincrr.pr.mean, sexincrr.pr.sd)
+
+    if(fp$incidmod == "eppspectrum")
+      mat[,paramcurr+1] <- rnorm(n, sexincrr.pr.mean, sexincrr.pr.sd)
+    else if(fp$incidmod == "transm")
+      mat[,paramcurr+1] <- rnorm(n, mf_transm_rr.pr.mean, mf_transm_rr.pr.sd)
+    
     mat[,paramcurr+2:13] <- t(matrix(rnorm(n*12, ageincrr.pr.mean, ageincrr.pr.sd), nrow=12))
     mat[,paramcurr+14] <- rnorm(n, -1, 0.7)  # log variance of ageincrr difference penalty
   } else if(exists("fitincrr", where=fp) && fp$fitincrr=="lognorm"){
     incrr_nparam <- 7
-    mat[,paramcurr+1] <- rnorm(n, sexincrr.pr.mean, sexincrr.pr.sd)
+
+    if(fp$incidmod == "eppspectrum")
+      mat[,paramcurr+1] <- rnorm(n, sexincrr.pr.mean, sexincrr.pr.sd)
+    else if(fp$incidmod == "transm")
+      mat[,paramcurr+1] <- rnorm(n, mf_transm_rr.pr.mean, mf_transm_rr.pr.sd)
+
     mat[,paramcurr+c(2,5)] <- t(matrix(rnorm(n*2, lognorm.a0.pr.mean, lognorm.a0.pr.sd), nrow=2))
     mat[,paramcurr+c(3,6)] <- t(matrix(rnorm(n*2, lognorm.meanlog.pr.mean, lognorm.meanlog.pr.sd), nrow=2))
     mat[,paramcurr+c(4,7)] <- t(matrix(rnorm(n*2, lognorm.logsdlog.pr.mean, lognorm.logsdlog.pr.sd), nrow=2))
@@ -947,8 +976,12 @@ ldsamp <- function(theta, fp){
     theta_incrr <- theta[paramcurr+1:incrr_nparam]
     paramcurr <- paramcurr+incrr_nparam
     
+    if(fp$incidmod == "eppspectrum")
+      lpr <- lpr + dnorm(theta_incrr[1], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE)
+    else if(fp$incidmod == "transm")
+      lpr <- lpr + dnorm(theta_incrr[1], mf_transm_rr.pr.mean, mf_transm_rr.pr.sd, log=TRUE)
+
     lpr <- lpr +
-      dnorm(theta_incrr[1], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE) +
       sum(dnorm(theta_incrr[2:13], ageincrr.pr.mean, ageincrr.pr.sd, log=TRUE)) +
       dnorm(theta_incrr[14], -1, 0.7, log=TRUE)
   }
@@ -958,8 +991,12 @@ ldsamp <- function(theta, fp){
     theta_incrr <- theta[paramcurr+1:incrr_nparam]
     paramcurr <- paramcurr+incrr_nparam
 
+    if(fp$incidmod == "eppspectrum")
+      lpr <- lpr + dnorm(theta_incrr[1], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE)
+    else if(fp$incidmod == "transm")
+      lpr <- lpr + dnorm(theta_incrr[1], mf_transm_rr.pr.mean, mf_transm_rr.pr.sd, log=TRUE)
+        
     lpr <- lpr +
-      dnorm(theta_incrr[1], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE) +
       sum(dnorm(theta_incrr[c(2,5)], lognorm.a0.pr.mean, lognorm.a0.pr.sd, log=TRUE)) +
       sum(dnorm(theta_incrr[c(3,6)], lognorm.meanlog.pr.mean, lognorm.meanlog.pr.sd, log=TRUE)) +
       sum(dnorm(theta_incrr[c(4,7)], lognorm.logsdlog.pr.mean, lognorm.logsdlog.pr.sd, log=TRUE))

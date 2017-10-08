@@ -39,7 +39,9 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ss$hTS <- 3                             # number of treatment stages (including untreated)
 
   ss$ag.idx <- rep(1:ss$hAG, ss$h.ag.span)
+  ss$agfirst.idx <- which(!duplicated(ss$ag.idx))
   ss$aglast.idx <- which(!duplicated(ss$ag.idx, fromLast=TRUE))
+
 
   ss$h.fert.idx <- which((AGE_START-1 + cumsum(ss$h.ag.span)) %in% 15:49)
   ss$h.age15to49.idx <- which((AGE_START-1 + cumsum(ss$h.ag.span)) %in% 15:49)
@@ -416,9 +418,19 @@ simmod.specfp <- function(fp, VERSION="C"){
       grad <- array(0, c(hTS+1L, hDS, hAG, NG))
 
       ## incidence
-      infections.ts <- calc_infections_eppspectrum(fp, pop, hivpop, i, ii, rvec[ts-1], prevlast)
+
+      ## calculate r(t)
+      if(fp$eppmod %in% c("rtrend", "rtrend_rw"))
+        rvec[ts] <- calc_rtrend_rt(fp$proj.steps[ts], fp, rvec[ts-1], prevlast, pop, i, ii)
+      else
+        rvec[ts] <- fp$rvec[ts]
+
+      ## number of infections by age / sex
+      if(exists("incidmod", where=fp) && fp$incidmod == "transm")
+        infections.ts <- calc_infections_simpletransm(fp, pop, hivpop, i, ii, rvec[ts])
+      else
+        infections.ts <- calc_infections_eppspectrum(fp, pop, hivpop, i, ii, rvec[ts])
       
-      rvec[ts] <- attr(infections.ts, "rvec")
       incrate15to49.ts.out[ts] <- attr(infections.ts, "incrate15to49.ts")
       prev15to49.ts.out[ts] <- attr(infections.ts, "prevcurr")
       prevlast <- attr(infections.ts, "prevcurr")

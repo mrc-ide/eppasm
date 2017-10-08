@@ -206,3 +206,32 @@ extend_projection <- function(fit, proj_years){
   }
   return(fit)
 }
+
+
+
+
+calc_rtrend_rt <- function(t, fp, rveclast, prevlast, pop, i, ii){
+
+  ## Attach state space variables
+  invisible(list2env(fp$ss, environment())) # put ss variables in environment for convenience
+
+  hivn.ii <- sum(pop[p.age15to49.idx,,hivn.idx,i])
+  hivn.ii <- hivn.ii - sum(pop[p.age15to49.idx[1],,hivn.idx,i])*(1-DT*(ii-1))
+  hivn.ii <- hivn.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivn.idx,i])*(1-DT*(ii-1))
+
+  hivp.ii <- sum(pop[p.age15to49.idx,,hivp.idx,i])
+  hivp.ii <- hivp.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i])*(1-DT*(ii-1))
+  hivp.ii <- hivp.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i])*(1-DT*(ii-1))
+
+  prevcurr <- hivp.ii / (hivn.ii + hivp.ii)
+
+  
+  if(t > fp$tsEpidemicStart){
+    par <- fp$rtrend
+    gamma.t <- if(t < par$tStabilize) 0 else (prevcurr-prevlast)*(t - par$tStabilize) / (fp$ss$DT*prevlast)
+    logr.diff <- par$beta[2]*(par$beta[1] - rveclast) + par$beta[3]*prevlast + par$beta[4]*gamma.t
+      return(exp(log(rveclast) + logr.diff))
+    } else
+      return(fp$rtrend$r0)
+}
+

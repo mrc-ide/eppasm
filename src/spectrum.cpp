@@ -605,7 +605,6 @@ extern "C" {
                   for(int hu = 0; hu < hTS; hu++)
                     frr_pop_ha += frr_art[t][ha-hIDX_FERT][hm][hu] * artpop[t][g][ha][hm][hu];
                 }
-
                 for(int hm = anyelig_idx; hm < cd4elig_idx; hm++){
                   double pw_elig_hahm = DT * births_by_ha[ha-hIDX_FERT] * frr_cd4[t][ha-hIDX_FERT][hm] * hivpop[t][g][ha][hm] / frr_pop_ha;
                   artelig_hahm[ha-hIDX_15PLUS][hm] += pw_elig_hahm;
@@ -662,8 +661,8 @@ extern "C" {
                   elig_below += artelig_hahm[ha-hIDX_15PLUS][hm];
               }
 
-              double initprob_below = artinit_hts * 0.5 / elig_below;
-              double initprob_above = artinit_hts * 0.5 / elig_above;
+              double initprob_below = elig_below > 0 ? artinit_hts * 0.5 / elig_below : 1.0;
+              double initprob_above = elig_below > 0 ? artinit_hts * 0.5 / elig_above : 1.0;
               double initprob_medcat = initprob_below * medcat_propbelow + initprob_above * (1.0-medcat_propbelow);
 
               for(int ha = hIDX_15PLUS; ha < hAG; ha++)
@@ -681,7 +680,7 @@ extern "C" {
                 }
 
             } else { // Use mixture of eligibility and expected mortality for initiation distribution
-
+	      
               for(int ha = hIDX_15PLUS; ha < hAG; ha++)
                 for(int hm = anyelig_idx; hm < hDS; hm++){
                   double artinit_hahm = artinit_hts * artelig_hahm[ha-hIDX_15PLUS][hm] * 0.5 * (1.0/Xartelig_15plus + cd4_mort[g][ha][hm] / expect_mort_artelig15plus);
@@ -690,10 +689,9 @@ extern "C" {
                   artpop[t][g][ha][hm][ART0MOS] += artinit_hahm;
                 }
             }
-
+	    
           }
         }
-
 
         // remove hivdeaths from pop
         for(int g = 0; g < NG; g++){

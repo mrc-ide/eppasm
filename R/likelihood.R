@@ -292,13 +292,17 @@ fnCreateParam <- function(theta, fp){
     param$rvec <- create_rvec(theta[1:fp$rt$n_param], fp$rt)
     param$iota <- exp(theta[fp$rt$n_param+1])
   }
-  
-  param$ancbias <- theta[epp_nparam+1]
-  if(!exists("v.infl", where=fp)){
-    anclik_nparam <- 2
-    param$v.infl <- exp(theta[epp_nparam+2])
-  } else
-    anclik_nparam <- 1
+
+  if(fp$ancsitedata){
+    param$ancbias <- theta[epp_nparam+1]
+    if(!exists("v.infl", where=fp)){
+      anclik_nparam <- 2
+      param$v.infl <- exp(theta[epp_nparam+2])
+    } else
+      anclik_nparam <- 1
+  }
+  else
+    anclik_nparam <- 0
   
   
   paramcurr <- epp_nparam+anclik_nparam
@@ -621,14 +625,17 @@ lprior <- function(theta, fp){
       bayes_lmvt(theta[4+1:fp$rt$n_rw], rw_prior_shape, rw_prior_rate) +
       dunif(theta[fp$rt$n_param+1], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
   }
-  
-  lpr <- lpr + dnorm(theta[epp_nparam+1], ancbias.pr.mean, ancbias.pr.sd, log=TRUE)
-  if(!exists("v.infl", where=fp)){
-    anclik_nparam <- 2
-    lpr <- lpr + dexp(exp(theta[epp_nparam+2]), vinfl.prior.rate, TRUE) + theta[epp_nparam+2]         # additional ANC variance
-  } else
-    anclik_nparam <- 1
 
+  if(fp$ancsitedata){
+    lpr <- lpr + dnorm(theta[epp_nparam+1], ancbias.pr.mean, ancbias.pr.sd, log=TRUE)
+    if(!exists("v.infl", where=fp)){
+      anclik_nparam <- 2
+      lpr <- lpr + dexp(exp(theta[epp_nparam+2]), vinfl.prior.rate, TRUE) + theta[epp_nparam+2]         # additional ANC variance
+    } else
+      anclik_nparam <- 1
+  } else
+    anclik_nparam <- 0
+    
   paramcurr <- epp_nparam+anclik_nparam
   if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
     lpr <- lpr + dnorm(theta[paramcurr+1], log_frr_adjust.pr.mean, log_frr_adjust.pr.sd, log=TRUE)
@@ -706,12 +713,10 @@ ll <- function(theta, fp, likdat){
     return(-Inf)
 
   ## ANC likelihood
-  if(exists("ancprev", where=fp) && !fp$ancprev)
-    ll.anc <- 0
-  else
+  if(fp$ancsitedata)
     ll.anc <- ll_anc(qM.preg, coef=c(fp$ancbias, fp$ancrtsite.beta), vinfl=fp$v.infl, likdat$anclik.dat)
-
-  
+  else
+    ll.anc <- 0
 
   if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both"))
     ll.ancrt <- ll_ancrtcens(qM.preg, likdat$ancrtcens.dat, fp)
@@ -776,10 +781,13 @@ sample.prior <- function(n, fp){
   else if(fp$eppmod == "rlogistic_rw")
     epp_nparam <- fp$rt$n_param+1
   
-  if(!exists("v.infl", fp))
-    anclik_nparam <- 2
+  if(fp$ancsitedata)
+    if(!exists("v.infl", fp))
+      anclik_nparam <- 2
+    else
+      anclik_nparam <- 1
   else
-    anclik_nparam <- 1
+    anclik_nparam <- 0
   
   if(exists("ancrt", fp) && fp$ancrt == "both")
     ancrt_nparam <- 2
@@ -843,9 +851,11 @@ sample.prior <- function(n, fp){
   }
 
   ## sample ANC bias paramters
-  mat[,epp_nparam+1] <- rnorm(n, ancbias.pr.mean, ancbias.pr.sd)   # ancbias parameter
-  if(!exists("v.infl", where=fp))
-    mat[,epp_nparam+2] <- log(rexp(n, vinfl.prior.rate))
+  if(fp$ancsitedata){
+    mat[,epp_nparam+1] <- rnorm(n, ancbias.pr.mean, ancbias.pr.sd)   # ancbias parameter
+    if(!exists("v.infl", where=fp))
+      mat[,epp_nparam+2] <- log(rexp(n, vinfl.prior.rate))
+  }
 
   ## sample ANCRT parameters
   paramcurr <- epp_nparam+anclik_nparam
@@ -947,13 +957,16 @@ ldsamp <- function(theta, fp){
       bayes_lmvt(theta[4+1:fp$rt$n_rw], rw_prior_shape, rw_prior_rate) +
       dunif(theta[fp$rt$n_param+1], logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
   }
-  
-  lpr <- lpr + dnorm(theta[epp_nparam+1], ancbias.pr.mean, ancbias.pr.sd, log=TRUE)
-  if(!exists("v.infl", where=fp)){
-    anclik_nparam <- 2
-    lpr <- lpr + dexp(exp(theta[epp_nparam+2]), vinfl.prior.rate, TRUE) + theta[epp_nparam+2]         # additional ANC variance
+
+  if(fp$ancsitedata){
+    lpr <- lpr + dnorm(theta[epp_nparam+1], ancbias.pr.mean, ancbias.pr.sd, log=TRUE)
+    if(!exists("v.infl", where=fp)){
+      anclik_nparam <- 2
+      lpr <- lpr + dexp(exp(theta[epp_nparam+2]), vinfl.prior.rate, TRUE) + theta[epp_nparam+2]         # additional ANC variance
+    } else
+      anclik_nparam <- 1
   } else
-    anclik_nparam <- 1
+    anclik_nparam <- 0
 
   paramcurr <- epp_nparam+anclik_nparam
     if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){

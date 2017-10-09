@@ -192,7 +192,7 @@ extend_projection <- function(fit, proj_years){
     idx1 <- 5  # start of random walk parameters
     idx2 <- 4+fp$rt$n_rw
     
-    theta <- fit$resample[,idx1:idx2]
+    theta <- fit$resample[,idx1:idx2, drop=FALSE]
     rw_sigma <- sqrt(sample_invgamma_post(theta, sh, rate))
 
     nsteps <- fpnew$rt$n_rw - fp$rt$n_rw
@@ -201,7 +201,7 @@ extend_projection <- function(fit, proj_years){
     thetanew[,1:ncol(theta)] <- theta
     thetanew[,ncol(theta)+1:nsteps] <- rnorm(nrow(theta)*nsteps, sd=rw_sigma)
 
-    fit$resample <- cbind(fit$resample[,1:4], thetanew, fit$resample[,(idx2+1):ncol(fit$resample)])
+    fit$resample <- cbind(fit$resample[,1:4, drop=FALSE], thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
     fit$fp <- fpnew
   }
   return(fit)

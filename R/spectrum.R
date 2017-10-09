@@ -51,7 +51,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
 
   fp <- list(ss=ss)
   fp$SIM_YEARS <- ss$PROJ_YEARS
-  fp$proj.steps <- proj_start + 0.5 + 0:(ss$hiv_steps_per_year * (ss$SIM_YEARS-1)) / ss$hiv_steps_per_year
+  fp$proj.steps <- proj_start + 0.5 + 0:(ss$hiv_steps_per_year * (fp$SIM_YEARS-1)) / ss$hiv_steps_per_year
   
   ## ######################## ##
   ##  Demographic parameters  ##
@@ -545,8 +545,8 @@ simmod.specfp <- function(fp, VERSION="C"){
           if(medcd4_idx > 1)
             elig_above <- elig_above + colSums(art15plus.elig[1:(medcd4_idx-1),,,drop=FALSE],,2)
           
-          initprob_below <- pmin(art15plus.inits * 0.5 / elig_below, 1.0)
-          initprob_above <- pmin(art15plus.inits * 0.5 / elig_above, 1.0)
+          initprob_below <- pmin(art15plus.inits * 0.5 / elig_below, 1.0, na.rm=TRUE)
+          initprob_above <- pmin(art15plus.inits * 0.5 / elig_above, 1.0, na.rm=TRUE)
           initprob_medcat <- initprob_below * medcat_propbelow + initprob_above * (1-medcat_propbelow)
 
           artinit <- array(0, dim=c(hDS, hAG, NG))

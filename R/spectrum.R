@@ -49,7 +49,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
 
   fp <- list(ss=ss)
   fp$SIM_YEARS <- ss$PROJ_YEARS
-  fp$proj.steps <- proj_start + 0.5 + 0:(ss$hiv_steps_per_year * (ss$SIM_YEARS-1)) / ss$hiv_steps_per_year
+  fp$proj.steps <- proj_start + 0.5 + 0:(ss$hiv_steps_per_year * (fp$SIM_YEARS-1)) / ss$hiv_steps_per_year
   
   ## ######################## ##
   ##  Demographic parameters  ##

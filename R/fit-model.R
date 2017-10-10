@@ -44,6 +44,9 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
   val <- set.list.attr(val, "country", attr(eppd, "country"))
   val <- set.list.attr(val, "region", names(eppd))
 
+  attr(val, "country") <- read_country(pjnz)
+  attr(val, "region") <- read_region(pjnz)
+
   return(val)
 }
 

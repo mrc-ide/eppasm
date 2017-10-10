@@ -179,12 +179,12 @@ extend_projection <- function(fit, proj_years){
   if(fp$eppmod == "rlogistic_rw"){
     fpnew <- prepare_rlogistic_rw(fpnew, rw_dk=diff(fp$rt$rw_knots[1:2]))
   
-    if(exists("rw_prior_shape", fp$prior_args))
+    if(exists("prior_args", fp) && exists("rw_prior_shape", fp$prior_args))
       sh <- fp$prior_args$rw_prior_shape
     else
       sh <- eppasm::rw_prior_shape
     
-    if(exists("rw_prior_scale", fp$prior_args))
+    if(exists("prior_args", fp) && exists("rw_prior_scale", fp$prior_args))
       rate <- fp$prior_args$rw_prior_rate
     else
       rate <- eppasm::rw_prior_rate

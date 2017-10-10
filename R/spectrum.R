@@ -207,7 +207,9 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ##     fp$paedsurv_lag[i+AGE_START] <- fp$paedsurv_lag[i+AGE_START] * (1 - hivqx[j, i+j-1])
   
   
-  fp$paedsurv_cd4dist <- c(0.056,0.112,0.112,0.07,0.14,0.23,0.28)
+  ## fp$paedsurv_cd4dist <- c(0.056,0.112,0.112,0.07,0.14,0.23,0.28)
+  fp$paedsurv_cd4dist <- c(0.25, 0.25, 0.25, 0.12, 0.08, 0.03, 0.02)  # distribution to give ~0.05 mortality rate among those entering 15+ age group
+  fp$paedsurv_artcd4dist <- c(0, 0, 0, 0, 1.0, 0.0, 0.0)  # put them all at CD4 100-200...to avoid mucking up the summation code
   
   fp$netmig_hivprob <- 0.4*0.22
   fp$netmighivsurv <- 0.25/0.22
@@ -356,17 +358,21 @@ simmod.specfp <- function(fp, VERSION="C"){
     pop[pAG,,,i] <- pop[pAG,,,i-1] + pop[pAG-1,,,i-1] # open age group
 
     ## Add lagged births into youngest age group
+    if(exists("entrantprev", where=fp))
+      entrant_prev <- fp$entrantprev[i]
+    else
+      entrant_prev <- pregprevlag[i-1]*fp$verttrans_lag[i-1]*fp$paedsurv_lag[i-1]
+
     if(exists("popadjust", where=fp) & fp$popadjust){
-        entrant_prev <- pregprevlag[i-1]*fp$verttrans_lag[i-1]*fp$paedsurv_lag[i-1]
       hivn_entrants <- fp$entrantpop[,i-1]*(1-entrant_prev)
       hivp_entrants <- fp$entrantpop[,i-1]*entrant_prev
     } else {
       if(exists("age15pop", where=fp)){
-        hivn_entrants <- fp$age15pop[1]*c(1.03, 1)/2.03*(1-pregprevlag[i-1]*fp$verttrans_lag[i-1])
-        hivp_entrants <- fp$age15pop[1]*c(1.03, 1)/2.03*pregprevlag[i-1]*fp$verttrans_lag[i-1]*fp$paedsurv_lag[i-1]
+        hivn_entrants <- fp$age15pop[1]*c(1.03, 1)/2.03*(1-entrant_prev / fp$paedsurv_lag[i-1])
+        hivp_entrants <- fp$age15pop[1]*c(1.03, 1)/2.03*entrant_prev
       } else {
-        hivn_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*(1-pregprevlag[i-1]*fp$verttrans_lag[i-1]) + fp$cumnetmigr[,i-1]*(1-pregprevlag[i-1]*fp$netmig_hivprob)
-        hivp_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*pregprevlag[i-1]*fp$verttrans_lag[i-1]*fp$paedsurv_lag[i-1] + fp$cumnetmigr[,i-1]*pregprevlag[i-1]*fp$netmig_hivprob*fp$netmighivsurv
+        hivn_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*(1-entrant_prev / fp$paedsurv_lag[i-1]) + fp$cumnetmigr[,i-1]*(1-pregprevlag[i-1]*fp$netmig_hivprob)
+        hivp_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*entrant_prev + fp$cumnetmigr[,i-1]*entrant_prev
       }
       entrant_prev <- sum(hivp_entrants) / sum(hivn_entrants+hivp_entrants)
     }
@@ -383,7 +389,8 @@ simmod.specfp <- function(fp, VERSION="C"){
     hivpop[,,,,i] <- hivpop[,,,,i-1]
     hivpop[,,-hAG,,i] <- hivpop[,,-hAG,,i] - sweep(hivpop[,,-hAG,,i-1], 3:4, hiv.ag.prob[-hAG,], "*")
     hivpop[,,-1,,i] <- hivpop[,,-1,,i] + sweep(hivpop[,,-hAG,,i-1], 3:4, hiv.ag.prob[-hAG,], "*")
-    hivpop[1,,1,,i] <- hivpop[1,,1,,i] + fp$paedsurv_cd4dist %o% hivp_entrants
+    hivpop[1,,1,,i] <- hivpop[1,,1,,i] + fp$paedsurv_cd4dist %o% hivp_entrants * (1-fp$entrantartcov[i])
+    hivpop[4,,1,,i] <- hivpop[4,,1,,i] + fp$paedsurv_artcd4dist %o% hivp_entrants * fp$entrantartcov[i] # assume all are 1+ years on ART
 
     ## survive the population
     deaths <- sweep(pop[,,,i], 1:2, (1-fp$Sx[,,i]), "*")

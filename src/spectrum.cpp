@@ -55,6 +55,7 @@ using namespace boost;
 
 // Function declarations
 SEXP getListElement(SEXP list, const char *str);
+int checkListElement(SEXP list, const char *str);
 
 double calc_rtrend_rt(const multi_array_ref<double, 4> pop, double rtrend_tstab, const double *rtrend_beta, double rtrend_r0,
 		      double projstep, double tsEpidemicStart, double DT, int t, int hts, double rveclast,
@@ -191,6 +192,27 @@ extern "C" {
     double netmighivsurv = *REAL(getListElement(s_fp, "netmighivsurv"));
     double *paedsurv_cd4dist = REAL(getListElement(s_fp, "paedsurv_cd4dist"));
 
+    double *entrantprev;
+    int use_entrantprev = checkListElement(s_fp, "entrantprev");
+    if(use_entrantprev)
+      entrantprev = REAL(getListElement(s_fp, "entrantprev"));
+
+    double *entrantartcov;
+    if(checkListElement(s_fp, "entrantartcov"))
+      entrantartcov = REAL(getListElement(s_fp, "entrantartcov"));
+    else {
+      entrantartcov = (double*) R_alloc(PROJ_YEARS, sizeof(double));
+      memset(entrantartcov, 0, PROJ_YEARS*sizeof(double));
+    }
+
+    double *paedsurv_artcd4dist;
+    if(checkListElement(s_fp, "paedsurv_artcd4dist"))
+      paedsurv_artcd4dist = REAL(getListElement(s_fp, "paedsurv_artcd4dist"));
+    else {
+      paedsurv_artcd4dist = (double*) R_alloc(hDS, sizeof(double));
+      memset(paedsurv_artcd4dist, 0, hDS*sizeof(double));
+    }
+    
     // initialize output
     SEXP s_pop = PROTECT(allocVector(REALSXP, pAG * NG * pDS * PROJ_YEARS));
     SEXP s_pop_dim = PROTECT(allocVector(INTSXP, 4));
@@ -384,13 +406,18 @@ extern "C" {
 
         double paedsurv_g;
         double entrant_prev;
+
+	if(use_entrantprev)
+	  entrant_prev = entrantprev[t];
+	else
+	  entrant_prev = pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1];
+	  
         if(bin_popadjust){
-          entrant_prev = pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1];
           pop[t][HIVN][g][0] =  entrantpop[t-1][g] * (1.0-entrant_prev);
           paedsurv_g = entrantpop[t-1][g] * entrant_prev;
         } else {
-          pop[t][HIVN][g][0] = birthslag[t-1][g] * cumsurv[t-1][g] * (1.0-pregprevlag[t-1] * verttrans_lag[t-1]) + cumnetmigr[t-1][g] * (1.0-pregprevlag[t-1] * netmig_hivprob);
-          paedsurv_g = birthslag[t-1][g] * cumsurv[t-1][g] * pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1] + cumnetmigr[t-1][g] * pregprevlag[t-1] * netmig_hivprob * netmighivsurv;
+          pop[t][HIVN][g][0] = birthslag[t-1][g] * cumsurv[t-1][g] * (1.0-entrant_prev / paedsurv_lag[t-1]) + cumnetmigr[t-1][g] * (1.0-pregprevlag[t-1] * netmig_hivprob);
+          paedsurv_g = birthslag[t-1][g] * cumsurv[t-1][g] * entrant_prev + cumnetmigr[t-1][g] * entrant_prev;
         }
 
         pop[t][HIVP][g][0] = paedsurv_g;
@@ -398,13 +425,14 @@ extern "C" {
         entrantprev_out[t] = (pop[t][HIVP][MALE][0] + pop[t][HIVP][FEMALE][0]) / (pop[t][HIVN][MALE][0] + pop[t][HIVN][FEMALE][0] + pop[t][HIVP][MALE][0] + pop[t][HIVP][FEMALE][0]);
 
         for(int hm = 0; hm < hDS; hm++){
-          hivpop[t][g][0][hm] = (1-hiv_ag_prob[g][0]) * hivpop[t-1][g][0][hm] + paedsurv_g * paedsurv_cd4dist[hm];
-          if(t > t_ART_start)
+          hivpop[t][g][0][hm] = (1-hiv_ag_prob[g][0]) * hivpop[t-1][g][0][hm] + paedsurv_g * paedsurv_cd4dist[hm] * (1.0 - entrantartcov[t]);
+          if(t > t_ART_start){
             for(int hu = 0; hu < hTS; hu++)
               artpop[t][g][0][hm][hu] = (1-hiv_ag_prob[g][0]) * artpop[t-1][g][0][hm][hu];
+	    artpop[t][g][0][hm][ART1YR] += paedsurv_g * paedsurv_artcd4dist[hm] * entrantartcov[t];
+	  }
         }
-      }
-
+      } 
 
       // non-HIV mortality and netmigration
       for(int g = 0; g < NG; g++){
@@ -850,6 +878,16 @@ SEXP getListElement(SEXP list, const char *str)
     error("%s missing from list", str);
 
   return elmt;
+}
+
+int checkListElement(SEXP list, const char *str)
+{
+  SEXP names = getAttrib(list, R_NamesSymbol);
+  for (int i = 0; i < length(list); i++ )
+    if (strcmp(CHAR(STRING_ELT(names, i)), str) == 0 )
+      return 1;
+
+  return 0;
 }
 
 

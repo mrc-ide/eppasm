@@ -54,3 +54,5 @@
 # eppasm 0.3.3
 
 - Modularize code for calculating new infections.
+
+- Implement age 15 entrant prevalence and ART coverage inputs.

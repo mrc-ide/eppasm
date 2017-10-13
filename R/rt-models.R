@@ -1,56 +1,68 @@
-prepare_hybrid_r <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5, rw_start=fp$rw_start){
-
+prepare_hybrid_r <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5, rw_start=fp$rw_start, rw_dk=NULL){
+  
   if(!exists("rtpenord", fp))
     fp$rtpenord <- 2L
-
+  
   if(is.null(rw_start))
     rw_start <- max(fp$proj.steps)
-
+  
   ## if(exists("knots", fp))
   ##   fp$numKnots <- length(fp$knots) - 4
 
   fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - tsEpidemicStart))]
-  spline_steps <- fp$proj.steps[fp$proj.steps >= fp$tsEpidemicStart & fp$proj.steps <= rw_start]
-  rw_steps <- fp$proj.steps[fp$proj.steps > rw_start & fp$proj.steps <= max(fp$proj.steps)]
 
   rt <- list()
+  rt$spline_steps <- fp$proj.steps[fp$proj.steps >= fp$tsEpidemicStart & fp$proj.steps <= rw_start]
+  rt$rw_steps <- fp$proj.steps[fp$proj.steps > rw_start & fp$proj.steps <= max(fp$proj.steps)]
+  
   rt$nsteps_preepi <- length(fp$proj.steps[fp$proj.steps < tsEpidemicStart])
-
+  
   if(!exists("n_splines", fp))
-    n_splines <- 5
+    n_splines <- 7
   else
     n_splines <- fp$n_splines
-
+  
   if(!exists("n_rw", fp))
-    n_rw <- ceiling(diff(range(rw_steps)))  ##
+    n_rw <- ceiling(diff(range(rt$rw_steps)))  ##
   else
     n_rw <- fp$n_rw
-
-
+  
+  
   rt$n_splines <- n_splines
   rt$n_rw <- n_rw
   rt$n_param <- rt$n_splines+rt$n_rw
-
+  
   fp$numKnots <- rt$n_splines+rt$n_rw
   
-  ## Use mgcv to setup cubic B-spline basis and design matrix with penalty absorbed
   if(rt$n_splines > 0){
     rt$spline_penord <- fp$rtpenord
-    rt$sm <- mgcv::smoothCon(mgcv::s(spline_steps, bs="bs", k=rt$n_splines, m=c(3, rt$spline_penord)),
-                             data.frame(spline_steps=spline_steps), knots=list(spline_steps=fp$knots), absorb.cons=TRUE, diagonal.penalty=TRUE)[[1]]
-    rt$splineX <- cbind(1, rt$sm$X[,c(ncol(rt$sm$X), 1:(ncol(rt$sm$X)-1))])
+    proj.dur <- diff(range(rt$spline_steps))
+    rvec.knots <- seq(min(rt$spline_steps) - 3*proj.dur/(rt$n_splines-3), max(rt$spline_steps) + 3*proj.dur/(rt$n_splines-3), proj.dur/(rt$n_splines-3))
+    
+    fp$splineX <- splines::splineDesign(rvec.knots, rt$spline_steps)
+    
+    m <- matrix(0, rt$n_splines, rt$n_splines)
+    m[,1] <- 1
+    for(i in 2:rt$n_splines)
+      m[i:rt$n_splines,i] <- 1:(rt$n_splines-i+1)
+
+    rt$splineX <- fp$splineX %*% m
   }
   
   ## Random walk design matrix
-  rt$rw_knots <- seq(min(rw_steps), max(rw_steps), length.out=n_rw+1)
-  rt$rwX <- outer(rw_steps, rt$rw_knots[1:n_rw], ">=")
+  if(!is.null(rw_dk))
+    rt$rw_knots <- seq(min(rt$rw_steps), max(rt$rw_steps)+rw_dk, by=rw_dk)
+  else 
+    rt$rw_knots <- seq(min(rt$rw_steps), max(rt$rw_steps), length.out=n_rw+1)
+  rt$rwX <- outer(rt$rw_steps, rt$rw_knots[1:n_rw], ">=")
   class(rt$rwX) <- "integer"
 
+  rt$eppmod <- "rhybrid"
   fp$rt <- rt
 
   fp$rvec.spldes <- rbind(matrix(0, rt$nsteps_preepi, fp$numKnots),
-                          cbind(rt$splineX, matrix(0, length(spline_steps), n_rw)),
-                          cbind(matrix(tail(rt$splineX, 1), nrow=length(rw_steps), ncol=n_splines, byrow=TRUE), rt$rwX))
+                          cbind(rt$splineX, matrix(0, length(rt$spline_steps), n_rw)),
+                          cbind(matrix(tail(rt$splineX, 1), nrow=length(rt$rw_steps), ncol=n_splines, byrow=TRUE), rt$rwX))
                                 
   if(!exists("eppmod", fp))
     fp$eppmod <- "rhybrid"
@@ -150,6 +162,12 @@ create_rvec <- function(theta, rt){
     rvec <- c(rvec, rvec[length(rt$rlogistic_steps)] + rt$rwX %*% theta[4+1:rt$n_rw])
     return(exp(rvec))
   }
+  if(rt$eppmod == "rhybrid"){
+    u <- theta[1:rt$n_splines]
+    rvec <- log(rt$splineX %*% u)
+    rvec <- c(rep(0, rt$nsteps_preepi), rvec, rvec[length(rvec)] + rt$rwX %*% theta[rt$n_splines+1:rt$n_rw])
+    return(exp(rvec))
+  }
 }
 
 
@@ -160,9 +178,6 @@ sample_invgamma_post <- function(x, prior_shape, prior_rate){
   1/rgamma(nrow(x), shape=prior_shape + ncol(x)/2,
            rate=prior_rate + 0.5*rowSums(x^2))
 }
-
-
-
 
 extend_projection <- function(fit, proj_years){
 
@@ -177,33 +192,37 @@ extend_projection <- function(fit, proj_years){
   fpnew$proj.steps <- with(fpnew$ss, seq(proj_start+0.5, proj_start-1+fpnew$SIM_YEARS+0.5, by=1/hiv_steps_per_year))
 
   if(fp$eppmod == "rlogistic_rw"){
-    fpnew <- prepare_rlogistic_rw(fpnew, rw_dk=diff(fp$rt$rw_knots[1:2]))
-  
-    if(exists("prior_args", fp) && exists("rw_prior_shape", fp$prior_args))
-      sh <- fp$prior_args$rw_prior_shape
-    else
-      sh <- eppasm::rw_prior_shape
-    
-    if(exists("prior_args", fp) && exists("rw_prior_scale", fp$prior_args))
-      rate <- fp$prior_args$rw_prior_rate
-    else
-      rate <- eppasm::rw_prior_rate
-
     idx1 <- 5  # start of random walk parameters
     idx2 <- 4+fp$rt$n_rw
-    
-    theta <- fit$resample[,idx1:idx2, drop=FALSE]
-    rw_sigma <- sqrt(sample_invgamma_post(theta, sh, rate))
-
-    nsteps <- fpnew$rt$n_rw - fp$rt$n_rw
-
-    thetanew <- matrix(nrow=nrow(theta), ncol=fpnew$rt$n_rw)
-    thetanew[,1:ncol(theta)] <- theta
-    thetanew[,ncol(theta)+1:nsteps] <- rnorm(nrow(theta)*nsteps, sd=rw_sigma)
-
-    fit$resample <- cbind(fit$resample[,1:4, drop=FALSE], thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
-    fit$fp <- fpnew
+    fpnew <- prepare_rlogistic_rw(fpnew, rw_dk=diff(fp$rt$rw_knots[1:2]))
+  } else if(fp$eppmod == "rhybrid"){
+    idx1 <- fp$rt$n_splines+1L # start of random walk parameters
+    idx2 <- fp$rt$n_splines+fp$rt$n_rw
+    fpnew <- prepare_hybrid_r(fpnew, rw_dk=diff(fp$rt$rw_knots[1:2]))
   }
+
+  if(exists("prior_args", fp) && exists("rw_prior_shape", fp$prior_args))
+    sh <- fp$prior_args$rw_prior_shape
+  else
+    sh <- eppasm::rw_prior_shape
+  
+  if(exists("prior_args", fp) && exists("rw_prior_scale", fp$prior_args))
+    rate <- fp$prior_args$rw_prior_rate
+  else
+    rate <- eppasm::rw_prior_rate
+  
+  theta <- fit$resample[,idx1:idx2, drop=FALSE]
+  rw_sigma <- sqrt(sample_invgamma_post(theta, sh, rate))
+  
+  nsteps <- fpnew$rt$n_rw - fp$rt$n_rw
+  
+  thetanew <- matrix(nrow=nrow(theta), ncol=fpnew$rt$n_rw)
+  thetanew[,1:ncol(theta)] <- theta
+  thetanew[,ncol(theta)+1:nsteps] <- rnorm(nrow(theta)*nsteps, sd=rw_sigma)
+  
+  fit$resample <- cbind(fit$resample[,1:(idx1-1), drop=FALSE], thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
+  fit$fp <- fpnew
+
   return(fit)
 }
 

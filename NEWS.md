@@ -56,3 +56,4 @@
 - Modularize code for calculating new infections.
 
 - Implement age 15 entrant prevalence and ART coverage inputs.
+- Implement logit transformation for sampling from uniform logiota prior distribution.

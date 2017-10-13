@@ -191,7 +191,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
                    sample_prior=eppasm:::sample.prior,
                    prior=eppasm:::prior,
                    likelihood=eppasm:::likelihood,
-                   optfit=FALSE, opt_method="BFGS", opt_init=NULL){
+                   optfit=FALSE, opt_method="BFGS", opt_init=NULL, opt_maxit=1000, opt_diffstep=1e-3){
 
   ## ... : updates to fixed parameters (fp) object to specify fitting options
 
@@ -250,6 +250,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   else if(fp$eppmod == "rlogistic_rw")
     fp <- prepare_rlogistic_rw(fp)
 
+  fp$logitiota = TRUE
 
   ## Prepare the incidence model
   if(exists("incidmod", where=fp) && fp$incidmod == "transm"){
@@ -266,7 +267,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
       lpost0 <- likelihood(X0, fp, likdat, log=TRUE) + prior(X0, fp, log=TRUE)
       opt_init <- X0[which.max(lpost0)[1],]
     }
-    opt <- optim(opt_init, optfn, fp=fp, likdat=likdat, method=opt_method, control=list(fnscale=-1, trace=4, maxit=1e3))
+    opt <- optim(opt_init, optfn, fp=fp, likdat=likdat, method=opt_method, control=list(fnscale=-1, trace=4, maxit=opt_maxit, ndeps=rep(opt_diffstep, length(opt_init))))
     opt$fp <- fp
     opt$likdat <- likdat
     opt$param <- fnCreateParam(opt$par, fp)

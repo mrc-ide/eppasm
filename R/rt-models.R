@@ -235,3 +235,54 @@ calc_rtrend_rt <- function(t, fp, rveclast, prevlast, pop, i, ii){
       return(fp$rtrend$r0)
 }
 
+
+
+
+####  Model for iota  ####
+
+
+logiota.unif.prior <- c(log(1e-14), log(0.0025))
+r0logiotaratio.unif.prior <- c(-25, -5)
+
+logit <- function(p) log(p/(1-p))
+invlogit <- function(x) 1/(1+exp(-x))
+ldinvlogit <- function(x){v <- invlogit(x); log(v) + log(1-v)}
+
+transf_iota <- function(par, fp){
+
+  if(exists("prior_args", where = fp)){
+    for(i in seq_along(fp$prior_args))
+      assign(names(fp$prior_args)[i], fp$prior_args[[i]])
+  }
+
+  if(exists("logitiota", fp) && fp$logitiota)
+    exp(invlogit(par)*diff(logiota.unif.prior) + logiota.unif.prior[1])
+  else
+    exp(par)  
+}
+
+lprior_iota <- function(par, fp){
+  ## !!! CHECK THIS FUNCTION IS DOING THE RIGHT THING
+  if(exists("prior_args", where = fp)){
+    for(i in seq_along(fp$prior_args))
+      assign(names(fp$prior_args)[i], fp$prior_args[[i]])
+  }
+
+  if(exists("logitiota", fp) && fp$logitiota)
+    ldinvlogit(par)
+  else
+    dunif(par, logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
+}
+
+sample_iota <- function(n, fp){
+  if(exists("prior_args", where = fp)){
+    for(i in seq_along(fp$prior_args))
+      assign(names(fp$prior_args)[i], fp$prior_args[[i]])
+  }
+  if(exists("logitiota", fp) && fp$logitiota)
+    return(logit(runif(n)))
+  else
+    runif(n, logiota.unif.prior[1], logiota.unif.prior[2])
+}
+
+ldsamp_iota <- lprior_iota

@@ -34,8 +34,8 @@ tau2_prior_shape <- 0.001   # Inverse gamma parameter for tau^2 prior for spline
 tau2_prior_rate <- 0.001
 muSS <- 1/11.5               #1/duration for r steady state prior
 
-rw_prior_shape <- 10
-rw_prior_rate <- 0.05
+rw_prior_shape <- 300
+rw_prior_rate <- 1.0
 
 
 ## r-trend prior parameters
@@ -241,7 +241,7 @@ fnCreateParam <- function(theta, fp){
   if(!exists("eppmod", where = fp))  # backward compatibility
     fp$eppmod <- "rspline"
   
-  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "rhybrid", "logrw")){
+  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "logrw")){
     epp_nparam <- fp$numKnots+1
 
     if(fp$eppmod %in% c("rspline", "logrspline")){
@@ -254,13 +254,13 @@ fnCreateParam <- function(theta, fp){
           beta[i] <- -beta[i-2] + 2*beta[i-1] + u[i]
       } else # first order penalty
         beta <- cumsum(u)
-    } else if(fp$eppmod %in% c("ospline", "logospline", "rhybrid", "logrw"))
+    } else if(fp$eppmod %in% c("ospline", "logospline", "logrw"))
       beta <- theta[1:fp$numKnots]
     
     param <- list(beta = beta,
                   rvec = as.vector(fp$rvec.spldes %*% beta))
     
-    if(fp$eppmod %in% c("logrspline", "logospline", "rhybrid", "logrw"))
+    if(fp$eppmod %in% c("logrspline", "logospline", "logrw"))
       param$rvec <- exp(param$rvec)
 
     if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
@@ -584,7 +584,7 @@ lprior <- function(theta, fp){
     if(fp$eppmod == "rhybrid")
       lpr <- bayes_lmvt(theta[(1+fp$rt$spline_penord):fp$rt$n_splines], tau2_prior_shape, tau2_prior_rate) +
         bayes_lmvt(theta[fp$rt$n_splines + 1:fp$rt$n_rw], rw_prior_shape, rw_prior_rate)
-    if(fp$eppmod == "logrw")
+    else if(fp$eppmod == "logrw")
       lpr <- bayes_lmvt(theta[2:fp$numKnots], rw_prior_shape, rw_prior_rate)
     else
       lpr <- bayes_lmvt(theta[(1+fp$rtpenord):nk], tau2_prior_shape, tau2_prior_rate)
@@ -677,8 +677,8 @@ ll <- function(theta, fp, likdat){
   } else
     ll.incpen <- 0
 
-  if (!exists("eppmod", where = fp) || fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline"))
-    if (min(fp$rvec) < 0 || max(fp$rvec) > 20) 
+  if (!exists("eppmod", where = fp) || fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "rhybrid"))
+    if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) 
         return(-Inf)
 
   
@@ -802,8 +802,7 @@ sample.prior <- function(n, fp){
     if(fp$eppmod == "rhybrid"){
       mat[,2:fp$rt$n_splines] <- bayes_rmvt(n, fp$rt$n_splines-1,tau2_init_shape, tau2_init_rate)
       mat[,fp$rt$n_splines+1:fp$rt$n_rw] <- bayes_rmvt(n, fp$rt$n_rw, rw_prior_shape, rw_prior_rate)  # u[2:numKnots]
-    }
-    if(fp$eppmod == "logrw"){
+    } else if(fp$eppmod == "logrw"){
       mat[,2:fp$rt$n_rw] <- bayes_rmvt(n, fp$rt$n_rw-1, rw_prior_shape, rw_prior_rate)  # u[2:numKnots]
     } else {
       mat[,2:fp$numKnots] <- bayes_rmvt(n, fp$numKnots-1,tau2_init_shape, tau2_init_rate)  # u[2:numKnots]

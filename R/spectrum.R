@@ -749,6 +749,36 @@ ageprev <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL)
 }
 
 
+ageincid <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL){
+
+  if(is.null(arridx)){
+    if(length(agspan)==1)
+      agspan <- rep(agspan, length(aidx))
+    
+    dims <- dim(mod)
+    idx <- expand.grid(aidx=aidx, sidx=sidx, yidx=yidx)
+    arridx_inf <- idx$aidx + (idx$sidx-1)*dims[1] + (idx$yidx-1)*dims[1]*dims[2]
+    arridx_hivn <- idx$aidx + (idx$sidx-1)*dims[1] + (pmax(idx$yidx-2, 0))*dims[1]*dims[2]
+    agspan <- rep(agspan, times=length(sidx)*length(yidx))
+  } else if(length(agspan)==1){
+    ## arridx_hivn  NEED ADJUST arridx FOR PREVIOUS YEAR
+    agspan <- rep(agspan, length(arridx))
+  }
+
+  agidx_inf <- rep(arridx_inf, agspan)
+  agidx_hivn <- rep(arridx_hivn, agspan)
+  allidx_inf <- agidx_inf + unlist(sapply(agspan, seq_len))-1
+  allidx_hivn <- agidx_hivn + unlist(sapply(agspan, seq_len))-1
+
+  inf <- fastmatch::ctapply(attr(mod, "infections")[allidx_inf], agidx_inf, sum)
+  hivn <- fastmatch::ctapply(mod[,,1,][allidx_hivn], agidx_hivn, sum)
+  
+  incid <- inf/hivn
+  if(!is.null(aidx))
+    incid <- array(incid, c(length(aidx), length(sidx), length(yidx)))
+  return(incid)
+}
+
 
 calc_nqx.spec <- function(mod, fp, n=45, x=15, nonhiv=FALSE){
   mx <- agemx(mod, nonhiv)

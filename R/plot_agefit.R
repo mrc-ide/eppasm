@@ -1,15 +1,25 @@
 plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=NULL, cols=c("grey30", "darkred", "darkgreen"), pages=1:3,
-                        agegr3dat = subset(prev.agegr3sex.nat, country==icountry)){
+                        agegr3dat = subset(prev_agegr3sex_nat, country==icountry), age15to49dat=NULL){
   if(1 %in% pages){
     par(oma=c(1, 1, 2.5, 1), mfrow=c(3, 2), mar=c(3.5, 3.5, 3, 1), tcl=-0.25, mgp=c(2.5, 0.5, 0), cex=1, las=1)
     ##
     ## prevalence trend
     if(!is.null(fit3))
-      plot_prev(fitaggr, fitincrr, fit3, col=cols)
+      plot_prev(fitaggr, fitincrr, fit3, col=cols, plotprevdat=is.null(age15to49dat))
     else
-      plot_prev(fitaggr, fitincrr, col=cols)
+      plot_prev(fitaggr, fitincrr, col=cols, plotprevdat=is.null(age15to49dat))
     if(!is.null(specres))
       lines(as.numeric(names(prev(specres))), prev(specres), lty=2, lwd=2, col="grey10")
+    if(!is.null(age15to49dat)){
+      if(!is.null(age15to49dat$prev_spec17)){
+          points(age15to49dat$year, age15to49dat$prev, pch=15, col="grey40")
+          points(age15to49dat$year, age15to49dat$prev_spec17, pch=19)
+          segments(age15to49dat$year, y0=age15to49dat$ci_l_spec17, y1=age15to49dat$ci_u_spec17)
+        } else {
+          points(age15to49dat$year, age15to49dat$prev, pch=19)
+          segments(age15to49dat$year, y0=age15to49dat$ci_l, y1=age15to49dat$ci_u)
+        }
+    }
     mtext("HIV prevalence, age 15-49y", 3, 0.5, font=2, cex=1.2)
     ##
     ## incidence trend
@@ -157,8 +167,14 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
           lines(xx, specres.prev, lty=2, lwd=2, col="grey10")
         }
         ##
-        points(survdat$year, survdat$prev, pch=19)
-        segments(survdat$year, y0=survdat$ci_l, y1=survdat$ci_u)
+        if(!is.null(survdat$prev_spec17)){
+          points(survdat$year, survdat$prev, pch=15, col="grey40")
+          points(survdat$year, survdat$prev_spec17, pch=19)
+          segments(survdat$year, y0=survdat$ci_l_spec17, y1=survdat$ci_u_spec17)
+        } else {
+          points(survdat$year, survdat$prev, pch=19)
+          segments(survdat$year, y0=survdat$ci_l, y1=survdat$ci_u)
+        }
       }
     }
     mtext(paste0(icountry, ", ", eppmod, "\nPrevalence trend by age group"), 3, 0, outer=TRUE, font=2, cex=1.3)

@@ -77,7 +77,7 @@ plot_compare_ageprev <- function(fit, fit2=NULL, fit3=NULL, specres=NULL, ylim=N
 
 
 
-plot_prev <- function(fit, ..., ylim=NULL, xlim=c(1980, with(fit$fp$ss, proj_start+PROJ_YEARS-1)), col="blue", main="", ylab="prevalence", plotancdata=FALSE){
+plot_prev <- function(fit, ..., ylim=NULL, xlim=c(1980, with(fit$fp$ss, proj_start+PROJ_YEARS-1)), col="blue", main="", ylab="prevalence", plotancdata=FALSE, plotprevdat=TRUE){
   if(is.null(ylim))
     ylim <- c(0, 1.1*max(apply(fit$prev, 1, quantile, 0.975)))
   xx <- fit$fp$ss$proj_start-1+1:fit$fp$ss$PROJ_YEARS
@@ -98,10 +98,12 @@ plot_prev <- function(fit, ..., ylim=NULL, xlim=c(1980, with(fit$fp$ss, proj_sta
     lines(xx, rowMeans(dots[[ii]]$prev), col=col[1+ii], lwd=1.5)
   lines(xx, rowMeans(fit$prev), col=col[1], lwd=1.5)
   ##
-  points(fit$likdat$hhslik.dat$year, fit$likdat$hhslik.dat$prev, pch=20)
-  segments(fit$likdat$hhslik.dat$year,
-           y0=pnorm(fit$likdat$hhslik.dat$W.hhs - qnorm(0.975)*fit$likdat$hhslik.dat$sd.W.hhs),
-           y1=pnorm(fit$likdat$hhslik.dat$W.hhs + qnorm(0.975)*fit$likdat$hhslik.dat$sd.W.hhs))
+  if(plotprevdat){
+    points(fit$likdat$hhslik.dat$year, fit$likdat$hhslik.dat$prev, pch=20)
+    segments(fit$likdat$hhslik.dat$year,
+             y0=pnorm(fit$likdat$hhslik.dat$W.hhs - qnorm(0.975)*fit$likdat$hhslik.dat$sd.W.hhs),
+             y1=pnorm(fit$likdat$hhslik.dat$W.hhs + qnorm(0.975)*fit$likdat$hhslik.dat$sd.W.hhs))
+  }
 }
 
 plot_incid <- function(fit, ..., ylim=NULL, xlim=c(1980, with(fit$fp$ss, proj_start+PROJ_YEARS-1)), col="blue", main="", ylab="incidence rate"){

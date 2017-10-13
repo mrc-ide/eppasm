@@ -57,3 +57,4 @@
 
 - Implement age 15 entrant prevalence and ART coverage inputs.
 - Implement logit transformation for sampling from uniform logiota prior distribution.
+- Set age IRR penalty variance at a fixed constant value (9003)

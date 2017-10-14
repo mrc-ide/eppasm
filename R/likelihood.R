@@ -337,7 +337,7 @@ fnCreateParam <- function(theta, fp){
         param$incrr_sex <- fp$incrr_sex
         param$incrr_sex[] <- exp(theta[paramcurr+1])
       } else if(fp$incidmod == "transm") {
-        param$mf_transm_rr <- exp(theta[paramcurr+1])
+        param$mf_transm_rr <- rep(exp(theta[paramcurr+1]), fp$ss$PROJ_YEARS)
       }
 
       if(fp$fitincrr==TRUE){

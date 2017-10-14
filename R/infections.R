@@ -66,9 +66,9 @@ calc_infections_simpletransm <- function(fp, pop, hivpop, i, ii, r_ts){
   hivtransm_prev <- (hivp_noart.ii + fp$relinfectART * art.ii) / (hivn.ii+hivp_noart.ii+art.ii)
   
   ## r_sex[1:2] is the transmission rate by (Men, Women)
-  r_sex <- c(sqrt(fp$mf_transm_rr), 1/sqrt(fp$mf_transm_rr)) * r_ts
+  r_sex <- c(sqrt(fp$mf_transm_rr[i]), 1/sqrt(fp$mf_transm_rr[i])) * r_ts
 
-  sexinc15to49.ts <- (r_sex * hivtransm_prev)[2:1] + fp$mf_transm_rr^c(-0.25, 0.25) * fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
+  sexinc15to49.ts <- (r_sex * hivtransm_prev)[2:1] + fp$mf_transm_rr[i]^c(-0.25, 0.25) * fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
   agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc15to49.ts/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$incrr_age[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
   infections.ts <- agesex.inc * pop[,,hivn.idx,i]
 

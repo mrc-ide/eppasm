@@ -69,7 +69,7 @@ void calc_infections_eppspectrum(const multi_array_ref<double, 4> pop, const mul
 
 void calc_infections_simpletransm(const multi_array_ref<double, 4> pop, const multi_array_ref<double, 4> hivpop, const multi_array_ref<double, 5> artpop,
 				  double r_ts, double relinfectART, double iota,
-				  double mf_transm_rr, const double *relsexact_cd4cat, const multi_array_ref<double, 3> incrr_age,
+				  const double *mf_transm_rr, const double *relsexact_cd4cat, const multi_array_ref<double, 3> incrr_age,
 				  int t_ART_start, double DT, int t, int hts, int *hAG_START, int *hAG_SPAN,
 				  double *prevcurr, double *incrate15to49_ts, double infections_ts[NG][pAG]);
   
@@ -156,12 +156,12 @@ extern "C" {
     // double *prev15to49 = REAL(getListElement(s_fp, "prev15to49"));
     int incidmod = *INTEGER(getListElement(s_fp, "incidmodInt"));
     double *incrr_sex;
-    double mf_transm_rr;
+    double *mf_transm_rr;
     double *relsexact_cd4cat;
     if(incidmod == INCIDMOD_EPPSPEC)
       incrr_sex = REAL(getListElement(s_fp, "incrr_sex"));
     else {
-      mf_transm_rr = *REAL(getListElement(s_fp, "mf_transm_rr"));
+      mf_transm_rr = REAL(getListElement(s_fp, "mf_transm_rr"));
       relsexact_cd4cat = REAL(getListElement(s_fp, "relsexact_cd4cat"));
     }
     
@@ -1001,7 +1001,7 @@ void calc_infections_eppspectrum(const multi_array_ref<double, 4> pop, const mul
 
 void calc_infections_simpletransm(const multi_array_ref<double, 4> pop, const multi_array_ref<double, 4> hivpop, const multi_array_ref<double, 5> artpop,
 				  double r_ts, double relinfectART, double iota,
-				  double mf_transm_rr, const double *relsexact_cd4cat, const multi_array_ref<double, 3> incrr_age,
+				  const double *mf_transm_rr, const double *relsexact_cd4cat, const multi_array_ref<double, 3> incrr_age,
 				  int t_ART_start, double DT, int t, int hts, int *hAG_START, int *hAG_SPAN,
 				  double *prevcurr, double *incrate15to49_ts, double infections_ts[NG][pAG])
 {
@@ -1067,8 +1067,8 @@ void calc_infections_simpletransm(const multi_array_ref<double, 4> pop, const mu
 
   // incidence by sex
   double incrate15to49_g[NG];
-  incrate15to49_g[MALE] = r_ts * pow(mf_transm_rr, -0.5) * (Chivp_noart[FEMALE] + relinfectART * Cart[FEMALE]) / Ctot[FEMALE] + pow(mf_transm_rr, -0.25) * iota;
-  incrate15to49_g[FEMALE] = r_ts * pow(mf_transm_rr, 0.5) * (Chivp_noart[MALE] + relinfectART * Cart[MALE]) / Ctot[MALE] + pow(mf_transm_rr, 0.25) * iota;
+  incrate15to49_g[MALE] = r_ts * pow(mf_transm_rr[t], -0.5) * (Chivp_noart[FEMALE] + relinfectART * Cart[FEMALE]) / Ctot[FEMALE] + pow(mf_transm_rr[t], -0.25) * iota;
+  incrate15to49_g[FEMALE] = r_ts * pow(mf_transm_rr[t], 0.5) * (Chivp_noart[MALE] + relinfectART * Cart[MALE]) / Ctot[MALE] + pow(mf_transm_rr[t], 0.25) * iota;
 
   // incrate15to49_g[MALE] = r_ts * pow(mf_transm_rr, -0.5) * (Xhivp_noart[FEMALE] + relinfectART * Xart[FEMALE]) / Xtot[FEMALE] + pow(mf_transm_rr, -0.25) * iota;
   // incrate15to49_g[FEMALE] = r_ts * pow(mf_transm_rr, 0.5) * (Xhivp_noart[MALE] + relinfectART * Xart[MALE]) / Xtot[MALE] + pow(mf_transm_rr, 0.25) * iota;

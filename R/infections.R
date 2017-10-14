@@ -29,6 +29,12 @@ calc_infections_eppspectrum <- function(fp, pop, hivpop, i, ii, r_ts){
   agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc15to49.ts/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$incrr_age[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
   infections.ts <- agesex.inc * pop[,,hivn.idx,i]
 
+  ## distribute new infections according to Beer's coefficients
+  if(exists("irr", fp) && exists("Amat", fp$irr)){
+    infections.ts <- fp$irr$Amat %*% apply(infections.ts, 2, fastmatch::ctapply, ceiling(seq_len(fp$ss$pAG)/5), sum)
+    infections.ts <- pmax(infections.ts, 0)
+  }
+
   attr(infections.ts, "incrate15to49.ts") <- incrate15to49.ts
   attr(infections.ts, "prevcurr") <- hivp.ii / (hivn.ii+hivp.ii)
 
@@ -78,6 +84,52 @@ calc_infections_simpletransm <- function(fp, pop, hivpop, i, ii, r_ts){
   return(infections.ts)
 }
 
+## Beers coefficients to distribute infections from 5-year age groups to single-year of age
+create_beers <- function(n5yr){
+
+  ## Beer's coefficients for disaggregating 5 year age groups into
+  ## single-year age groups (from John Stover)
+  Afirst <- rbind(c(0.3333, -0.1636, -0.0210,  0.0796, -0.0283),
+                  c(0.2595, -0.0780,  0.0130,  0.0100, -0.0045),
+                  c(0.1924,  0.0064,  0.0184, -0.0256,  0.0084),
+                  c(0.1329,  0.0844,  0.0054, -0.0356,  0.0129),
+                  c(0.0819,  0.1508, -0.0158, -0.0284,  0.0115))
+  Asecond <- rbind(c( 0.0404,  0.2000, -0.0344, -0.0128,  0.0068),
+                   c( 0.0093,  0.2268, -0.0402,  0.0028,  0.0013),
+                   c(-0.0108,  0.2272, -0.0248,  0.0112, -0.0028),
+                   c(-0.0198,  0.1992,  0.0172,  0.0072, -0.0038),
+                   c(-0.0191,  0.1468,  0.0822, -0.0084, -0.0015))
+  Amid <- rbind(c(-0.0117,  0.0804,  0.1570, -0.0284,  0.0027),
+                c(-0.0020,  0.0160,  0.2200, -0.0400,  0.0060),
+                c( 0.0050, -0.0280,  0.2460, -0.0280,  0.0050),
+                c( 0.0060, -0.0400,  0.2200,  0.0160, -0.0020),
+                c( 0.0027, -0.0284,  0.1570,  0.0804, -0.0117))
+  Apenult <- rbind(c(-0.0015, -0.0084,  0.0822,  0.1468, -0.0191),
+                   c(-0.0038,  0.0072,  0.0172,  0.1992, -0.0198),
+                   c(-0.0028,  0.0112, -0.0248,  0.2272, -0.0108),
+                   c( 0.0013,  0.0028, -0.0402,  0.2268,  0.0093),
+                   c( 0.0068, -0.0128, -0.0344,  0.2000,  0.0404))
+  Aultim <- rbind(c( 0.0115, -0.0284, -0.0158,  0.1508,  0.0819),
+                  c( 0.0129, -0.0356,  0.0054,  0.0844,  0.1329),
+                  c( 0.0084, -0.0256,  0.0184,  0.0064,  0.1924),
+                  c(-0.0045,  0.0100,  0.0130, -0.0780,  0.2595),
+                  c(-0.0283,  0.0796, -0.0210, -0.1636,  0.3333))
+
+  A <- do.call(rbind,
+               c(list(cbind(Afirst, matrix(0, 5, n5yr-5)),
+                      cbind(Asecond, matrix(0, 5, n5yr-5))),
+                 lapply(0:(n5yr-6), function(i) cbind(matrix(0, 5, i), Amid, matrix(0, 5, (n5yr-5)-i))),
+                 list(cbind(matrix(0, 5, n5yr-6), Apenult, matrix(0, 5, 1)),
+                      cbind(matrix(0, 5, n5yr-6), Aultim, matrix(0, 5, 1)),
+                      c(rep(0, n5yr-1), 1))))
+  return(round(A, 4))
+}
+
+prepare_irr_model <- function(fp){
+  irr <- list()
+  return(fp)
+}
+  
 
 ################################################
 ####  Prior for incidence rate ratio model  ####
@@ -130,11 +182,11 @@ transf_incrr <- function(theta_incrr, param, fp){
     param$incrr_age[fp$ss$p.age15to49.idx,,] <- apply(exp(param$logincrr_age), 2, rep, each=5)
     param$incrr_age[36:66,,] <- sweep(fp$incrr_age[36:66,,fp$ss$PROJ_YEARS], 2,
                                       param$incrr_age[35,,fp$ss$PROJ_YEARS]/fp$incrr_age[35,,fp$ss$PROJ_YEARS], "*")
-    
+
+    years <- with(fp$ss, proj_start+1:PROJ_YEARS-1)
     if(fp$fitincrr == "linincrr"){
       par <- theta_incrr[NPARAM_RW2+1:NPARAM_LININCRR]
       param$logincrr_trend <- par
-      years <- with(fp$ss, proj_start+1:PROJ_YEARS-1)
       sexadjust <- approx(c(2002, 2007, 2012), c(-5, 0, 5)*c(par[1], 0, par[2]), years, rule=2)$y
       if(fp$incidmod == "eppspectrum")
         param$incrr_sex <- param$incrr_sex * exp(sexadjust)
@@ -144,9 +196,16 @@ transf_incrr <- function(theta_incrr, param, fp){
       ## adjustment to age IRRs among 15-24
       m15to24_adjust <- approx(c(2002, 2007, 2012), c(-5, 0, 5)*c(par[3], 0, par[4]), years, rule=2)$y
       f15to24_adjust <- approx(c(2002, 2007, 2012), c(-5, 0, 5)*c(par[5], 0, par[6]), years, rule=2)$y
-      param$incrr_age[1:10,,] <- sweep(param$incrr_age[1:10,,,drop=FALSE], 2:3, exp(rbind(m15to24_adjust, f15to24_adjust)), "*")
+      param$incrr_age[1:10,,] <- sweep(param$incrr_age[1:10,,,drop=FALSE], 2:3, exp(rbind(m15to24_adjust, f15to24_adjust)), "*")      
     }
-
+    ## cubic spline interpolation of age IRRs
+    ## note: this is really slow and not very good. Need to figure out something better
+    smooth_irr <- function(x){
+      exp(spline(2:15*5+2, c(-5, log(x[0:12*5+1])), xout=15:80)$y)
+    }
+    idx <- approx(c(2002, 2012), c(1,11), years, rule=2)$y
+    param$incrr_age <- apply(param$incrr_age[,,2002-fp$ss$proj_start + 1:11], 2:3, smooth_irr)[,,idx]
+    
   } else if(fp$fitincrr=="lognorm"){
     param$logincrr_age <- cbind(calc_lognorm_logagerr(theta_incrr[2:4]),
                                 calc_lognorm_logagerr(theta_incrr[5:7]))

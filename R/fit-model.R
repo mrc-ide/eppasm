@@ -259,6 +259,8 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   } else
     fp$incidmod <- "eppspectrum"
 
+  fp <- prepare_irr_model(fp)
+
   ## Fit using optimization
   if(optfit){
     optfn <- function(theta, fp, likdat) lprior(theta, fp) + ll(theta, fp, likdat)

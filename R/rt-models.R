@@ -260,7 +260,7 @@ calc_rtrend_rt <- function(t, fp, rveclast, prevlast, pop, i, ii){
 ####  Model for iota  ####
 
 
-logiota.unif.prior <- c(log(1e-14), log(0.0025))
+logiota.unif.prior <- c(log(1e-14), 0)
 r0logiotaratio.unif.prior <- c(-25, -5)
 
 logit <- function(p) log(p/(1-p))

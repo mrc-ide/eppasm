@@ -58,3 +58,7 @@
 - Implement age 15 entrant prevalence and ART coverage inputs.
 - Implement logit transformation for sampling from uniform logiota prior distribution.
 - Set age IRR penalty variance at a fixed constant value (9003)
+
+- Implement piecewise-linear time-varying M:F incidence/transmission ratio
+  and 15-24 incidence rate ratio. Knots fixed at 2002, 2007, and 2012.
+- Modularize code for incidence rate ratio parameterization, now in infections.R.      

@@ -17,17 +17,18 @@ plot_compare_ageprev <- function(fit, fit2=NULL, fit3=NULL, specres=NULL, ylim=N
   ####
   survprev <- data.frame(fit$likdat$hhsage.dat,
                          estci(fit$ageprevdat))
-  survprev <- split(survprev, factor(survprev$year))
+  survprev$survyear <- with(survprev, factor(survyear, levels(survyear)[order(as.integer(substr(levels(survyear), 1, 4)))]))
+  survprev <- split(survprev, factor(survprev$survyear))
   ##
   if(!is.null(fit2)){
     survprev2 <- data.frame(fit2$likdat$hhsage.dat,
                             estci(fit2$ageprevdat))
-    survprev2 <- split(survprev2, factor(survprev2$year))
+    survprev2 <- split(survprev2, factor(survprev2$survyear))
   }
   if(!is.null(fit3)){
     survprev3 <- data.frame(fit3$likdat$hhsage.dat,
                             estci(fit3$ageprevdat))
-    survprev3 <- split(survprev3, factor(survprev3$year))
+    survprev3 <- split(survprev3, factor(survprev3$survyear))
   }
   ##
   par(mfrow=c(4,2), mar=c(2, 3, 2, 1), tcl=-0.25, mgp=c(2, 0.5, 0), las=1, cex=1)

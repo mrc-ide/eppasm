@@ -181,15 +181,6 @@ ll_ancrtcens <- function(qM.preg, ancrtcens.dat, fp){
 ###################################
 ####  Age/sex incidence model  ####
 ###################################
-sexincrr.pr.mean <- log(1.38)
-sexincrr.pr.sd <- 0.2
-
-mf_transm_rr.pr.mean <- log(1.9)
-mf_transm_rr.pr.sd <- 0.4
-
-NPARAM_RW2 <- 13
-ageincrr.pr.mean <- c(-1.40707274, -0.23518703, 0.69314718, 0.78845736, -0.39975544, -0.70620810, -0.84054571, -0.02101324, -0.16382449, -0.37914407, -0.59639985, -0.82038300)
-ageincrr.pr.sd <- 0.5
 
 ## log-normal age incrr prior parameters
 lognorm.a0.pr.mean <- 10
@@ -331,79 +322,27 @@ fnCreateParam <- function(theta, fp){
   }
 
   if(inherits(fp, "specfp")){
-    if(exists("fitincrr", where=fp) && fp$fitincrr %in% c(TRUE, "lognorm", "relbehav")){
-
-      if(fp$incidmod == "eppspectrum"){
-        param$incrr_sex <- fp$incrr_sex
-        param$incrr_sex[] <- exp(theta[paramcurr+1])
-      } else if(fp$incidmod == "transm") {
-        param$mf_transm_rr <- rep(exp(theta[paramcurr+1]), fp$ss$PROJ_YEARS)
-      }
-
-      if(fp$fitincrr==TRUE){
-        incrr_nparam <- NPARAM_RW2
-        theta_incrr <- theta[paramcurr+1:incrr_nparam]
-        paramcurr <- paramcurr+incrr_nparam
-
-        ## param$sigma_agepen <- exp(theta_incrr[incrr_nparam])
-        param$sigma_agepen <- 0.4
-
-        param$logincrr_age <- array(0, c(7, 2))
-        param$logincrr_age[-3,] <- theta_incrr[2:13]
-
-        param$incrr_age <- fp$incrr_age
-        if(exists("linincrr", where=fp) && fp$linincrr)
-          param$incrr_age[fp$ss$p.age15to49.idx,,] <- exp(apply(param$logincrr_age, 2, function(x) approx(3:9*5, x, 15:49, rule=2)$y))
-        else
-          param$incrr_age[fp$ss$p.age15to49.idx,,] <- apply(exp(param$logincrr_age), 2, rep, each=5)
-        param$incrr_age[36:66,,] <- sweep(fp$incrr_age[36:66,,fp$ss$PROJ_YEARS], 2,
-                                          param$incrr_age[35,,fp$ss$PROJ_YEARS]/fp$incrr_age[35,,fp$ss$PROJ_YEARS], "*")
-      } else if(fp$fitincrr=="lognorm"){
-        incrr_nparam <- 7
-        theta_incrr <- theta[paramcurr+1:incrr_nparam]
-        paramcurr <- paramcurr+incrr_nparam
-
-        param$logincrr_age <- cbind(calc_lognorm_logagerr(theta_incrr[2:4]),
-                                    calc_lognorm_logagerr(theta_incrr[5:7]))
-        param$incrr_age <- fp$incrr_age
-        param$incrr_age[,,] <- apply(exp(param$logincrr_age), 2, rep, c(rep(5, 13), 1))
-
-      } else if(fp$fitincrr == "relbehav"){
-        incrr_nparam <- NPAR_RELBEHAV
-        par <- theta[paramcurr+2:incrr_nparam]
-        paramcurr <- paramcurr+incrr_nparam
-
-        param$adjustpar <- par
-        logadjust1 <- cbind(approx(c(17, 27, 38, 49), c(par[1], 0, cumsum(par[2:3])), xout=15:80, rule=2)$y,
-                            approx(c(17, 27, 38, 49), c(par[4], 0, cumsum(par[5:6])), xout=15:80, rule=2)$y)
-
-        logadjust2 <- cbind(approx(c(17, 27, 38, 49), c(par[1]+par[7], 0, cumsum(par[2:3])), xout=15:80, rule=2)$y,
-                            approx(c(17, 27, 38, 49), c(par[4]+par[8], 0, cumsum(par[5:6])), xout=15:80, rule=2)$y)
-
-        BREAK_YEAR <- 36
-        param$incrr_age <- fp$logrelbehav
-        param$incrr_age[,,1:(BREAK_YEAR-1)] <- exp(sweep(fp$logrelbehav[,,1:(BREAK_YEAR-1)], 1:2, logadjust1, "+"))
-        param$incrr_age[,,BREAK_YEAR:fp$SIM_YEARS] <- exp(sweep(fp$logrelbehav[,,BREAK_YEAR:fp$SIM_YEARS], 1:2, logadjust2, "+"))
-      }
-      
-    } else
-      incrr_nparam <- 0
-
-    if(exists("natmx", where=fp) && fp$fitmx==TRUE){
-      natmx_nparam <- 3
-      theta_natmx <- theta[paramcurr+1:natmx_nparam]
-      paramcurr <- paramcurr+natmx_nparam
-
-      b0 <- theta_natmx[1]
-      b1 <- theta_natmx[2]/10
-      mx_lsexrat <- theta_natmx[3]
-
-      param$natmx_par <- list(b0=b0, b1=b1, mx_lsexrat=mx_lsexrat)
-      param$Sx <- with(fp$natmx, exp(-exp(outer(sweep(logmx0, 2, c(0, mx_lsexrat), "+"), b0 + b1*x, "+"))))
+    if(exists("fitincrr", where=fp)){
+      incrr_nparam <- getnparam_incrr(fp)
+      if(incrr_nparam)
+        param <- transf_incrr(theta[paramcurr+1:incrr_nparam], param, fp)
+      paramcurr <- paramcurr+incrr_nparam
     }
-
   }
 
+  if(exists("natmx", where=fp) && fp$fitmx==TRUE){
+    natmx_nparam <- 3
+    theta_natmx <- theta[paramcurr+1:natmx_nparam]
+    paramcurr <- paramcurr+natmx_nparam
+    
+    b0 <- theta_natmx[1]
+    b1 <- theta_natmx[2]/10
+    mx_lsexrat <- theta_natmx[3]
+    
+      param$natmx_par <- list(b0=b0, b1=b1, mx_lsexrat=mx_lsexrat)
+    param$Sx <- with(fp$natmx, exp(-exp(outer(sweep(logmx0, 2, c(0, mx_lsexrat), "+"), b0 + b1*x, "+"))))
+  }
+  
   return(param)
 }
 
@@ -669,40 +608,15 @@ lprior <- function(theta, fp){
     paramcurr <- paramcurr+1
   }
 
-  if(exists("fitincrr", where=fp) && fp$fitincrr %in% c(TRUE, "lognorm", "relbehav")){
-
-    if(fp$incidmod == "eppspectrum")
-      lpr <- lpr + dnorm(theta[paramcurr+1], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE)
-    else if(fp$incidmod == "transm")
-      lpr <- lpr + dnorm(theta[paramcurr+1], mf_transm_rr.pr.mean, mf_transm_rr.pr.sd, log=TRUE)
-
-    if(fp$fitincrr == TRUE){
-      incrr_nparam <- NPARAM_RW2
-      theta_incrr <- theta[paramcurr+1:incrr_nparam]
+  if(exists("fitincrr", where=fp)){
+    incrr_nparam <- getnparam_incrr(fp)
+    if(incrr_nparam){
+      lpr <- lpr + lprior_incrr(theta[paramcurr+1:incrr_nparam], fp)
       paramcurr <- paramcurr+incrr_nparam
-
-      lpr <- lpr +
-        sum(dnorm(theta_incrr[2:13], ageincrr.pr.mean, ageincrr.pr.sd, log=TRUE))
-        ## dnorm(theta_incrr[14], -1, 0.7, log=TRUE)
-    } else if(fp$fitincrr=="lognorm"){
-      incrr_nparam <- 7
-      theta_incrr <- theta[paramcurr+1:incrr_nparam]
-      paramcurr <- paramcurr+incrr_nparam
-
-      lpr <- lpr +
-        sum(dnorm(theta_incrr[c(2,5)], lognorm.a0.pr.mean, lognorm.a0.pr.sd, log=TRUE)) +
-        sum(dnorm(theta_incrr[c(3,6)], lognorm.meanlog.pr.mean, lognorm.meanlog.pr.sd, log=TRUE)) +
-        sum(dnorm(theta_incrr[c(4,7)], lognorm.logsdlog.pr.mean, lognorm.logsdlog.pr.sd, log=TRUE))
-    } else if(fp$fitincrr=="relbehav"){
-      incrr_nparam <- NPAR_RELBEHAV
-      par <- theta[paramcurr+2:incrr_nparam]
-      paramcurr <- paramcurr+incrr_nparam
-
-      lpr <- lpr + sum(dnorm(par, 0, relbehav_adjust_sd, log=TRUE));
     }
   }
-    
-    return(lpr)
+  
+  return(lpr)
 }
 
 
@@ -821,10 +735,9 @@ sample.prior <- function(n, fp){
 
   nparam <- epp_nparam+anclik_nparam+ancrt_nparam
 
-  if(exists("fitincrr", where=fp) && fp$fitincrr==TRUE) nparam <- nparam+NPARAM_RW2
-  if(exists("fitincrr", where=fp) && fp$fitincrr=="lognorm") nparam <- nparam+7
-  if(exists("fitincrr", where=fp) && fp$fitincrr=="relbehav") nparam <- nparam+NPAR_RELBEHAV
+  if(exists("fitincrr", where=fp)) nparam <- nparam+getnparam_incrr(fp)
 
+  
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
 
@@ -890,29 +803,12 @@ sample.prior <- function(n, fp){
     paramcurr <- paramcurr+1
   }
 
-  if(exists("fitincrr", where=fp) && fp$fitincrr %in% c(TRUE, "lognorm", "relbehav")){
-    if(fp$incidmod == "eppspectrum")
-      mat[,paramcurr+1] <- rnorm(n, sexincrr.pr.mean, sexincrr.pr.sd)
-    else if(fp$incidmod == "transm")
-      mat[,paramcurr+1] <- rnorm(n, mf_transm_rr.pr.mean, mf_transm_rr.pr.sd)
-
-    if(fp$fitincrr == TRUE){
-      incrr_nparam <- NPARAM_RW2
-      mat[,paramcurr+2:13] <- t(matrix(rnorm(n*12, ageincrr.pr.mean, ageincrr.pr.sd), nrow=12))
-      ## mat[,paramcurr+14] <- rnorm(n, -1, 0.7)  # log variance of ageincrr difference penalty
-    } else if(fp$fitincrr=="lognorm"){
-      incrr_nparam <- 7
-      
-      mat[,paramcurr+c(2,5)] <- t(matrix(rnorm(n*2, lognorm.a0.pr.mean, lognorm.a0.pr.sd), nrow=2))
-      mat[,paramcurr+c(3,6)] <- t(matrix(rnorm(n*2, lognorm.meanlog.pr.mean, lognorm.meanlog.pr.sd), nrow=2))
-      mat[,paramcurr+c(4,7)] <- t(matrix(rnorm(n*2, lognorm.logsdlog.pr.mean, lognorm.logsdlog.pr.sd), nrow=2))
-    } else if(fp$fitincrr=="relbehav"){
-      incrr_nparam <- NPAR_RELBEHAV
-      mat[,paramcurr+2:NPAR_RELBEHAV] <- rnorm(n*(NPAR_RELBEHAV-1), 0, relbehav_adjust_sd)
-    }
-  } else
-    incrr_nparam <- 0
-  paramcurr <- paramcurr+incrr_nparam
+  if(exists("fitincrr", where=fp)){
+    incrr_nparam <- getnparam_incrr(fp)
+    if(incrr_nparam)
+      mat[,paramcurr+1:incrr_nparam] <- sample_incrr(n, fp)
+    paramcurr <- paramcurr+incrr_nparam
+  }
 
   return(mat)
 }
@@ -999,37 +895,11 @@ ldsamp <- function(theta, fp){
     paramcurr <- paramcurr+1
   }
 
-
-  if(exists("fitincrr", where=fp) && fp$fitincrr %in% c(TRUE, "lognorm", "relbehav")){
-
-    if(fp$incidmod == "eppspectrum")
-      lpr <- lpr + dnorm(theta[paramcurr+1], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE)
-    else if(fp$incidmod == "transm")
-      lpr <- lpr + dnorm(theta[paramcurr+1], mf_transm_rr.pr.mean, mf_transm_rr.pr.sd, log=TRUE)
-
-    if(fp$fitincrr == TRUE){
-      incrr_nparam <- NPARAM_RW2
-      theta_incrr <- theta[paramcurr+1:incrr_nparam]
+  if(exists("fitincrr", where=fp)){
+    incrr_nparam <- getnparam_incrr(fp)
+    if(incrr_nparam){
+      lpr <- lpr + ldsamp_incrr(theta[paramcurr+1:incrr_nparam], fp)
       paramcurr <- paramcurr+incrr_nparam
-
-      lpr <- lpr +
-        sum(dnorm(theta_incrr[2:13], ageincrr.pr.mean, ageincrr.pr.sd, log=TRUE))
-        ## dnorm(theta_incrr[14], -1, 0.7, log=TRUE)
-    } else if(fp$fitincrr=="lognorm"){
-      incrr_nparam <- 7
-      theta_incrr <- theta[paramcurr+1:incrr_nparam]
-      paramcurr <- paramcurr+incrr_nparam
-
-      lpr <- lpr +
-        sum(dnorm(theta_incrr[c(2,5)], lognorm.a0.pr.mean, lognorm.a0.pr.sd, log=TRUE)) +
-        sum(dnorm(theta_incrr[c(3,6)], lognorm.meanlog.pr.mean, lognorm.meanlog.pr.sd, log=TRUE)) +
-        sum(dnorm(theta_incrr[c(4,7)], lognorm.logsdlog.pr.mean, lognorm.logsdlog.pr.sd, log=TRUE))
-    } else if(fp$fitincrr=="relbehav"){
-      incrr_nparam <- NPAR_RELBEHAV
-      par <- theta[paramcurr+2:incrr_nparam]
-      paramcurr <- paramcurr+incrr_nparam
-
-      lpr <- lpr + sum(dnorm(par, 0, relbehav_adjust_sd, log=TRUE));
     }
   }
   

@@ -780,6 +780,80 @@ ageincid <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL
 }
 
 
+ageinfections <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL){
+
+  if(is.null(arridx)){
+    if(length(agspan)==1)
+      agspan <- rep(agspan, length(aidx))
+    
+    dims <- dim(mod)
+    idx <- expand.grid(aidx=aidx, sidx=sidx, yidx=yidx)
+    arridx_inf <- idx$aidx + (idx$sidx-1)*dims[1] + (idx$yidx-1)*dims[1]*dims[2]
+    arridx_hivn <- idx$aidx + (idx$sidx-1)*dims[1] + (pmax(idx$yidx-2, 0))*dims[1]*dims[2]
+    agspan <- rep(agspan, times=length(sidx)*length(yidx))
+  } else if(length(agspan)==1){
+    ## arridx_hivn  NEED ADJUST arridx FOR PREVIOUS YEAR
+    agspan <- rep(agspan, length(arridx))
+  }
+
+  agidx_inf <- rep(arridx_inf, agspan)
+  allidx_inf <- agidx_inf + unlist(sapply(agspan, seq_len))-1
+
+  inf <- fastmatch::ctapply(attr(mod, "infections")[allidx_inf], agidx_inf, sum)
+  
+  if(!is.null(aidx))
+    inf <- array(inf, c(length(aidx), length(sidx), length(yidx)))
+  return(inf)
+}
+
+ageartcov <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL,
+                      h.ag.span=c(2, 3, 5, 5, 5, 5, 5, 5, 31)){
+  
+  if(is.null(arridx)){
+    if(length(agspan)==1)
+      agspan <- rep(agspan, length(aidx))
+    
+    dims <- dim(mod)
+    idx <- expand.grid(aidx=aidx, sidx=sidx, yidx=yidx)
+    arridx <- idx$aidx + (idx$sidx-1)*dims[1] + (idx$yidx-1)*dims[1]*dims[2]
+    agspan <- rep(agspan, times=length(sidx)*length(yidx))
+  } else {
+    stop("NOT YET IMPLEMENTED FOR arridx inputs")
+    if(length(agspan)==1)
+      agspan <- rep(agspan, length(arridx))
+  }
+  
+  agidx <- rep(arridx, agspan)
+  sidx.ag <- rep(idx$sidx, agspan)
+  yidx.ag <- rep(idx$yidx, agspan)
+  allidx <- agidx + unlist(sapply(agspan, seq_len))-1
+
+  h.ag.idx <- rep(seq_along(h.ag.span), h.ag.span)
+  haidx <- h.ag.idx[rep(idx$aidx, agspan) + unlist(sapply(agspan, seq_len))-1]
+
+  ## ART coverage with HA age groups
+  artpop <- colSums(attr(mod, "artpop"),,2)
+  artcov <- artpop / (artpop + colSums(attr(mod, "hivpop"),,1))
+
+  hdim <- dim(artcov)
+  hallidx <- haidx + (sidx.ag-1)*hdim[1] + (yidx.ag-1)*hdim[1]*hdim[2]
+
+  artp <- fastmatch::ctapply(mod[,,2,][allidx]*artcov[hallidx], agidx, sum) # number on ART
+  hivp <- fastmatch::ctapply(mod[,,2,][allidx], agidx, sum)
+  
+  artcov <- artp/hivp
+  if(!is.null(aidx))
+    artcov <- array(artcov, c(length(aidx), length(sidx), length(yidx)))
+  return(artcov)
+}
+
+
+incid_sexratio.spec <- function(mod){
+  inc <- ageincid(mod, 1, 1:2, seq_len(dim(mod)[4]), 35)[,,]
+  inc[2,] / inc[1,]
+}
+
+
 calc_nqx.spec <- function(mod, fp, n=45, x=15, nonhiv=FALSE){
   mx <- agemx(mod, nonhiv)
   return(1-exp(-colSums(mx[x+1:n-fp$ss$AGE_START,,])))

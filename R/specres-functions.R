@@ -75,3 +75,16 @@ ageprev.specres <- function(specres, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, 
     prev <- array(prev, c(length(aidx), length(sidx), length(yidx)))
   return(prev)
 }
+
+
+## MAYBE NEED TO CORRECT THIS FUNCTION FOR SUSCEPTIBLES YEAR EARLIER
+incid_sexratio.specres <- function(x){
+  incid.m <- colSums(x$newinf.m[4:10,]) / colSums(x$totpop.m[4:10,] - x$hivnum.m[4:10,])
+  incid.f <- colSums(x$newinf.f[4:10,]) / colSums(x$totpop.f[4:10,] - x$hivnum.f[4:10,])
+  return(incid.f / incid.m)
+}
+
+
+fnPregPrev.specres <- function(specres){
+  specres$hivpregwomen / specres$births
+}

@@ -5,6 +5,8 @@ prev <- function(mod, ...) UseMethod("prev")
 fnPregPrev <- function(mod, fp, ...) UseMethod("fnPregPrev")
 incid <- function(mod, ...) UseMethod("incid")
 
+incid_sexratio <- function(mod, ...) UseMethod("incid_sexratio")
+
 agemx <- function(mod, ...) UseMethod("agemx")
 natagemx <- function(mod, ...) UseMethod("natagemx")
 calc_nqx <- function(mod, ...) UseMethod("calc_nqx")

@@ -250,7 +250,7 @@ lprior_incrr <- function(theta_incrr, fp){
     ## dnorm(theta_incrr[14], -1, 0.7, log=TRUE)
 
     if(fp$fitincrr == "linincrr"){
-      lpr <- lpr+sum(dnorm(theta_incrr[NPARAM_RW2+1], incrr_trend_mean, incrr_trend_sd, log=TRUE))
+      lpr <- lpr+sum(dnorm(theta_incrr[NPARAM_RW2+1:NPARAM_LININCRR], incrr_trend_mean, incrr_trend_sd, log=TRUE))
     }
 
     } else if(fp$fitincrr=="lognorm"){

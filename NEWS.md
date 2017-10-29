@@ -48,4 +48,20 @@
 - Implement hybrid r-spline and RW model for r(t).
 - Implement logistic model for log r(t) (rlogistic), and version with random walk (rlogistic_rw).
 - Add optimization option to fitmod().
+
 - Add option to fit without site-level ANC data.
+
+# eppasm 0.3.3
+
+- Modularize code for calculating new infections.
+
+- Implement age 15 entrant prevalence and ART coverage inputs.
+- Implement logit transformation for sampling from uniform logiota prior distribution.
+- Set age IRR penalty variance at a fixed constant value (9003)
+
+- Implement piecewise-linear time-varying M:F incidence/transmission ratio
+  and 15-24 incidence rate ratio. Knots fixed at 2002, 2007, and 2012.
+- Modularize code for incidence rate ratio parameterization, now in infections.R.
+
+- Updated default IRR priors to informative priors based on fits countries with several surveys.
+- Add function to generate summary model outputs

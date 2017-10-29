@@ -47,9 +47,32 @@
 #define EPP_RSPLINE 0
 #define EPP_RTREND 1
 
+#define INCIDMOD_EPPSPEC 0
+#define INCIDMOD_TRANSM 1
 
+using namespace boost;
+
+
+// Function declarations
 SEXP getListElement(SEXP list, const char *str);
+int checkListElement(SEXP list, const char *str);
 
+double calc_rtrend_rt(const multi_array_ref<double, 4> pop, double rtrend_tstab, const double *rtrend_beta, double rtrend_r0,
+		      double projstep, double tsEpidemicStart, double DT, int t, int hts, double rveclast,
+		      double *prevlast, double *prevcurr);
+
+void calc_infections_eppspectrum(const multi_array_ref<double, 4> pop, const multi_array_ref<double, 4> hivpop, const multi_array_ref<double, 5> artpop,
+				 double r_ts, double relinfectART, double iota,
+                                 double *incrr_sex, const multi_array_ref<double, 3> incrr_age,
+				 int t_ART_start, double DT, int t, int hts, int *hAG_START, int *hAG_SPAN,
+				 double *prevcurr, double *incrate15to49_ts, double infections_ts[NG][pAG]);
+
+void calc_infections_simpletransm(const multi_array_ref<double, 4> pop, const multi_array_ref<double, 4> hivpop, const multi_array_ref<double, 5> artpop,
+				  double r_ts, double relinfectART, double iota,
+				  const double *mf_transm_rr, const double *relsexact_cd4cat, const multi_array_ref<double, 3> incrr_age,
+				  int t_ART_start, double DT, int t, int hts, int *hAG_START, int *hAG_SPAN,
+				  double *prevcurr, double *incrate15to49_ts, double infections_ts[NG][pAG]);
+  
 extern "C" {
 
   SEXP checkBoostAsserts(){
@@ -131,7 +154,17 @@ extern "C" {
 
     // incidence model
     // double *prev15to49 = REAL(getListElement(s_fp, "prev15to49"));
-    double *incrr_sex = REAL(getListElement(s_fp, "incrr_sex"));
+    int incidmod = *INTEGER(getListElement(s_fp, "incidmodInt"));
+    double *incrr_sex;
+    double *mf_transm_rr;
+    double *relsexact_cd4cat;
+    if(incidmod == INCIDMOD_EPPSPEC)
+      incrr_sex = REAL(getListElement(s_fp, "incrr_sex"));
+    else {
+      mf_transm_rr = REAL(getListElement(s_fp, "mf_transm_rr"));
+      relsexact_cd4cat = REAL(getListElement(s_fp, "relsexact_cd4cat"));
+    }
+    
     multi_array_ref<double, 3> incrr_age(REAL(getListElement(s_fp, "incrr_age")), extents[PROJ_YEARS][NG][pAG]);
 
     double relinfectART = *REAL(getListElement(s_fp, "relinfectART"));
@@ -159,6 +192,27 @@ extern "C" {
     double netmighivsurv = *REAL(getListElement(s_fp, "netmighivsurv"));
     double *paedsurv_cd4dist = REAL(getListElement(s_fp, "paedsurv_cd4dist"));
 
+    double *entrantprev;
+    int use_entrantprev = checkListElement(s_fp, "entrantprev");
+    if(use_entrantprev)
+      entrantprev = REAL(getListElement(s_fp, "entrantprev"));
+
+    double *entrantartcov;
+    if(checkListElement(s_fp, "entrantartcov"))
+      entrantartcov = REAL(getListElement(s_fp, "entrantartcov"));
+    else {
+      entrantartcov = (double*) R_alloc(PROJ_YEARS, sizeof(double));
+      memset(entrantartcov, 0, PROJ_YEARS*sizeof(double));
+    }
+
+    double *paedsurv_artcd4dist;
+    if(checkListElement(s_fp, "paedsurv_artcd4dist"))
+      paedsurv_artcd4dist = REAL(getListElement(s_fp, "paedsurv_artcd4dist"));
+    else {
+      paedsurv_artcd4dist = (double*) R_alloc(hDS, sizeof(double));
+      memset(paedsurv_artcd4dist, 0, hDS*sizeof(double));
+    }
+    
     // initialize output
     SEXP s_pop = PROTECT(allocVector(REALSXP, pAG * NG * pDS * PROJ_YEARS));
     SEXP s_pop_dim = PROTECT(allocVector(INTSXP, 4));
@@ -352,13 +406,18 @@ extern "C" {
 
         double paedsurv_g;
         double entrant_prev;
+
+	if(use_entrantprev)
+	  entrant_prev = entrantprev[t];
+	else
+	  entrant_prev = pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1];
+	  
         if(bin_popadjust){
-          entrant_prev = pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1];
           pop[t][HIVN][g][0] =  entrantpop[t-1][g] * (1.0-entrant_prev);
           paedsurv_g = entrantpop[t-1][g] * entrant_prev;
         } else {
-          pop[t][HIVN][g][0] = birthslag[t-1][g] * cumsurv[t-1][g] * (1.0-pregprevlag[t-1] * verttrans_lag[t-1]) + cumnetmigr[t-1][g] * (1.0-pregprevlag[t-1] * netmig_hivprob);
-          paedsurv_g = birthslag[t-1][g] * cumsurv[t-1][g] * pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1] + cumnetmigr[t-1][g] * pregprevlag[t-1] * netmig_hivprob * netmighivsurv;
+          pop[t][HIVN][g][0] = birthslag[t-1][g] * cumsurv[t-1][g] * (1.0-entrant_prev / paedsurv_lag[t-1]) + cumnetmigr[t-1][g] * (1.0-pregprevlag[t-1] * netmig_hivprob);
+          paedsurv_g = birthslag[t-1][g] * cumsurv[t-1][g] * entrant_prev + cumnetmigr[t-1][g] * entrant_prev;
         }
 
         pop[t][HIVP][g][0] = paedsurv_g;
@@ -366,13 +425,14 @@ extern "C" {
         entrantprev_out[t] = (pop[t][HIVP][MALE][0] + pop[t][HIVP][FEMALE][0]) / (pop[t][HIVN][MALE][0] + pop[t][HIVN][FEMALE][0] + pop[t][HIVP][MALE][0] + pop[t][HIVP][FEMALE][0]);
 
         for(int hm = 0; hm < hDS; hm++){
-          hivpop[t][g][0][hm] = (1-hiv_ag_prob[g][0]) * hivpop[t-1][g][0][hm] + paedsurv_g * paedsurv_cd4dist[hm];
-          if(t > t_ART_start)
+          hivpop[t][g][0][hm] = (1-hiv_ag_prob[g][0]) * hivpop[t-1][g][0][hm] + paedsurv_g * paedsurv_cd4dist[hm] * (1.0 - entrantartcov[t]);
+          if(t > t_ART_start){
             for(int hu = 0; hu < hTS; hu++)
               artpop[t][g][0][hm][hu] = (1-hiv_ag_prob[g][0]) * artpop[t-1][g][0][hm][hu];
+	    artpop[t][g][0][hm][ART1YR] += paedsurv_g * paedsurv_artcd4dist[hm] * entrantartcov[t];
+	  }
         }
-      }
-
+      } 
 
       // non-HIV mortality and netmigration
       for(int g = 0; g < NG; g++){
@@ -464,69 +524,36 @@ extern "C" {
 
         // incidence
 
-        // sum population sizes
-        double Xhivn_g[NG], Xhivn_incagerr[NG], Xhivp_noart = 0.0, Xart = 0.0;
-        for(int g = 0; g < NG; g++){
-          Xhivn_g[g] = 0.0;
-          Xhivn_incagerr[g] = 0.0;
-          for(int a = pIDX_15TO49; a < pIDX_15TO49+pAG_15TO49; a++){
-            Xhivn_g[g] += pop[t][HIVN][g][a];
-            Xhivn_incagerr[g] += incrr_age[t][g][a] * pop[t][HIVN][g][a];
-          }
-          for(int ha = hIDX_15TO49; ha < hIDX_15TO49+hAG_15TO49; ha++)
-            for(int hm = 0; hm < hDS; hm++){
-              Xhivp_noart += hivpop[t][g][ha][hm];
-              if(t >= t_ART_start)
-                for(int hu = 0; hu < hTS; hu++)
-                  Xart += artpop[t][g][ha][hm][hu];
-            }
-        }
-        double Xhivn = Xhivn_g[MALE] + Xhivn_g[FEMALE];
-        double Xhivp = Xhivp_noart + Xart;
-        double prop_art_ts = Xhivp > 0 ? Xart / Xhivp : 0.0;
-
-        // adjust HIV population for partial year time step
-        for(int g = 0; g < NG; g++){
-          Xhivn -= pop[t][HIVN][g][pIDX_15TO49] * (1.0 - DT*hts);
-          Xhivp -= pop[t][HIVP][g][pIDX_15TO49] * (1.0 - DT*hts);
-          Xhivn += pop[t][HIVN][g][pIDX_15TO49+pAG_15TO49] * (1.0 - DT*hts);
-          Xhivp += pop[t][HIVP][g][pIDX_15TO49+pAG_15TO49] * (1.0 - DT*hts);
-        }
-
-        double Xtot = Xhivn + Xhivp;
-
-        prevlast = prevcurr;
-        prevcurr = Xhivp / Xtot;
+	// calculate r(t)
+	if(eppmod == EPP_RSPLINE)
+	  rvec[ts] = rspline_rvec[ts];
+	else
+	  rvec[ts] = calc_rtrend_rt(pop, rtrend_tstab, rtrend_beta, rtrend_r0,
+				    projsteps[ts], tsEpidemicStart, DT, t, hts,
+				    rvec[ts-1], &prevlast, &prevcurr);
+	
+	// calculate new infections by sex and age
+        double infections_ts[NG][pAG];
+	if(incidmod == INCIDMOD_EPPSPEC)
+	  calc_infections_eppspectrum(pop, hivpop, artpop,
+				      rvec[ts], relinfectART, (projsteps[ts] == tsEpidemicStart) ? iota : 0.0,
+				      incrr_sex, incrr_age, t_ART_start, DT, t, hts, hAG_START, hAG_SPAN,
+				      &prevcurr, &incrate15to49_ts_out[ts], infections_ts);
+	else
+	  calc_infections_simpletransm(pop, hivpop, artpop,
+				       rvec[ts], relinfectART, (projsteps[ts] == tsEpidemicStart) ? iota : 0.0,
+				       mf_transm_rr, relsexact_cd4cat, incrr_age, t_ART_start, DT, t, hts, hAG_START, hAG_SPAN,
+				       &prevcurr, &incrate15to49_ts_out[ts], infections_ts);
+	  
         prev15to49_ts_out[ts] = prevcurr;
 
-        // calculate r(t)
-        if(eppmod == EPP_RSPLINE)
-          rvec[ts] = rspline_rvec[ts];
-        else {
-          if(projsteps[ts] > tsEpidemicStart){
-            double gamma_ts = (projsteps[ts] < rtrend_tstab)?0.0:(prevcurr-prevlast) * (projsteps[ts] - rtrend_tstab) / (DT * prevlast);
-            double logr_diff = rtrend_beta[1]*(rtrend_beta[0] - rvec[ts-1]) + rtrend_beta[2]*prevlast + rtrend_beta[3]*gamma_ts;
-            rvec[ts] = exp(log(rvec[ts-1]) + logr_diff);
-          } else {
-            rvec[ts] = rtrend_r0;
-          }
-        }
-
-        double incrate15to49_ts = rvec[ts] * Xhivp * (1.0 - (1.0 - relinfectART) * prop_art_ts) / Xtot + ((projsteps[ts] == tsEpidemicStart) ? iota : 0.0);
-        incrate15to49_ts_out[ts] = incrate15to49_ts;
-
-
-        // incidence by sex
-        double incrate15to49_g[NG];
-        incrate15to49_g[MALE] = incrate15to49_ts * (Xhivn_g[MALE]+Xhivn_g[FEMALE]) / (Xhivn_g[MALE] + incrr_sex[t]*Xhivn_g[FEMALE]);
-        incrate15to49_g[FEMALE] = incrate15to49_ts * incrr_sex[t]*(Xhivn_g[MALE]+Xhivn_g[FEMALE]) / (Xhivn_g[MALE] + incrr_sex[t]*Xhivn_g[FEMALE]);
-
+        // add new infections to HIV population
         for(int g = 0; g < NG; g++){
           int a = 0;
           for(int ha = 0; ha < hAG; ha++){
             double infections_a, infections_ha = 0.0;
             for(int i = 0; i < hAG_SPAN[ha]; i++){
-              infections_ha += infections_a = pop[t][HIVN][g][a] * incrate15to49_g[g] * incrr_age[t][g][a] * Xhivn_g[g] / Xhivn_incagerr[g];
+              infections_ha += infections_a = infections_ts[g][a];
               infections[t][g][a] += DT*infections_a;
               pop[t][HIVN][g][a] -= DT*infections_a;
               pop[t][HIVP][g][a] += DT*infections_a;
@@ -852,3 +879,205 @@ SEXP getListElement(SEXP list, const char *str)
 
   return elmt;
 }
+
+int checkListElement(SEXP list, const char *str)
+{
+  SEXP names = getAttrib(list, R_NamesSymbol);
+  for (int i = 0; i < length(list); i++ )
+    if (strcmp(CHAR(STRING_ELT(names, i)), str) == 0 )
+      return 1;
+
+  return 0;
+}
+
+
+double calc_rtrend_rt(const multi_array_ref<double, 4> pop, double rtrend_tstab, const double *rtrend_beta, double rtrend_r0,
+                      double projstep, double tsEpidemicStart, double DT, int t, int hts, double rveclast,
+                      double *prevlast, double *prevcurr)
+{
+  // sum population sizes
+  double Xhivn = 0.0, Xhivp = 0.0;
+  for(int g = 0; g < NG; g++)
+    for(int a = pIDX_15TO49; a < pIDX_15TO49+pAG_15TO49; a++){
+      Xhivn += pop[t][HIVN][g][a];
+      Xhivp += pop[t][HIVP][g][a];
+    }
+
+  // adjust HIV population for partial year time step
+  for(int g = 0; g < NG; g++){
+    Xhivn -= pop[t][HIVN][g][pIDX_15TO49] * (1.0 - DT*hts);
+    Xhivp -= pop[t][HIVP][g][pIDX_15TO49] * (1.0 - DT*hts);
+    Xhivn += pop[t][HIVN][g][pIDX_15TO49+pAG_15TO49] * (1.0 - DT*hts);
+    Xhivp += pop[t][HIVP][g][pIDX_15TO49+pAG_15TO49] * (1.0 - DT*hts);
+  }
+
+  double Xtot = Xhivn + Xhivp;
+
+  *prevlast = *prevcurr;
+  *prevcurr = Xhivp / Xtot;
+
+  // calculate r(t)
+  if(projstep > tsEpidemicStart){
+    double gamma_ts = (projstep < rtrend_tstab)?0.0:(*prevcurr-*prevlast) * (projstep - rtrend_tstab) / (DT * (*prevlast));
+    double logr_diff = rtrend_beta[1]*(rtrend_beta[0] - rveclast) + rtrend_beta[2]*(*prevlast) + rtrend_beta[3]*gamma_ts;
+    return exp(log(rveclast) + logr_diff);
+  } else {
+    return rtrend_r0;
+  }
+}
+
+
+void calc_infections_eppspectrum(const multi_array_ref<double, 4> pop, const multi_array_ref<double, 4> hivpop, const multi_array_ref<double, 5> artpop,
+				 double r_ts, double relinfectART, double iota,
+                                 double *incrr_sex, const multi_array_ref<double, 3> incrr_age,
+				 int t_ART_start, double DT, int t, int hts, int *hAG_START, int *hAG_SPAN,
+				 double *prevcurr, double *incrate15to49_ts, double infections_ts[NG][pAG])
+{
+
+  // sum population sizes
+  double Xhivn_g[NG], Xhivn_incagerr[NG], Xhivp_noart = 0.0, Xart = 0.0;
+  for(int g = 0; g < NG; g++){
+    Xhivn_g[g] = 0.0;
+    Xhivn_incagerr[g] = 0.0;
+    for(int a = pIDX_15TO49; a < pIDX_15TO49+pAG_15TO49; a++){
+      Xhivn_g[g] += pop[t][HIVN][g][a];
+      Xhivn_incagerr[g] += incrr_age[t][g][a] * pop[t][HIVN][g][a];
+    }
+
+    for(int ha = hIDX_15TO49; ha < hIDX_15TO49+hAG_15TO49+1; ha++){
+
+      // adjustment to first and last age group for partial year time step
+      // calculation proportion of HIV population to include / exclude based on hivpop in single-year ages.
+      double prop_include; 
+      if(ha == hIDX_15TO49){
+	double hivp_ha = 0.0;
+	for(int a = hAG_START[ha]; a < hAG_START[ha]+hAG_SPAN[ha]; a++)
+	  hivp_ha += pop[t][HIVP][g][a];
+	prop_include = (hivp_ha > 0) ? 1.0 - pop[t][HIVP][g][hAG_START[ha]] / hivp_ha * (1.0 - DT*hts) : 1.0;
+      } else if(ha == hIDX_15TO49+hAG_15TO49) {
+	double hivp_ha = 0.0;
+	for(int a = hAG_START[ha]; a < hAG_START[ha]+hAG_SPAN[ha]; a++)
+	  hivp_ha += pop[t][HIVP][g][a];
+	prop_include = (hivp_ha > 0) ? pop[t][HIVP][g][hAG_START[ha]] / hivp_ha * (1.0 - DT*hts) : 1.0;
+      } else
+	prop_include = 1.0;
+
+      for(int hm = 0; hm < hDS; hm++){
+        Xhivp_noart += hivpop[t][g][ha][hm] * prop_include;
+        if(t >= t_ART_start)
+          for(int hu = 0; hu < hTS; hu++)
+            Xart += artpop[t][g][ha][hm][hu] * prop_include;
+      }
+    }
+  } // end loop over g
+  double Xhivn = Xhivn_g[MALE] + Xhivn_g[FEMALE];
+
+  // adjust HIV negative population for partial year time step
+  for(int g = 0; g < NG; g++){
+    Xhivn -= pop[t][HIVN][g][pIDX_15TO49] * (1.0 - DT*hts);
+    Xhivn += pop[t][HIVN][g][pIDX_15TO49+pAG_15TO49] * (1.0 - DT*hts);
+  }
+
+  double Xtot = Xhivn + Xhivp_noart + Xart;
+  *prevcurr = (Xhivp_noart + Xart) / Xtot;
+
+  *incrate15to49_ts = r_ts * (Xhivp_noart + relinfectART * Xart) / Xtot + iota;
+
+  // incidence by sex
+  double incrate15to49_g[NG];
+  incrate15to49_g[MALE] = *incrate15to49_ts * (Xhivn_g[MALE]+Xhivn_g[FEMALE]) / (Xhivn_g[MALE] + incrr_sex[t]*Xhivn_g[FEMALE]);
+  incrate15to49_g[FEMALE] = *incrate15to49_ts * incrr_sex[t]*(Xhivn_g[MALE]+Xhivn_g[FEMALE]) / (Xhivn_g[MALE] + incrr_sex[t]*Xhivn_g[FEMALE]);
+
+
+  // annualized infections by age and sex
+  for(int g = 0; g < NG; g++)
+    for(int a = 0; a < pAG; a++){
+      infections_ts[g][a] = pop[t][HIVN][g][a] * incrate15to49_g[g] * incrr_age[t][g][a] * Xhivn_g[g] / Xhivn_incagerr[g];
+    }
+
+  return;
+}
+
+
+void calc_infections_simpletransm(const multi_array_ref<double, 4> pop, const multi_array_ref<double, 4> hivpop, const multi_array_ref<double, 5> artpop,
+				  double r_ts, double relinfectART, double iota,
+				  const double *mf_transm_rr, const double *relsexact_cd4cat, const multi_array_ref<double, 3> incrr_age,
+				  int t_ART_start, double DT, int t, int hts, int *hAG_START, int *hAG_SPAN,
+				  double *prevcurr, double *incrate15to49_ts, double infections_ts[NG][pAG])
+{
+  
+  // sum population size and number of contacts by status
+  double Xhivn[NG], Xhivn_incagerr[NG];  // population sizes by sex, not adjusted (for age incidence)
+  double Xhivn_adj[NG], Xhivp_noart[NG], Xart[NG], Xtot[NG];  // population sizes, adjusted for partial year timestep offset
+  double Chivn[NG], Chivp_noart[NG], Cart[NG], Ctot[NG]; // Number of contacts, adjusted
+  for(int g = 0; g < NG; g++){
+
+    Xhivn[g] = 0.0;
+    Xhivn_incagerr[g] = 0.0;
+    Xhivp_noart[g] = 0.0;
+    Xart[g] = 0.0;
+    Chivp_noart[g] = 0.0;
+    for(int a = pIDX_15TO49; a < pIDX_15TO49+pAG_15TO49; a++){
+      Xhivn[g] += pop[t][HIVN][g][a];
+      Xhivn_incagerr[g] += incrr_age[t][g][a] * pop[t][HIVN][g][a];
+    }
+
+    for(int ha = hIDX_15TO49; ha < hIDX_15TO49+hAG_15TO49+1; ha++){
+      
+      // adjustment to first and last age group for partial year time step
+      // calculation proportion of HIV population to include / exclude based on hivpop in single-year ages.
+      double prop_include; 
+      if(ha == hIDX_15TO49){
+	double hivp_ha = 0.0;
+	for(int a = hAG_START[ha]; a < hAG_START[ha]+hAG_SPAN[ha]; a++)
+	  hivp_ha += pop[t][HIVP][g][a];
+	prop_include = (hivp_ha > 0) ? 1.0 - pop[t][HIVP][g][hAG_START[ha]] / hivp_ha * (1.0 - DT*hts) : 1.0;
+      } else if(ha == hIDX_15TO49+hAG_15TO49) {
+	double hivp_ha = 0.0;
+	for(int a = hAG_START[ha]; a < hAG_START[ha]+hAG_SPAN[ha]; a++)
+	  hivp_ha += pop[t][HIVP][g][a];
+	prop_include = (hivp_ha > 0) ? pop[t][HIVP][g][hAG_START[ha]] / hivp_ha * (1.0 - DT*hts) : 0.0;
+      } else
+	prop_include = 1.0;
+
+      for(int hm = 0; hm < hDS; hm++){
+        Xhivp_noart[g] += hivpop[t][g][ha][hm] * prop_include;
+	Chivp_noart[g] += hivpop[t][g][ha][hm] * relsexact_cd4cat[hm] * prop_include;
+        if(t >= t_ART_start)
+          for(int hu = 0; hu < hTS; hu++)
+            Xart[g] += artpop[t][g][ha][hm][hu] * prop_include;
+      }
+      Cart[g] = Xart[g];
+    }  // end loop over ha
+
+    // adjust HIV negative population for partial year time step
+    Xhivn_adj[g] = Xhivn[g];
+    Xhivn_adj[g] -= pop[t][HIVN][g][pIDX_15TO49] * (1.0 - DT*hts);
+    Xhivn_adj[g] += pop[t][HIVN][g][pIDX_15TO49+pAG_15TO49] * (1.0 - DT*hts);
+
+    Chivn[g] = Xhivn_adj[g];
+	  
+    Xtot[g] = Xhivn_adj[g] + Xhivp_noart[g] + Xart[g];
+    Ctot[g] = Chivn[g] + Chivp_noart[g] + Cart[g];
+
+
+  } // end loop over g
+
+  *prevcurr = 1.0 - (Xhivn_adj[MALE] + Xhivn_adj[FEMALE]) / (Xtot[MALE] + Xtot[FEMALE]);
+
+  // incidence by sex
+  double incrate15to49_g[NG];
+  incrate15to49_g[MALE] = r_ts * pow(mf_transm_rr[t], -0.5) * (Chivp_noart[FEMALE] + relinfectART * Cart[FEMALE]) / Ctot[FEMALE] + pow(mf_transm_rr[t], -0.25) * iota;
+  incrate15to49_g[FEMALE] = r_ts * pow(mf_transm_rr[t], 0.5) * (Chivp_noart[MALE] + relinfectART * Cart[MALE]) / Ctot[MALE] + pow(mf_transm_rr[t], 0.25) * iota;
+
+  // incrate15to49_g[MALE] = r_ts * pow(mf_transm_rr, -0.5) * (Xhivp_noart[FEMALE] + relinfectART * Xart[FEMALE]) / Xtot[FEMALE] + pow(mf_transm_rr, -0.25) * iota;
+  // incrate15to49_g[FEMALE] = r_ts * pow(mf_transm_rr, 0.5) * (Xhivp_noart[MALE] + relinfectART * Xart[MALE]) / Xtot[MALE] + pow(mf_transm_rr, 0.25) * iota;
+
+  // annualized infections by age and sex
+  for(int g = 0; g < NG; g++)
+    for(int a = 0; a < pAG; a++){
+      infections_ts[g][a] = pop[t][HIVN][g][a] * incrate15to49_g[g] * incrr_age[t][g][a] * Xhivn[g] / Xhivn_incagerr[g];
+    }
+
+  return;
+} 

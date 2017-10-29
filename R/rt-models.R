@@ -201,12 +201,12 @@ extend_projection <- function(fit, proj_years){
     fpnew <- prepare_hybrid_r(fpnew, rw_dk=diff(fp$rt$rw_knots[1:2]))
   }
 
-  if(exists("rw_prior_shape", fp$prior_args))
+  if(exists("prior_args", fp) && exists("rw_prior_shape", fp$prior_args))
     sh <- fp$prior_args$rw_prior_shape
   else
     sh <- eppasm::rw_prior_shape
   
-  if(exists("rw_prior_scale", fp$prior_args))
+  if(exists("prior_args", fp) && exists("rw_prior_scale", fp$prior_args))
     rate <- fp$prior_args$rw_prior_rate
   else
     rate <- eppasm::rw_prior_rate
@@ -225,3 +225,83 @@ extend_projection <- function(fit, proj_years){
 
   return(fit)
 }
+
+
+
+
+calc_rtrend_rt <- function(t, fp, rveclast, prevlast, pop, i, ii){
+
+  ## Attach state space variables
+  invisible(list2env(fp$ss, environment())) # put ss variables in environment for convenience
+
+  hivn.ii <- sum(pop[p.age15to49.idx,,hivn.idx,i])
+  hivn.ii <- hivn.ii - sum(pop[p.age15to49.idx[1],,hivn.idx,i])*(1-DT*(ii-1))
+  hivn.ii <- hivn.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivn.idx,i])*(1-DT*(ii-1))
+
+  hivp.ii <- sum(pop[p.age15to49.idx,,hivp.idx,i])
+  hivp.ii <- hivp.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i])*(1-DT*(ii-1))
+  hivp.ii <- hivp.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i])*(1-DT*(ii-1))
+
+  prevcurr <- hivp.ii / (hivn.ii + hivp.ii)
+
+  
+  if(t > fp$tsEpidemicStart){
+    par <- fp$rtrend
+    gamma.t <- if(t < par$tStabilize) 0 else (prevcurr-prevlast)*(t - par$tStabilize) / (fp$ss$DT*prevlast)
+    logr.diff <- par$beta[2]*(par$beta[1] - rveclast) + par$beta[3]*prevlast + par$beta[4]*gamma.t
+      return(exp(log(rveclast) + logr.diff))
+    } else
+      return(fp$rtrend$r0)
+}
+
+
+
+
+####  Model for iota  ####
+
+
+logiota.unif.prior <- c(log(1e-14), 0)
+r0logiotaratio.unif.prior <- c(-25, -5)
+
+logit <- function(p) log(p/(1-p))
+invlogit <- function(x) 1/(1+exp(-x))
+ldinvlogit <- function(x){v <- invlogit(x); log(v) + log(1-v)}
+
+transf_iota <- function(par, fp){
+
+  if(exists("prior_args", where = fp)){
+    for(i in seq_along(fp$prior_args))
+      assign(names(fp$prior_args)[i], fp$prior_args[[i]])
+  }
+
+  if(exists("logitiota", fp) && fp$logitiota)
+    exp(invlogit(par)*diff(logiota.unif.prior) + logiota.unif.prior[1])
+  else
+    exp(par)  
+}
+
+lprior_iota <- function(par, fp){
+  ## !!! CHECK THIS FUNCTION IS DOING THE RIGHT THING
+  if(exists("prior_args", where = fp)){
+    for(i in seq_along(fp$prior_args))
+      assign(names(fp$prior_args)[i], fp$prior_args[[i]])
+  }
+
+  if(exists("logitiota", fp) && fp$logitiota)
+    ldinvlogit(par)
+  else
+    dunif(par, logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
+}
+
+sample_iota <- function(n, fp){
+  if(exists("prior_args", where = fp)){
+    for(i in seq_along(fp$prior_args))
+      assign(names(fp$prior_args)[i], fp$prior_args[[i]])
+  }
+  if(exists("logitiota", fp) && fp$logitiota)
+    return(logit(runif(n)))
+  else
+    runif(n, logiota.unif.prior[1], logiota.unif.prior[2])
+}
+
+ldsamp_iota <- lprior_iota

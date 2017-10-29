@@ -44,6 +44,9 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
   val <- set.list.attr(val, "country", attr(eppd, "country"))
   val <- set.list.attr(val, "region", names(eppd))
 
+  attr(val, "country") <- read_country(pjnz)
+  attr(val, "region") <- read_region(pjnz)
+
   return(val)
 }
 
@@ -188,7 +191,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
                    sample_prior=eppasm:::sample.prior,
                    prior=eppasm:::prior,
                    likelihood=eppasm:::likelihood,
-                   optfit=FALSE, opt_method="BFGS", opt_init=NULL){
+                   optfit=FALSE, opt_method="BFGS", opt_init=NULL, opt_maxit=1000, opt_diffstep=1e-3){
 
   ## ... : updates to fixed parameters (fp) object to specify fitting options
 
@@ -247,6 +250,17 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   else if(fp$eppmod == "rlogistic_rw")
     fp <- prepare_rlogistic_rw(fp)
 
+  fp$logitiota = TRUE
+
+  ## Prepare the incidence model
+  if(exists("incidmod", where=fp) && fp$incidmod == "transm"){
+    if(!exists("relsexact_cd4cat", where=fp))
+      fp$relsexact_cd4cat <- c(1.0, 0.92, 0.76, 0.76, 0.55, 0.55, 0.55)
+  } else
+    fp$incidmod <- "eppspectrum"
+
+  fp <- prepare_irr_model(fp)
+
   ## Fit using optimization
   if(optfit){
     optfn <- function(theta, fp, likdat) lprior(theta, fp) + ll(theta, fp, likdat)
@@ -255,7 +269,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
       lpost0 <- likelihood(X0, fp, likdat, log=TRUE) + prior(X0, fp, log=TRUE)
       opt_init <- X0[which.max(lpost0)[1],]
     }
-    opt <- optim(opt_init, optfn, fp=fp, likdat=likdat, method=opt_method, control=list(fnscale=-1, trace=4, maxit=1e3))
+    opt <- optim(opt_init, optfn, fp=fp, likdat=likdat, method=opt_method, control=list(fnscale=-1, trace=4, maxit=opt_maxit, ndeps=rep(opt_diffstep, length(opt_init))))
     opt$fp <- fp
     opt$likdat <- likdat
     opt$param <- fnCreateParam(opt$par, fp)
@@ -436,7 +450,8 @@ sim_mod_list <- function(fit, rwproj=fit$fp$eppmod == "rspline"){
 
   ## strip unneeded attributes to preserve memory
 
-  mod.list <- lapply(mod.list, function(mod){ attributes(mod)[!names(attributes(mod)) %in% c("class", "dim", "infections", "hivdeaths", "natdeaths", "rvec", "popadjust")] <- NULL; mod})
+  keep <- c("class", "dim", "infections", "hivdeaths", "natdeaths", "hivpop", "artpop", "rvec", "popadjust")
+  mod.list <- lapply(mod.list, function(mod){ attributes(mod)[!names(attributes(mod)) %in% keep] <- NULL; mod})
 
   return(mod.list)
 }
@@ -450,10 +465,14 @@ aggr_specfit <- function(fitlist, rwproj=sapply(fitlist, function(x) x$fp$eppmod
   infectionsaggr <- lapply(do.call(mapply, c(FUN=list, lapply(allmod, lapply, attr, "infections"), SIMPLIFY=FALSE)), Reduce, f="+")
   hivdeathsaggr <- lapply(do.call(mapply, c(FUN=list, lapply(allmod, lapply, attr, "hivdeaths"), SIMPLIFY=FALSE)), Reduce, f="+")
   natdeathsaggr <- lapply(do.call(mapply, c(FUN=list, lapply(allmod, lapply, attr, "natdeaths"), SIMPLIFY=FALSE)), Reduce, f="+")
+  hivpopaggr <- lapply(do.call(mapply, c(FUN=list, lapply(allmod, lapply, attr, "hivpop"), SIMPLIFY=FALSE)), Reduce, f="+")
+  artpopaggr <- lapply(do.call(mapply, c(FUN=list, lapply(allmod, lapply, attr, "artpop"), SIMPLIFY=FALSE)), Reduce, f="+")
   ##
   modaggr <- mapply("attr<-", modaggr, "infections", infectionsaggr, SIMPLIFY=FALSE)
   modaggr <- mapply("attr<-", modaggr, "hivdeaths", hivdeathsaggr, SIMPLIFY=FALSE)
   modaggr <- mapply("attr<-", modaggr, "natdeaths", natdeathsaggr, SIMPLIFY=FALSE)
+  modaggr <- mapply("attr<-", modaggr, "hivpop", hivpopaggr, SIMPLIFY=FALSE)
+  modaggr <- mapply("attr<-", modaggr, "artpop", artpopaggr, SIMPLIFY=FALSE)
   ##
   modaggr <- mapply("attr<-", modaggr, "prev15to49", lapply(modaggr, calc_prev15to49, fitlist[[1]]$fp), SIMPLIFY=FALSE)
   modaggr <- mapply("attr<-", modaggr, "incid15to49", lapply(modaggr, calc_incid15to49, fitlist[[1]]$fp), SIMPLIFY=FALSE)

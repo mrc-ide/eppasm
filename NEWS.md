@@ -61,4 +61,7 @@
 
 - Implement piecewise-linear time-varying M:F incidence/transmission ratio
   and 15-24 incidence rate ratio. Knots fixed at 2002, 2007, and 2012.
-- Modularize code for incidence rate ratio parameterization, now in infections.R.      - Add function to generate summary model outputs
+- Modularize code for incidence rate ratio parameterization, now in infections.R.
+
+- Updated default IRR priors to informative priors based on fits countries with several surveys.
+- Add function to generate summary model outputs

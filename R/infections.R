@@ -142,14 +142,22 @@ sexincrr.pr.mean <- log(1.38)
 sexincrr.pr.sd <- 0.2
 
 mf_transm_rr.pr.mean <- log(1.9)
-mf_transm_rr.pr.sd <- 0.4
+mf_transm_rr.pr.sd <- 0.3  # change default to 0.3
 
-ageincrr.pr.mean <- c(-1.40707274, -0.23518703, 0.69314718, 0.78845736, -0.39975544, -0.70620810, -0.84054571, -0.02101324, -0.16382449, -0.37914407, -0.59639985, -0.82038300)
-ageincrr.pr.sd <- 0.5
+## ageincrr.pr.mean <- c(-1.40707274, -0.23518703, 0.69314718, 0.78845736, -0.39975544, -0.70620810, -0.84054571, -0.02101324, -0.16382449, -0.37914407, -0.59639985, -0.82038300)
+## ageincrr.pr.sd <- 0.5
+
+## Informative priors based on estimates for 11 countries with 3+ surveys
+ageincrr.pr.mean <- c(-1.4, -0.28, 0.3, 0.3, -0.3, -0.6, -0.2, 0.05, -0.4, -0.45, -0.6, -0.7)
+ageincrr.pr.sd <- c(0.5, 0.4, 0.23, 0.3, 0.3, 0.3, 0.3, 0.3, 0.2, 0.2, 0.2, 0.2)
 
 NPARAM_LININCRR <- 6
-incrr_trend_mean <- c(0, 0, 0, 0, 0, 0)
-incrr_trend_sd <- c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
+## incrr_trend_mean <- c(0, 0, 0, 0, 0, 0)
+## incrr_trend_sd <- c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
+
+## Informative priors based on estimates for 11 countries with 3+ surveys
+incrr_trend_mean <- c(0.0, 0.035, -0.02, -0.09, -0.016, -0.06)
+incrr_trend_sd <- c(0.07, 0.07, 0.1, 0.1, 0.08, 0.08)
 
 getnparam_incrr <- function(fp){
   switch(fp$fitincrr,
@@ -200,11 +208,15 @@ transf_incrr <- function(theta_incrr, param, fp){
     }
     ## cubic spline interpolation of age IRRs
     ## note: this is really slow and not very good. Need to figure out something better
-    smooth_irr <- function(x){
-      exp(spline(2:15*5+2, c(-5, log(x[0:12*5+1])), xout=15:80)$y)
+    if(exists("smoothirr", fp) && fp$smoothirr){
+      smooth_irr <- function(y){
+        yval <- c(-5, log(y[0:12*5+1]))
+        yval <- pmax(yval, -8)
+        exp(spline(2:15*5+2, yval, xout=15:80)$y)
+      }
+      idx <- approx(c(2002, 2012), c(1,11), years, rule=2)$y
+      param$incrr_age <- apply(param$incrr_age[,,2002-fp$ss$proj_start + 1:11], 2:3, smooth_irr)[,,idx]
     }
-    idx <- approx(c(2002, 2012), c(1,11), years, rule=2)$y
-    param$incrr_age <- apply(param$incrr_age[,,2002-fp$ss$proj_start + 1:11], 2:3, smooth_irr)[,,idx]
     
   } else if(fp$fitincrr=="lognorm"){
     param$logincrr_age <- cbind(calc_lognorm_logagerr(theta_incrr[2:4]),

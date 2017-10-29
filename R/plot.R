@@ -66,7 +66,8 @@ plot_compare_ageprev <- function(fit, fit2=NULL, fit3=NULL, specres=NULL, ylim=N
       ##
       if(!is.null(specres)){
         csex <- sub("(\\b[a-z]{1})", "\\U\\1" , isex, perl=TRUE)
-        specres.prev <- tapply(specres$hivpop[as.character(15:54), csex, isurv], rep(3:10, each=5), sum) / tapply(specres$totpop[as.character(15:54), csex, isurv], rep(3:10, each=5), sum)
+        stryear <- as.character(survprev[[isurv]]$year[1])
+        specres.prev <- tapply(specres$hivpop[as.character(15:54), csex, stryear], rep(3:10, each=5), sum) / tapply(specres$totpop[as.character(15:54), csex, stryear], rep(3:10, each=5), sum)
         segments(4:11+0.1, specres.prev, 4:11+0.9, lty=3, col="grey10", lwd=2)
       }
       points(xx+0.5, sp$prev, pch=19)

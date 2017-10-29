@@ -450,7 +450,8 @@ sim_mod_list <- function(fit, rwproj=fit$fp$eppmod == "rspline"){
 
   ## strip unneeded attributes to preserve memory
 
-  mod.list <- lapply(mod.list, function(mod){ attributes(mod)[!names(attributes(mod)) %in% c("class", "dim", "infections", "hivdeaths", "natdeaths", "rvec", "popadjust")] <- NULL; mod})
+  keep <- c("class", "dim", "infections", "hivdeaths", "natdeaths", "hivpop", "artpop", "rvec", "popadjust")
+  mod.list <- lapply(mod.list, function(mod){ attributes(mod)[!names(attributes(mod)) %in% keep] <- NULL; mod})
 
   return(mod.list)
 }
@@ -464,10 +465,14 @@ aggr_specfit <- function(fitlist, rwproj=sapply(fitlist, function(x) x$fp$eppmod
   infectionsaggr <- lapply(do.call(mapply, c(FUN=list, lapply(allmod, lapply, attr, "infections"), SIMPLIFY=FALSE)), Reduce, f="+")
   hivdeathsaggr <- lapply(do.call(mapply, c(FUN=list, lapply(allmod, lapply, attr, "hivdeaths"), SIMPLIFY=FALSE)), Reduce, f="+")
   natdeathsaggr <- lapply(do.call(mapply, c(FUN=list, lapply(allmod, lapply, attr, "natdeaths"), SIMPLIFY=FALSE)), Reduce, f="+")
+  hivpopaggr <- lapply(do.call(mapply, c(FUN=list, lapply(allmod, lapply, attr, "hivpop"), SIMPLIFY=FALSE)), Reduce, f="+")
+  artpopaggr <- lapply(do.call(mapply, c(FUN=list, lapply(allmod, lapply, attr, "artpop"), SIMPLIFY=FALSE)), Reduce, f="+")
   ##
   modaggr <- mapply("attr<-", modaggr, "infections", infectionsaggr, SIMPLIFY=FALSE)
   modaggr <- mapply("attr<-", modaggr, "hivdeaths", hivdeathsaggr, SIMPLIFY=FALSE)
   modaggr <- mapply("attr<-", modaggr, "natdeaths", natdeathsaggr, SIMPLIFY=FALSE)
+  modaggr <- mapply("attr<-", modaggr, "hivpop", hivpopaggr, SIMPLIFY=FALSE)
+  modaggr <- mapply("attr<-", modaggr, "artpop", artpopaggr, SIMPLIFY=FALSE)
   ##
   modaggr <- mapply("attr<-", modaggr, "prev15to49", lapply(modaggr, calc_prev15to49, fitlist[[1]]$fp), SIMPLIFY=FALSE)
   modaggr <- mapply("attr<-", modaggr, "incid15to49", lapply(modaggr, calc_incid15to49, fitlist[[1]]$fp), SIMPLIFY=FALSE)

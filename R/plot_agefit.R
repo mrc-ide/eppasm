@@ -79,7 +79,7 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
         logincrrage3 <- estci(sapply(fit3$param, "[[", "logincrr_age"))
       ## plot men
       plot(1:7+0.5, 1:7, type="n",  xlim=c(1, 8), ylim=c(-2.5, 2),
-           xlab="Age group", ylab="log IRR", main = "Male incidence RR (log), 2010", xaxt="n")
+           xlab="Age group", ylab="log IRR", main = "Male incidence RR (log), 2007", xaxt="n")
       axis(1, 1:7+0.5, paste0(3:9*5, "-", 3:9*5+4))
       abline(h=0, col="grey")
       points(3.5, 0, pch=4, lwd=2.5, col=1, cex=1.2)
@@ -100,7 +100,7 @@ plot_agefit <- function(icountry, eppmod, fitaggr, fitincrr, fit3=NULL, specres=
         segments(xx+0.1, logincrrage3[xx,1], xx+0.9, col=cols[3], lwd=2)
       ## plot women
       plot(1:7+0.5, 1:7, type="n",  xlim=c(1, 8), ylim=c(-2.5, 2),
-           xlab="Age group", ylab="log IRR", main = "Female incidence RR (log), 2010", xaxt="n")
+           xlab="Age group", ylab="log IRR", main = "Female incidence RR (log), 2007", xaxt="n")
       axis(1, 1:7+0.5, paste0(3:9*5, "-", 3:9*5+4))
       abline(h=0, col="grey")
       points(3.5, 0, pch=4, lwd=2.5, col=1, cex=1.2)

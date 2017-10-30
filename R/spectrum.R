@@ -29,7 +29,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ss$ag.rate <- 1
   ss$p.fert.idx <- 16:50 - AGE_START
   ss$p.age15to49.idx <- 16:50 - AGE_START
-  ss$p.age15plus.idx <- 16:ss$pAG - AGE_START
+  ss$p.age15plus.idx <- (16-AGE_START):ss$pAG
 
   
   ## HIV model state-space

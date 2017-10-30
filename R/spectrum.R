@@ -258,15 +258,6 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   
   fp$netmig_hivprob <- 0.4*0.22
   fp$netmighivsurv <- 0.25/0.22
-
-  
-  ## ######################### ##
-  ##  Prepare EPP r(t) models  ##
-  ## ######################### ##
-
-  ## Prepare default rspline model
-  fp$numKnots <- 7
-  fp <- prepare_rspline_model(fp)
   
   class(fp) <- "specfp"
 
@@ -329,7 +320,6 @@ prepare_ospline_model <- function(fp, numKnots=NULL, tsEpidemicStart=fp$ss$time_
 
   return(fp)
 }
-
 
 update.specfp <- epp::update.eppfp
 

@@ -73,8 +73,10 @@
 - Add function to generate summary model outputs
 
 # eppasm 0.3.4
-
 - Merge updates from v0.1.2 into v0.3.3
+
+# eppasm 0.4.0
+- Add annual direct incidence input option.
 
 
 

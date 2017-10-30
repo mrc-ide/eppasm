@@ -921,3 +921,35 @@ read_csavr_data <- function(pjnz){
 
   return(val)
 }
+
+
+
+#' Read annual incidence input
+#'
+#' @param pjnz file path to Spectrum PJNZ file.
+read_incid_input <- function(pjnz){
+
+  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+
+  exists_dptag <- function(tag, tagcol=1){tag %in% dp[,tagcol]}
+  dpsub <- function(tag, rows, cols, tagcol=1){
+    dp[which(dp[,tagcol]==tag)+rows, cols]
+  }
+
+  yr_start <- as.integer(dpsub("<FirstYear MV2>",2,4))
+  yr_end <- as.integer(dpsub("<FinalYear MV2>",2,4))
+  proj_years <- yr_start:yr_end
+
+  if(exists_dptag("<IncidenceInput MV>")){
+    val <- as.numeric(dpsub("<IncidenceInput MV>", 2, 3+seq_along(proj_years)))
+    val <- setNames(val, proj_years)
+    attr(val, "incidpopage") <- as.integer(dpsub("<EPPPopulationAges MV>", 2, 4))  # Adults 15-49 = 0; Adults 15+ = 1
+    return(val / 100)
+  } else {
+    warning(paste0("<IncidenceInput MV> not found for ", basename(pjnz), "."))
+    val <- NULL
+  }
+
+  return(val)
+}

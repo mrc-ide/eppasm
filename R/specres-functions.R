@@ -1,4 +1,10 @@
-incid.specres <- function(x) colSums(x$newinf.m[4:10,]+x$newinf.f[4:10,]) / colSums(x$totpop.m[4:10,]+x$totpop.f[4:10,]-(x$hivnum.m[4:10,]+x$hivnum.f[4:10,]))
+incid.specres <- function(x){
+  nyr <- ncol(x$newinf.m)
+  infections <- colSums(x$newinf.m[4:10,-1]+x$newinf.f[4:10,-1])
+  hivn <- colSums(x$totpop.m[4:10,-nyr]+x$totpop.f[4:10,-nyr]-(x$hivnum.m[4:10,-nyr]+x$hivnum.f[4:10,-nyr]))
+  c(0, infections / hivn)
+}
+    
 
 prev.specres <- function(x) colSums(x$hivnum.m[4:10,]+x$hivnum.f[4:10,])/colSums(x$totpop.m[4:10,]+x$totpop.f[4:10,])
 

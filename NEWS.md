@@ -65,3 +65,7 @@
 
 - Updated default IRR priors to informative priors based on fits countries with several surveys.
 - Add function to generate summary model outputs
+
+
+# eppasm 0.4.0
+- Add annual direct incidence input option.

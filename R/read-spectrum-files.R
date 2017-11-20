@@ -627,6 +627,9 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   dimnames(asfd) <- list(15:49, proj.years)
   asfr <- sweep(asfd, 2, tfr, "*")
 
+  births.tidx <- which(dp[,1] == "<Births MV>")
+  births <- setNames(as.numeric(dp[births.tidx + 2, timedat.idx]), proj.years)
+
   ## srb
   srb.tidx <- which(dp[,1] == "<SexBirthRatio MV>")
   srb <- setNames(as.numeric(dp[srb.tidx + 2, timedat.idx]), proj.years)
@@ -689,7 +692,8 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   dimnames(netmigr) <- list(0:80, c("Male", "Female"), proj.years)
 
 
-  demp <- list("basepop"=basepop, "mx"=mx, "Sx"=Sx, "asfr"=asfr, "tfr"=tfr, "asfd"=asfd, "srb"=srb, "netmigr"=netmigr)
+  demp <- list("basepop"=basepop, "mx"=mx, "Sx"=Sx, "asfr"=asfr, "tfr"=tfr, "asfd"=asfd, "srb"=srb, "netmigr"=netmigr,
+               "births"=births)
   class(demp) <- "demp"
   attr(demp, "version") <- version
 

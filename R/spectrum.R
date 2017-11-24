@@ -1,7 +1,7 @@
 create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_start = projp$yr_start, proj_end = projp$yr_end,
                                    AGE_START = 15L, relinfectART = projp$relinfectART, time_epi_start = projp$t0,
-                                   popadjust=FALSE, targetpop=demp$basepop, artelig200adj=TRUE, who34percelig=0, frr_art6mos=1.0, frr_art1yr=1.0){
-
+                                   popadjust=FALSE, targetpop=demp$basepop, artelig200adj=TRUE, who34percelig=0,
+                                   frr_art6mos=projp$frr_art6mos, frr_art1yr=projp$frr_art6mos){
   
   ## ########################## ##
   ##  Define model state space  ##

@@ -323,6 +323,10 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   else
     cd4fert_rat <- rep(1.0, DS)
 
+  if(exists_dptag("<RatioWomenOnART MV>"))
+    frr_art6mos <- as.numeric(dpsub("<RatioWomenOnART MV>", 2, 4))
+  else
+    frr_art6mos <- 1.0
 
   ## sex/age-specific incidence ratios (time varying)
   incrr_age <- array(NA, c(AG, NG, length(proj.years)), list(0:(AG-1)*5, c("Male", "Female"), proj.years))
@@ -472,6 +476,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
                 "relinfectART"=relinfectART,
                 "fert_rat"=fert_rat,
                 "cd4fert_rat"=cd4fert_rat,
+                "frr_art6mos"=frr_art6mos,
                 "incrr_sex"=incrr_sex, "incrr_age"=incrr_age,
                 "cd4_initdist"=cd4_initdist, "cd4_prog"=cd4_prog, "cd4_mort"=cd4_mort, "art_mort"=art_mort,
                 "art15plus_numperc"=art15plus_numperc, "art15plus_num"=art15plus_num,

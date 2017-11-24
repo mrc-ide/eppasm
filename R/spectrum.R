@@ -209,13 +209,55 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ##   for(j in 1:AGE_START)
   ##     fp$paedsurv_lag[i+AGE_START] <- fp$paedsurv_lag[i+AGE_START] * (1 - hivqx[j, i+j-1])
   
-  
-  fp$paedsurv_cd4dist <- c(0.056,0.112,0.112,0.07,0.14,0.23,0.28)
+
+
+  ## HIV prevalence and ART coverage among age 15 entrants
+  hivpop14 <- projp$age14hivpop[,,,as.character(proj_start:(proj_end-1))]
+  pop14 <- demp$basepop["14",,as.character(proj_start:(proj_end-1))]
+  hiv14 <- colSums(hivpop14,,2)
+  art14 <- colSums(hivpop14[5:7,,,],,2)
+
+  fp$entrantprev <- cbind(0, hiv14/pop14) # 1 year offset because age 15 population is age 14 in previous year
+  fp$entrantartcov <- cbind(0, art14/hiv14)
+  fp$entrantartcov[is.na(fp$entrantartcov)] <- 0
+  colnames(fp$entrantprev) <- colnames(fp$entrantartcov) <- as.character(proj_start:proj_end)
+
+  hiv_noart14 <- colSums(hivpop14[1:4,,,])
+  artpop14 <- hivpop14[5:7,,,]
+
+  fp$paedsurv_cd4dist <- array(0, c(hDS, NG, PROJ_YEARS))
+  fp$paedsurv_artcd4dist <- array(0, c(hTS, hDS, NG, PROJ_YEARS))
+
+  cd4convert <- rbind(c(1, 0, 0, 0, 0, 0, 0),
+                      c(1, 0, 0, 0, 0, 0, 0),
+                      c(1, 0, 0, 0, 0, 0, 0),
+                      c(0, 1, 0, 0, 0, 0, 0),
+                      c(0, 0, 0.67, 0.33, 0, 0, 0),
+                      c(0, 0, 0, 0, 0.35, 0.21, 0.44))
+
+  ## Convert age 5-14 CD4 distribution to adult CD4 distribution and normalize to
+  ## sum to 1 in each sex and year.
+  for(g in 1:NG)
+    for(i in 2:PROJ_YEARS){
+      if((hiv14[g,i-1] - art14[g,i-1]) > 0)
+        fp$paedsurv_cd4dist[,g,i] <- hiv_noart14[,g,i-1] %*% cd4convert / (hiv14[g,i-1] - art14[g,i-1])
+      if(art14[g,i-1]){
+        fp$paedsurv_artcd4dist[,,g,i] <- artpop14[,,g,i-1] %*% cd4convert / art14[g,i-1]
+
+        ## if age 14 has ART population in CD4 above adult eligibilty, assign to highest adult
+        ## ART eligibility category.
+        idx <- fp$artcd4elig_idx[i]
+        if(idx > 1){
+          fp$paedsurv_artcd4dist[,idx,g,i] <- fp$paedsurv_artcd4dist[,idx,g,i] + rowSums(fp$paedsurv_artcd4dist[,1:(idx-1),g,i])
+          fp$paedsurv_artcd4dist[,1:(idx-1),g,i] <- 0
+        }
+      }
+    }
   
   fp$netmig_hivprob <- 0.4*0.22
   fp$netmighivsurv <- 0.25/0.22
 
-
+  
   ## ######################### ##
   ##  Prepare EPP r(t) models  ##
   ## ######################### ##
@@ -329,34 +371,33 @@ simmod.specfp <- function(fp, VERSION="C"){
     pop[pAG,,,i] <- pop[pAG,,,i-1] + pop[pAG-1,,,i-1] # open age group
 
     ## Add lagged births into youngest age group
+    if(exists("entrantprev", where=fp))
+      entrant_prev <- fp$entrantprev[,i]
+    else
+      entrant_prev <- rep(pregprevlag[i-1]*fp$verttrans_lag[i-1]*fp$paedsurv_lag[i-1], 2)
+
     if(exists("popadjust", where=fp) & fp$popadjust){
-        entrant_prev <- pregprevlag[i-1]*fp$verttrans_lag[i-1]*fp$paedsurv_lag[i-1]
       hivn_entrants <- fp$entrantpop[,i-1]*(1-entrant_prev)
       hivp_entrants <- fp$entrantpop[,i-1]*entrant_prev
     } else {
-      if(exists("age15pop", where=fp)){
-        hivn_entrants <- fp$age15pop[1]*c(1.03, 1)/2.03*(1-pregprevlag[i-1]*fp$verttrans_lag[i-1])
-        hivp_entrants <- fp$age15pop[1]*c(1.03, 1)/2.03*pregprevlag[i-1]*fp$verttrans_lag[i-1]*fp$paedsurv_lag[i-1]
-      } else {
-        hivn_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*(1-pregprevlag[i-1]*fp$verttrans_lag[i-1]) + fp$cumnetmigr[,i-1]*(1-pregprevlag[i-1]*fp$netmig_hivprob)
-        hivp_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*pregprevlag[i-1]*fp$verttrans_lag[i-1]*fp$paedsurv_lag[i-1] + fp$cumnetmigr[,i-1]*pregprevlag[i-1]*fp$netmig_hivprob*fp$netmighivsurv
-      }
-      entrant_prev <- sum(hivp_entrants) / sum(hivn_entrants+hivp_entrants)
+      hivn_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*(1-entrant_prev / fp$paedsurv_lag[i-1]) + fp$cumnetmigr[,i-1]*(1-pregprevlag[i-1]*fp$netmig_hivprob)
+      hivp_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*entrant_prev + fp$cumnetmigr[,i-1]*entrant_prev
     }
 
-    entrant_prev_out[i] <- entrant_prev
-    hivp_entrants_out[,i] <- hivp_entrants
+    entrant_prev_out[i] <- sum(hivp_entrants) / sum(hivn_entrants+hivp_entrants)
+    hivp_entrants_out[,i] <- sum(hivp_entrants)
 
     pop[1,,hivn.idx,i] <- hivn_entrants
     pop[1,,hivp.idx,i] <- hivp_entrants
 
     hiv.ag.prob <- pop[aglast.idx,,hivp.idx,i-1] / apply(pop[,,hivp.idx,i-1], 2, ctapply, ag.idx, sum)
     hiv.ag.prob[is.nan(hiv.ag.prob)] <- 0
-
+    
     hivpop[,,,,i] <- hivpop[,,,,i-1]
     hivpop[,,-hAG,,i] <- hivpop[,,-hAG,,i] - sweep(hivpop[,,-hAG,,i-1], 3:4, hiv.ag.prob[-hAG,], "*")
     hivpop[,,-1,,i] <- hivpop[,,-1,,i] + sweep(hivpop[,,-hAG,,i-1], 3:4, hiv.ag.prob[-hAG,], "*")
-    hivpop[1,,1,,i] <- hivpop[1,,1,,i] + fp$paedsurv_cd4dist %o% hivp_entrants
+    hivpop[1,,1,,i] <- hivpop[1,,1,,i] + sweep(fp$paedsurv_cd4dist[,,i], 2, hivp_entrants * (1-fp$entrantartcov[,i]), "*")
+    hivpop[2:4,,1,,i] <- hivpop[2:4,,1,,i] + sweep(fp$paedsurv_artcd4dist[,,,i], 3, hivp_entrants * fp$entrantartcov[,i], "*")
 
     ## survive the population
     deaths <- sweep(pop[,,,i], 1:2, (1-fp$Sx[,,i]), "*")
@@ -599,7 +640,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "incrate15to49_ts") <- incrate15to49.ts.out
   attr(pop, "prev15to49_ts") <- prev15to49.ts.out
 
-  attr(pop, "entrant_prev") <- entrant_prev_out
+  attr(pop, "entrantprev") <- entrant_prev_out
   attr(pop, "hivp_entrants") <- hivp_entrants_out
   class(pop) <- "spec"
   return(pop)

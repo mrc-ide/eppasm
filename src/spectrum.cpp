@@ -49,6 +49,7 @@
 
 
 SEXP getListElement(SEXP list, const char *str);
+int checkListElement(SEXP list, const char *str);
 
 extern "C" {
 
@@ -156,8 +157,26 @@ extern "C" {
     double *paedsurv_lag = REAL(getListElement(s_fp, "paedsurv_lag"));
     double netmig_hivprob = *REAL(getListElement(s_fp, "netmig_hivprob"));
     double netmighivsurv = *REAL(getListElement(s_fp, "netmighivsurv"));
-    double *paedsurv_cd4dist = REAL(getListElement(s_fp, "paedsurv_cd4dist"));
 
+    double *a_entrantprev;
+    int use_entrantprev = checkListElement(s_fp, "entrantprev");
+    if(use_entrantprev)
+      a_entrantprev = REAL(getListElement(s_fp, "entrantprev"));
+    multi_array_ref<double, 2> entrantprev(a_entrantprev, extents[PROJ_YEARS][NG]);
+
+    double *a_entrantartcov;
+    if(checkListElement(s_fp, "entrantartcov"))
+      a_entrantartcov = REAL(getListElement(s_fp, "entrantartcov"));
+    else {
+      a_entrantartcov = (double*) R_alloc(PROJ_YEARS, sizeof(double));
+      memset(a_entrantartcov, 0, PROJ_YEARS*sizeof(double));
+    }
+    multi_array_ref<double, 2> entrantartcov(a_entrantartcov, extents[PROJ_YEARS][NG]);
+
+    multi_array_ref<double, 3> paedsurv_cd4dist(REAL(getListElement(s_fp, "paedsurv_cd4dist")), extents[PROJ_YEARS][NG][hDS]);
+    multi_array_ref<double, 4> paedsurv_artcd4dist(REAL(getListElement(s_fp, "paedsurv_artcd4dist")), extents[PROJ_YEARS][NG][hDS][hTS]);
+
+    
     // initialize output
     SEXP s_pop = PROTECT(allocVector(REALSXP, pAG * NG * pDS * PROJ_YEARS));
     SEXP s_pop_dim = PROTECT(allocVector(INTSXP, 4));
@@ -349,29 +368,36 @@ extern "C" {
       // add lagged births to youngest age group
       for(int g = 0; g < NG; g++){
 
-	double paedsurv_g;
-	double entrant_prev;
-	if(bin_popadjust){
+        double paedsurv_g;
+        double entrant_prev;
+	
+	if(use_entrantprev)
+	  entrant_prev = entrantprev[t][g];
+	else
 	  entrant_prev = pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1];
-	  pop[t][HIVN][g][0] =  entrantpop[t-1][g] * (1.0-entrant_prev);
-	  paedsurv_g = entrantpop[t-1][g] * entrant_prev;
-	} else {
-	  pop[t][HIVN][g][0] = birthslag[t-1][g] * cumsurv[t-1][g] * (1.0-pregprevlag[t-1] * verttrans_lag[t-1]) + cumnetmigr[t-1][g] * (1.0-pregprevlag[t-1] * netmig_hivprob);
-	  paedsurv_g = birthslag[t-1][g] * cumsurv[t-1][g] * pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1] + cumnetmigr[t-1][g] * pregprevlag[t-1] * netmig_hivprob * netmighivsurv;
-	}
+	  
+        if(bin_popadjust){
+          pop[t][HIVN][g][0] =  entrantpop[t-1][g] * (1.0-entrant_prev);
+          paedsurv_g = entrantpop[t-1][g] * entrant_prev;
+        } else {
+          pop[t][HIVN][g][0] = birthslag[t-1][g] * cumsurv[t-1][g] * (1.0-entrant_prev / paedsurv_lag[t-1]) + cumnetmigr[t-1][g] * (1.0-pregprevlag[t-1] * netmig_hivprob);
+          paedsurv_g = birthslag[t-1][g] * cumsurv[t-1][g] * entrant_prev + cumnetmigr[t-1][g] * entrant_prev;
+        }
 
 	pop[t][HIVP][g][0] = paedsurv_g;
 
 	entrantprev_out[t] = (pop[t][HIVP][MALE][0] + pop[t][HIVP][FEMALE][0]) / (pop[t][HIVN][MALE][0] + pop[t][HIVN][FEMALE][0] + pop[t][HIVP][MALE][0] + pop[t][HIVP][FEMALE][0]);
 
         for(int hm = 0; hm < hDS; hm++){
-          hivpop[t][g][0][hm] = (1-hiv_ag_prob[g][0]) * hivpop[t-1][g][0][hm] + paedsurv_g * paedsurv_cd4dist[hm];
-          if(t > t_ART_start)
-            for(int hu = 0; hu < hTS; hu++)
+          hivpop[t][g][0][hm] = (1-hiv_ag_prob[g][0]) * hivpop[t-1][g][0][hm] + paedsurv_g * paedsurv_cd4dist[t][g][hm] * (1.0 - entrantartcov[t][g]);
+          if(t > t_ART_start){
+            for(int hu = 0; hu < hTS; hu++){
               artpop[t][g][0][hm][hu] = (1-hiv_ag_prob[g][0]) * artpop[t-1][g][0][hm][hu];
+	      artpop[t][g][0][hm][hu] += paedsurv_g * paedsurv_artcd4dist[t][g][hm][hu] * entrantartcov[t][g];
+	    }
+	  }
         }
       }
-
 
       // non-HIV mortality and netmigration
       for(int g = 0; g < NG; g++){
@@ -852,4 +878,14 @@ SEXP getListElement(SEXP list, const char *str)
     error("%s missing from list", str);
 
   return elmt;
+}
+
+int checkListElement(SEXP list, const char *str)
+{
+  SEXP names = getAttrib(list, R_NamesSymbol);
+  for (int i = 0; i < length(list); i++ )
+    if (strcmp(CHAR(STRING_ELT(names, i)), str) == 0 )
+      return 1;
+
+  return 0;
 }

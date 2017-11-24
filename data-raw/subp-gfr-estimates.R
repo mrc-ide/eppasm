@@ -345,5 +345,8 @@ subp_gfr[subp_gfr$country == "Mauritius" & subp_gfr$eppregion == "R", c("survyea
 ####  Save subp_gfr dataset  ####
 #################################
 
+subp_gfr$gfr <- as.numeric(subp_gfr$gfr)
+subp_gfr$survyear <- as.integer(subp_gfr$survyear)
+
 devtools::use_data(subp, subp_gfr, internal = TRUE, overwrite=TRUE)
 write.csv(subp_gfr, file="~/Downloads/subp_gfr.csv", row.names=FALSE)

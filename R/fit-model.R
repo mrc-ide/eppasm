@@ -147,6 +147,13 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
     isartnum <- projp$art15plus_numperc == 0
     projp.subpop[[subpop]]$art15plus_num[isartnum] <- projp$art15plus_num[isartnum] * art.dist[subpop]
   }
+
+  ## Apportion age 14 HIV population
+  ## Allocate relative to HIV prevalence and population size, same as ART population
+  for(subpop in names(eppd)){
+    projp.subpop[[subpop]]$age14hivpop <- projp.subpop[[subpop]]$age14hivpop * art.dist[subpop]
+  }
+  
   specfp.subpop <- list()
   for(subpop in names(eppd))
     specfp.subpop[[subpop]] <- create_spectrum_fixpar(projp.subpop[[subpop]], demp.subpop[[subpop]], ..., popadjust=popadjust, time_epi_start=epp_t0[subpop])

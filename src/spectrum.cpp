@@ -745,6 +745,8 @@ extern "C" {
 		pop[t][HIVP][g][a] *= (1.0-hivqx_ha);
 		a++;
 	      }
+	    } else {
+	      a += hAG_SPAN[ha];
 	    }  // end if(pop_ha[ha] > 0)
 	  }
 	}

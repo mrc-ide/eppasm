@@ -137,7 +137,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   
   projp.h.ag <- findInterval(AGE_START + cumsum(h.ag.span) - h.ag.span, c(15, 25, 35, 45))  # NOTE: Will not handle AGE_START < 15 presently
   fp$cd4_initdist <- projp$cd4_initdist[,projp.h.ag,]
-  fp$cd4_prog <- projp$cd4_prog[,projp.h.ag,]
+  fp$cd4_prog <- (1-exp(-projp$cd4_prog[,projp.h.ag,] / hiv_steps_per_year)) * hiv_steps_per_year
   fp$cd4_mort <- projp$cd4_mort[,projp.h.ag,]
   fp$art_mort <- projp$art_mort[,,projp.h.ag,]
 

@@ -463,8 +463,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   ## distribution of age 14 population
   PAED_DS <- 6 # number of paediatric stages of infection
   if(exists_dptag("<ChAged14ByCD4Cat MV>")){
-    offset <- ifelse(use_ep5, 2, 1)
-    age14hivpop <- sapply(dpsub("<ChAged14ByCD4Cat MV>", offset+1:(NG*PAED_DS*(4+TS)), timedat.idx), as.numeric)
+    age14hivpop <- sapply(dpsub("<ChAged14ByCD4Cat MV>", 1+1:(NG*PAED_DS*(4+TS)), timedat.idx), as.numeric)
     age14hivpop <- array(age14hivpop, c(4+TS, PAED_DS, NG, length(proj.years)),
                          list(ARTstage=c("PERINAT", "BF0MOS", "BF6MOS", "BF1YR", "ART0MOS", "ART6MOS", "ART1YR"),
                               CD4cat=c("CD4_1000", "CD4_750", "CD4_500", "CD4_350", "CD4_200", "CD4_0"),

@@ -58,6 +58,7 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
 
   ## Update demp for subpopulation 
   demp.subpop <- list()
+  gfr_subpop <- list()
   for(subpop in names(eppd)){
     ## if(country != "Malawi")
     strsubp <- if(subpop %in% c("Urbain", "Urbaine", "Urban")) "U"
@@ -67,6 +68,9 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
     if (popadjust) {
       demp.subpop[[subpop]]$basepop <- subp[[grep(paste0("^", country_code, "_"), names(subp))]][[strsubp]][,,dimnames(demp$basepop)[[3]]]
       demp.subpop[[subpop]]$netmigr[] <- 0
+
+      ## Record GFR for each subpop
+      gfr_subpop[[subpop]] <- subset(subp_gfr, cc == country_code & eppregion == strsubp, c(gfr, survyear))
     }
   }
 
@@ -108,11 +112,27 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
       demp.subpop[[subpop]]$basepop <- subpops[,,,subpop]
   }
 
-
+  if(length(demp.subpop) > 1){
+    ## Apportion births according to population size and GFR
+    for(subpop in names(demp.subpop)){
+      survyear <- gfr_subpop[[subpop]]$survyear
+      gfr <- gfr_subpop[[subpop]]$gfr
+      fpop15to44 <- sum(demp.subpop[[subpop]]$basepop[as.character(15:44), "Female", as.character(survyear)])
+      prop_births <- fpop15to44*gfr / demp$births[as.character(survyear)]
+      
+      demp.subpop[[subpop]]$births <- prop_births * demp$births
+    }
+    
+    ## Rake births to national births
+    births_adjust <- demp$births / rowSums(sapply(demp.subpop, "[[", "births"))
+    for(subpop in names(demp.subpop))
+      demp.subpop[[subpop]]$births <- births_adjust * demp.subpop[[subpop]]$births 
+  }
+  
   ## Apportion ART
   ## If national survey data are available, apportion ART according to relative average HH survey prevalence in each subpopulation,
   ## If no HH survey, apportion based on relative mean ANC prevalence
-
+  
   get15to49pop <- function(demp, year) sum(demp$basepop[as.character(15:49),,as.character(year)])
   subpop.dist <- prop.table(sapply(demp.subpop, get15to49pop, 2010))
   
@@ -133,6 +153,12 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
     projp.subpop[[subpop]]$art15plus_num[isartnum] <- projp$art15plus_num[isartnum] * art.dist[subpop]
   }
 
+  ## Apportion age 14 HIV population
+  ## Allocate relative to HIV prevalence and population size, same as ART population
+  for(subpop in names(eppd)){
+    projp.subpop[[subpop]]$age14hivpop <- projp.subpop[[subpop]]$age14hivpop * art.dist[subpop]
+  }
+  
   specfp.subpop <- list()
   for(subpop in names(eppd))
     specfp.subpop[[subpop]] <- create_spectrum_fixpar(projp.subpop[[subpop]], demp.subpop[[subpop]], ..., popadjust=popadjust, time_epi_start=epp_t0[subpop])

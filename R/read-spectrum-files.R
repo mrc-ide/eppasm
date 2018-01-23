@@ -357,6 +357,10 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   else
     cd4fert_rat <- rep(1.0, DS)
 
+  if(exists_dptag("<RatioWomenOnART MV>"))
+    frr_art6mos <- as.numeric(dpsub("<RatioWomenOnART MV>", 2, 4))
+  else
+    frr_art6mos <- 1.0
 
   ## sex/age-specific incidence ratios (time varying)
   incrr_age <- array(NA, c(AG, NG, length(proj.years)), list(0:(AG-1)*5, c("Male", "Female"), proj.years))
@@ -490,22 +494,34 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   else
     hivpop <- NULL
 
-    
+  ## distribution of age 14 population
+  PAED_DS <- 6 # number of paediatric stages of infection
+  if(exists_dptag("<ChAged14ByCD4Cat MV>")){
+    age14hivpop <- sapply(dpsub("<ChAged14ByCD4Cat MV>", 1+1:(NG*PAED_DS*(4+TS)), timedat.idx), as.numeric)
+    age14hivpop <- array(age14hivpop, c(4+TS, PAED_DS, NG, length(proj.years)),
+                         list(ARTstage=c("PERINAT", "BF0MOS", "BF6MOS", "BF1YR", "ART0MOS", "ART6MOS", "ART1YR"),
+                              CD4cat=c("CD4_1000", "CD4_750", "CD4_500", "CD4_350", "CD4_200", "CD4_0"),
+                              Sex=c("Male", "Female"), Year=proj.years))
+  } else
+    age14hivpop <- NULL
+  
   projp <- list("yr_start"=yr_start, "yr_end"=yr_end,
                 "relinfectART"=relinfectART,
                 "fert_rat"=fert_rat,
                 "cd4fert_rat"=cd4fert_rat,
+                "frr_art6mos"=frr_art6mos,
                 "incrr_sex"=incrr_sex, "incrr_age"=incrr_age,
                 "cd4_initdist"=cd4_initdist, "cd4_prog"=cd4_prog, "cd4_mort"=cd4_mort, "art_mort"=art_mort,
                 "art15plus_numperc"=art15plus_numperc, "art15plus_num"=art15plus_num,
                 "art15plus_eligthresh"=art15plus_eligthresh, "artelig_specpop"=artelig_specpop,
                 "median_cd4init"=median_cd4init, "art_dropout"=art_dropout,
-                "verttrans"=verttrans, "hivpop"=hivpop, "hivdeaths"=hivdeaths)
+                "verttrans"=verttrans, "hivpop"=hivpop, "hivdeaths"=hivdeaths,
+                "age14hivpop"=age14hivpop)
   class(projp) <- "projp"
   attr(projp, "version") <- version
   attr(projp, "validdate") <- validdate
   attr(projp, "validversion") <- validversion
-
+  
   return(projp)
 }
 
@@ -675,6 +691,9 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   dimnames(asfd) <- list(age=15:49, year=proj.years)
   asfr <- sweep(asfd, 2, tfr, "*")
 
+  births.tidx <- which(dp[,1] == "<Births MV>")
+  births <- setNames(as.numeric(dp[births.tidx + 2, timedat.idx]), proj.years)
+
   ## srb
   srb.tidx <- which(dp[,1] == "<SexBirthRatio MV>")
   srb <- setNames(as.numeric(dp[srb.tidx + 2, timedat.idx]), proj.years)
@@ -737,7 +756,8 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   dimnames(netmigr) <- list(age=0:80, sex=c("Male", "Female"), year=proj.years)
 
 
-  demp <- list("basepop"=basepop, "mx"=mx, "Sx"=Sx, "asfr"=asfr, "tfr"=tfr, "asfd"=asfd, "srb"=srb, "netmigr"=netmigr)
+  demp <- list("basepop"=basepop, "mx"=mx, "Sx"=Sx, "asfr"=asfr, "tfr"=tfr, "asfd"=asfd, "srb"=srb, "netmigr"=netmigr,
+               "births"=births)
   class(demp) <- "demp"
   attr(demp, "version") <- version
 

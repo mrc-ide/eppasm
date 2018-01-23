@@ -8,6 +8,12 @@
 - Add option to use .ep5 file inputs instead of .DP file when preparing fit from PJNZ file. (use_ep5=FALSE by default.)
 - update prepare_spec_fit() to not use popadjust if EPP projection has a single population.
 
+# eppspectrum 0.1.2
+- Parse Spectrum births in read_specdp_demog_param().
+- Add births from Spectrum to specfp object.
+- For epp regions, distribute number of births based on 15-44 population size and GFR.
+- Implement age 15 entrant prevalence and ART coverage inputs.
+
 # eppspectrum 0.1.3
 
 - EPP model setup occurs in fitmod()
@@ -65,3 +71,7 @@
 
 - Updated default IRR priors to informative priors based on fits countries with several surveys.
 - Add function to generate summary model outputs
+
+# eppasm 0.3.4
+
+- Merge updates from v0.1.2 into v0.3.3

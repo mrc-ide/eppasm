@@ -248,7 +248,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
         ## ART eligibility category.
         idx <- fp$artcd4elig_idx[i]
         if(idx > 1){
-          fp$paedsurv_artcd4dist[,idx,g,i] <- fp$paedsurv_artcd4dist[,idx,g,i] + rowSums(fp$paedsurv_artcd4dist[,1:(idx-1),g,i])
+          fp$paedsurv_artcd4dist[,idx,g,i] <- fp$paedsurv_artcd4dist[,idx,g,i] + rowSums(fp$paedsurv_artcd4dist[,1:(idx-1),g,i, drop=FALSE])
           fp$paedsurv_artcd4dist[,1:(idx-1),g,i] <- 0
         }
       }

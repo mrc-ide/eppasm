@@ -134,7 +134,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   
   projp.h.ag <- findInterval(AGE_START + cumsum(h.ag.span) - h.ag.span, c(15, 25, 35, 45))  # NOTE: Will not handle AGE_START < 15 presently
   fp$cd4_initdist <- projp$cd4_initdist[,projp.h.ag,]
-  fp$cd4_prog <- projp$cd4_prog[,projp.h.ag,]
+  fp$cd4_prog <- (1-exp(-projp$cd4_prog[,projp.h.ag,] / hiv_steps_per_year)) * hiv_steps_per_year
   fp$cd4_mort <- projp$cd4_mort[,projp.h.ag,]
   fp$art_mort <- projp$art_mort[,,projp.h.ag,]
 
@@ -184,7 +184,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$med_cd4init_cat <- replace(findInterval(-fp$median_cd4init, - c(1000, 500, 350, 250, 200, 100, 50)),
                                 !fp$med_cd4init_input, 0L)
 
-  fp$tARTstart <- min(unlist(apply(fp$art15plus_num > 0, 1, which)))
+  fp$tARTstart <- min(unlist(apply(fp$art15plus_num > 0, 1, which)), PROJ_YEARS)
 
   
   ## Vertical transmission and survival to AGE_START for lagged births
@@ -573,9 +573,9 @@ simmod.specfp <- function(fp, VERSION="C"){
 
     ## Direct incidence input
     if(fp$eppmod == "directincid"){
-      if(specfp$incidpopage == 0L) # incidence for 15-49 population
+      if(fp$incidpopage == 0L) # incidence for 15-49 population
         p.incidpop.idx <- p.age15to49.idx
-      else if(specfp$incidpopage == 1L) # incidence for 15+ population
+      else if(fp$incidpopage == 1L) # incidence for 15+ population
         p.incidpop.idx <- p.age15plus.idx
       incrate.i <- fp$incidinput[i]
       sexinc <- incrate.i*c(1, fp$incrr_sex[i])*sum(pop[p.incidpop.idx,,hivn.idx,i-1])/(sum(pop[p.incidpop.idx,m.idx,hivn.idx,i-1]) + fp$incrr_sex[i]*sum(pop[p.incidpop.idx, f.idx,hivn.idx,i-1]))

@@ -591,7 +591,7 @@ extern "C" {
           for(int ha = 0; ha < hAG; ha++)
             for(int hm = 0; hm < hDS; hm++)
               hivpop[t][g][ha][hm] += DT*grad[g][ha][hm];
-
+	
         // ART progression, mortality, and initiation
         if(t >= t_ART_start){
           int cd4elig_idx = artcd4elig_idx[t] - 1; // -1 for 0-based indexing vs. 1-based in R
@@ -763,7 +763,9 @@ extern "C" {
                 pop[t][HIVP][g][a] *= (1.0-hivqx_ha);
                 a++;
               }
-            }  // end if(pop_ha[ha] > 0)
+            } else {
+	      a += hAG_SPAN[ha];
+	    } // end if(pop_ha[ha] > 0)
           }
         }
 

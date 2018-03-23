@@ -502,8 +502,27 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
                          list(ARTstage=c("PERINAT", "BF0MOS", "BF6MOS", "BF1YR", "ART0MOS", "ART6MOS", "ART1YR"),
                               CD4cat=c("CD4_1000", "CD4_750", "CD4_500", "CD4_350", "CD4_200", "CD4_0"),
                               Sex=c("Male", "Female"), Year=proj.years))
-  } else
-    age14hivpop <- NULL
+  } else {
+    
+    ## Approximate for versions of Spectrum < 5.63
+    specres <- read_hivproj_output(pjnz)
+    hivpop14 <- specres$hivpop["14",,]
+
+    ## Assume ART coverage for age 10-14 age group
+    artcov14 <- rbind(Male = specres$artnum.m["10-15",]/specres$hivnum.m["10-15",],
+                      Female = specres$artnum.f["10-15",]/specres$hivnum.f["10-15",])
+    artcov14[is.na(artcov14)] <- 0
+                      
+    noart_cd4dist <- c(0.01, 0.04, 0.12, 0.22, 0.26, 0.35) # approximation for pre-ART period
+
+    age14hivpop <- array(0, c(4+TS, PAED_DS, NG, length(proj.years)),
+                         list(ARTstage=c("PERINAT", "BF0MOS", "BF6MOS", "BF1YR", "ART0MOS", "ART6MOS", "ART1YR"),
+                              CD4cat=c("CD4_1000", "CD4_750", "CD4_500", "CD4_350", "CD4_200", "CD4_0"),
+                              Sex=c("Male", "Female"), Year=proj.years))
+
+    age14hivpop["PERINAT",,,] <- noart_cd4dist %o% (hivpop14 * (1 - artcov14))
+    age14hivpop["ART1YR", "CD4_0",,] <- hivpop14 * artcov14
+  }
   
   projp <- list("yr_start"=yr_start, "yr_end"=yr_end,
                 "relinfectART"=relinfectART,

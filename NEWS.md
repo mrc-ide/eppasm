@@ -69,3 +69,6 @@
 
 # eppasm 0.4.0
 - Add annual direct incidence input option.
+
+# eppasm 0.4.1
+- Model fitting for case surveillance and vital registration data.

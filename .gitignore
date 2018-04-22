@@ -7,3 +7,5 @@
 *.out
 *.dll
 dev/*
+analysis/*_cache/*
+analysis/*_files/*

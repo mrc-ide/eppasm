@@ -1,7 +1,7 @@
-estci2 <- function(x){
+estci2 <- function(x, na.rm=TRUE){
   if(is.vector(x)) x <- matrix(x, 1)
   nd <- length(dim(x))
-  val <- apply(x, seq_len(nd-1), function(y) c(mean(y), sd(y), quantile(y, c(0.5, 0.025, 0.975))))
+  val <- apply(x, seq_len(nd-1), function(y) c(mean(y, na.rm=na.rm), sd(y, na.rm=na.rm), quantile(y, c(0.5, 0.025, 0.975), na.rm=na.rm)))
   val <- aperm(val, c(2:nd, 1))
   dimnames(val)[[nd]] <- c("mean", "se", "median", "lower", "upper")
   val

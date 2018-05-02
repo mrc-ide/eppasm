@@ -72,3 +72,4 @@
 
 # eppasm 0.4.1
 - Model fitting for case surveillance and vital registration data.
+- Add support for parsing updated "<FitIncidenceEditorValues MV5>" tag

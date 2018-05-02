@@ -851,17 +851,31 @@ read_csavr_data <- function(pjnz){
   yr_end <- as.integer(dpsub("<FinalYear MV2>",2,4))
   proj_years <- yr_start:yr_end
 
-
   if(exists_dptag("<FitIncidenceEditorValues MV2>")){
     val <- data.frame(year = proj_years, 
                       t(sapply(dpsub("<FitIncidenceEditorValues MV2>", 2:10, 3+seq_along(proj_years)), as.numeric)),
                       row.names=proj_years)
     names(val) <- c("year", "plhiv", "plhiv_undercount", "new_cases", "new_cases_undercount", "new_cases_lag",
                     "aids_deaths", "aids_deaths_undercount", "deaths_hivp", "deaths_hivp_undercount")
-    
     attr(val, "agegroup") <-  c("All ages", "Adults 15-49", "Adults 15+")[as.integer(dpsub("<IncidenceAgeGroupIndex MV>", 2, 4))+1L]
-  } else
-    val <- NULL
+  } else if(exists_dptag("<FitIncidenceEditorValues MV4>")){
+    val <- data.frame(year = proj_years,
+                      t(sapply(dpsub("<FitIncidenceEditorValues MV4>", c(4:5, 7, 9:10), 3+seq_along(proj_years)), as.numeric)),
+                      row.names=proj_years)
+    names(val) <- c("year", "new_cases", "new_cases_undercount", "new_cases_mean_cd4", "aids_deaths", "deaths_hivp")
+    attr(val, "agegroup") <-  c("All ages", "Adults 15-49", "Adults 15+")[as.integer(dpsub("<IncidenceAgeGroupIndex MV>", 2, 4))+1L]
+  } else if(exists_dptag("<FitIncidenceEditorValues MV5>")){
+    val <- data.frame(year = proj_years,
+                      t(sapply(dpsub("<FitIncidenceEditorValues MV5>", 3:11, 3+seq_along(proj_years)), as.numeric)),
+                      row.names=proj_years)
+    names(val) <- c("year", "plhiv", "plihv_unreported", "new_cases", "new_cases_unreported", "new_cases_mean_cd4",
+                    "aids_deaths", "aids_deaths_unreported", "deaths_hivp", "deaths_hivp_unreported")
+  } else {
+    warning(paste0("Known tag for CSAVR data not found in .DP file. Returning NULL.\n", pjnz))
+    return(NULL)
+  }
+
+  attr(val, "agegroup") <-  c("All ages", "Adults 15-49", "Adults 15+")[as.integer(dpsub("<IncidenceAgeGroupIndex MV>", 2, 4))+1L]
 
   return(val)
 }

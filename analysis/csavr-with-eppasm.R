@@ -13,12 +13,13 @@ options(knitr.kable.NA = '')
 ##+ load packages, include=FALSE
 devtools::install_github("mrc-ide/epp",auth_token = pat_token)
 devtools::install_github("mrc-ide/eppasm@csavr",auth_token = pat_token)
+githubinstall::gh_install_packages("mrc-ide/eppasm",ref = "csavr",auth_token=pat_token)
 library(eppasm)
 ## devtools::load_all("~/Documents/Code/R/eppasm-csavr/") # @csavr
 devtools::load_all("hiv_project/jeff_eppasm_csavr_branch/")
 devtools::build("hiv_project/jeff_eppasm_csavr_branch/")
 
-
+library(epp)
 
 
 library(magrittr)
@@ -28,7 +29,7 @@ library(ggplot2)
 
 #' # Introduction
 #'
-#' Following discussion at the October 2018 UNAIDS Reference Group meeting, we showed
+#' Following discussion at the October 2017 UNAIDS Reference Group meeting, we showed
 #' that the code for the EPP-ASM model was able to take annual HIV incidence rates as
 #' inputs and reproduce Spectrum model ouputs for the numbers of new HIV infections,
 #' PLHIV, and AIDS deaths for the age 15+ population. This report extends that
@@ -56,7 +57,7 @@ library(ggplot2)
 
 ##+ read data, include=FALSE
 ## Read Spectrum inputs for direct incidence simulation
-nl_pjnz <- "~/Documents/Data/Spectrum files/2017 final/WCENA/Netherlands_2017_final.PJNZ"
+nl_pjnz <- "hiv_project/jeff_eppasm_data/Netherlands_2017_final.PJNZ"
 
 nl_fp <- prepare_directincid(nl_pjnz)
 nl_mod <- simmod(nl_fp)
@@ -64,7 +65,7 @@ nl_mod <- simmod(nl_fp)
 nl_fp$relinfectART <- 0.3
 nl_fp$tsEpidemicStart <- 1970.5
 
-cl_pjnz <- "~/Documents/Code/R/eppasm-csavr/dev/pjnz/Chile_2017_final.pjnz"
+cl_pjnz <- "hiv_project/jeff_eppasm_data/Chile_2017_final.pjnz"
 
 cl_fp <- prepare_directincid(cl_pjnz)
 cl_mod <- simmod(cl_fp)
@@ -272,10 +273,10 @@ cl_out <- rbind(cl_out1, cl_out2, cl_out3)
 #' The figure below shows model results for the Netherlands from IMIS.
 ##+ plot nl fit, fig.height = 4.5, fig.width = 7, fig.align = "center", echo=FALSE
 ggplot(subset(nl_out, year %in% 1975:2017), aes(year, mean, ymin=lower, ymax=upper, color=model, fill=model)) +
-  geom_line() + geom_ribbon(linetype = "blank", alpha=0.3) + 
+  geom_line() + geom_ribbon(linetype = "blank", alpha=0.25) + 
   facet_wrap(~outcome, scales="free") + 
-  geom_point(aes(y=lik_data), col="darkred", size=0.5) +
-  geom_point(aes(y=vld_data), col="grey40", size=0.5)+ 
+  geom_point(aes(y=lik_data), col="darkred", size=1) +
+  geom_point(aes(y=vld_data), col="grey40", size=1)+ 
   theme(legend.position = "bottom") +
   scale_x_continuous(element_blank()) + scale_y_continuous(element_blank())
 
@@ -283,10 +284,10 @@ ggplot(subset(nl_out, year %in% 1975:2017), aes(year, mean, ymin=lower, ymax=upp
 #' The figure below shows model results for Chile.
 ##+ plot cl fit, fig.height = 4.5, fig.width = 7, fig.align = "center", echo=FALSE 
 ggplot(subset(cl_out, year %in% 1975:2017), aes(year, mean, ymin=lower, ymax=upper, color=model, fill=model)) +
-  geom_line() + geom_ribbon(linetype = "blank", alpha=0.3) + 
+  geom_line() + geom_ribbon(linetype = "blank", alpha=0.2) + 
   facet_wrap(~outcome, scales="free") + 
-  geom_point(aes(y=lik_data), col="darkred", size=0.5) +
-  geom_point(aes(y=vld_data), col="grey40", size=0.5)+ 
+  geom_point(aes(y=lik_data), col="darkred", size=1) +
+  geom_point(aes(y=vld_data), col="grey40", size=1)+ 
   theme(legend.position = "bottom") +
   scale_x_continuous(element_blank()) + scale_y_continuous(element_blank())
 

@@ -11,8 +11,9 @@ opts_chunk$set(tidy=TRUE, warning=FALSE, cache=TRUE, message=FALSE)
 options(knitr.kable.NA = '')
 
 ##+ load packages, include=FALSE
-## devtools::install_github("mrc-idx/eppasm@csavr
-devtools::load_all("~/Documents/Code/R/eppasm-csavr/") # @csavr
+devtools::install_github("mrc-ide/eppasm@csavr")
+library(eppasm)
+## devtools::load_all("~/Documents/Code/R/eppasm-csavr/") # @csavr
 library(magrittr)
 library(broom)
 library(ggplot2)
@@ -126,7 +127,7 @@ cl_csavrd[,c("plhiv", "plhiv_undercount", "new_cases", "new_cases_undercount", "
 #'
 #' We considered three parameteric models for the HIV incidence rate, denoted
 #' $\lambda(t)$, or HIV transmission $r(t)$.  For directly modelling $\lambda(t)$,
-#' we implemented the single logistic (two parameters) and double logistic (four
+#' we implemented the single logistic (two parameters) and double logistic (five
 #' parameters) models implemented by the current CSAVR software. The single logistic
 #' model is
 #' \begin{equation}

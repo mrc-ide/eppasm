@@ -5,11 +5,27 @@ prepare_likdat_csavr <- function(csavrd, fp){
 
   csavrd$idx <- csavrd$year - fp$ss$proj_start + 1L
 
+  # Patch to handle '_unreported' specification in <..MV5>
+  if(!exists("aids_deaths_undercount", csavrd))
+    csavrd$aids_deaths_undercount <- 0
+  if(exists("aids_deaths_unreported", csavrd)){
+    csavrd$aids_deaths_unreported[is.na(csavrd$aids_deaths_unreported)] <- 0
+    csavrd$aids_deaths <- csavrd$aids_deaths + csavrd$aids_deaths_unreported
+  }
+  
   aidsdeaths <- setNames(data.frame(csavrd[c("year", "idx", "aids_deaths", "aids_deaths_undercount")]),
                          c("year", "idx", "aidsdeaths", "prop_undercount"))
   aidsdeaths <- subset(aidsdeaths, !is.na(aidsdeaths))
   aidsdeaths$prop_undercount[is.na(aidsdeaths$prop_undercount)] <- 0
   aidsdeaths$prop_undercount <- aidsdeaths$prop_undercount / 100
+
+  
+  if(!exists("new_cases_undercount", csavrd))
+    csavrd$new_cases_undercount <- 0
+  if(exists("new_cases_unreported", csavrd)){
+    csavrd$new_cases_unreported[is.na(csavrd$new_cases_unreported)] <- 0
+    csavrd$new_cases <- csavrd$new_cases + csavrd$new_cases_unreported
+  }
 
   diagnoses <- setNames(data.frame(csavrd[c("year", "idx", "new_cases", "new_cases_undercount")]),
                         c("year", "idx", "diagnoses", "prop_undercount"))

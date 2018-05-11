@@ -217,6 +217,7 @@ extern "C" {
     INTEGER(s_pop_dim)[2] = pDS;
     INTEGER(s_pop_dim)[3] = PROJ_YEARS;
     setAttrib(s_pop, R_DimSymbol, s_pop_dim);
+    memset(REAL(s_pop), 0, length(s_pop)*sizeof(double));
 
     SEXP s_hivpop = PROTECT(allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
     SEXP s_hivpop_dim = PROTECT(allocVector(INTSXP, 4));
@@ -226,6 +227,7 @@ extern "C" {
     INTEGER(s_hivpop_dim)[3] = PROJ_YEARS;
     setAttrib(s_hivpop, R_DimSymbol, s_hivpop_dim);
     setAttrib(s_pop, install("hivpop"), s_hivpop);
+    memset(REAL(s_hivpop), 0, length(s_hivpop)*sizeof(double));
 
     SEXP s_artpop = PROTECT(allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
     SEXP s_artpop_dim = PROTECT(allocVector(INTSXP, 5));
@@ -236,6 +238,7 @@ extern "C" {
     INTEGER(s_artpop_dim)[4] = PROJ_YEARS;
     setAttrib(s_artpop, R_DimSymbol, s_artpop_dim);
     setAttrib(s_pop, install("artpop"), s_artpop);
+    memset(REAL(s_artpop), 0, length(s_artpop)*sizeof(double));
 
     SEXP s_infections = PROTECT(allocVector(REALSXP, pAG * NG * PROJ_YEARS));
     SEXP s_infections_dim = PROTECT(allocVector(INTSXP, 3));

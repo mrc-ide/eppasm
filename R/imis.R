@@ -152,7 +152,7 @@ optimization_step <- function(theta, fn, cov){
   ptm.opt = proc.time()
   optNM <- optim(theta, fn, method="Nelder-Mead",
                  control=list(maxit=5000, parscale=sqrt(diag(cov))))
-  
+
   ## The more efficient optimizer uses the BFGS algorithm
   optBFGS <- try(stop(""), TRUE)
   step_expon <- 0.2
@@ -164,7 +164,7 @@ optimization_step <- function(theta, fn, cov){
   }
   ptm.use = (proc.time() - ptm.opt)[3]
   if(inherits(optBFGS, "try-error")){
-    print(paste0("D = ", i, "; BFGS optimization failed."))
+    print(paste0("BFGS optimization failed."))
     print(paste("maximum log posterior=", round(-optNM$value,2),
                 ## ", likelihood=", round(likelihood(optNM$par, fp, likdat, log=TRUE),2),
                 ## ", prior=", round(log(prior(optNM$par, fp)),2),

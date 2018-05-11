@@ -162,8 +162,10 @@ log_frr_adjust.pr.mean <- 0
 log_frr_adjust.pr.sd <- 0.2
 ancrtcens.vinfl.pr.rate <- 1/0.015
 
-prepare_ancrtcens_likdat <- function(dat, anchor.year){
+prepare_ancrtcens_likdat <- function(dat, fp){
 
+  anchor.year <- fp$ss$proj_start
+  
   x.ancrt <- (dat$prev*dat$n+0.5)/(dat$n+1)
   dat$W.ancrt <- qnorm(x.ancrt)
   dat$v.ancrt <- 2*pi*exp(dat$W.ancrt^2)*x.ancrt*(1-x.ancrt)/dat$n
@@ -512,12 +514,12 @@ ll_hhsincid <- function(mod, hhsincid.dat){
 
 prepare_likdat <- function(eppd, fp){
 
-  anchor_year <- floor(fp$proj.steps[1])
+  anchor_year <- fp$ss$proj_start
 
   likdat <- list(anclik.dat = prepare_ancsite_likdat(eppd, anchor.year=anchor_year),
                  hhslik.dat = epp::fnPrepareHHSLikData(eppd$hhs, anchor.year=anchor_year))
   if(exists("ancrtcens", where=eppd))
-    likdat$ancrtcens.dat <- prepare_ancrtcens_likdat(eppd$ancrtcens, anchor.year=anchor_year)
+    likdat$ancrtcens.dat <- prepare_ancrtcens_likdat(eppd$ancrtcens, fp)
   if(exists("hhsage", where=eppd))
     likdat$hhsage.dat <- prepare_hhsageprev_likdat(eppd$hhsage, fp)
   if(exists("hhsincid", where=eppd))

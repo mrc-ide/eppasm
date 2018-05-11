@@ -380,12 +380,13 @@ simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FA
   fit$incid <- mapply(incid, mod = mod.list, fp = fp.list)
   fit$popsize <- sapply(mod.list, colSums, dims=3)
 
-  if(pregprev)
-    fit$pregprev <- sapply(mod.list, fnPregPrev)
+  if(inherits(pregprev, "data.frame"))
+    fit$pregprev <- mapply(agepregprev, mod=mod.list, fp=fp.list,
+                           MoreArgs=list(aidx=pregprev$aidx, yidx=pregprev$yidx, agspan=pregprev$agspan))
+  else if(is.logical(pregprev) && pregprev == TRUE)
 
   if(entrantprev)
     fit$entrantprev <- sapply(mod.list, attr, "entrantprev")
-
 
   if(ageprevdat)
     fit$ageprevdat <- sapply(mod.list, ageprev, arridx=fit$likdat$hhsage.dat$arridx, agspan=5)

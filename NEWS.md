@@ -75,3 +75,9 @@
 # eppasm 0.3.4
 
 - Merge updates from v0.1.2 into v0.3.3
+
+
+
+# eppasm 0.5.0
+
+- Implement age-specific prevalence among pregnant women.

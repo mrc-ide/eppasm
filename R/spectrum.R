@@ -887,6 +887,53 @@ ageartcov <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NUL
 }
 
 
+#' Age-specific prevalence among pregnant women
+#' 
+#' @param expand whether to expand aidx, yidx, sidx, and agspan
+agepregprev <- function(mod, fp,
+                        aidx=3:9*5-fp$ss$AGE_START+1L,
+                        yidx=1:fp$ss$PROJ_YEARS,
+                        agspan=5,
+                        expand=FALSE){
+  sidx <- fp$ss$f.idx # only women get pregnant
+
+  if(length(agspan)==1)
+    agspan <- rep(agspan, length(aidx))
+  
+  if(expand){
+    idx <- expand.grid(aidx=aidx, sidx=sidx, yidx=yidx)
+    idx$agspan <- rep(agspan, times=length(sidx)*length(yidx))
+  } else
+    idx <- data.frame(aidx=aidx, sidx=sidx, yidx=yidx, agspan=agspan)
+
+  idx$id <- seq_len(nrow(idx))
+
+  increment <- unlist(lapply(idx$agspan, seq_len))-1
+  a_idx <- rep(idx$aidx, idx$agspan) + increment
+  s_idx <- rep(idx$sidx, idx$agspan)
+  y_idx <- rep(idx$yidx, idx$agspan)
+  yminus1_idx <- rep(pmax(idx$yidx-1, 1), idx$agspan)
+  id_idx <- rep(idx$id, idx$agspan)
+
+  ## get index in asfr and ha_frr array
+  fert_idx <- match(a_idx, fp$ss$p.fert.idx)
+  hfert_idx <- match(fp$ss$ag.idx[a_idx], fp$ss$h.fert.idx)
+
+  hivp <- (mod[cbind(a_idx, s_idx, 2, y_idx)] + mod[cbind(a_idx, s_idx, 2, yminus1_idx)]) / 2
+  hivn <- (mod[cbind(a_idx, s_idx, 1, y_idx)] + mod[cbind(a_idx, s_idx, 1, yminus1_idx)]) / 2
+
+  ## Calculate age-specific FRR given the CD4 and ART duration distribution
+  hivpop_fert <- attr(mod, "hivpop")[ , fp$ss$h.fert.idx, fp$ss$f.idx, ]
+  artpop_fert <- attr(mod, "artpop")[ , , fp$ss$h.fert.idx, fp$ss$f.idx, ]
+  ha_frr <- (colSums(hivpop_fert * fp$frr_cd4) + colSums(artpop_fert * fp$frr_art,,2)) / (colSums(hivpop_fert) + colSums(artpop_fert,,2))
+  
+  births_a <- fp$asfr[cbind(fert_idx, y_idx)] * (hivn + hivp)
+  pregprev_a <- 1 - hivn / (hivn + ha_frr[cbind(hfert_idx, y_idx)] * hivp)
+
+  fastmatch::ctapply(pregprev_a * births_a, id_idx, sum) / fastmatch::ctapply(births_a, id_idx, sum)
+}
+
+
 incid_sexratio.spec <- function(mod){
   inc <- ageincid(mod, 1, 1:2, seq_len(dim(mod)[4]), 35)[,,]
   inc[2,] / inc[1,]

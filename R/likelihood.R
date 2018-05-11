@@ -167,13 +167,24 @@ prepare_ancrtcens_likdat <- function(dat, anchor.year){
   x.ancrt <- (dat$prev*dat$n+0.5)/(dat$n+1)
   dat$W.ancrt <- qnorm(x.ancrt)
   dat$v.ancrt <- 2*pi*exp(dat$W.ancrt^2)*x.ancrt*(1-x.ancrt)/dat$n
-  dat$idx <- dat$year - anchor.year+1
 
+  if(!exists("age", dat))
+    dat$age <- 15
+
+  if(!exists("agspan", dat))
+    dat$agspan <- 35
+
+  dat$aidx <- dat$age - fp$ss$AGE_START + 1
+  dat$yidx <- dat$year - anchor.year + 1
+  
   return(dat)
 }
 
-ll_ancrtcens <- function(qM.preg, ancrtcens.dat, fp){
-  sum(dnorm(ancrtcens.dat$W.ancrt, qM.preg[ancrtcens.dat$idx], sqrt(ancrtcens.dat$v.ancrt + fp$ancrtcens.vinfl), log=TRUE))
+ll_ancrtcens <- function(mod, dat, fp){
+  qprev <- qnorm(agepregprev(mod, fp, dat$aidx, dat$yidx, dat$agspan))
+  if(any(is.na(qprev)))
+    return(-Inf)
+  sum(dnorm(dat$W.ancrt, qprev, sqrt(dat$v.ancrt + fp$ancrtcens.vinfl), log=TRUE))
 }
 
 
@@ -306,8 +317,8 @@ fnCreateParam <- function(theta, fp){
   if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
     param$log_frr_adjust <- theta[paramcurr+1]
     param$frr_cd4 <- fp$frr_cd4 * exp(param$log_frr_adjust)
-    param$frr_art <- fp$frr_art
-    param$frr_art[1:2,,,] <- param$frr_art[1:2,,,] * exp(param$log_frr_adjust)
+    param$frr_art <- fp$frr_art * exp(param$log_frr_adjust)
+    ## param$frr_art[1:2,,,] <- param$frr_art[1:2,,,] * exp(param$log_frr_adjust)
 
     if(!exists("ancrtcens.vinfl", fp)){
       param$ancrtcens.vinfl <- exp(theta[paramcurr+2])
@@ -516,13 +527,13 @@ prepare_likdat <- function(eppd, fp){
 
   likdat$lastdata.idx <- max(unlist(likdat$anclik.dat$anc.idx.lst),
                              likdat$hhslik.dat$idx,
-                             likdat$ancrtcens.dat$idx,
+                             likdat$ancrtcens.dat$yidx,
                              likdat$hhsage.dat$idx,
                              likdat$hhsincid.dat$idx,
                              likdat$sibmx.dat$idx)
   likdat$firstdata.idx <- min(unlist(likdat$anclik.dat$anc.idx.lst),
                               likdat$hhslik.dat$idx,
-                              likdat$ancrtcens.dat$idx,
+                              likdat$ancrtcens.dat$yidx,
                               likdat$ancrtcens.dat$idx,
                               likdat$hhsage.dat$idx,
                               likdat$hhsincid.dat$idx,
@@ -636,7 +647,10 @@ ll <- function(theta, fp, likdat){
   mod <- simmod(fp)
 
   qM.all <- suppressWarnings(qnorm(prev(mod)))
-  qM.preg <- if(exists("pregprev", where=fp) && !fp$pregprev) qM.all else suppressWarnings(qnorm(fnPregPrev(mod, fp)))
+  qM.preg <- if(exists("pregprev", where=fp) && !fp$pregprev)
+               qM.all
+             else
+               suppressWarnings(qnorm(fnPregPrev(mod, fp)))
 
   if(any(is.na(qM.preg[likdat$firstdata.idx:likdat$lastdata.idx])) ||
      any(is.na(qM.all[likdat$firstdata.idx:likdat$lastdata.idx])) ||
@@ -651,7 +665,7 @@ ll <- function(theta, fp, likdat){
     ll.anc <- 0
 
   if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both"))
-    ll.ancrt <- ll_ancrtcens(qM.preg, likdat$ancrtcens.dat, fp)
+    ll.ancrt <- ll_ancrtcens(mod, likdat$ancrtcens.dat, fp)
   else
     ll.ancrt <- 0
 

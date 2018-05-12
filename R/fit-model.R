@@ -390,10 +390,10 @@ simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FA
 
   if(ageprevdat)
     fit$ageprevdat <- sapply(mod.list, ageprev, arridx=fit$likdat$hhsage.dat$arridx, agspan=5)
-
+  
   if(agegr3){
     fit$agegr3prev <- lapply(mod.list, ageprev, aidx=c(15, 25, 35)-fit$fp$ss$AGE_START+1L, sidx=1:2,
-                             yidx=(1999-fit$fp$ss$proj_start+1L):fit$fp$ss$PROJ_YEARS, agspan=c(10, 10, 15))
+                             yidx=(1999-fit$fp$ss$proj_start+1L):fit$fp$ss$PROJ_YEARS, agspan=c(10, 10, 15), expand=TRUE)
     fit$agegr3prev <- do.call(abind::abind, c(fit$agegr3prev, along=4))
   }
 

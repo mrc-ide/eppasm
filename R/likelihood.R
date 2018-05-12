@@ -380,11 +380,13 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
     hhsage$n_eff <- hhsage$n/hhsage$deff
   hhsage$x_eff <- hhsage$n_eff * hhsage$prev
 
+  startage <- as.integer(sub("([0-9]*)-([0-9]*)", "\\1", hhsage$agegr))
+  endage <- as.integer(sub("([0-9]*)-([0-9]*)", "\\2", hhsage$agegr))
+    
   hhsage$sidx <- match(hhsage$sex, c("male", "female"))
-  hhsage$aidx <- as.integer(substr(hhsage$agegr, 1, 2)) - fp$ss$AGE_START+1L
-  hhsage$yidx <- hhsage$year - (anchor.year - 1)
-
-  hhsage$arridx <- hhsage$aidx + (hhsage$sidx-1)*fp$ss$pAG + (hhsage$yidx-1)*fp$ss$NG*fp$ss$pAG
+  hhsage$aidx <- startage - fp$ss$AGE_START+1L
+  hhsage$yidx <- as.integer(hhsage$year - (anchor.year - 1))
+  hhsage$agspan <- endage - startage + 1L
 
   return(subset(hhsage, aidx > 0))
 }
@@ -396,18 +398,19 @@ ll_hhs <- function(qM, hhslik.dat){
 }
 
 #' Log likelihood for age-specific household survey prevalence
-ll_hhsage <- function(mod, hhsage.dat){
-  qM.age <- suppressWarnings(qnorm(ageprev(mod, arridx=hhsage.dat$arridx, agspan=5)))
-  if(any(is.na(qM.age))) return(-Inf)
+ll_hhsage <- function(mod, dat){
+  qM.age <- suppressWarnings(qnorm(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan)))
+  if(any(is.na(qM.age)))
+    return(-Inf)
   sum(dnorm(hhsage.dat$W.hhs, qM.age, hhsage.dat$sd.W.hhs, log=TRUE))
 }
 
 
 #' Log likelihood for age-specific household survey prevalence using binomial approximation
-ll_hhsage_binom <- function(mod, hhsage.dat){
-  prevM.age <- suppressWarnings(ageprev(mod, arridx=hhsage.dat$arridx, agspan=5))
+ll_hhsage_binom <- function(mod, dat){
+  prevM.age <- suppressWarnings(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan))
   if(any(is.na(prevM.age)) || any(prevM.age >= 1)) return(-Inf)
-  ll <- sum(ldbinom(hhsage.dat$x_eff, hhsage.dat$n_eff, prevM.age))
+  ll <- sum(ldbinom(dat$x_eff, dat$n_eff, prevM.age))
   if(is.na(ll))
     return(-Inf)
   return(ll)

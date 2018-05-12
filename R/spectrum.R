@@ -757,36 +757,65 @@ hivagemx.spec <- function(mod){
 
 
 
-#' Age-specific prevalence by 5-year age groups
+#' Prevalene by arbitrary age groups
 #'
-#' Age specific HIV prevalene by 5-year age groups from age 15 to 59
-#'
+#' @param sidx sex (1 = Male, 2 = Female, 0 = Both)
 #' Notes: Assumes that AGE_START is 15 and single year of age.
-ageprev <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL){
+#' @useDynLib eppasm ageprevC
+ageprev <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, expand=FALSE, VERSION="C"){
 
-  if(is.null(arridx)){
-    if(length(agspan)==1)
-      agspan <- rep(agspan, length(aidx))
-    
-    dims <- dim(mod)
-    idx <- expand.grid(aidx=aidx, sidx=sidx, yidx=yidx)
-    arridx <- idx$aidx + (idx$sidx-1)*dims[1] + (idx$yidx-1)*dims[1]*dims[2]
+  if(length(agspan)==1)
+    agspan <- rep(agspan, length(aidx))
+  
+  if(expand){
+    dimout <- c(length(aidx), length(sidx), length(yidx))
+    df <- expand.grid(aidx=aidx, sidx=sidx, yidx=yidx)
+    aidx <- df$aidx
+    sidx <- df$sidx
+    yidx <- df$yidx
     agspan <- rep(agspan, times=length(sidx)*length(yidx))
-  } else if(length(agspan)==1)
-    agspan <- rep(agspan, length(arridx))
+  } 
   
-  agidx <- rep(arridx, agspan)
-  allidx <- agidx + unlist(sapply(agspan, seq_len))-1
-  
-  hivn <- fastmatch::ctapply(mod[,,1,][allidx], agidx, sum)
-  hivp <- fastmatch::ctapply(mod[,,2,][allidx], agidx, sum)
-  
-  prev <- hivp/(hivn+hivp)
-  if(!is.null(aidx))
-    prev <- array(prev, c(length(aidx), length(sidx), length(yidx)))
+  if(VERSION != "R") { 
+
+    prev <- .Call(ageprevC, mod,
+                  as.integer(aidx), as.integer(sidx),
+                  as.integer(yidx), as.integer(agspan))
+    
+  } else {
+
+    idx <- data.frame(aidx=aidx, sidx=sidx, yidx=yidx, agspan=agspan)
+    idx$gidx <- seq_len(nrow(idx))
+    
+    ## Add M/F entries with same id if sidx = 0.
+    ## This is probably a pretty inefficient way of doing this...
+    
+    if(any(idx$sidx == 0)){
+      idx <- rbind(idx[idx$sidx != 0,], transform(idx[idx$sidx == 0,], sidx = 1), transform(idx[idx$sidx == 0,], sidx = 2))
+      idx <- idx[order(idx$gidx, idx$sidx),]
+    }
+    
+    idx$id <- seq_len(nrow(idx))
+    
+    increment <- unlist(lapply(idx$agspan, seq_len))-1
+    id_idx <- rep(idx$id, idx$agspan)
+    
+    g_idx <- idx$gidx[id_idx]
+    a_idx <- idx$aidx[id_idx] + increment
+    s_idx <- idx$sidx[id_idx]
+    y_idx <- idx$yidx[id_idx]
+    
+    hivn <- fastmatch::ctapply(mod[cbind(a_idx, s_idx, 1, y_idx)], g_idx, sum)
+    hivp <- fastmatch::ctapply(mod[cbind(a_idx, s_idx, 2, y_idx)], g_idx, sum)
+    prev <- hivp/(hivn+hivp)
+
+  }
+
+  if(expand)
+    prev <- array(prev, dimout)
+    
   return(prev)
 }
-
 
 ageincid <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL){
 

@@ -13,6 +13,10 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
 
   epp.subp.input <- epp::fnCreateEPPSubpops(epp.input, epp.subp, eppd)
 
+  ## melt site-level data
+  eppd <- Map("[[<-", eppd, "ancsitedat", lapply(eppd, melt_ancsite_data))
+  
+    
   ## spectrum
   demp <- read_specdp_demog_param(pjnz, use_ep5=use_ep5)
   projp <- read_hivproj_param(pjnz, use_ep5=use_ep5)
@@ -41,13 +45,41 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
   val <- set.list.attr(val, "eppd", eppd)
   val <- set.list.attr(val, "eppfp", lapply(epp.subp.input, epp::fnCreateEPPFixPar, proj.end = proj.end))
   val <- set.list.attr(val, "specfp", specfp.subp)
-  val <- set.list.attr(val, "country", attr(eppd, "country"))
+  val <- set.list.attr(val, "country", read_country(pjnz))
   val <- set.list.attr(val, "region", names(eppd))
 
   attr(val, "country") <- read_country(pjnz)
   attr(val, "region") <- read_region(pjnz)
 
   return(val)
+}
+
+#' Melt ANC-SS and site-level ANC-RT to long dataset
+melt_ancsite_data <- function(eppd){
+
+  
+  anc.used <- data.frame(site=rownames(eppd$anc.prev), used=eppd$anc.used)
+  anc.prev <- subset(reshape2::melt(eppd$anc.prev, varnames=c("site", "year"), value.name="prev"), !is.na(prev))
+  anc.n <- subset(reshape2::melt(eppd$anc.n, varnames=c("site", "year"), value.name="n"), !is.na(n))
+  
+  ancss <- merge(anc.used, anc.prev)
+  ancss <- merge(ancss, anc.n)
+  ancss$type <- "ancss"
+  
+  ancrtsite.prev <- subset(reshape2::melt(eppd$ancrtsite.prev, varnames=c("site", "year"), value.name="prev"), !is.na(prev))
+  ancrtsite.n <- subset(reshape2::melt(eppd$ancrtsite.n, varnames=c("site", "year"), value.name="n"), !is.na(n))
+  
+  ancrtsite <- merge(anc.used, ancrtsite.prev)
+  ancrtsite <- merge(ancrtsite, ancrtsite.n)
+  ancrtsite$type <- "ancrt"
+  
+  ancsitedat <- rbind(ancss, ancrtsite)
+  ancsitedat <- subset(ancsitedat, used)
+  ancsitedat$agegr <- "15-49"
+  ancsitedat$age <- 15
+  ancsitedat$agspan <- 35
+
+  ancsitedat
 }
 
 
@@ -229,13 +261,6 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
   ## Prepare likelihood data
   eppd <- attr(obj, "eppd")
-  
-  if(exists("ancrt", fp) && fp$ancrt == "none")
-    eppd$ancrtcens <- eppd$ancrtsite.prev <- eppd$ancrtsite.n <- NULL
-  else if(exists("ancrt", fp) && fp$ancrt == "census")
-    eppd$ancrtsite.prev <- eppd$ancrtsite.n <- NULL
-  else if(exists("ancrt", fp) && fp$ancrt == "site")
-    eppd$ancrtcens <- NULL
 
   if(is.null(eppd$ancrtcens) && is.null(eppd$ancrtsite.prev)){
     fp$ancrt <- "none"

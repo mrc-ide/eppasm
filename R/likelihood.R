@@ -146,10 +146,10 @@ prepare_ancrtcens_likdat <- function(dat, fp){
   dat$v.ancrt <- 2*pi*exp(dat$W.ancrt^2)*x.ancrt*(1-x.ancrt)/dat$n
 
   if(!exists("age", dat))
-    dat$age[] <- 15
+    dat$age <- rep(15, nrow(dat))
 
   if(!exists("agspan", dat))
-    dat$agspan[] <- 35
+    dat$agspan <- rep(35, nrow(dat))
 
   dat$aidx <- dat$age - fp$ss$AGE_START + 1
   dat$yidx <- dat$year - anchor.year + 1
@@ -504,7 +504,7 @@ prepare_likdat <- function(eppd, fp){
   else if(exists("ancrt", fp) && fp$ancrt == "site")
     eppd$ancrtcens <- NULL
 
-  likdat <- list(anclik.dat = prepare_ancsite_likdat(ancsitedat, fp),
+  likdat <- list(ancsite.dat = prepare_ancsite_likdat(ancsitedat, fp),
                  hhslik.dat = epp::fnPrepareHHSLikData(eppd$hhs, anchor.year=fp$ss$proj_start))
   
   if(exists("ancrtcens", where=eppd))
@@ -516,13 +516,13 @@ prepare_likdat <- function(eppd, fp){
   if(exists("sibmx", where=eppd))
     likdat$sibmx.dat <- prepare_sibmx_likdat(eppd$sibmx, fp)
 
-  likdat$lastdata.idx <- max(unlist(likdat$anclik.dat$anc.idx.lst),
+  likdat$lastdata.idx <- max(unlist(likdat$ancsite.dat$anc.idx.lst),
                              likdat$hhslik.dat$idx,
                              likdat$ancrtcens.dat$yidx,
                              likdat$hhsage.dat$idx,
                              likdat$hhsincid.dat$idx,
                              likdat$sibmx.dat$idx)
-  likdat$firstdata.idx <- min(unlist(likdat$anclik.dat$anc.idx.lst),
+  likdat$firstdata.idx <- min(unlist(likdat$ancsite.dat$anc.idx.lst),
                               likdat$hhslik.dat$idx,
                               likdat$ancrtcens.dat$yidx,
                               likdat$ancrtcens.dat$idx,

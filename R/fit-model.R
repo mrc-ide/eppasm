@@ -56,28 +56,30 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
 
 #' Melt ANC-SS and site-level ANC-RT to long dataset
 melt_ancsite_data <- function(eppd){
-
   
   anc.used <- data.frame(site=rownames(eppd$anc.prev), used=eppd$anc.used)
   anc.prev <- subset(reshape2::melt(eppd$anc.prev, varnames=c("site", "year"), value.name="prev"), !is.na(prev))
   anc.n <- subset(reshape2::melt(eppd$anc.n, varnames=c("site", "year"), value.name="n"), !is.na(n))
   
-  ancss <- merge(anc.used, anc.prev)
-  ancss <- merge(ancss, anc.n)
-  ancss$type <- "ancss"
+  ancsitedat <- merge(anc.used, anc.prev)
+  ancsitedat <- merge(ancsitedat, anc.n)
+  ancsitedat$type <- "ancss"
+
+  if(exists("ancrtsite.prev", eppd) && !is.null(eppd$ancrtsite.prev)){
+    ancrtsite.prev <- subset(reshape2::melt(eppd$ancrtsite.prev, varnames=c("site", "year"), value.name="prev"), !is.na(prev))
+    ancrtsite.n <- subset(reshape2::melt(eppd$ancrtsite.n, varnames=c("site", "year"), value.name="n"), !is.na(n))
   
-  ancrtsite.prev <- subset(reshape2::melt(eppd$ancrtsite.prev, varnames=c("site", "year"), value.name="prev"), !is.na(prev))
-  ancrtsite.n <- subset(reshape2::melt(eppd$ancrtsite.n, varnames=c("site", "year"), value.name="n"), !is.na(n))
-  
-  ancrtsite <- merge(anc.used, ancrtsite.prev)
-  ancrtsite <- merge(ancrtsite, ancrtsite.n)
-  ancrtsite$type <- "ancrt"
-  
-  ancsitedat <- rbind(ancss, ancrtsite)
+    ancrtsite <- merge(anc.used, ancrtsite.prev)
+    ancrtsite <- merge(ancrtsite, ancrtsite.n)
+    ancrtsite$type <- rep("ancrt", nrow(ancrtsite))
+    
+    ancsitedat <- rbind(ancsitedat, ancrtsite)
+  }
+
   ancsitedat <- subset(ancsitedat, used)
-  ancsitedat$agegr <- "15-49"
-  ancsitedat$age <- 15
-  ancsitedat$agspan <- 35
+  ancsitedat$agegr <- rep("15-49", nrow(ancsitedat))
+  ancsitedat$age <- rep(15, nrow(ancsitedat))
+  ancsitedat$agspan <- rep(35, nrow(ancsitedat))
 
   ancsitedat
 }
@@ -277,7 +279,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
     eppd$hhsage <- eppd$sibmx <- NULL
 
   likdat <- prepare_likdat(eppd, fp)
-  fp$ancsitedata <- as.logical(length(likdat$anclik.dat$W.lst))
+  fp$ancsitedata <- as.logical(nrow(likdat$ancsite.dat$df))
 
   if(fp$eppmod %in% c("rhybrid", "logrw", "rlogistic_rw")){  # THIS IS REALLY MESSY, NEED TO REFACTOR CODE
     fp$SIM_YEARS <- as.integer(likdat$lastdata.idx)

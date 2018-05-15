@@ -15,7 +15,9 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
 
   ## melt site-level data
   eppd <- Map("[[<-", eppd, "ancsitedat", lapply(eppd, melt_ancsite_data))
-  
+
+  ## tidy HHS data
+  eppd <- Map("[[<-", eppd, "hhs", lapply(eppd, tidy_hhs_data))
     
   ## spectrum
   demp <- read_specdp_demog_param(pjnz, use_ep5=use_ep5)
@@ -84,6 +86,20 @@ melt_ancsite_data <- function(eppd){
   ancsitedat
 }
 
+tidy_hhs_data <- function(eppd){
+
+  hhs <- eppd$hhs
+
+  hhs$deff <- 2.0 # irrelevant assumption
+  hhs$deff <- hhs$deff_approx <- 2.0 # irrelevant assumption 
+  hhs$n <- hhs$deff * hhs$prev * (1-hhs$prev) / hhs$se^2
+  hhs$agegr <- "15-49"
+  hhs$sex <- "both"
+  
+  hhs <- hhs[c("year", "sex", "agegr", "n", "prev", "se", "deff", "deff_approx", "used")]
+  
+  hhs
+}
 
 create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, length(eppd)), names(eppd)), ..., popadjust=TRUE, popupdate=TRUE, perc_urban=NULL){
 

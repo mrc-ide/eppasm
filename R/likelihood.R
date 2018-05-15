@@ -113,7 +113,7 @@ ll_ancsite <- function(mod, fp, coef=c(0, 0), vinfl=0, dat){
   
   df <- dat$df
   
-  qM <- qnorm(agepregprev(mod, fp, dat$datgrp$aidx, dat$datgrp$yidx, dat$datgrp$agspan))
+  qM <- suppressWarnings(qnorm(agepregprev(mod, fp, dat$datgrp$aidx, dat$datgrp$yidx, dat$datgrp$agspan)))
   mu <- qM[df$qMidx] + dat$Xancsite %*% coef
   d <- df$W - mu
   v <- df$v + vinfl
@@ -160,7 +160,7 @@ prepare_ancrtcens_likdat <- function(dat, fp){
 ll_ancrtcens <- function(mod, dat, fp){
   if(!nrow(dat))
     return(0)
-  qM.prev <- qnorm(agepregprev(mod, fp, dat$aidx, dat$yidx, dat$agspan))
+  qM.prev <- suppressWarnings(qnorm(agepregprev(mod, fp, dat$aidx, dat$yidx, dat$agspan)))
   if(any(is.na(qM.prev)))
     return(-Inf)
   sum(dnorm(dat$W.ancrt, qM.prev, sqrt(dat$v.ancrt + fp$ancrtcens.vinfl), log=TRUE))
@@ -360,7 +360,7 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
   startage <- as.integer(sub("([0-9]*)-([0-9]*)", "\\1", hhsage$agegr))
   endage <- as.integer(sub("([0-9]*)-([0-9]*)", "\\2", hhsage$agegr))
     
-  hhsage$sidx <- match(hhsage$sex, c("male", "female"))
+  hhsage$sidx <- match(hhsage$sex, c("both", "male", "female")) - 1L
   hhsage$aidx <- startage - fp$ss$AGE_START+1L
   hhsage$yidx <- as.integer(hhsage$year - (anchor.year - 1))
   hhsage$agspan <- endage - startage + 1L
@@ -368,18 +368,12 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
   return(subset(hhsage, aidx > 0))
 }
 
-
-#' Log likelihood for age 15-49 household survey prevalence
-ll_hhs <- function(qM, hhslik.dat){
-  return(sum(dnorm(hhslik.dat$W.hhs, qM[hhslik.dat$idx], hhslik.dat$sd.W.hhs, log=TRUE)))
-}
-
 #' Log likelihood for age-specific household survey prevalence
 ll_hhsage <- function(mod, dat){
   qM.age <- suppressWarnings(qnorm(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan)))
   if(any(is.na(qM.age)))
     return(-Inf)
-  sum(dnorm(hhsage.dat$W.hhs, qM.age, hhsage.dat$sd.W.hhs, log=TRUE))
+  sum(dnorm(dat$W.hhs, qM.age, dat$sd.W.hhs, log=TRUE))
 }
 
 
@@ -505,27 +499,23 @@ prepare_likdat <- function(eppd, fp){
     eppd$ancrtcens <- NULL
 
   likdat <- list(ancsite.dat = prepare_ancsite_likdat(ancsitedat, fp),
-                 hhslik.dat = epp::fnPrepareHHSLikData(eppd$hhs, anchor.year=fp$ss$proj_start))
+                 hhs.dat = prepare_hhsageprev_likdat(eppd$hhs, fp))
   
   if(exists("ancrtcens", where=eppd))
     likdat$ancrtcens.dat <- prepare_ancrtcens_likdat(eppd$ancrtcens, fp)
-  if(exists("hhsage", where=eppd))
-    likdat$hhsage.dat <- prepare_hhsageprev_likdat(eppd$hhsage, fp)
   if(exists("hhsincid", where=eppd))
     likdat$hhsincid.dat <- prepare_hhsincid_likdat(eppd$hhsincid, fp)
   if(exists("sibmx", where=eppd))
     likdat$sibmx.dat <- prepare_sibmx_likdat(eppd$sibmx, fp)
 
-  likdat$lastdata.idx <- max(unlist(likdat$ancsite.dat$anc.idx.lst),
-                             likdat$hhslik.dat$idx,
+  likdat$lastdata.idx <- max(likdat$ancsite.dat$df$yidx,
+                             likdat$hhs.dat$yidx,
                              likdat$ancrtcens.dat$yidx,
-                             likdat$hhsage.dat$idx,
                              likdat$hhsincid.dat$idx,
                              likdat$sibmx.dat$idx)
-  likdat$firstdata.idx <- min(unlist(likdat$ancsite.dat$anc.idx.lst),
-                              likdat$hhslik.dat$idx,
+  likdat$firstdata.idx <- min(likdat$ancsite.dat$df$yidx,
+                              likdat$hhs.dat$yidx,
                               likdat$ancrtcens.dat$yidx,
-                              likdat$ancrtcens.dat$idx,
                               likdat$hhsage.dat$idx,
                               likdat$hhsincid.dat$idx,
                               likdat$sibmx.dat$idx)
@@ -637,37 +627,26 @@ ll <- function(theta, fp, likdat){
 
   mod <- simmod(fp)
 
-  qM.all <- suppressWarnings(qnorm(prev(mod)))
-  qM.preg <- if(exists("pregprev", where=fp) && !fp$pregprev)
-               qM.all
-             else
-               suppressWarnings(qnorm(fnPregPrev(mod, fp)))
-
-  if(any(is.na(qM.preg[likdat$firstdata.idx:likdat$lastdata.idx])) ||
-     any(is.na(qM.all[likdat$firstdata.idx:likdat$lastdata.idx])) ||
-     any(qM.preg[likdat$firstdata.idx:likdat$lastdata.idx] == -Inf) ||
-     any(qM.preg[likdat$firstdata.idx:likdat$lastdata.idx] > 2)) # prevalence not greater than pnorm(2) = 0.977
-    return(-Inf)
-
   ## ANC likelihood
-  if(fp$ancsitedata)
+  if(exists("ancsite.dat", likdat))
     ll.anc <- ll_ancsite(mod, fp, coef=c(fp$ancbias, fp$ancrtsite.beta), vinfl=fp$v.infl, likdat$ancsite.dat)
   else
     ll.anc <- 0
 
-  if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both"))
+  if(exists("ancrtcens.dat", likdat))
     ll.ancrt <- ll_ancrtcens(mod, likdat$ancrtcens.dat, fp)
   else
     ll.ancrt <- 0
 
 
   ## Household survey likelihood
-  if(exists("ageprev", where=fp) && fp$ageprev=="binom")
-    ll.hhs <- ll_hhsage_binom(mod, likdat$hhsage.dat)
-  else if(exists("ageprev", where=fp) && (fp$ageprev==TRUE | fp$ageprev == "probit")) # ==TRUE for backward compatibility
-    ll.hhs <- ll_hhsage(mod, likdat$hhsage.dat) # probit-transformed model
+  if(exists("hhs.dat", where=likdat))
+    if(exists("ageprev", fp) && fp$ageprev=="binom")
+      ll.hhs <- ll_hhsage_binom(mod, likdat$hhs.dat)
+    else ## use probit likelihood
+      ll.hhs <- ll_hhsage(mod, likdat$hhs.dat) # probit-transformed model
   else
-    ll.hhs <- ll_hhs(qM.all, likdat$hhslik.dat)
+    ll.hhs <- 0
 
   if(!is.null(likdat$hhsincid.dat))
     ll.incid <- ll_hhsincid(mod, likdat$hhsincid.dat)
@@ -682,6 +661,7 @@ ll <- function(theta, fp, likdat){
     ll.sibmx <- 0
 
   if(exists("equil.rprior", where=fp) && fp$equil.rprior){
+    qM.all <- suppressWarnings(qnorm(prev(mod)))
     rvec.ann <- fp$rvec[fp$proj.steps %% 1 == 0.5]
     equil.rprior.mean <- epp:::muSS/(1-pnorm(qM.all[likdat$lastdata.idx]))
     equil.rprior.sd <- sqrt(mean((epp:::muSS/(1-pnorm(qM.all[likdat$lastdata.idx - 9:0])) - rvec.ann[likdat$lastdata.idx - 9:0])^2))  # empirical sd based on 10 previous years

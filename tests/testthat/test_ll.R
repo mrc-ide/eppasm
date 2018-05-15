@@ -1,5 +1,6 @@
 context("test log likelihood")
 
+devtools::load_all()
 load("ll-test-data.rda")
 
 test_that("ll returns expected value", {

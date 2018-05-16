@@ -13,11 +13,17 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
 
   epp.subp.input <- epp::fnCreateEPPSubpops(epp.input, epp.subp, eppd)
 
+  country <- attr(eppd, "country")
+  cc <- attr(eppd, "country_code")
+
   ## melt site-level data
   eppd <- Map("[[<-", eppd, "ancsitedat", lapply(eppd, melt_ancsite_data))
 
   ## tidy HHS data
   eppd <- Map("[[<-", eppd, "hhs", lapply(eppd, tidy_hhs_data))
+
+  attr(eppd, "country") <- country
+  attr(eppd, "country_code") <- cc
     
   ## spectrum
   demp <- read_specdp_demog_param(pjnz, use_ep5=use_ep5)
@@ -90,11 +96,10 @@ tidy_hhs_data <- function(eppd){
 
   hhs <- eppd$hhs
 
-  hhs$deff <- 2.0 # irrelevant assumption
-  hhs$deff <- hhs$deff_approx <- 2.0 # irrelevant assumption 
+  hhs$deff <- hhs$deff_approx <- rep(2.0, nrow(hhs)) # irrelevant assumption 
   hhs$n <- hhs$deff * hhs$prev * (1-hhs$prev) / hhs$se^2
-  hhs$agegr <- "15-49"
-  hhs$sex <- "both"
+  hhs$agegr <- rep("15-49", nrow(hhs))
+  hhs$sex <- rep("both", nrow(hhs))
   
   hhs <- hhs[c("year", "sex", "agegr", "n", "prev", "se", "deff", "deff_approx", "used")]
   
@@ -280,16 +285,20 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   ## Prepare likelihood data
   eppd <- attr(obj, "eppd")
 
-  if(is.null(eppd$ancrtcens) && is.null(eppd$ancrtsite.prev)){
-    fp$ancrt <- "none"
+  has_ancrtsite <- exists("ancsitedat", eppd) && any(eppd$ancsitedat$type == "ancss")
+  has_ancrtcens <- exists("ancrtcens", eppd) && nrow(eppd$ancrtcens)
+  
+  if(!has_ancrtsite)
     fp$ancrtsite.beta <- 0
-  } else if(!is.null(eppd$ancrtcens) && is.null(eppd$ancrtsite.prev)){
-    fp$ancrt <- "census"
-    fp$ancrtsite.beta <- 0
-  } else if(is.null(eppd$ancrtcens) && !is.null(eppd$ancrtsite.prev))
-    fp$ancrt <- "site"
-  else
+
+  if(has_ancrtsite & has_ancrtcens)
     fp$ancrt <- "both"
+  else if(has_ancrtsite & !has_ancrtcens)
+    fp$ancrt <- "site"
+  else if(!has_ancrtsite & has_ancrtcens)
+    fp$ancrt <- "census"
+  else
+    fp$ancrt <- "none"
 
   if(epp)
     eppd$hhsage <- eppd$sibmx <- NULL
@@ -298,7 +307,13 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   fp$ancsitedata <- as.logical(nrow(likdat$ancsite.dat$df))
 
   if(fp$eppmod %in% c("rhybrid", "logrw", "rlogistic_rw")){  # THIS IS REALLY MESSY, NEED TO REFACTOR CODE
-    fp$SIM_YEARS <- as.integer(likdat$lastdata.idx)
+
+    fp$SIM_YEARS <- as.integer(max(likdat$ancsite.dat$df$yidx,
+                                   likdat$hhs.dat$yidx,
+                                   likdat$ancrtcens.dat$yidx,
+                                   likdat$hhsincid.dat$idx,
+                                   likdat$sibmx.dat$idx))
+
     fp$proj.steps <- seq(fp$ss$proj_start+0.5, fp$ss$proj_start-1+fp$SIM_YEARS+0.5, by=1/fp$ss$hiv_steps_per_year)
   } else
     fp$SIM_YEARS <- fp$ss$PROJ_YEARS
@@ -332,7 +347,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
   ## Fit using optimization
   if(optfit){
-    optfn <- function(theta, fp, likdat) lprior(theta, fp) + ll(theta, fp, likdat)
+    optfn <- function(theta, fp, likdat) lprior(theta, fp) + sum(ll(theta, fp, likdat))
     if(is.null(opt_init)){
       X0 <- sample_prior(B0, fp)
       lpost0 <- likelihood(X0, fp, likdat, log=TRUE) + prior(X0, fp, log=TRUE)
@@ -359,7 +374,11 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
       lpost0 <- likelihood(X0, fp, likdat, log=TRUE) + prior(X0, fp, log=TRUE)
       opt_init <- X0[which.max(lpost0)[1],]
     }
-    opt <- optim(opt_init, optfn, fp=fp, likdat=likdat, method=opt_method, control=list(fnscale=-1, trace=4, maxit=1e3))
+    opt <- optim(opt_init, optfn, fp=fp, likdat=likdat, method=opt_method,
+                 control=list(fnscale=-1,
+                              trace=4,
+                              maxit=1e3,
+                              ndeps=rep(.Machine$double.eps^0.5, length(opt_init))))
     opt$fp <- fp
     opt$likdat <- likdat
     opt$param <- fnCreateParam(opt$par, fp)
@@ -405,8 +424,13 @@ simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FA
         stop("Random-walk projection is only used with r-spline model")
 
       ## fit$rvec.spline <- sapply(fit$param, "[[", "rvec")
+      lastdata.idx <- as.integer(max(fit$likdat$ancsite.dat$df$yidx,
+                                     fit$likdat$hhs.dat$yidx,
+                                     fit$likdat$ancrtcens.dat$yidx,
+                                     fit$likdat$hhsincid.dat$idx,
+                                     fit$likdat$sibmx.dat$idx))
       firstidx <- which(fit$fp$proj.steps == fit$fp$tsEpidemicStart)
-      lastidx <- (fit$likdat$lastdata.idx-1)*fit$fp$ss$hiv_steps_per_year+1
+      lastidx <- (lastdata.idx-1)*fit$fp$ss$hiv_steps_per_year+1
       
       ## replace rvec with random-walk simulated rvec
       fit$param <- lapply(fit$param, function(par){par$rvec <- epp:::sim_rvec_rwproj(par$rvec, firstidx, lastidx, 1/fit$fp$ss$hiv_steps_per_year); par})
@@ -474,9 +498,15 @@ simfit.eppfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", pregprev=TRUE)
     if(exists("eppmod", where=fit$fp) && fit$fp$eppmod == "rtrend")
       stop("Random-walk projection is only used with r-spline model")
 
+    lastdata.idx <- as.integer(max(fit$likdat$ancsite.dat$df$yidx,
+                                   fit$likdat$hhs.dat$yidx,
+                                   fit$likdat$ancrtcens.dat$yidx,
+                                   fit$likdat$hhsincid.dat$idx,
+                                   fit$likdat$sibmx.dat$idx))
+
     fit$rvec.spline <- sapply(fit$param, "[[", "rvec")
     firstidx <- which(fit$fp$proj.steps == fit$fp$tsEpidemicStart)
-    lastidx <- (fit$likdat$lastdata.idx-1)/fit$fp$dt+1
+    lastidx <- (lastdata.idx-1)/fit$fp$dt+1
 
     ## replace rvec with random-walk simulated rvec
     fit$param <- lapply(fit$param, function(par){par$rvec <- sim_rvec_rwproj(par$rvec, firstidx, lastidx, fit$fp$dt); par})
@@ -506,10 +536,16 @@ sim_mod_list <- function(fit, rwproj=fit$fp$eppmod == "rspline"){
       stop("Random-walk projection is only used with r-spline model")
 
     dt <- if(inherits(fit$fp, "eppfp")) fit$fp$dt else 1.0/fit$fp$ss$hiv_steps_per_year
+
+    lastdata.idx <- as.integer(max(fit$likdat$ancsite.dat$df$yidx,
+                                   fit$likdat$hhs.dat$yidx,
+                                   fit$likdat$ancrtcens.dat$yidx,
+                                   fit$likdat$hhsincid.dat$idx,
+                                   fit$likdat$sibmx.dat$idx))
     
     fit$rvec.spline <- sapply(fit$param, "[[", "rvec")
     firstidx <- which(fit$fp$proj.steps == fit$fp$tsEpidemicStart)
-    lastidx <- (fit$likdat$lastdata.idx-1)/dt+1
+    lastidx <- (lastdata.idx-1)/dt+1
 
     ## replace rvec with random-walk simulated rvec
     fit$param <- lapply(fit$param, function(par){par$rvec <- epp:::sim_rvec_rwproj(par$rvec, firstidx, lastidx, dt); par})

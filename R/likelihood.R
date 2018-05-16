@@ -110,10 +110,17 @@ prepare_ancsite_likdat <- function(ancsitedat, fp){
 }
 
 ll_ancsite <- function(mod, fp, coef=c(0, 0), vinfl=0, dat){
-  
+
   df <- dat$df
-  
+
+  if(!nrow(df))
+    return(0)
+    
   qM <- suppressWarnings(qnorm(agepregprev(mod, fp, dat$datgrp$aidx, dat$datgrp$yidx, dat$datgrp$agspan)))
+
+  if(any(is.na(qM)) || any(qM == -Inf) || any(qM > 2))  ## prev < 0.977
+    return(-Inf)
+  
   mu <- qM[df$qMidx] + dat$Xancsite %*% coef
   d <- df$W - mu
   v <- df$v + vinfl
@@ -488,37 +495,31 @@ ll_hhsincid <- function(mod, hhsincid.dat){
 
 prepare_likdat <- function(eppd, fp){
 
-  ancsitedat <- eppd$ancsitedat
+  likdat <- list()
   
-  if(exists("ancrt", fp) && fp$ancrt == "none"){
-    ancsitedat <- subset(ancsitedat, type == "ancss")
-    eppd$ancrtcens <- NULL
-  } else if(exists("ancrt", fp) && fp$ancrt == "census")
-    ancsitedat <- subset(ancsitedat, type == "ancss")
-  else if(exists("ancrt", fp) && fp$ancrt == "site")
-    eppd$ancrtcens <- NULL
+  likdat$hhs.dat <- prepare_hhsageprev_likdat(eppd$hhs, fp)
 
-  likdat <- list(ancsite.dat = prepare_ancsite_likdat(ancsitedat, fp),
-                 hhs.dat = prepare_hhsageprev_likdat(eppd$hhs, fp))
-  
-  if(exists("ancrtcens", where=eppd))
-    likdat$ancrtcens.dat <- prepare_ancrtcens_likdat(eppd$ancrtcens, fp)
+  if(exists("ancsitedat", where=eppd)){
+
+    ancsitedat <- eppd$ancsitedat
+    
+    if(exists("ancrt", fp) && fp$ancrt %in% c("none", "census"))
+      ancsitedat <- subset(ancsitedat, type == "ancss")
+    
+    likdat$ancsite.dat <- prepare_ancsite_likdat(ancsitedat, fp)
+  }
+ 
+  if(exists("ancrtcens", where=eppd)){
+    if(exists("ancrt", fp) && fp$ancrt %in% c("none", "site"))
+      eppd$ancrtcens <- NULL
+    else
+      likdat$ancrtcens.dat <- prepare_ancrtcens_likdat(eppd$ancrtcens, fp)
+  }
+
   if(exists("hhsincid", where=eppd))
     likdat$hhsincid.dat <- prepare_hhsincid_likdat(eppd$hhsincid, fp)
   if(exists("sibmx", where=eppd))
     likdat$sibmx.dat <- prepare_sibmx_likdat(eppd$sibmx, fp)
-
-  likdat$lastdata.idx <- max(likdat$ancsite.dat$df$yidx,
-                             likdat$hhs.dat$yidx,
-                             likdat$ancrtcens.dat$yidx,
-                             likdat$hhsincid.dat$idx,
-                             likdat$sibmx.dat$idx)
-  likdat$firstdata.idx <- min(likdat$ancsite.dat$df$yidx,
-                              likdat$hhs.dat$yidx,
-                              likdat$ancrtcens.dat$yidx,
-                              likdat$hhsage.dat$idx,
-                              likdat$hhsincid.dat$idx,
-                              likdat$sibmx.dat$idx)
 
   return(likdat)
 }
@@ -661,16 +662,30 @@ ll <- function(theta, fp, likdat){
     ll.sibmx <- 0
 
   if(exists("equil.rprior", where=fp) && fp$equil.rprior){
+
+    lastdata.idx <- max(likdat$ancsite.dat$df$yidx,
+                        likdat$hhs.dat$yidx,
+                        likdat$ancrtcens.dat$yidx,
+                        likdat$hhsincid.dat$idx,
+                        likdat$sibmx.dat$idx)
+    
     qM.all <- suppressWarnings(qnorm(prev(mod)))
     rvec.ann <- fp$rvec[fp$proj.steps %% 1 == 0.5]
     equil.rprior.mean <- epp:::muSS/(1-pnorm(qM.all[likdat$lastdata.idx]))
     equil.rprior.sd <- sqrt(mean((epp:::muSS/(1-pnorm(qM.all[likdat$lastdata.idx - 9:0])) - rvec.ann[likdat$lastdata.idx - 9:0])^2))  # empirical sd based on 10 previous years
     ll.rprior <- sum(dnorm(rvec.ann[(likdat$lastdata.idx+1L):length(qM.all)], equil.rprior.mean, equil.rprior.sd, log=TRUE))  # prior starts year after last data
+      ll.rprior <- sum(dnorm(rvec.ann[(lastdata.idx+1L):length(qM.all)], equil.rprior.mean, equil.rprior.sd, log=TRUE))  # prior starts year after last data
+    }
   } else
     ll.rprior <- 0
 
-  ## return(ll.anc+ll.hhs+ll.incpen+ll.rprior)
-  return(ll.anc + ll.ancrt + ll.hhs + ll.incid + ll.sibmx + ll.rprior + ll.incpen)
+  c(anc    = ll.anc,
+    ancrt  = ll.ancrt,
+    hhs    = ll.hhs,
+    incid  = ll.incid,
+    sibmx  = ll.sibmx,
+    rprior = ll.rprior,
+    incpen = ll.incpen)
 }
 
 
@@ -905,9 +920,9 @@ prior <- function(theta, fp, log=FALSE){
 
 likelihood <- function(theta, fp, likdat, log=FALSE){
   if(is.vector(theta))
-    lval <- ll(theta, fp, likdat)
+    lval <- sum(ll(theta, fp, likdat))
   else
-    lval <- unlist(lapply(seq_len(nrow(theta)), function(i) ll(theta[i,], fp, likdat)))
+    lval <- unlist(lapply(seq_len(nrow(theta)), function(i) sum(ll(theta[i,], fp, likdat))))
   if(log)
     return(lval)
   else

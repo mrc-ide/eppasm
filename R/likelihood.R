@@ -670,10 +670,13 @@ ll <- function(theta, fp, likdat){
                         likdat$sibmx.dat$idx)
     
     qM.all <- suppressWarnings(qnorm(prev(mod)))
-    rvec.ann <- fp$rvec[fp$proj.steps %% 1 == 0.5]
-    equil.rprior.mean <- epp:::muSS/(1-pnorm(qM.all[likdat$lastdata.idx]))
-    equil.rprior.sd <- sqrt(mean((epp:::muSS/(1-pnorm(qM.all[likdat$lastdata.idx - 9:0])) - rvec.ann[likdat$lastdata.idx - 9:0])^2))  # empirical sd based on 10 previous years
-    ll.rprior <- sum(dnorm(rvec.ann[(likdat$lastdata.idx+1L):length(qM.all)], equil.rprior.mean, equil.rprior.sd, log=TRUE))  # prior starts year after last data
+
+    if(any(is.na(qM.all[lastdata.idx - 9:0]))) {
+      ll.rprior <- -Inf
+    } else {
+      rvec.ann <- fp$rvec[fp$proj.steps %% 1 == 0.5]
+      equil.rprior.mean <- epp:::muSS/(1-pnorm(qM.all[lastdata.idx]))
+      equil.rprior.sd <- sqrt(mean((epp:::muSS/(1-pnorm(qM.all[lastdata.idx - 9:0])) - rvec.ann[lastdata.idx - 9:0])^2))  # empirical sd based on 10 previous years
       ll.rprior <- sum(dnorm(rvec.ann[(lastdata.idx+1L):length(qM.all)], equil.rprior.mean, equil.rprior.sd, log=TRUE))  # prior starts year after last data
     }
   } else

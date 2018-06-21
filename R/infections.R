@@ -1,6 +1,6 @@
 #' Annualized number of new infections
 #'
-calc_infections_eppspectrum <- function(fp, pop, hivpop, i, ii, r_ts){
+calc_infections_eppspectrum <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
 
   ## Attach state space variables
   invisible(list2env(fp$ss, environment())) # put ss variables in environment for convenience
@@ -16,11 +16,11 @@ calc_infections_eppspectrum <- function(fp, pop, hivpop, i, ii, r_ts){
   hivp.ii <- hivp.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i])*(1-DT*(ii-1))
   hivp.ii <- hivp.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i])*(1-DT*(ii-1))
 
-  art.ii <- sum(hivpop[-1,,h.age15to49.idx,,i])
-  if(sum(hivpop[,,h.age15to49.idx[1],,i]) > 0)
-    art.ii <- art.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i] * colSums(hivpop[-1,,h.age15to49.idx[1],,i],,2) / colSums(hivpop[,,h.age15to49.idx[1],,i],,2)) * (1-DT*(ii-1))
-  if(sum(hivpop[,,tail(h.age15to49.idx, 1)+1,,i]) > 0)
-    art.ii <- art.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i] * colSums(hivpop[-1,,tail(h.age15to49.idx, 1)+1,,i],,2) / colSums(hivpop[,,tail(h.age15to49.idx, 1)+1,,i],,2)) * (1-DT*(ii-1))
+  art.ii <- sum(artpop[,,h.age15to49.idx,,i])
+  if(sum(hivpop[,h.age15to49.idx[1],,i]) > 0)
+    art.ii <- art.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i] * colSums(artpop[,,h.age15to49.idx[1],,i],,2) / (colSums(hivpop[,h.age15to49.idx[1],,i],,1) + colSums(artpop[,,h.age15to49.idx[1],,i],,2))) * (1-DT*(ii-1))
+  if(sum(hivpop[,tail(h.age15to49.idx, 1)+1,,i]) > 0)
+    art.ii <- art.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i] * colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2) / (colSums(hivpop[,tail(h.age15to49.idx, 1)+1,,i],,1) + colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2))) * (1-DT*(ii-1))
   
   transm_prev <- (hivp.ii - art.ii + fp$relinfectART*art.ii) / (hivn.ii+hivp.ii)
 
@@ -41,7 +41,7 @@ calc_infections_eppspectrum <- function(fp, pop, hivpop, i, ii, r_ts){
   return(infections.ts)
 }
 
-calc_infections_simpletransm <- function(fp, pop, hivpop, i, ii, r_ts){
+calc_infections_simpletransm <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
 
   ## Attach state space variables
   invisible(list2env(fp$ss, environment())) # put ss variables in environment for convenience
@@ -65,8 +65,8 @@ calc_infections_simpletransm <- function(fp, pop, hivpop, i, ii, r_ts){
                                c(0, 0)))
                         
 
-  hivp_noart.ii <- colSums(colSums(sweep(hivpop[1,,c(h.age15to49.idx, haM),,i], 1, fp$relsexact_cd4cat, "*")) * prop_include)
-  art.ii <- colSums(colSums(hivpop[-1,,c(h.age15to49.idx, haM),,i],,2) * prop_include)
+  hivp_noart.ii <- colSums(colSums(sweep(hivpop[,c(h.age15to49.idx, haM),,i], 1, fp$relsexact_cd4cat, "*")) * prop_include)
+  art.ii <- colSums(colSums(artpop[,,c(h.age15to49.idx, haM),,i],,2) * prop_include)
   
   ## Prevalence of unsuppressed viral load among sexually active population
   hivtransm_prev <- (hivp_noart.ii + fp$relinfectART * art.ii) / (hivn.ii+hivp_noart.ii+art.ii)

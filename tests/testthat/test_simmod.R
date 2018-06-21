@@ -27,5 +27,6 @@ prev_mod <- c(0.00252, 0.00429, 0.00716, 0.01169, 0.0186, 0.0287, 0.04262,
               0.10786, 0.10301)
 
 test_that("model simulation returns correct prevalence", {
-  expect_equal(round(prev(mod)[11:47], 5), prev_mod)
+  expect_equal(round(prev(simmod(fp))[11:47], 5), prev_mod)
+  expect_equal(round(prev(simmod(fp, VERSION="R"))[11:47], 5), prev_mod)
 })

@@ -272,7 +272,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
                    sample_prior=eppasm:::sample.prior,
                    prior=eppasm:::prior,
                    likelihood=eppasm:::likelihood,
-                   optfit=FALSE, opt_method="BFGS", opt_init=NULL, opt_maxit=1000, opt_diffstep=1e-3){
+                   optfit=FALSE, opt_method="BFGS", opt_init=NULL, opt_maxit=1000, opt_diffstep=1e-3, opthess=TRUE){
 
   ## ... : updates to fixed parameters (fp) object to specify fitting options
 
@@ -358,36 +358,27 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
     opt$likdat <- likdat
     opt$param <- fnCreateParam(opt$par, fp)
     opt$mod <- simmod(update(fp, list=opt$param))
-    if(epp)
-      class(opt) <- "eppopt"
-    else
-      class(opt) <- "specopt"
-    
-    return(opt)
-  }
-
-  ## Fit using optimization
-  if(optfit){
-    optfn <- function(theta, fp, likdat) lprior(theta, fp) + ll(theta, fp, likdat)
-    if(is.null(opt_init)){
-      X0 <- sample_prior(B0, fp)
-      lpost0 <- likelihood(X0, fp, likdat, log=TRUE) + prior(X0, fp, log=TRUE)
-      opt_init <- X0[which.max(lpost0)[1],]
+    if(opthess){
+      opt$hessian <- optimHess(opt_init, optfn, fp=fp, likdat=likdat,
+                               control=list(fnscale=-1,
+                                            trace=4,
+                                            maxit=1e3,
+                                            ndeps=rep(.Machine$double.eps^0.5, length(opt_init))))
+      opt$resample <- mvtnorm::rmvnorm(B.re, opt$par, solve(-opt$hessian))
     }
-    opt <- optim(opt_init, optfn, fp=fp, likdat=likdat, method=opt_method,
-                 control=list(fnscale=-1,
-                              trace=4,
-                              maxit=1e3,
-                              ndeps=rep(.Machine$double.eps^0.5, length(opt_init))))
-    opt$fp <- fp
-    opt$likdat <- likdat
-    opt$param <- fnCreateParam(opt$par, fp)
-    opt$mod <- simmod(update(fp, list=opt$param))
+
     if(epp)
       class(opt) <- "eppopt"
     else
       class(opt) <- "specopt"
-    
+
+    if(opthess){
+      if(epp)
+        class(opt) <- c(class, "eppfit")
+      else
+        class(opt) <- c(class, "specfit")
+    }
+
     return(opt)
   }
 
@@ -414,7 +405,20 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
 
 ## simulate incidence and prevalence
-simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FALSE, agegr3=FALSE, mxoutputs=FALSE, aidsdeaths=FALSE, pregprev=TRUE, entrantprev=TRUE, mod.list=NULL){
+simfit.specfit <- function(fit,
+                           rwproj=fit$fp$eppmod == "rspline",
+                           ageprevdat=FALSE,
+                           agegr3=FALSE,
+                           artcov=FALSE,
+                           ancartcov=FALSE,
+                           mxoutputs=FALSE,
+                           aidsdeaths=FALSE,
+                           pregprev=TRUE,
+                           ageincid=TRUE,
+                           ageinfections=TRUE,
+                           relincid = TRUE,
+                           entrantprev=TRUE,
+                           mod.list=NULL){
 
   if(is.null(mod.list)){
     fit$param <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
@@ -455,10 +459,24 @@ simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FA
   if(entrantprev)
     fit$entrantprev <- sapply(mod.list, attr, "entrantprev")
 
-  if(ageprevdat)
-    fit$ageprevdat <- sapply(mod.list, ageprev, arridx=fit$likdat$hhsage.dat$arridx, agspan=5)
+  if(is.logical(ageprevdat) && ageprevdat == TRUE)
+    ageprevdat <- fit$likdat$hhs.dat
+  if(inherits(ageprevdat, "data.frame")){
+    fit$ageprevdat <- mapply(ageprev, mod=mod.list,
+                             MoreArgs=list(aidx=ageprevdat$aidx,
+                                           sidx=ageprevdat$sidx,
+                                           yidx=ageprevdat$yidx,
+                                           agspan=ageprevdat$agspan))
+    fit$ageprevdat <- matrix(fit$ageprevdat, nrow=nrow(ageprevdat))
+  }
   
-  if(agegr3){
+  if(inherits(agegr3, "data.frame"))
+    fit$agegr3prev <- mapply(ageprev, mod=mod.list,
+                             MoreArgs=list(aidx=agegr3$aidx,
+                                           sidx=agegr3$sidx,
+                                           yidx=agegr3$yidx,
+                                           agspan=agegr3$agspan))
+  else if(is.logical(agegr3) && agegr3 == TRUE) {
     fit$agegr3prev <- lapply(mod.list, ageprev, aidx=c(15, 25, 35)-fit$fp$ss$AGE_START+1L, sidx=1:2,
                              yidx=(1999-fit$fp$ss$proj_start+1L):fit$fp$ss$PROJ_YEARS, agspan=c(10, 10, 15), expand=TRUE)
     fit$agegr3prev <- do.call(abind::abind, c(fit$agegr3prev, along=4))
@@ -466,6 +484,12 @@ simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FA
 
   if(aidsdeaths)
     fit$aidsdeaths <- sapply(lapply(mod.list, attr, "hivdeaths"), colSums, dims=2)
+
+  if(artcov)
+    fit$artcov <- sapply(mod.list, artcov15plus)
+
+  if(ancartcov)
+    fit$ancartcov <- mapply(agepregartcov, mod.list, fp.list, MoreArgs=list(aidx=1, yidx=1:fit$fp$ss$PROJ_YEARS, agspan=35, expand=TRUE))
 
   if(mxoutputs){
     fit$agemx <- abind::abind(lapply(mod.list, agemx), rev.along=0)
@@ -486,7 +510,59 @@ simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FA
     fit$natq3515 <- abind::abind(lapply(mod.list, calc_nqx, fp=fit$fp, n=35, x=15, nonhiv=TRUE), rev.along=0)
     dimnames(fit$natq3515) <- with(fit$fp$ss, list(sex=c("male", "female"), proj_start + 0:(PROJ_YEARS-1), NULL))
   }
+
+
+  if(ageincid){
+
+    startyr <- fit$fp$ss$proj_start
+    endyr <- fit$fp$ss$proj_start + fit$fp$ss$PROJ_YEARS-1L
+
+    agegr3 <- lapply(mod.list, ageincid, aidx=c(15, 25, 35, 50)-fit$fp$ss$AGE_START+1L, sidx=1:2,
+                     yidx=1999:endyr - startyr+1L, agspan=c(10, 10, 15, 31))
+    age15to49 <- lapply(mod.list, ageincid, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
+                        yidx=1999:endyr - startyr+1L, agspan=35)
+    age15plus <- lapply(mod.list, ageincid, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
+                        yidx=1999:endyr - startyr+1L, agspan=66)
+    agegr3 <- abind::abind(agegr3, rev.along=0)
+    age15to49 <- abind::abind(age15to49, rev.along=0)
+    age15plus <- abind::abind(age15plus, rev.along=0)
+    fit$agegr3incid <- abind::abind(agegr3, age15to49, age15plus, along=1)
+
+    dimnames(fit$agegr3incid)[1:3] <- list(agegr=c("15-24", "25-34", "35-49", "50+", "15-49", "15+"),
+                                           sex=c("male", "female"),
+                                           year=1999:endyr)
+  }
+
+  if(ageinfections){
     
+    startyr <- fit$fp$ss$proj_start
+    endyr <- fit$fp$ss$proj_start + fit$fp$ss$PROJ_YEARS-1L
+    
+    agegr3 <- lapply(mod.list, ageinfections, aidx=c(15, 25, 35, 50)-fit$fp$ss$AGE_START+1L, sidx=1:2,
+                     yidx=1999:endyr - startyr+1L, agspan=c(10, 10, 15, 31))
+    age15to49 <- lapply(mod.list, ageinfections, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
+                        yidx=1999:endyr - startyr+1L, agspan=35)
+    age15plus <- lapply(mod.list, ageinfections, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
+                        yidx=1999:endyr - startyr+1L, agspan=66)
+    agegr3 <- abind::abind(agegr3, rev.along=0)
+    age15to49 <- abind::abind(age15to49, rev.along=0)
+    age15plus <- abind::abind(age15plus, rev.along=0)
+    fit$agegr3infections <- abind::abind(agegr3, age15to49, age15plus, along=1)
+
+    dimnames(fit$agegr3infections)[1:3] <- list(agegr=c("15-24", "25-34", "35-49", "50+", "15-49", "15+"),
+                                           sex=c("male", "female"),
+                                           year=1999:endyr)
+  }
+
+  if(relincid){
+
+    ## Incidence relative to 25-29y
+    fit$relincid <- lapply(mod.list, ageincid, aidx=3:9*5-fit$fp$ss$AGE_START+1L, sidx=1:2,
+                           yidx=c(2001, 2006, 2011, 2016)- startyr+1L, agspan=5)
+    fit$relincid <- estci2(abind::abind(lapply(fit$relincid, function(x) sweep(x, 2:3, x[3,,], "/")), rev.along=0))
+    dimnames(fit$relincid)[1:3] <- list(agegr=paste0(3:9*5, "-", 3:9*5+4), sex=c("male", "female"), year=2001+0:3*5)
+  }
+  
   return(fit)
 }
 

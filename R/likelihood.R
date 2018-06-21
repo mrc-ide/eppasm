@@ -364,9 +364,15 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
     hhsage$n_eff <- hhsage$n/hhsage$deff
   hhsage$x_eff <- hhsage$n_eff * hhsage$prev
 
+  if(is.null(hhsage$sex))
+    hhsage$sex <- rep("both", nrow(hhsage))
+
+  if(is.null(hhsage$agegr))
+    hhsage$agegr <- "15-49"
+
   startage <- as.integer(sub("([0-9]*)-([0-9]*)", "\\1", hhsage$agegr))
   endage <- as.integer(sub("([0-9]*)-([0-9]*)", "\\2", hhsage$agegr))
-    
+  
   hhsage$sidx <- match(hhsage$sex, c("both", "male", "female")) - 1L
   hhsage$aidx <- startage - fp$ss$AGE_START+1L
   hhsage$yidx <- as.integer(hhsage$year - (anchor.year - 1))
@@ -662,6 +668,8 @@ ll <- function(theta, fp, likdat){
     ll.sibmx <- 0
 
   if(exists("equil.rprior", where=fp) && fp$equil.rprior){
+    if(fp$eppmod != "rspline")
+      stop("error in ll(): equil.rprior is only for use with r-spline model")
 
     lastdata.idx <- max(likdat$ancsite.dat$df$yidx,
                         likdat$hhs.dat$yidx,

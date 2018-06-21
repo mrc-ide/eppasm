@@ -81,3 +81,9 @@
 # eppasm 0.5.0
 
 - Implement age-specific prevalence among pregnant women.
+- Refactor age-specific prevalence function.
+- Add age-specific ART coverage function.
+
+# eppasm 0.5.1
+
+- Add tidy_output() function to generate long format of key output indicators.

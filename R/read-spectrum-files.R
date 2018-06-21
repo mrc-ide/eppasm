@@ -483,8 +483,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
                     c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
   else
     hivpop <- NULL
-  
-  
+
   if(exists_dptag("<AidsDeathsByAge MV>"))
     hivdeaths <- array(sapply(dpsub("<AidsDeathsByAge MV>", c(4:84, 86:166), timedat.idx), as.numeric),
                        c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
@@ -523,6 +522,23 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     age14hivpop["PERINAT",,,] <- noart_cd4dist %o% (hivpop14 * (1 - artcov14))
     age14hivpop["ART1YR", "CD4_0",,] <- hivpop14 * artcov14
   }
+
+  if(exists_dptag("<BigPop3>"))
+    totpop <- sapply(dpsub("<BigPop3>", 2:163, timedat.idx), as.numeric)
+  else if(exists_dptag("<BigPop MV>"))
+    totpop <- sapply(dpsub("<BigPop MV>", 3:164, timedat.idx), as.numeric)
+  else if(exists_dptag("<BigPop MV2>"))
+    totpop <- sapply(dpsub("<BigPop MV2>", c(3+0:80, 246+0:80), timedat.idx), as.numeric)
+  else if(exists_dptag("<BigPop MV3>"))
+    totpop <- sapply(dpsub("<BigPop MV3>", 3:164, timedat.idx), as.numeric)
+  else
+    totpop <- NULL
+
+  if(!is.null(totpop)){
+    totpop <- array(totpop, c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+    age14totpop <- totpop["14",,]
+  } else
+    age14totpop <- NULL
   
   projp <- list("yr_start"=yr_start, "yr_end"=yr_end,
                 "relinfectART"=relinfectART,
@@ -535,7 +551,8 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
                 "art15plus_eligthresh"=art15plus_eligthresh, "artelig_specpop"=artelig_specpop,
                 "median_cd4init"=median_cd4init, "art_dropout"=art_dropout,
                 "verttrans"=verttrans, "hivpop"=hivpop, "hivdeaths"=hivdeaths,
-                "age14hivpop"=age14hivpop)
+                "age14hivpop"=age14hivpop,
+                "age14totpop"=age14totpop)
   class(projp) <- "projp"
   attr(projp, "version") <- version
   attr(projp, "validdate") <- validdate

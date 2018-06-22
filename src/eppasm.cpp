@@ -86,7 +86,7 @@ extern "C" {
     return R_NilValue;
   }
 
-  SEXP spectrumC(SEXP s_fp){
+  SEXP eppasmC(SEXP s_fp){
 
     ////////////////////////////////
     ////  set parameter values  ////

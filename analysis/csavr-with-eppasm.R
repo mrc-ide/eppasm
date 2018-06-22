@@ -6,18 +6,37 @@
 #'
 
 ##+ setup, include=FALSE
+# library(knitr)
+# opts_chunk$set(tidy=TRUE, warning=FALSE, cache=TRUE, message=FALSE)
+# options(knitr.kable.NA = '')
+# 
+# ##+ load packages, include=FALSE
+# ## devtools::install_github("mrc-ide/eppasm@csavr")
+# ## library(eppasm)
+# devtools::load_all("C:/Users/josh/Dropbox/hiv_project/eppasm/") # @csavr
+# library(magrittr)
+# library(broom)
+# library(ggplot2)
+
 library(knitr)
 opts_chunk$set(tidy=TRUE, warning=FALSE, cache=TRUE, message=FALSE)
 options(knitr.kable.NA = '')
 
 ##+ load packages, include=FALSE
-## devtools::install_github("mrc-ide/eppasm@csavr")
-## library(eppasm)
-devtools::load_all("~/Documents/Code/R/eppasm-csavr/") # @csavr
+devtools::install_github("mrc-ide/epp",auth_token = pat_token)
+devtools::install_github("mrc-ide/eppasm@csavr",auth_token = pat_token)
+githubinstall::gh_install_packages("mrc-ide/eppasm",ref = "csavr",auth_token=pat_token)
+library(eppasm)
+## devtools::load_all("~/Documents/Code/R/eppasm-csavr/") # @csavr
+devtools::load_all("C:/Users/josh/Dropbox/hiv_project/eppasm")
+devtools::build("C:/Users/josh/Dropbox/hiv_project/eppasm")
+
+library(epp)
+
+
 library(magrittr)
 library(broom)
 library(ggplot2)
-
 
 #' # Introduction
 #'
@@ -49,21 +68,28 @@ library(ggplot2)
 
 ##+ read data, include=FALSE
 ## Read Spectrum inputs for direct incidence simulation
-nl_pjnz <- "~/Documents/Data/Spectrum files/2017 final/WCENA/Netherlands_2017_final.PJNZ"
+nl_pjnz <- "C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/Netherlands_2017_final.PJNZ"
 
 nl_fp <- prepare_directincid(nl_pjnz)
 nl_fp$artmx_timerr <- rep(1.0, nl_fp$ss$PROJ_YEARS)
 nl_mod <- simmod(nl_fp)
+nl_mod_1 <- simmod.specfp(nl_fp)
+debug(simmod.specfp(nl_fp))
 
 nl_fp$relinfectART <- 0.3
 nl_fp$tsEpidemicStart <- 1970.5
 
-cl_pjnz <- "~/Documents/Code/R/eppasm-csavr/dev/pjnz/Chile_2017_final.pjnz"
+cl_pjnz <- "C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/Chile_2017_final.pjnz"
 
 cl_fp <- prepare_directincid(cl_pjnz)
 cl_fp$artmx_timerr <- rep(1.0, cl_fp$ss$PROJ_YEARS)
 cl_mod <- simmod(cl_fp)
-
+cl_mod_1 <- simmod.specfp(cl_fp)
+debug(simmod.specfp)
+??debug
+source("C:/Users/josh/Dropbox/hiv_project/eppasm/R/eppasm.R")
+debug(simmod.specfp)
+simmod.specfp(cl_fp)
 cl_fp$relinfectART <- 0.3
 cl_fp$tsEpidemicStart <- 1970.5
 

@@ -7,3 +7,5 @@
 *.out
 *.dll
 dev/*
+inst/extdata/testpjnz/Botswana2017.PJNZ
+data-raw/test-pjnz.R

@@ -206,29 +206,25 @@ extern "C" {
     double *paedsurv_lag = REAL(getListElement(s_fp, "paedsurv_lag"));
     double netmig_hivprob = *REAL(getListElement(s_fp, "netmig_hivprob"));
     double netmighivsurv = *REAL(getListElement(s_fp, "netmighivsurv"));
-    double *paedsurv_cd4dist = REAL(getListElement(s_fp, "paedsurv_cd4dist"));
 
-    double *entrantprev;
+    double *a_entrantprev;
     int use_entrantprev = checkListElement(s_fp, "entrantprev");
     if(use_entrantprev)
-      entrantprev = REAL(getListElement(s_fp, "entrantprev"));
+      a_entrantprev = REAL(getListElement(s_fp, "entrantprev"));
+    multi_array_ref<double, 2> entrantprev(a_entrantprev, extents[PROJ_YEARS][NG]);
 
-    double *entrantartcov;
+    double *a_entrantartcov;
     if(checkListElement(s_fp, "entrantartcov"))
-      entrantartcov = REAL(getListElement(s_fp, "entrantartcov"));
+      a_entrantartcov = REAL(getListElement(s_fp, "entrantartcov"));
     else {
-      entrantartcov = (double*) R_alloc(PROJ_YEARS, sizeof(double));
-      memset(entrantartcov, 0, PROJ_YEARS*sizeof(double));
+      a_entrantartcov = (double*) R_alloc(PROJ_YEARS, sizeof(double));
+      memset(a_entrantartcov, 0, PROJ_YEARS*sizeof(double));
     }
+    multi_array_ref<double, 2> entrantartcov(a_entrantartcov, extents[PROJ_YEARS][NG]);
 
-    double *paedsurv_artcd4dist;
-    if(checkListElement(s_fp, "paedsurv_artcd4dist"))
-      paedsurv_artcd4dist = REAL(getListElement(s_fp, "paedsurv_artcd4dist"));
-    else {
-      paedsurv_artcd4dist = (double*) R_alloc(hDS, sizeof(double));
-      memset(paedsurv_artcd4dist, 0, hDS*sizeof(double));
-    }
-
+    multi_array_ref<double, 3> paedsurv_cd4dist(REAL(getListElement(s_fp, "paedsurv_cd4dist")), extents[PROJ_YEARS][NG][hDS]);
+    multi_array_ref<double, 4> paedsurv_artcd4dist(REAL(getListElement(s_fp, "paedsurv_artcd4dist")), extents[PROJ_YEARS][NG][hDS][hTS]);
+    
     // initialize output
     SEXP s_pop = PROTECT(allocVector(REALSXP, pAG * NG * pDS * PROJ_YEARS));
     SEXP s_pop_dim = PROTECT(allocVector(INTSXP, 4));
@@ -237,6 +233,7 @@ extern "C" {
     INTEGER(s_pop_dim)[2] = pDS;
     INTEGER(s_pop_dim)[3] = PROJ_YEARS;
     setAttrib(s_pop, R_DimSymbol, s_pop_dim);
+    memset(REAL(s_pop), 0, length(s_pop)*sizeof(double));
 
     SEXP s_hivpop = PROTECT(allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
     SEXP s_hivpop_dim = PROTECT(allocVector(INTSXP, 4));
@@ -246,6 +243,7 @@ extern "C" {
     INTEGER(s_hivpop_dim)[3] = PROJ_YEARS;
     setAttrib(s_hivpop, R_DimSymbol, s_hivpop_dim);
     setAttrib(s_pop, install("hivpop"), s_hivpop);
+    memset(REAL(s_hivpop), 0, length(s_hivpop)*sizeof(double));
 
     SEXP s_artpop = PROTECT(allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
     SEXP s_artpop_dim = PROTECT(allocVector(INTSXP, 5));
@@ -256,6 +254,7 @@ extern "C" {
     INTEGER(s_artpop_dim)[4] = PROJ_YEARS;
     setAttrib(s_artpop, R_DimSymbol, s_artpop_dim);
     setAttrib(s_pop, install("artpop"), s_artpop);
+    memset(REAL(s_artpop), 0, length(s_artpop)*sizeof(double));
 
     SEXP s_infections = PROTECT(allocVector(REALSXP, pAG * NG * PROJ_YEARS));
     SEXP s_infections_dim = PROTECT(allocVector(INTSXP, 3));
@@ -422,12 +421,12 @@ extern "C" {
 
         double paedsurv_g;
         double entrant_prev;
-
-        if(use_entrantprev)
-          entrant_prev = entrantprev[t];
-        else
-          entrant_prev = pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1];
-
+	
+	if(use_entrantprev)
+	  entrant_prev = entrantprev[t][g];
+	else
+	  entrant_prev = pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1];
+	  
         if(bin_popadjust){
           pop[t][HIVN][g][0] =  entrantpop[t-1][g] * (1.0-entrant_prev);
           paedsurv_g = entrantpop[t-1][g] * entrant_prev;
@@ -441,12 +440,13 @@ extern "C" {
         entrantprev_out[t] = (pop[t][HIVP][MALE][0] + pop[t][HIVP][FEMALE][0]) / (pop[t][HIVN][MALE][0] + pop[t][HIVN][FEMALE][0] + pop[t][HIVP][MALE][0] + pop[t][HIVP][FEMALE][0]);
 
         for(int hm = 0; hm < hDS; hm++){
-          hivpop[t][g][0][hm] = (1-hiv_ag_prob[g][0]) * hivpop[t-1][g][0][hm] + paedsurv_g * paedsurv_cd4dist[hm] * (1.0 - entrantartcov[t]);
+          hivpop[t][g][0][hm] = (1-hiv_ag_prob[g][0]) * hivpop[t-1][g][0][hm] + paedsurv_g * paedsurv_cd4dist[t][g][hm] * (1.0 - entrantartcov[t][g]);
           if(t > t_ART_start){
-            for(int hu = 0; hu < hTS; hu++)
+            for(int hu = 0; hu < hTS; hu++){
               artpop[t][g][0][hm][hu] = (1-hiv_ag_prob[g][0]) * artpop[t-1][g][0][hm][hu];
-            artpop[t][g][0][hm][ART1YR] += paedsurv_g * paedsurv_artcd4dist[hm] * entrantartcov[t];
-          }
+	      artpop[t][g][0][hm][hu] += paedsurv_g * paedsurv_artcd4dist[t][g][hm][hu] * entrantartcov[t][g];
+	    }
+	  }
         }
       }
 
@@ -739,35 +739,35 @@ extern "C" {
           }
         }
 
-        // remove hivdeaths from pop
-        for(int g = 0; g < NG; g++){
-
-          // sum HIV+ population size in each hivpop age group
-          double hivpop_ha[hAG];
-          int a = 0;
-          for(int ha = 0; ha < hAG; ha++){
-            hivpop_ha[ha] = 0.0;
-            for(int i = 0; i < hAG_SPAN[ha]; i++){
-              hivpop_ha[ha] += pop[t][HIVP][g][a];
-              a++;
-            }
-          }
-
-          // remove hivdeaths proportionally to age-distribution within each age group
-          a = 0;
-          for(int ha = 0; ha < hAG; ha++){
-            if(hivpop_ha[ha] > 0){
-              double hivqx_ha = hivdeaths_ha[g][ha] / hivpop_ha[ha];
-              for(int i = 0; i < hAG_SPAN[ha]; i++){
-                hivdeaths[t][g][a] += pop[t][HIVP][g][a] * hivqx_ha;
-                pop[t][HIVP][g][a] *= (1.0-hivqx_ha);
-                a++;
-              }
-            } else {
+	// remove hivdeaths from pop
+	for(int g = 0; g < NG; g++){
+	  
+	  // sum HIV+ population size in each hivpop age group
+	  double hivpop_ha[hAG];
+	  int a = 0;
+	  for(int ha = 0; ha < hAG; ha++){
+	    hivpop_ha[ha] = 0.0;
+	    for(int i = 0; i < hAG_SPAN[ha]; i++){
+	      hivpop_ha[ha] += pop[t][HIVP][g][a];
+	      a++;
+	    }
+	  }
+	  
+	  // remove hivdeaths proportionally to age-distribution within each age group
+	  a = 0;
+	  for(int ha = 0; ha < hAG; ha++){
+	    if(hivpop_ha[ha] > 0){
+	      double hivqx_ha = hivdeaths_ha[g][ha] / hivpop_ha[ha];
+	      for(int i = 0; i < hAG_SPAN[ha]; i++){
+		hivdeaths[t][g][a] += pop[t][HIVP][g][a] * hivqx_ha;
+		pop[t][HIVP][g][a] *= (1.0-hivqx_ha);
+		a++;
+	      }
+	    } else {
 	      a += hAG_SPAN[ha];
-	    } // end if(pop_ha[ha] > 0)
-          }
-        }
+	    }  // end if(pop_ha[ha] > 0)
+	  }
+	}
 
       } // loop HIVSTEPS_PER_YEAR
 
@@ -912,7 +912,6 @@ int checkListElement(SEXP list, const char *str)
 
   return 0;
 }
-
 
 double calc_rtrend_rt(const multi_array_ref<double, 4> pop, double rtrend_tstab, const double *rtrend_beta, double rtrend_r0,
                       double projstep, double tsEpidemicStart, double DT, int t, int hts, double rveclast,

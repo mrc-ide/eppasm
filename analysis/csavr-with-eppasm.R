@@ -11,9 +11,9 @@ opts_chunk$set(tidy=TRUE, warning=FALSE, cache=TRUE, message=FALSE)
 options(knitr.kable.NA = '')
 
 ##+ load packages, include=FALSE
-devtools::install_github("mrc-ide/eppasm@csavr")
-library(eppasm)
-## devtools::load_all("~/Documents/Code/R/eppasm-csavr/") # @csavr
+## devtools::install_github("mrc-ide/eppasm@csavr")
+## library(eppasm)
+devtools::load_all("~/Documents/Code/R/eppasm-csavr/") # @csavr
 library(magrittr)
 library(broom)
 library(ggplot2)
@@ -52,6 +52,7 @@ library(ggplot2)
 nl_pjnz <- "~/Documents/Data/Spectrum files/2017 final/WCENA/Netherlands_2017_final.PJNZ"
 
 nl_fp <- prepare_directincid(nl_pjnz)
+nl_fp$artmx_timerr <- rep(1.0, nl_fp$ss$PROJ_YEARS)
 nl_mod <- simmod(nl_fp)
 
 nl_fp$relinfectART <- 0.3
@@ -60,6 +61,7 @@ nl_fp$tsEpidemicStart <- 1970.5
 cl_pjnz <- "~/Documents/Code/R/eppasm-csavr/dev/pjnz/Chile_2017_final.pjnz"
 
 cl_fp <- prepare_directincid(cl_pjnz)
+cl_fp$artmx_timerr <- rep(1.0, cl_fp$ss$PROJ_YEARS)
 cl_mod <- simmod(cl_fp)
 
 cl_fp$relinfectART <- 0.3

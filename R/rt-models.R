@@ -199,6 +199,10 @@ extend_projection <- function(fit, proj_years){
     idx1 <- fp$rt$n_splines+1L # start of random walk parameters
     idx2 <- fp$rt$n_splines+fp$rt$n_rw
     fpnew <- prepare_hybrid_r(fpnew, rw_dk=diff(fp$rt$rw_knots[1:2]))
+  } else if(fp$eppmod == "logrw") {
+    idx1 <- 1L
+    idx2 <- fp$rt$n_rw
+    fpnew <- prepare_logrw(fpnew)
   }
 
   if(exists("prior_args", fp) && exists("rw_prior_shape", fp$prior_args))
@@ -206,22 +210,29 @@ extend_projection <- function(fit, proj_years){
   else
     sh <- eppasm::rw_prior_shape
   
-  if(exists("prior_args", fp) && exists("rw_prior_scale", fp$prior_args))
+  if(exists("prior_args", fp) && exists("rw_prior_rate", fp$prior_args))
     rate <- fp$prior_args$rw_prior_rate
   else
     rate <- eppasm::rw_prior_rate
   
   theta <- fit$resample[,idx1:idx2, drop=FALSE]
-  rw_sigma <- sqrt(sample_invgamma_post(theta, sh, rate))
+  fit$rw_sigma <- sqrt(sample_invgamma_post(theta, sh, rate))
   
   nsteps <- fpnew$rt$n_rw - fp$rt$n_rw
-  
-  thetanew <- matrix(nrow=nrow(theta), ncol=fpnew$rt$n_rw)
-  thetanew[,1:ncol(theta)] <- theta
-  thetanew[,ncol(theta)+1:nsteps] <- rnorm(nrow(theta)*nsteps, sd=rw_sigma)
-  
-  fit$resample <- cbind(fit$resample[,1:(idx1-1), drop=FALSE], thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
-  fit$fp <- fpnew
+
+  if(nsteps > 0){
+    thetanew <- matrix(nrow=nrow(theta), ncol=fpnew$rt$n_rw)
+    thetanew[,1:ncol(theta)] <- theta
+    thetanew[,ncol(theta)+1:nsteps] <- rnorm(nrow(theta)*nsteps, sd=fit$rw_sigma)
+
+    if(idx1 > 1)
+      fit$resample <- cbind(fit$resample[,1:(idx1-1), drop=FALSE], thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
+    else
+      fit$resample <- cbind(thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
+    fit$fp <- fpnew
+  } else {
+    warning("already specified length, added rw_sigma only")
+  }
 
   return(fit)
 }

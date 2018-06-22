@@ -6,4 +6,4 @@ load("../R/sysdata.rda")
 
 spectrum5_countrylist <- read.csv("CountryListMaster.csv", as.is=TRUE, encoding = "UTF-8")
 spectrum5_countrylist$Country[spectrum5_countrylist$Code == 384] <- "Côte d'Ivoire"
-devtools::use_data(spectrum5_countrylist, subp, internal = TRUE, overwrite=TRUE)
+devtools::use_data(spectrum5_countrylist, subp, subp_gfr, internal = TRUE, overwrite=TRUE)

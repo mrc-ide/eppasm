@@ -66,88 +66,70 @@ ancrtsite.beta.pr.sd <- 0.05
 
 #' Prepare site-level ANC prevalence data for EPP random-effects likelihood
 #'
-#' @param eppd EPP data object
-#' @param anchor.year year in which EPP data inputs start
-#' NOTE: requires year to be stored in column names of anc.prev
-prepare_ancsite_likdat <- function(eppd, anchor.year=1970L){
+#' @param ancitedat data.frame of site-level ANC data
+#' @param fp fixed parameter input list, including state space
+prepare_ancsite_likdat <- function(ancsitedat, fp){
 
-  anc.prev <- eppd$anc.prev
-  anc.n <- eppd$anc.n
-  anc.used <- eppd$anc.used
+  df <- ancsitedat
+  anchor.year <-   anchor.year <- fp$ss$proj_start
+  
+  df$aidx <- df$age - fp$ss$AGE_START + 1L
+  df$yidx <- df$year - anchor.year + 1
 
-  anc.prev <- anc.prev[anc.used,,drop=FALSE]  # keep only used sites
-  anc.n <- anc.n[anc.used,,drop=FALSE]        # keep only used sites
+  ## Calculate probit transformed prevalence and variance approximation
+  df$pstar <- (df$prev * df$n + 0.5) / (df$n + 1)
+  df$W <- qnorm(df$pstar)
+  df$v <- 2 * pi * exp(df$W^2) * df$pstar * (1 - df$pstar) / df$n
 
-  ancobs.idx <- mapply(intersect, lapply(as.data.frame(t(!is.na(anc.prev))), which),
-                       lapply(as.data.frame(t(!is.na(anc.n))), which), SIMPLIFY=FALSE)
-  ## limit to years with both prevalence and N observations (likely input errors in EPP if not)
+  df$type <- factor(df$type, c("ancss", "ancrt"))
 
-  nobs <- sapply(ancobs.idx, length)
+  ## List of all unique agegroup / year combinations for which prevalence is needed
+  datgrp <- unique(df[c("aidx", "yidx", "agspan")])
+  datgrp$qMidx <- seq_len(nrow(datgrp))
 
-  anc.years.lst <- lapply(ancobs.idx, function(i) as.integer(colnames(anc.prev)[i]))
-  anc.prev.lst <- setNames(lapply(seq_along(ancobs.idx), function(i) as.numeric(anc.prev[i, ancobs.idx[[i]]])), rownames(anc.prev))
-  anc.n.lst <- setNames(lapply(seq_along(ancobs.idx), function(i) as.numeric(anc.n[i, ancobs.idx[[i]]])), rownames(anc.n))
+  ## Indices for accessing prevalence offset from datgrp
+  df <- merge(df, datgrp)
 
-  X.lst <- mapply(cbind, Intercept=lapply(nobs, rep, x=1), ancrt=lapply(nobs, rep, x=0), SIMPLIFY=FALSE)
+  ## Indices for prevalence group
+  df <- df[c("site", "year", "used", "type", "age", "agspan",
+             "n", "prev", "pstar", "W", "v", "aidx", "yidx", "qMidx")]
+  df <- df[order(df$site, df$year, -df$agspan, df$age),]
+  df$muidx <- seq_len(nrow(df))
 
-  if(exists("ancrtsite.prev", where=eppd) && !is.null(eppd$ancrtsite.prev)){
-    ancrtsite.prev <- eppd$ancrtsite.prev
-    ancrtsite.n <- eppd$ancrtsite.n
+  ## Design matrix for fixed effects portion 
+  Xancsite <- model.matrix(~type, df)
 
-    ancrtsite.prev <- ancrtsite.prev[anc.used,,drop=FALSE]  # keep only used sites
-    ancrtsite.n <- ancrtsite.n[anc.used,,drop=FALSE]        # keep only used sites
+  W.lst <- split(df$W, factor(df$site))
+  v.lst <- split(df$v, factor(df$site))
+  muidx.lst <- split(df$muidx, factor(df$site))
 
-    ancrtsiteobs.idx <- mapply(intersect, lapply(as.data.frame(t(!is.na(ancrtsite.prev))), which),
-                               lapply(as.data.frame(t(!is.na(ancrtsite.n))), which), SIMPLIFY=FALSE)
-    ## limit to years with both prevalence and N observations (likely input errors in EPP if not)
-
-    nobs <- sapply(ancrtsiteobs.idx, length)
-
-    ancrtsite.years.lst <- lapply(ancrtsiteobs.idx, function(i) as.integer(colnames(ancrtsite.prev)[i]))
-    ancrtsite.prev.lst <- setNames(lapply(seq_along(ancrtsiteobs.idx), function(i) as.numeric(ancrtsite.prev[i, ancrtsiteobs.idx[[i]]])), rownames(ancrtsite.prev))
-    ancrtsite.n.lst <- setNames(lapply(seq_along(ancrtsiteobs.idx), function(i) as.numeric(ancrtsite.n[i, ancrtsiteobs.idx[[i]]])), rownames(ancrtsite.n))
-
-    ancrtsite.X.lst <- mapply(cbind, Intercept=lapply(nobs, rep, x=1), ancrt=lapply(nobs, rep, x=1), SIMPLIFY=FALSE)
-
-    ## Combine SS and RT data
-    anc.years.lst <- mapply(c, anc.years.lst, ancrtsite.years.lst, SIMPLIFY=FALSE)
-    anc.prev.lst <- mapply(c, anc.prev.lst, ancrtsite.prev.lst, SIMPLIFY=FALSE)
-    anc.n.lst <- mapply(c, anc.n.lst, ancrtsite.n.lst, SIMPLIFY=FALSE)
-    X.lst <- mapply(rbind, X.lst, ancrtsite.X.lst, SIMPLIFY=FALSE)
-  }
-
-  ## eliminate records with no observations
-  anc.years.lst <- anc.years.lst[sapply(anc.years.lst, length) > 0]
-  anc.prev.lst <- anc.prev.lst[sapply(anc.years.lst, length) > 0]
-  anc.n.lst <- anc.n.lst[sapply(anc.years.lst, length) > 0]
-  X.lst <- X.lst[sapply(anc.years.lst, length) > 0]
-
-  x.lst <- mapply(function(p, n) (p*n+0.5)/(n+1), anc.prev.lst, anc.n.lst, SIMPLIFY=FALSE)
-  W.lst <- lapply(x.lst, qnorm)
-  v.lst <- mapply(function(W, x, n) 2*pi*exp(W^2)*x*(1-x)/n, W.lst, x.lst, anc.n.lst, SIMPLIFY=FALSE)
-  anc.idx.lst <- lapply(anc.years.lst, "-", anchor.year-1)  ## index of observations relative to output prevalence vector
-
-
-  anclik.dat <- list(W.lst = W.lst,
-                     v.lst = v.lst,
-                     n.lst = anc.n.lst,
-                     X.lst = X.lst,
-                     anc.idx.lst = anc.idx.lst)
-
-  return(anclik.dat)
+  list(df = df,
+       datgrp = datgrp,
+       Xancsite = Xancsite,
+       muidx.lst = muidx.lst)
 }
 
-ll_anc <- function(qM, coef=c(0, 0), vinfl=0, anclik.dat){
+ll_ancsite <- function(mod, fp, coef=c(0, 0), vinfl=0, dat){
 
-  ## linear model offset
-  mu <- lapply(lapply(anclik.dat$X.lst, "%*%", coef), c)
+  df <- dat$df
 
-  d.lst <- mapply(function(w, mu, idx) w - (qM[idx]+mu), anclik.dat$W.lst, mu, anclik.dat$anc.idx.lst, SIMPLIFY=FALSE)
-  v.lst <- lapply(anclik.dat$v.lst, "+", vinfl)
+  if(!nrow(df))
+    return(0)
+    
+  qM <- suppressWarnings(qnorm(agepregprev(mod, fp, dat$datgrp$aidx, dat$datgrp$yidx, dat$datgrp$agspan)))
 
-  return(log(anclik::anc_resid_lik(d.lst, v.lst)))
+  if(any(is.na(qM)) || any(qM == -Inf) || any(qM > 2))  ## prev < 0.977
+    return(-Inf)
+  
+  mu <- qM[df$qMidx] + dat$Xancsite %*% coef
+  d <- df$W - mu
+  v <- df$v + vinfl
+  
+  d.lst <- lapply(dat$muidx.lst, function(idx) d[idx])
+  v.lst <- lapply(dat$muidx.lst, function(idx) v[idx])
+  
+  log(anclik::anc_resid_lik(d.lst, v.lst))
 }
-
 
 
 #############################################
@@ -162,18 +144,33 @@ log_frr_adjust.pr.mean <- 0
 log_frr_adjust.pr.sd <- 0.2
 ancrtcens.vinfl.pr.rate <- 1/0.015
 
-prepare_ancrtcens_likdat <- function(dat, anchor.year){
+prepare_ancrtcens_likdat <- function(dat, fp){
 
+  anchor.year <- fp$ss$proj_start
+  
   x.ancrt <- (dat$prev*dat$n+0.5)/(dat$n+1)
   dat$W.ancrt <- qnorm(x.ancrt)
   dat$v.ancrt <- 2*pi*exp(dat$W.ancrt^2)*x.ancrt*(1-x.ancrt)/dat$n
-  dat$idx <- dat$year - anchor.year+1
 
+  if(!exists("age", dat))
+    dat$age <- rep(15, nrow(dat))
+
+  if(!exists("agspan", dat))
+    dat$agspan <- rep(35, nrow(dat))
+
+  dat$aidx <- dat$age - fp$ss$AGE_START + 1
+  dat$yidx <- dat$year - anchor.year + 1
+  
   return(dat)
 }
 
-ll_ancrtcens <- function(qM.preg, ancrtcens.dat, fp){
-  sum(dnorm(ancrtcens.dat$W.ancrt, qM.preg[ancrtcens.dat$idx], sqrt(ancrtcens.dat$v.ancrt + fp$ancrtcens.vinfl), log=TRUE))
+ll_ancrtcens <- function(mod, dat, fp){
+  if(!nrow(dat))
+    return(0)
+  qM.prev <- suppressWarnings(qnorm(agepregprev(mod, fp, dat$aidx, dat$yidx, dat$agspan)))
+  if(any(is.na(qM.prev)))
+    return(-Inf)
+  sum(dnorm(dat$W.ancrt, qM.prev, sqrt(dat$v.ancrt + fp$ancrtcens.vinfl), log=TRUE))
 }
 
 
@@ -306,8 +303,8 @@ fnCreateParam <- function(theta, fp){
   if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
     param$log_frr_adjust <- theta[paramcurr+1]
     param$frr_cd4 <- fp$frr_cd4 * exp(param$log_frr_adjust)
-    param$frr_art <- fp$frr_art
-    param$frr_art[1:2,,,] <- param$frr_art[1:2,,,] * exp(param$log_frr_adjust)
+    param$frr_art <- fp$frr_art * exp(param$log_frr_adjust)
+    ## param$frr_art[1:2,,,] <- param$frr_art[1:2,,,] * exp(param$log_frr_adjust)
 
     if(!exists("ancrtcens.vinfl", fp)){
       param$ancrtcens.vinfl <- exp(theta[paramcurr+2])
@@ -367,34 +364,37 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
     hhsage$n_eff <- hhsage$n/hhsage$deff
   hhsage$x_eff <- hhsage$n_eff * hhsage$prev
 
-  hhsage$sidx <- match(hhsage$sex, c("male", "female"))
-  hhsage$aidx <- as.integer(substr(hhsage$agegr, 1, 2)) - fp$ss$AGE_START+1L
-  hhsage$yidx <- hhsage$year - (anchor.year - 1)
+  if(is.null(hhsage$sex))
+    hhsage$sex <- rep("both", nrow(hhsage))
 
-  hhsage$arridx <- hhsage$aidx + (hhsage$sidx-1)*fp$ss$pAG + (hhsage$yidx-1)*fp$ss$NG*fp$ss$pAG
+  if(is.null(hhsage$agegr))
+    hhsage$agegr <- "15-49"
+
+  startage <- as.integer(sub("([0-9]*)-([0-9]*)", "\\1", hhsage$agegr))
+  endage <- as.integer(sub("([0-9]*)-([0-9]*)", "\\2", hhsage$agegr))
+  
+  hhsage$sidx <- match(hhsage$sex, c("both", "male", "female")) - 1L
+  hhsage$aidx <- startage - fp$ss$AGE_START+1L
+  hhsage$yidx <- as.integer(hhsage$year - (anchor.year - 1))
+  hhsage$agspan <- endage - startage + 1L
 
   return(subset(hhsage, aidx > 0))
 }
 
-
-#' Log likelihood for age 15-49 household survey prevalence
-ll_hhs <- function(qM, hhslik.dat){
-  return(sum(dnorm(hhslik.dat$W.hhs, qM[hhslik.dat$idx], hhslik.dat$sd.W.hhs, log=TRUE)))
-}
-
 #' Log likelihood for age-specific household survey prevalence
-ll_hhsage <- function(mod, hhsage.dat){
-  qM.age <- suppressWarnings(qnorm(ageprev(mod, arridx=hhsage.dat$arridx, agspan=5)))
-  if(any(is.na(qM.age))) return(-Inf)
-  sum(dnorm(hhsage.dat$W.hhs, qM.age, hhsage.dat$sd.W.hhs, log=TRUE))
+ll_hhsage <- function(mod, dat){
+  qM.age <- suppressWarnings(qnorm(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan)))
+  if(any(is.na(qM.age)))
+    return(-Inf)
+  sum(dnorm(dat$W.hhs, qM.age, dat$sd.W.hhs, log=TRUE))
 }
 
 
 #' Log likelihood for age-specific household survey prevalence using binomial approximation
-ll_hhsage_binom <- function(mod, hhsage.dat){
-  prevM.age <- suppressWarnings(ageprev(mod, arridx=hhsage.dat$arridx, agspan=5))
+ll_hhsage_binom <- function(mod, dat){
+  prevM.age <- suppressWarnings(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan))
   if(any(is.na(prevM.age)) || any(prevM.age >= 1)) return(-Inf)
-  ll <- sum(ldbinom(hhsage.dat$x_eff, hhsage.dat$n_eff, prevM.age))
+  ll <- sum(ldbinom(dat$x_eff, dat$n_eff, prevM.age))
   if(is.na(ll))
     return(-Inf)
   return(ll)
@@ -501,32 +501,31 @@ ll_hhsincid <- function(mod, hhsincid.dat){
 
 prepare_likdat <- function(eppd, fp){
 
-  anchor_year <- floor(fp$proj.steps[1])
+  likdat <- list()
+  
+  likdat$hhs.dat <- prepare_hhsageprev_likdat(eppd$hhs, fp)
 
-  likdat <- list(anclik.dat = prepare_ancsite_likdat(eppd, anchor.year=anchor_year),
-                 hhslik.dat = epp::fnPrepareHHSLikData(eppd$hhs, anchor.year=anchor_year))
-  if(exists("ancrtcens", where=eppd))
-    likdat$ancrtcens.dat <- prepare_ancrtcens_likdat(eppd$ancrtcens, anchor.year=anchor_year)
-  if(exists("hhsage", where=eppd))
-    likdat$hhsage.dat <- prepare_hhsageprev_likdat(eppd$hhsage, fp)
+  if(exists("ancsitedat", where=eppd)){
+
+    ancsitedat <- eppd$ancsitedat
+    
+    if(exists("ancrt", fp) && fp$ancrt %in% c("none", "census"))
+      ancsitedat <- subset(ancsitedat, type == "ancss")
+    
+    likdat$ancsite.dat <- prepare_ancsite_likdat(ancsitedat, fp)
+  }
+ 
+  if(exists("ancrtcens", where=eppd)){
+    if(exists("ancrt", fp) && fp$ancrt %in% c("none", "site"))
+      eppd$ancrtcens <- NULL
+    else
+      likdat$ancrtcens.dat <- prepare_ancrtcens_likdat(eppd$ancrtcens, fp)
+  }
+
   if(exists("hhsincid", where=eppd))
     likdat$hhsincid.dat <- prepare_hhsincid_likdat(eppd$hhsincid, fp)
   if(exists("sibmx", where=eppd))
     likdat$sibmx.dat <- prepare_sibmx_likdat(eppd$sibmx, fp)
-
-  likdat$lastdata.idx <- max(unlist(likdat$anclik.dat$anc.idx.lst),
-                             likdat$hhslik.dat$idx,
-                             likdat$ancrtcens.dat$idx,
-                             likdat$hhsage.dat$idx,
-                             likdat$hhsincid.dat$idx,
-                             likdat$sibmx.dat$idx)
-  likdat$firstdata.idx <- min(unlist(likdat$anclik.dat$anc.idx.lst),
-                              likdat$hhslik.dat$idx,
-                              likdat$ancrtcens.dat$idx,
-                              likdat$ancrtcens.dat$idx,
-                              likdat$hhsage.dat$idx,
-                              likdat$hhsincid.dat$idx,
-                              likdat$sibmx.dat$idx)
 
   return(likdat)
 }
@@ -635,34 +634,26 @@ ll <- function(theta, fp, likdat){
 
   mod <- simmod(fp)
 
-  qM.all <- suppressWarnings(qnorm(prev(mod)))
-  qM.preg <- if(exists("pregprev", where=fp) && !fp$pregprev) qM.all else suppressWarnings(qnorm(fnPregPrev(mod, fp)))
-
-  if(any(is.na(qM.preg[likdat$firstdata.idx:likdat$lastdata.idx])) ||
-     any(is.na(qM.all[likdat$firstdata.idx:likdat$lastdata.idx])) ||
-     any(qM.preg[likdat$firstdata.idx:likdat$lastdata.idx] == -Inf) ||
-     any(qM.preg[likdat$firstdata.idx:likdat$lastdata.idx] > 2)) # prevalence not greater than pnorm(2) = 0.977
-    return(-Inf)
-
   ## ANC likelihood
-  if(fp$ancsitedata)
-    ll.anc <- ll_anc(qM.preg, coef=c(fp$ancbias, fp$ancrtsite.beta), vinfl=fp$v.infl, likdat$anclik.dat)
+  if(exists("ancsite.dat", likdat))
+    ll.anc <- ll_ancsite(mod, fp, coef=c(fp$ancbias, fp$ancrtsite.beta), vinfl=fp$v.infl, likdat$ancsite.dat)
   else
     ll.anc <- 0
 
-  if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both"))
-    ll.ancrt <- ll_ancrtcens(qM.preg, likdat$ancrtcens.dat, fp)
+  if(exists("ancrtcens.dat", likdat))
+    ll.ancrt <- ll_ancrtcens(mod, likdat$ancrtcens.dat, fp)
   else
     ll.ancrt <- 0
 
 
   ## Household survey likelihood
-  if(exists("ageprev", where=fp) && fp$ageprev=="binom")
-    ll.hhs <- ll_hhsage_binom(mod, likdat$hhsage.dat)
-  else if(exists("ageprev", where=fp) && (fp$ageprev==TRUE | fp$ageprev == "probit")) # ==TRUE for backward compatibility
-    ll.hhs <- ll_hhsage(mod, likdat$hhsage.dat) # probit-transformed model
+  if(exists("hhs.dat", where=likdat))
+    if(exists("ageprev", fp) && fp$ageprev=="binom")
+      ll.hhs <- ll_hhsage_binom(mod, likdat$hhs.dat)
+    else ## use probit likelihood
+      ll.hhs <- ll_hhsage(mod, likdat$hhs.dat) # probit-transformed model
   else
-    ll.hhs <- ll_hhs(qM.all, likdat$hhslik.dat)
+    ll.hhs <- 0
 
   if(!is.null(likdat$hhsincid.dat))
     ll.incid <- ll_hhsincid(mod, likdat$hhsincid.dat)
@@ -677,15 +668,35 @@ ll <- function(theta, fp, likdat){
     ll.sibmx <- 0
 
   if(exists("equil.rprior", where=fp) && fp$equil.rprior){
-    rvec.ann <- fp$rvec[fp$proj.steps %% 1 == 0.5]
-    equil.rprior.mean <- epp:::muSS/(1-pnorm(qM.all[likdat$lastdata.idx]))
-    equil.rprior.sd <- sqrt(mean((epp:::muSS/(1-pnorm(qM.all[likdat$lastdata.idx - 9:0])) - rvec.ann[likdat$lastdata.idx - 9:0])^2))  # empirical sd based on 10 previous years
-    ll.rprior <- sum(dnorm(rvec.ann[(likdat$lastdata.idx+1L):length(qM.all)], equil.rprior.mean, equil.rprior.sd, log=TRUE))  # prior starts year after last data
+    if(fp$eppmod != "rspline")
+      stop("error in ll(): equil.rprior is only for use with r-spline model")
+
+    lastdata.idx <- max(likdat$ancsite.dat$df$yidx,
+                        likdat$hhs.dat$yidx,
+                        likdat$ancrtcens.dat$yidx,
+                        likdat$hhsincid.dat$idx,
+                        likdat$sibmx.dat$idx)
+    
+    qM.all <- suppressWarnings(qnorm(prev(mod)))
+
+    if(any(is.na(qM.all[lastdata.idx - 9:0]))) {
+      ll.rprior <- -Inf
+    } else {
+      rvec.ann <- fp$rvec[fp$proj.steps %% 1 == 0.5]
+      equil.rprior.mean <- epp:::muSS/(1-pnorm(qM.all[lastdata.idx]))
+      equil.rprior.sd <- sqrt(mean((epp:::muSS/(1-pnorm(qM.all[lastdata.idx - 9:0])) - rvec.ann[lastdata.idx - 9:0])^2))  # empirical sd based on 10 previous years
+      ll.rprior <- sum(dnorm(rvec.ann[(lastdata.idx+1L):length(qM.all)], equil.rprior.mean, equil.rprior.sd, log=TRUE))  # prior starts year after last data
+    }
   } else
     ll.rprior <- 0
 
-  ## return(ll.anc+ll.hhs+ll.incpen+ll.rprior)
-  return(ll.anc + ll.ancrt + ll.hhs + ll.incid + ll.sibmx + ll.rprior + ll.incpen)
+  c(anc    = ll.anc,
+    ancrt  = ll.ancrt,
+    hhs    = ll.hhs,
+    incid  = ll.incid,
+    sibmx  = ll.sibmx,
+    rprior = ll.rprior,
+    incpen = ll.incpen)
 }
 
 
@@ -920,9 +931,9 @@ prior <- function(theta, fp, log=FALSE){
 
 likelihood <- function(theta, fp, likdat, log=FALSE){
   if(is.vector(theta))
-    lval <- ll(theta, fp, likdat)
+    lval <- sum(ll(theta, fp, likdat))
   else
-    lval <- unlist(lapply(seq_len(nrow(theta)), function(i) ll(theta[i,], fp, likdat)))
+    lval <- unlist(lapply(seq_len(nrow(theta)), function(i) sum(ll(theta[i,], fp, likdat))))
   if(log)
     return(lval)
   else

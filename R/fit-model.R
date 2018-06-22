@@ -13,6 +13,18 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
 
   epp.subp.input <- epp::fnCreateEPPSubpops(epp.input, epp.subp, eppd)
 
+  country <- attr(eppd, "country")
+  cc <- attr(eppd, "country_code")
+
+  ## melt site-level data
+  eppd <- Map("[[<-", eppd, "ancsitedat", lapply(eppd, melt_ancsite_data))
+
+  ## tidy HHS data
+  eppd <- Map("[[<-", eppd, "hhs", lapply(eppd, tidy_hhs_data))
+
+  attr(eppd, "country") <- country
+  attr(eppd, "country_code") <- cc
+    
   ## spectrum
   demp <- read_specdp_demog_param(pjnz, use_ep5=use_ep5)
   projp <- read_hivproj_param(pjnz, use_ep5=use_ep5)
@@ -41,7 +53,7 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
   val <- set.list.attr(val, "eppd", eppd)
   val <- set.list.attr(val, "eppfp", lapply(epp.subp.input, epp::fnCreateEPPFixPar, proj.end = proj.end))
   val <- set.list.attr(val, "specfp", specfp.subp)
-  val <- set.list.attr(val, "country", attr(eppd, "country"))
+  val <- set.list.attr(val, "country", read_country(pjnz))
   val <- set.list.attr(val, "region", names(eppd))
 
   attr(val, "country") <- read_country(pjnz)
@@ -50,6 +62,49 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
   return(val)
 }
 
+#' Melt ANC-SS and site-level ANC-RT to long dataset
+melt_ancsite_data <- function(eppd){
+  
+  anc.used <- data.frame(site=rownames(eppd$anc.prev), used=eppd$anc.used)
+  anc.prev <- subset(reshape2::melt(eppd$anc.prev, varnames=c("site", "year"), value.name="prev"), !is.na(prev))
+  anc.n <- subset(reshape2::melt(eppd$anc.n, varnames=c("site", "year"), value.name="n"), !is.na(n))
+  
+  ancsitedat <- merge(anc.used, anc.prev)
+  ancsitedat <- merge(ancsitedat, anc.n)
+  ancsitedat$type <- "ancss"
+
+  if(exists("ancrtsite.prev", eppd) && !is.null(eppd$ancrtsite.prev)){
+    ancrtsite.prev <- subset(reshape2::melt(eppd$ancrtsite.prev, varnames=c("site", "year"), value.name="prev"), !is.na(prev))
+    ancrtsite.n <- subset(reshape2::melt(eppd$ancrtsite.n, varnames=c("site", "year"), value.name="n"), !is.na(n))
+  
+    ancrtsite <- merge(anc.used, ancrtsite.prev)
+    ancrtsite <- merge(ancrtsite, ancrtsite.n)
+    ancrtsite$type <- rep("ancrt", nrow(ancrtsite))
+    
+    ancsitedat <- rbind(ancsitedat, ancrtsite)
+  }
+
+  ancsitedat <- subset(ancsitedat, used)
+  ancsitedat$agegr <- rep("15-49", nrow(ancsitedat))
+  ancsitedat$age <- rep(15, nrow(ancsitedat))
+  ancsitedat$agspan <- rep(35, nrow(ancsitedat))
+
+  ancsitedat
+}
+
+tidy_hhs_data <- function(eppd){
+
+  hhs <- eppd$hhs
+
+  hhs$deff <- hhs$deff_approx <- rep(2.0, nrow(hhs)) # irrelevant assumption 
+  hhs$n <- hhs$deff * hhs$prev * (1-hhs$prev) / hhs$se^2
+  hhs$agegr <- rep("15-49", nrow(hhs))
+  hhs$sex <- rep("both", nrow(hhs))
+  
+  hhs <- hhs[c("year", "sex", "agegr", "n", "prev", "se", "deff", "deff_approx", "used")]
+  
+  hhs
+}
 
 create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, length(eppd)), names(eppd)), ..., popadjust=TRUE, popupdate=TRUE, perc_urban=NULL){
 
@@ -58,6 +113,7 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
 
   ## Update demp for subpopulation 
   demp.subpop <- list()
+  gfr_subpop <- list()
   for(subpop in names(eppd)){
     ## if(country != "Malawi")
     strsubp <- if(subpop %in% c("Urbain", "Urbaine", "Urban")) "U"
@@ -67,6 +123,9 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
     if (popadjust) {
       demp.subpop[[subpop]]$basepop <- subp[[grep(paste0("^", country_code, "_"), names(subp))]][[strsubp]][,,dimnames(demp$basepop)[[3]]]
       demp.subpop[[subpop]]$netmigr[] <- 0
+
+      ## Record GFR for each subpop
+      gfr_subpop[[subpop]] <- subset(subp_gfr, cc == country_code & eppregion == strsubp, c(gfr, survyear))
     }
   }
 
@@ -108,11 +167,27 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
       demp.subpop[[subpop]]$basepop <- subpops[,,,subpop]
   }
 
-
+  if(length(demp.subpop) > 1){
+    ## Apportion births according to population size and GFR
+    for(subpop in names(demp.subpop)){
+      survyear <- gfr_subpop[[subpop]]$survyear
+      gfr <- gfr_subpop[[subpop]]$gfr
+      fpop15to44 <- sum(demp.subpop[[subpop]]$basepop[as.character(15:44), "Female", as.character(survyear)])
+      prop_births <- fpop15to44*gfr / demp$births[as.character(survyear)]
+      
+      demp.subpop[[subpop]]$births <- prop_births * demp$births
+    }
+    
+    ## Rake births to national births
+    births_adjust <- demp$births / rowSums(sapply(demp.subpop, "[[", "births"))
+    for(subpop in names(demp.subpop))
+      demp.subpop[[subpop]]$births <- births_adjust * demp.subpop[[subpop]]$births 
+  }
+  
   ## Apportion ART
   ## If national survey data are available, apportion ART according to relative average HH survey prevalence in each subpopulation,
   ## If no HH survey, apportion based on relative mean ANC prevalence
-
+  
   get15to49pop <- function(demp, year) sum(demp$basepop[as.character(15:49),,as.character(year)])
   subpop.dist <- prop.table(sapply(demp.subpop, get15to49pop, 2010))
   
@@ -133,6 +208,12 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
     projp.subpop[[subpop]]$art15plus_num[isartnum] <- projp$art15plus_num[isartnum] * art.dist[subpop]
   }
 
+  ## Apportion age 14 HIV population
+  ## Allocate relative to HIV prevalence and population size, same as ART population
+  for(subpop in names(eppd)){
+    projp.subpop[[subpop]]$age14hivpop <- projp.subpop[[subpop]]$age14hivpop * art.dist[subpop]
+  }
+  
   specfp.subpop <- list()
   for(subpop in names(eppd))
     specfp.subpop[[subpop]] <- create_spectrum_fixpar(projp.subpop[[subpop]], demp.subpop[[subpop]], ..., popadjust=popadjust, time_epi_start=epp_t0[subpop])
@@ -191,7 +272,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
                    sample_prior=eppasm:::sample.prior,
                    prior=eppasm:::prior,
                    likelihood=eppasm:::likelihood,
-                   optfit=FALSE, opt_method="BFGS", opt_init=NULL, opt_maxit=1000, opt_diffstep=1e-3){
+                   optfit=FALSE, opt_method="BFGS", opt_init=NULL, opt_maxit=1000, opt_diffstep=1e-3, opthess=TRUE){
 
   ## ... : updates to fixed parameters (fp) object to specify fitting options
 
@@ -203,33 +284,36 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
   ## Prepare likelihood data
   eppd <- attr(obj, "eppd")
-  
-  if(exists("ancrt", fp) && fp$ancrt == "none")
-    eppd$ancrtcens <- eppd$ancrtsite.prev <- eppd$ancrtsite.n <- NULL
-  else if(exists("ancrt", fp) && fp$ancrt == "census")
-    eppd$ancrtsite.prev <- eppd$ancrtsite.n <- NULL
-  else if(exists("ancrt", fp) && fp$ancrt == "site")
-    eppd$ancrtcens <- NULL
 
-  if(is.null(eppd$ancrtcens) && is.null(eppd$ancrtsite.prev)){
-    fp$ancrt <- "none"
+  has_ancrtsite <- exists("ancsitedat", eppd) && any(eppd$ancsitedat$type == "ancss")
+  has_ancrtcens <- exists("ancrtcens", eppd) && nrow(eppd$ancrtcens)
+  
+  if(!has_ancrtsite)
     fp$ancrtsite.beta <- 0
-  } else if(!is.null(eppd$ancrtcens) && is.null(eppd$ancrtsite.prev)){
-    fp$ancrt <- "census"
-    fp$ancrtsite.beta <- 0
-  } else if(is.null(eppd$ancrtcens) && !is.null(eppd$ancrtsite.prev))
-    fp$ancrt <- "site"
-  else
+
+  if(has_ancrtsite & has_ancrtcens)
     fp$ancrt <- "both"
+  else if(has_ancrtsite & !has_ancrtcens)
+    fp$ancrt <- "site"
+  else if(!has_ancrtsite & has_ancrtcens)
+    fp$ancrt <- "census"
+  else
+    fp$ancrt <- "none"
 
   if(epp)
     eppd$hhsage <- eppd$sibmx <- NULL
 
   likdat <- prepare_likdat(eppd, fp)
-  fp$ancsitedata <- as.logical(length(likdat$anclik.dat$W.lst))
+  fp$ancsitedata <- as.logical(nrow(likdat$ancsite.dat$df))
 
   if(fp$eppmod %in% c("rhybrid", "logrw", "rlogistic_rw")){  # THIS IS REALLY MESSY, NEED TO REFACTOR CODE
-    fp$SIM_YEARS <- as.integer(likdat$lastdata.idx)
+
+    fp$SIM_YEARS <- as.integer(max(likdat$ancsite.dat$df$yidx,
+                                   likdat$hhs.dat$yidx,
+                                   likdat$ancrtcens.dat$yidx,
+                                   likdat$hhsincid.dat$idx,
+                                   likdat$sibmx.dat$idx))
+
     fp$proj.steps <- seq(fp$ss$proj_start+0.5, fp$ss$proj_start-1+fp$SIM_YEARS+0.5, by=1/fp$ss$hiv_steps_per_year)
   } else
     fp$SIM_YEARS <- fp$ss$PROJ_YEARS
@@ -263,7 +347,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
   ## Fit using optimization
   if(optfit){
-    optfn <- function(theta, fp, likdat) lprior(theta, fp) + ll(theta, fp, likdat)
+    optfn <- function(theta, fp, likdat) lprior(theta, fp) + sum(ll(theta, fp, likdat))
     if(is.null(opt_init)){
       X0 <- sample_prior(B0, fp)
       lpost0 <- likelihood(X0, fp, likdat, log=TRUE) + prior(X0, fp, log=TRUE)
@@ -274,32 +358,27 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
     opt$likdat <- likdat
     opt$param <- fnCreateParam(opt$par, fp)
     opt$mod <- simmod(update(fp, list=opt$param))
-    if(epp)
-      class(opt) <- "eppopt"
-    else
-      class(opt) <- "specopt"
-    
-    return(opt)
-  }
-
-  ## Fit using optimization
-  if(optfit){
-    optfn <- function(theta, fp, likdat) lprior(theta, fp) + ll(theta, fp, likdat)
-    if(is.null(opt_init)){
-      X0 <- sample_prior(B0, fp)
-      lpost0 <- likelihood(X0, fp, likdat, log=TRUE) + prior(X0, fp, log=TRUE)
-      opt_init <- X0[which.max(lpost0)[1],]
+    if(opthess){
+      opt$hessian <- optimHess(opt_init, optfn, fp=fp, likdat=likdat,
+                               control=list(fnscale=-1,
+                                            trace=4,
+                                            maxit=1e3,
+                                            ndeps=rep(.Machine$double.eps^0.5, length(opt_init))))
+      opt$resample <- mvtnorm::rmvnorm(B.re, opt$par, solve(-opt$hessian))
     }
-    opt <- optim(opt_init, optfn, fp=fp, likdat=likdat, method=opt_method, control=list(fnscale=-1, trace=4, maxit=1e3))
-    opt$fp <- fp
-    opt$likdat <- likdat
-    opt$param <- fnCreateParam(opt$par, fp)
-    opt$mod <- simmod(update(fp, list=opt$param))
+
     if(epp)
       class(opt) <- "eppopt"
     else
       class(opt) <- "specopt"
-    
+
+    if(opthess){
+      if(epp)
+        class(opt) <- c(class, "eppfit")
+      else
+        class(opt) <- c(class, "specfit")
+    }
+
     return(opt)
   }
 
@@ -326,7 +405,20 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
 
 ## simulate incidence and prevalence
-simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FALSE, agegr3=FALSE, mxoutputs=FALSE, aidsdeaths=FALSE, pregprev=TRUE, entrantprev=TRUE, mod.list=NULL){
+simfit.specfit <- function(fit,
+                           rwproj=fit$fp$eppmod == "rspline",
+                           ageprevdat=FALSE,
+                           agegr3=FALSE,
+                           artcov=FALSE,
+                           ancartcov=FALSE,
+                           mxoutputs=FALSE,
+                           aidsdeaths=FALSE,
+                           pregprev=TRUE,
+                           ageincid=TRUE,
+                           ageinfections=TRUE,
+                           relincid = TRUE,
+                           entrantprev=TRUE,
+                           mod.list=NULL){
 
   if(is.null(mod.list)){
     fit$param <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
@@ -336,8 +428,13 @@ simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FA
         stop("Random-walk projection is only used with r-spline model")
 
       ## fit$rvec.spline <- sapply(fit$param, "[[", "rvec")
+      lastdata.idx <- as.integer(max(fit$likdat$ancsite.dat$df$yidx,
+                                     fit$likdat$hhs.dat$yidx,
+                                     fit$likdat$ancrtcens.dat$yidx,
+                                     fit$likdat$hhsincid.dat$idx,
+                                     fit$likdat$sibmx.dat$idx))
       firstidx <- which(fit$fp$proj.steps == fit$fp$tsEpidemicStart)
-      lastidx <- (fit$likdat$lastdata.idx-1)*fit$fp$ss$hiv_steps_per_year+1
+      lastidx <- (lastdata.idx-1)*fit$fp$ss$hiv_steps_per_year+1
       
       ## replace rvec with random-walk simulated rvec
       fit$param <- lapply(fit$param, function(par){par$rvec <- epp:::sim_rvec_rwproj(par$rvec, firstidx, lastidx, 1/fit$fp$ss$hiv_steps_per_year); par})
@@ -354,24 +451,45 @@ simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FA
   fit$incid <- mapply(incid, mod = mod.list, fp = fp.list)
   fit$popsize <- sapply(mod.list, colSums, dims=3)
 
-  if(pregprev)
-    fit$pregprev <- sapply(mod.list, fnPregPrev)
+  if(inherits(pregprev, "data.frame"))
+    fit$pregprev <- mapply(agepregprev, mod=mod.list, fp=fp.list,
+                           MoreArgs=list(aidx=pregprev$aidx, yidx=pregprev$yidx, agspan=pregprev$agspan))
+  else if(is.logical(pregprev) && pregprev == TRUE)
 
   if(entrantprev)
     fit$entrantprev <- sapply(mod.list, attr, "entrantprev")
 
-
-  if(ageprevdat)
-    fit$ageprevdat <- sapply(mod.list, ageprev, arridx=fit$likdat$hhsage.dat$arridx, agspan=5)
-
-  if(agegr3){
+  if(is.logical(ageprevdat) && ageprevdat == TRUE)
+    ageprevdat <- fit$likdat$hhs.dat
+  if(inherits(ageprevdat, "data.frame")){
+    fit$ageprevdat <- mapply(ageprev, mod=mod.list,
+                             MoreArgs=list(aidx=ageprevdat$aidx,
+                                           sidx=ageprevdat$sidx,
+                                           yidx=ageprevdat$yidx,
+                                           agspan=ageprevdat$agspan))
+    fit$ageprevdat <- matrix(fit$ageprevdat, nrow=nrow(ageprevdat))
+  }
+  
+  if(inherits(agegr3, "data.frame"))
+    fit$agegr3prev <- mapply(ageprev, mod=mod.list,
+                             MoreArgs=list(aidx=agegr3$aidx,
+                                           sidx=agegr3$sidx,
+                                           yidx=agegr3$yidx,
+                                           agspan=agegr3$agspan))
+  else if(is.logical(agegr3) && agegr3 == TRUE) {
     fit$agegr3prev <- lapply(mod.list, ageprev, aidx=c(15, 25, 35)-fit$fp$ss$AGE_START+1L, sidx=1:2,
-                             yidx=(1999-fit$fp$ss$proj_start+1L):fit$fp$ss$PROJ_YEARS, agspan=c(10, 10, 15))
+                             yidx=(1999-fit$fp$ss$proj_start+1L):fit$fp$ss$PROJ_YEARS, agspan=c(10, 10, 15), expand=TRUE)
     fit$agegr3prev <- do.call(abind::abind, c(fit$agegr3prev, along=4))
   }
 
   if(aidsdeaths)
     fit$aidsdeaths <- sapply(lapply(mod.list, attr, "hivdeaths"), colSums, dims=2)
+
+  if(artcov)
+    fit$artcov <- sapply(mod.list, artcov15plus)
+
+  if(ancartcov)
+    fit$ancartcov <- mapply(agepregartcov, mod.list, fp.list, MoreArgs=list(aidx=1, yidx=1:fit$fp$ss$PROJ_YEARS, agspan=35, expand=TRUE))
 
   if(mxoutputs){
     fit$agemx <- abind::abind(lapply(mod.list, agemx), rev.along=0)
@@ -392,7 +510,59 @@ simfit.specfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", ageprevdat=FA
     fit$natq3515 <- abind::abind(lapply(mod.list, calc_nqx, fp=fit$fp, n=35, x=15, nonhiv=TRUE), rev.along=0)
     dimnames(fit$natq3515) <- with(fit$fp$ss, list(sex=c("male", "female"), proj_start + 0:(PROJ_YEARS-1), NULL))
   }
+
+
+  if(ageincid){
+
+    startyr <- fit$fp$ss$proj_start
+    endyr <- fit$fp$ss$proj_start + fit$fp$ss$PROJ_YEARS-1L
+
+    agegr3 <- lapply(mod.list, ageincid, aidx=c(15, 25, 35, 50)-fit$fp$ss$AGE_START+1L, sidx=1:2,
+                     yidx=1999:endyr - startyr+1L, agspan=c(10, 10, 15, 31))
+    age15to49 <- lapply(mod.list, ageincid, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
+                        yidx=1999:endyr - startyr+1L, agspan=35)
+    age15plus <- lapply(mod.list, ageincid, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
+                        yidx=1999:endyr - startyr+1L, agspan=66)
+    agegr3 <- abind::abind(agegr3, rev.along=0)
+    age15to49 <- abind::abind(age15to49, rev.along=0)
+    age15plus <- abind::abind(age15plus, rev.along=0)
+    fit$agegr3incid <- abind::abind(agegr3, age15to49, age15plus, along=1)
+
+    dimnames(fit$agegr3incid)[1:3] <- list(agegr=c("15-24", "25-34", "35-49", "50+", "15-49", "15+"),
+                                           sex=c("male", "female"),
+                                           year=1999:endyr)
+  }
+
+  if(ageinfections){
     
+    startyr <- fit$fp$ss$proj_start
+    endyr <- fit$fp$ss$proj_start + fit$fp$ss$PROJ_YEARS-1L
+    
+    agegr3 <- lapply(mod.list, ageinfections, aidx=c(15, 25, 35, 50)-fit$fp$ss$AGE_START+1L, sidx=1:2,
+                     yidx=1999:endyr - startyr+1L, agspan=c(10, 10, 15, 31))
+    age15to49 <- lapply(mod.list, ageinfections, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
+                        yidx=1999:endyr - startyr+1L, agspan=35)
+    age15plus <- lapply(mod.list, ageinfections, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
+                        yidx=1999:endyr - startyr+1L, agspan=66)
+    agegr3 <- abind::abind(agegr3, rev.along=0)
+    age15to49 <- abind::abind(age15to49, rev.along=0)
+    age15plus <- abind::abind(age15plus, rev.along=0)
+    fit$agegr3infections <- abind::abind(agegr3, age15to49, age15plus, along=1)
+
+    dimnames(fit$agegr3infections)[1:3] <- list(agegr=c("15-24", "25-34", "35-49", "50+", "15-49", "15+"),
+                                           sex=c("male", "female"),
+                                           year=1999:endyr)
+  }
+
+  if(relincid){
+
+    ## Incidence relative to 25-29y
+    fit$relincid <- lapply(mod.list, ageincid, aidx=3:9*5-fit$fp$ss$AGE_START+1L, sidx=1:2,
+                           yidx=c(2001, 2006, 2011, 2016)- startyr+1L, agspan=5)
+    fit$relincid <- estci2(abind::abind(lapply(fit$relincid, function(x) sweep(x, 2:3, x[3,,], "/")), rev.along=0))
+    dimnames(fit$relincid)[1:3] <- list(agegr=paste0(3:9*5, "-", 3:9*5+4), sex=c("male", "female"), year=2001+0:3*5)
+  }
+  
   return(fit)
 }
 
@@ -404,9 +574,15 @@ simfit.eppfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", pregprev=TRUE)
     if(exists("eppmod", where=fit$fp) && fit$fp$eppmod == "rtrend")
       stop("Random-walk projection is only used with r-spline model")
 
+    lastdata.idx <- as.integer(max(fit$likdat$ancsite.dat$df$yidx,
+                                   fit$likdat$hhs.dat$yidx,
+                                   fit$likdat$ancrtcens.dat$yidx,
+                                   fit$likdat$hhsincid.dat$idx,
+                                   fit$likdat$sibmx.dat$idx))
+
     fit$rvec.spline <- sapply(fit$param, "[[", "rvec")
     firstidx <- which(fit$fp$proj.steps == fit$fp$tsEpidemicStart)
-    lastidx <- (fit$likdat$lastdata.idx-1)/fit$fp$dt+1
+    lastidx <- (lastdata.idx-1)/fit$fp$dt+1
 
     ## replace rvec with random-walk simulated rvec
     fit$param <- lapply(fit$param, function(par){par$rvec <- sim_rvec_rwproj(par$rvec, firstidx, lastidx, fit$fp$dt); par})
@@ -436,10 +612,16 @@ sim_mod_list <- function(fit, rwproj=fit$fp$eppmod == "rspline"){
       stop("Random-walk projection is only used with r-spline model")
 
     dt <- if(inherits(fit$fp, "eppfp")) fit$fp$dt else 1.0/fit$fp$ss$hiv_steps_per_year
+
+    lastdata.idx <- as.integer(max(fit$likdat$ancsite.dat$df$yidx,
+                                   fit$likdat$hhs.dat$yidx,
+                                   fit$likdat$ancrtcens.dat$yidx,
+                                   fit$likdat$hhsincid.dat$idx,
+                                   fit$likdat$sibmx.dat$idx))
     
     fit$rvec.spline <- sapply(fit$param, "[[", "rvec")
     firstidx <- which(fit$fp$proj.steps == fit$fp$tsEpidemicStart)
-    lastidx <- (fit$likdat$lastdata.idx-1)/dt+1
+    lastidx <- (lastdata.idx-1)/dt+1
 
     ## replace rvec with random-walk simulated rvec
     fit$param <- lapply(fit$param, function(par){par$rvec <- epp:::sim_rvec_rwproj(par$rvec, firstidx, lastidx, dt); par})

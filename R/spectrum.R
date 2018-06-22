@@ -1,7 +1,7 @@
 create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_start = projp$yr_start, proj_end = projp$yr_end,
                                    AGE_START = 15L, relinfectART = projp$relinfectART, time_epi_start = projp$t0,
-                                   popadjust=FALSE, targetpop=demp$basepop, artelig200adj=TRUE, who34percelig=0, frr_art6mos=1.0, frr_art1yr=1.0){
-
+                                   popadjust=FALSE, targetpop=demp$basepop, artelig200adj=TRUE, who34percelig=0,
+                                   frr_art6mos=projp$frr_art6mos, frr_art1yr=projp$frr_art6mos){
   
   ## ########################## ##
   ##  Define model state space  ##
@@ -119,7 +119,13 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   }
   if(popadjust & is.null(fp$targetpop))
     stop("targetpop does not span proj_start:proj_end")
-  
+
+
+  ## calculate births during calendar year
+  ## Spectrum births output represents births midyear previous year to midyear
+  ## current year. Adjust births for half year offset
+  fp$births <- demp$births[as.character(proj_start:proj_end)]
+  fp$births[-1] <- (fp$births[-1] + fp$births[-PROJ_YEARS]) / 2
   
   ## ###################### ##
   ##  HIV model parameters  ##
@@ -205,11 +211,50 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ## for(i in 1:(PROJ_YEARS-AGE_START))
   ##   for(j in 1:AGE_START)
   ##     fp$paedsurv_lag[i+AGE_START] <- fp$paedsurv_lag[i+AGE_START] * (1 - hivqx[j, i+j-1])
-  
-  
-  ## fp$paedsurv_cd4dist <- c(0.056,0.112,0.112,0.07,0.14,0.23,0.28)
-  fp$paedsurv_cd4dist <- c(0.25, 0.25, 0.25, 0.12, 0.08, 0.03, 0.02)  # distribution to give ~0.05 mortality rate among those entering 15+ age group
-  fp$paedsurv_artcd4dist <- c(0, 0, 0, 0, 1.0, 0.0, 0.0)  # put them all at CD4 100-200...to avoid mucking up the summation code
+
+  ## HIV prevalence and ART coverage among age 15 entrants
+  hivpop14 <- projp$age14hivpop[,,,as.character(proj_start:(proj_end-1))]
+  pop14 <- projp$age14totpop[ , as.character(proj_start:(proj_end-1))]
+  hiv14 <- colSums(hivpop14,,2)
+  art14 <- colSums(hivpop14[5:7,,,],,2)
+
+  fp$entrantprev <- cbind(0, hiv14/pop14) # 1 year offset because age 15 population is age 14 in previous year
+  fp$entrantartcov <- cbind(0, art14/hiv14)
+  fp$entrantartcov[is.na(fp$entrantartcov)] <- 0
+  colnames(fp$entrantprev) <- colnames(fp$entrantartcov) <- as.character(proj_start:proj_end)
+
+  hiv_noart14 <- colSums(hivpop14[1:4,,,])
+  artpop14 <- hivpop14[5:7,,,]
+
+  fp$paedsurv_cd4dist <- array(0, c(hDS, NG, PROJ_YEARS))
+  fp$paedsurv_artcd4dist <- array(0, c(hTS, hDS, NG, PROJ_YEARS))
+
+  cd4convert <- rbind(c(1, 0, 0, 0, 0, 0, 0),
+                      c(1, 0, 0, 0, 0, 0, 0),
+                      c(1, 0, 0, 0, 0, 0, 0),
+                      c(0, 1, 0, 0, 0, 0, 0),
+                      c(0, 0, 0.67, 0.33, 0, 0, 0),
+                      c(0, 0, 0, 0, 0.35, 0.21, 0.44))
+
+  ## Convert age 5-14 CD4 distribution to adult CD4 distribution and normalize to
+  ## sum to 1 in each sex and year.
+  for(g in 1:NG)
+    for(i in 2:PROJ_YEARS){
+      
+      if((hiv14[g,i-1] - art14[g,i-1]) > 0)
+        fp$paedsurv_cd4dist[,g,i] <- hiv_noart14[,g,i-1] %*% cd4convert / (hiv14[g,i-1] - art14[g,i-1])
+      if(art14[g,i-1]){
+        fp$paedsurv_artcd4dist[,,g,i] <- artpop14[,,g,i-1] %*% cd4convert / art14[g,i-1]
+
+        ## if age 14 has ART population in CD4 above adult eligibilty, assign to highest adult
+        ## ART eligibility category.
+        idx <- fp$artcd4elig_idx[i]
+        if(idx > 1){
+          fp$paedsurv_artcd4dist[,idx,g,i] <- fp$paedsurv_artcd4dist[,idx,g,i] + rowSums(fp$paedsurv_artcd4dist[,1:(idx-1),g,i, drop=FALSE])
+          fp$paedsurv_artcd4dist[,1:(idx-1),g,i] <- 0
+        }
+      }
+    }
   
   fp$netmig_hivprob <- 0.4*0.22
   fp$netmighivsurv <- 0.25/0.22
@@ -312,7 +357,8 @@ simmod.specfp <- function(fp, VERSION="C"){
   ## initialize projection
   pop <- array(0, c(pAG, NG, pDS, PROJ_YEARS))
   pop[,,1,1] <- fp$basepop
-  hivpop <- array(0, c(hTS+1L, hDS, hAG, NG, PROJ_YEARS))
+  hivpop <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
+  artpop <- array(0, c(hTS, hDS, hAG, NG, PROJ_YEARS))
 
   ## initialize output
   prev15to49 <- numeric(PROJ_YEARS)
@@ -353,38 +399,38 @@ simmod.specfp <- function(fp, VERSION="C"){
 
     ## Add lagged births into youngest age group
     if(exists("entrantprev", where=fp))
-      entrant_prev <- fp$entrantprev[i]
+      entrant_prev <- fp$entrantprev[,i]
     else
-      entrant_prev <- pregprevlag[i-1]*fp$verttrans_lag[i-1]*fp$paedsurv_lag[i-1]
+      entrant_prev <- rep(pregprevlag[i-1]*fp$verttrans_lag[i-1]*fp$paedsurv_lag[i-1], 2)
 
     if(exists("popadjust", where=fp) & fp$popadjust){
       hivn_entrants <- fp$entrantpop[,i-1]*(1-entrant_prev)
       hivp_entrants <- fp$entrantpop[,i-1]*entrant_prev
     } else {
-      if(exists("age15pop", where=fp)){
-        hivn_entrants <- fp$age15pop[1]*c(1.03, 1)/2.03*(1-entrant_prev / fp$paedsurv_lag[i-1])
-        hivp_entrants <- fp$age15pop[1]*c(1.03, 1)/2.03*entrant_prev
-      } else {
-        hivn_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*(1-entrant_prev / fp$paedsurv_lag[i-1]) + fp$cumnetmigr[,i-1]*(1-pregprevlag[i-1]*fp$netmig_hivprob)
-        hivp_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*entrant_prev + fp$cumnetmigr[,i-1]*entrant_prev
-      }
-      entrant_prev <- sum(hivp_entrants) / sum(hivn_entrants+hivp_entrants)
+      hivn_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*(1-entrant_prev / fp$paedsurv_lag[i-1]) + fp$cumnetmigr[,i-1]*(1-pregprevlag[i-1]*fp$netmig_hivprob)
+      hivp_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*entrant_prev + fp$cumnetmigr[,i-1]*entrant_prev
     }
 
-    entrant_prev_out[i] <- entrant_prev
-    hivp_entrants_out[,i] <- hivp_entrants
+    entrant_prev_out[i] <- sum(hivp_entrants) / sum(hivn_entrants+hivp_entrants)
+    hivp_entrants_out[,i] <- sum(hivp_entrants)
 
     pop[1,,hivn.idx,i] <- hivn_entrants
     pop[1,,hivp.idx,i] <- hivp_entrants
 
     hiv.ag.prob <- pop[aglast.idx,,hivp.idx,i-1] / apply(pop[,,hivp.idx,i-1], 2, ctapply, ag.idx, sum)
     hiv.ag.prob[is.nan(hiv.ag.prob)] <- 0
+    
+    hivpop[,,,i] <- hivpop[,,,i-1]
+    hivpop[,-hAG,,i] <- hivpop[,-hAG,,i] - sweep(hivpop[,-hAG,,i-1], 2:3, hiv.ag.prob[-hAG,], "*")
+    hivpop[,-1,,i] <- hivpop[,-1,,i] + sweep(hivpop[,-hAG,,i-1], 2:3, hiv.ag.prob[-hAG,], "*")
+    hivpop[,1,,i] <- hivpop[,1,,i] + sweep(fp$paedsurv_cd4dist[,,i], 2, hivp_entrants * (1-fp$entrantartcov[,i]), "*")
 
-    hivpop[,,,,i] <- hivpop[,,,,i-1]
-    hivpop[,,-hAG,,i] <- hivpop[,,-hAG,,i] - sweep(hivpop[,,-hAG,,i-1], 3:4, hiv.ag.prob[-hAG,], "*")
-    hivpop[,,-1,,i] <- hivpop[,,-1,,i] + sweep(hivpop[,,-hAG,,i-1], 3:4, hiv.ag.prob[-hAG,], "*")
-    hivpop[1,,1,,i] <- hivpop[1,,1,,i] + fp$paedsurv_cd4dist %o% hivp_entrants * (1-fp$entrantartcov[i])
-    hivpop[4,,1,,i] <- hivpop[4,,1,,i] + fp$paedsurv_artcd4dist %o% hivp_entrants * fp$entrantartcov[i] # assume all are 1+ years on ART
+    if(i > fp$tARTstart){
+      artpop[,,,,i] <- artpop[,,,,i-1]
+      artpop[,,-hAG,,i] <- artpop[,,-hAG,,i] - sweep(artpop[,,-hAG,,i-1], 3:4, hiv.ag.prob[-hAG,], "*")
+      artpop[,,-1,,i] <- artpop[,,-1,,i] + sweep(artpop[,,-hAG,,i-1], 3:4, hiv.ag.prob[-hAG,], "*")
+      artpop[,,1,,i] <- artpop[,,1,,i] + sweep(fp$paedsurv_artcd4dist[,,,i], 3, hivp_entrants * fp$entrantartcov[,i], "*")
+    }
 
     ## survive the population
     deaths <- sweep(pop[,,,i], 1:2, (1-fp$Sx[,,i]), "*")
@@ -393,7 +439,9 @@ simmod.specfp <- function(fp, VERSION="C"){
     pop[,,,i] <- pop[,,,i] - deaths
     natdeaths[,,i] <- rowSums(deaths,,2)
 
-    hivpop[,,,,i] <- sweep(hivpop[,,,,i], 3:4, hiv.sx.prob, "*")
+    hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.sx.prob, "*")
+    if(i > fp$tARTstart)
+      artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.sx.prob, "*")
 
     ## net migration
     netmigsurv <- fp$netmigr[,,i]*(1+fp$Sx[,,i])/2
@@ -402,7 +450,9 @@ simmod.specfp <- function(fp, VERSION="C"){
     hiv.mr.prob[is.nan(hiv.mr.prob)] <- 0
     pop[,,,i] <- sweep(pop[,,,i], 1:2, mr.prob, "*")
 
-    hivpop[,,,,i] <- sweep(hivpop[,,,,i], 3:4, hiv.mr.prob, "*")
+    hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")
+    if(i > fp$tARTstart)
+      artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.mr.prob, "*")
 
     ## fertility
     births.by.age <- rowSums(pop[p.fert.idx, f.idx,,i-1:0])/2 * fp$asfr[,i]
@@ -421,7 +471,7 @@ simmod.specfp <- function(fp, VERSION="C"){
 
       ts <- (i-2)/DT + ii
 
-      grad <- array(0, c(hTS+1L, hDS, hAG, NG))
+      grad <- array(0, c(hDS, hAG, NG))
 
       if(fp$eppmod != "directincid"){
         ## incidence
@@ -431,12 +481,12 @@ simmod.specfp <- function(fp, VERSION="C"){
           rvec[ts] <- calc_rtrend_rt(fp$proj.steps[ts], fp, rvec[ts-1], prevlast, pop, i, ii)
         else
           rvec[ts] <- fp$rvec[ts]
-        
+
         ## number of infections by age / sex
         if(exists("incidmod", where=fp) && fp$incidmod == "transm")
-          infections.ts <- calc_infections_simpletransm(fp, pop, hivpop, i, ii, rvec[ts])
+          infections.ts <- calc_infections_simpletransm(fp, pop, hivpop, artpop, i, ii, rvec[ts])
         else
-          infections.ts <- calc_infections_eppspectrum(fp, pop, hivpop, i, ii, rvec[ts])
+          infections.ts <- calc_infections_eppspectrum(fp, pop, hivpop, artpop, i, ii, rvec[ts])
         
         incrate15to49.ts.out[ts] <- attr(infections.ts, "incrate15to49.ts")
         prev15to49.ts.out[ts] <- attr(infections.ts, "prevcurr")
@@ -446,47 +496,56 @@ simmod.specfp <- function(fp, VERSION="C"){
         pop[,,hivp.idx,i] <- pop[,,hivp.idx,i] + DT*infections.ts
         infections[,,i] <- infections[,,i] + DT*infections.ts
         
-        grad[1,,,] <- grad[1,,,] + sweep(fp$cd4_initdist, 2:3, apply(infections.ts, 2, ctapply, ag.idx, sum), "*")
+        grad <- grad + sweep(fp$cd4_initdist, 2:3, apply(infections.ts, 2, ctapply, ag.idx, sum), "*")
         incid15to49[i] <- incid15to49[i] + sum(DT*infections.ts[p.age15to49.idx,])
       }
       
       ## disease progression and mortality
-      grad[1,-hDS,,] <- grad[1,-hDS,,] - fp$cd4_prog * hivpop[1,-hDS,,,i]  # remove cd4 stage progression (untreated)
-      grad[1,-1,,] <- grad[1,-1,,] + fp$cd4_prog * hivpop[1,-hDS,,,i]      # add cd4 stage progression (untreated)
-      grad[2:3,,,] <- grad[2:3,,,] - 2.0 * hivpop[2:3,,,, i]               # remove ART duration progression (HARD CODED 6 months duration)
-      grad[3:4,,,] <- grad[3:4,,,] + 2.0 * hivpop[2:3,,,, i]               # add ART duration progression (HARD CODED 6 months duration)
+      grad[-hDS,,] <- grad[-hDS,,] - fp$cd4_prog * hivpop[-hDS,,,i]  # remove cd4 stage progression (untreated)
+      grad[-1,,] <- grad[-1,,] + fp$cd4_prog * hivpop[-hDS,,,i]      # add cd4 stage progression (untreated)
 
-      grad[1,,,] <- grad[1,,,] - fp$cd4_mort * hivpop[1,,,,i]              # HIV mortality, untreated
-      grad[-1,,,] <- grad[-1,,,] - fp$art_mort * hivpop[-1,,,,i]           # ART mortality
+      grad <- grad - fp$cd4_mort * hivpop[,,,i]              # HIV mortality, untreated
 
       ## Remove hivdeaths from pop
-      hivdeaths.ts <- DT*(colSums(fp$cd4_mort * hivpop[1,,,,i]) + colSums(fp$art_mort * hivpop[-1,,,,i],,2))
+      hivdeaths.ts <- DT*(colSums(fp$cd4_mort * hivpop[,,,i]) + colSums(fp$art_mort * artpop[,,,,i],,2))
       calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
       hivdeaths_p.ts <- apply(hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
       pop[,,2,i] <- pop[,,2,i] - hivdeaths_p.ts
       hivdeaths[,,i] <- hivdeaths[,,i] + hivdeaths_p.ts
 
-      hivpop[,,,,i] <- hivpop[,,,,i] + DT*grad
+      hivpop[,,,i] <- hivpop[,,,i] + DT*grad
 
       ## ART initiation
-      if(sum(fp$art15plus_num[,i])>0){
+      if(i >= fp$tARTstart) {
 
+        gradART <- array(0, c(hTS, hDS, hAG, NG))
+
+        ## progression and mortality
+        gradART[1:2,,,] <- gradART[1:2,,,] - 2.0 * artpop[1:2,,,, i]      # remove ART duration progression (HARD CODED 6 months duration)
+        gradART[2:3,,,] <- gradART[2:3,,,] + 2.0 * artpop[1:2,,,, i]      # add ART duration progression (HARD CODED 6 months duration)
+
+        gradART <- gradART - fp$art_mort * artpop[,,,,i]                  # ART mortality
+
+        ## hivdeaths.ts <- hivdeaths.ts + colSums(fp$art_mort * artpop[,,,,i],,2)
+        artpop[,,,, i] <- artpop[,,,, i] + DT * gradART
+        
+        
         ## ART dropout
         ## remove proportion from all adult ART groups back to untreated pop
-        hivpop[1,,,,i] <- hivpop[1,,,,i] + DT*fp$art_dropout[i]*colSums(hivpop[-1,,,,i])
-        hivpop[-1,,,,i] <- hivpop[-1,,,,i] - DT*fp$art_dropout[i]*hivpop[-1,,,,i]
+        hivpop[,,,i] <- hivpop[,,,i] + DT*fp$art_dropout[i]*colSums(artpop[,,,,i])
+        artpop[,,,,i] <- artpop[,,,,i] - DT*fp$art_dropout[i]*artpop[,,,,i]
 
         ## calculate number eligible for ART
-        artcd4_percelig <- 1 - (1-rep(0:1, times=c(fp$artcd4elig[i]-1, hDS - fp$artcd4elig[i]+1))) *
+        artcd4_percelig <- 1 - (1-rep(0:1, times=c(fp$artcd4elig_idx[i]-1, hDS - fp$artcd4elig_idx[i]+1))) *
           (1-rep(c(0, fp$who34percelig), c(2, hDS-2))) *
           (1-rep(fp$specpop_percelig[i], hDS))
 
-        art15plus.elig <- sweep(hivpop[1,,h.age15plus.idx,,i], 1, artcd4_percelig, "*")
+        art15plus.elig <- sweep(hivpop[,h.age15plus.idx,,i], 1, artcd4_percelig, "*")
 
         ## calculate pregnant women
         if(fp$pw_artelig[i]){
-          births.dist <- sweep(fp$frr_cd4[,,i] * hivpop[1,,h.fert.idx,f.idx,i], 2,
-                               births.by.h.age / (ctapply(pop[p.fert.idx, f.idx, hivn.idx, i], ag.idx[p.fert.idx], sum) + colSums(fp$frr_cd4[,,i] * hivpop[1,,h.fert.idx,f.idx,i]) + colSums(fp$frr_art[,,,i] * hivpop[-1,,h.fert.idx,f.idx,i],,2)), "*")
+          births.dist <- sweep(fp$frr_cd4[,,i] * hivpop[,h.fert.idx,f.idx,i], 2,
+                               births.by.h.age / (ctapply(pop[p.fert.idx, f.idx, hivn.idx, i], ag.idx[p.fert.idx], sum) + colSums(fp$frr_cd4[,,i] * hivpop[,h.fert.idx,f.idx,i]) + colSums(fp$frr_art[,,,i] * artpop[ ,,h.fert.idx,f.idx,i],,2)), "*")
           if(fp$artcd4elig_idx[i] > 1)
             art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] <- art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] + DT*births.dist[1:(fp$artcd4elig_idx[i]-1),] # multiply by DT to account for proportion of annual births occurring during this time step
         }
@@ -500,11 +559,11 @@ simmod.specfp <- function(fp, VERSION="C"){
               artnum.ii[g] <- c(fp$art15plus_num[g,i-2:1] %*% c(1-(DT*ii+0.5), DT*ii+0.5))
             } else if(all(fp$art15plus_isperc[g,i-2:1])){  # both percentage
               artcov.ii <- c(fp$art15plus_num[g,i-2:1] %*% c(1-(DT*ii+0.5), DT*ii+0.5))
-              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + sum(hivpop[-1,,h.age15plus.idx,g,i]))
+              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + sum(artpop[,,h.age15plus.idx,g,i]))
             } else if(!fp$art15plus_isperc[g,i-2] & fp$art15plus_isperc[g,i-1]){ # transition number to percentage
-              curr_coverage <- sum(hivpop[-1,,h.age15plus.idx,g,i]) / (sum(art15plus.elig[,,g]) + sum(hivpop[-1,,h.age15plus.idx,g,i]))
+              curr_coverage <- sum(artpop[,,h.age15plus.idx,g,i]) / (sum(art15plus.elig[,,g]) + sum(artpop[,,h.age15plus.idx,g,i]))
               artcov.ii <- curr_coverage + (fp$art15plus_num[g,i-1] - curr_coverage) * DT/(0.5-DT*(ii-1))
-              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + sum(hivpop[-1,,h.age15plus.idx,g,i]))
+              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + sum(artpop[,,h.age15plus.idx,g,i]))
             }
           }
         } else {
@@ -513,16 +572,16 @@ simmod.specfp <- function(fp, VERSION="C"){
               artnum.ii[g] <- c(fp$art15plus_num[g,i-1:0] %*% c(1-(DT*ii-0.5), DT*ii-0.5))
             } else if(all(fp$art15plus_isperc[g,i-1:0])) {  # both percentage
               artcov.ii <- c(fp$art15plus_num[g,i-1:0] %*% c(1-(DT*ii-0.5), DT*ii-0.5))
-              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + sum(hivpop[-1,,h.age15plus.idx,g,i]))
+              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + sum(artpop[,,h.age15plus.idx,g,i]))
             } else if(!fp$art15plus_isperc[g,i-1] & fp$art15plus_isperc[g,i]){  # transition number to percentage
-              curr_coverage <- sum(hivpop[-1,,h.age15plus.idx,g,i]) / (sum(art15plus.elig[,,g]) + sum(hivpop[-1,,h.age15plus.idx,g,i]))
+              curr_coverage <- sum(artpop[,,h.age15plus.idx,g,i]) / (sum(art15plus.elig[,,g]) + sum(artpop[,,h.age15plus.idx,g,i]))
               artcov.ii <- curr_coverage + (fp$art15plus_num[g,i] - curr_coverage) * DT/(1.5-DT*(ii-1))
-              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + sum(hivpop[-1,,h.age15plus.idx,g,i]))
+              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + sum(artpop[,,h.age15plus.idx,g,i]))
             }
           }
         }
 
-        art15plus.inits <- pmax(artnum.ii - colSums(hivpop[-1,,h.age15plus.idx,,i],,3), 0)
+        art15plus.inits <- pmax(artnum.ii - colSums(artpop[,,h.age15plus.idx,,i],,3), 0)
         
         ## calculate ART initiation distribution
         if(!fp$med_cd4init_input[i]){
@@ -561,8 +620,8 @@ simmod.specfp <- function(fp, VERSION="C"){
             artinit[1:(medcd4_idx-1),,] <- sweep(art15plus.elig[1:(medcd4_idx-1),,,drop=FALSE], 3, initprob_above, "*")
         }
         
-        hivpop[1,, h.age15plus.idx,, i] <- hivpop[1,, h.age15plus.idx,, i] - artinit
-        hivpop[2,, h.age15plus.idx,, i] <- hivpop[2,, h.age15plus.idx,, i] + artinit
+        hivpop[, h.age15plus.idx,, i] <- hivpop[, h.age15plus.idx,, i] - artinit
+        artpop[1,, h.age15plus.idx,, i] <- artpop[1,, h.age15plus.idx,, i] + artinit
       }
     }
 
@@ -585,10 +644,10 @@ simmod.specfp <- function(fp, VERSION="C"){
       pop[,,hivn.idx,i] <- pop[,,hivn.idx,i] - infections[,,i]
       pop[,,hivp.idx,i] <- pop[,,hivp.idx,i] + infections[,,i]
       
-      hivpop[1,,,,i] <- hivpop[1,,,,i] + sweep(fp$cd4_initdist, 2:3, apply(infections[,,i], 2, ctapply, ag.idx, sum), "*")
+      hivpop[,,,i] <- hivpop[,,,i] + sweep(fp$cd4_initdist, 2:3, apply(infections[,,i], 2, ctapply, ag.idx, sum), "*")
       incid15to49[i] <- sum(infections[p.age15to49.idx,,i])
     }
-      
+    
     ## adjust population to match target population size
     if(exists("popadjust", where=fp) & fp$popadjust){
       popadj.prob[,,i] <- fp$targetpop[,,i] / rowSums(pop[,,,i],,2)
@@ -596,13 +655,17 @@ simmod.specfp <- function(fp, VERSION="C"){
       hiv.popadj.prob[is.nan(hiv.popadj.prob)] <- 0
 
       pop[,,,i] <- sweep(pop[,,,i], 1:2, popadj.prob[,,i], "*")
-      hivpop[,,,,i] <- sweep(hivpop[,,,,i], 3:4, hiv.popadj.prob, "*")
+      hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.popadj.prob, "*")
+      if(t >= fp$tARTstart)
+        artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.popadj.prob, "*")
+        
     }
 
     ## prevalence among pregnant women
     hivn.byage <- ctapply(rowMeans(pop[p.fert.idx, f.idx, hivn.idx,i-1:0]), ag.idx[p.fert.idx], sum)
-    hivp.byage <- rowMeans(hivpop[,,h.fert.idx, f.idx,i-1:0],,3)
-    pregprev <- sum(births.by.h.age * (1 - hivn.byage / (hivn.byage + colSums(fp$frr_cd4[,,i] * hivp.byage[1,,]) + colSums(fp$frr_art[,,,i] * hivp.byage[-1,,],,2)))) / sum(births.by.age)
+    hivp.byage <- rowMeans(hivpop[,h.fert.idx, f.idx,i-1:0],,2)
+    artp.byage <- rowMeans(artpop[,,h.fert.idx, f.idx,i-1:0],,3)
+    pregprev <- sum(births.by.h.age * (1 - hivn.byage / (hivn.byage + colSums(fp$frr_cd4[,,i] * hivp.byage) + colSums(fp$frr_art[,,,i] * artp.byage,,2)))) / sum(births.by.age)
     if(i+AGE_START <= PROJ_YEARS)
       pregprevlag[i+AGE_START-1] <- pregprev
 
@@ -611,11 +674,12 @@ simmod.specfp <- function(fp, VERSION="C"){
     incid15to49[i] <- sum(incid15to49[i]) / sum(pop[p.age15to49.idx,,hivn.idx,i-1])
   }
 
+
   attr(pop, "prev15to49") <- prev15to49
   attr(pop, "incid15to49") <- incid15to49
   attr(pop, "sexinc") <- sexinc15to49out
-  attr(pop, "hivpop") <- hivpop[1,,,,]
-  attr(pop, "artpop") <- hivpop[-1,,,,]
+  attr(pop, "hivpop") <- hivpop
+  attr(pop, "artpop") <- artpop
 
   attr(pop, "infections") <- infections
   attr(pop, "hivdeaths") <- hivdeaths
@@ -630,7 +694,7 @@ simmod.specfp <- function(fp, VERSION="C"){
     attr(pop, "prev15to49_ts") <- prev15to49.ts.out
   }
 
-  attr(pop, "entrant_prev") <- entrant_prev_out
+  attr(pop, "entrantprev") <- entrant_prev_out
   attr(pop, "hivp_entrants") <- hivp_entrants_out
   class(pop) <- "spec"
   return(pop)
@@ -724,36 +788,65 @@ hivagemx.spec <- function(mod){
 
 
 
-#' Age-specific prevalence by 5-year age groups
+#' Prevalene by arbitrary age groups
 #'
-#' Age specific HIV prevalene by 5-year age groups from age 15 to 59
-#'
+#' @param sidx sex (1 = Male, 2 = Female, 0 = Both)
 #' Notes: Assumes that AGE_START is 15 and single year of age.
-ageprev <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL){
+#' @useDynLib eppasm ageprevC
+ageprev <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, expand=FALSE, VERSION="C"){
 
-  if(is.null(arridx)){
-    if(length(agspan)==1)
-      agspan <- rep(agspan, length(aidx))
-    
-    dims <- dim(mod)
-    idx <- expand.grid(aidx=aidx, sidx=sidx, yidx=yidx)
-    arridx <- idx$aidx + (idx$sidx-1)*dims[1] + (idx$yidx-1)*dims[1]*dims[2]
+  if(length(agspan)==1)
+    agspan <- rep(agspan, length(aidx))
+  
+  if(expand){
+    dimout <- c(length(aidx), length(sidx), length(yidx))
+    df <- expand.grid(aidx=aidx, sidx=sidx, yidx=yidx)
+    aidx <- df$aidx
+    sidx <- df$sidx
+    yidx <- df$yidx
     agspan <- rep(agspan, times=length(sidx)*length(yidx))
-  } else if(length(agspan)==1)
-    agspan <- rep(agspan, length(arridx))
+  } 
   
-  agidx <- rep(arridx, agspan)
-  allidx <- agidx + unlist(sapply(agspan, seq_len))-1
-  
-  hivn <- fastmatch::ctapply(mod[,,1,][allidx], agidx, sum)
-  hivp <- fastmatch::ctapply(mod[,,2,][allidx], agidx, sum)
-  
-  prev <- hivp/(hivn+hivp)
-  if(!is.null(aidx))
-    prev <- array(prev, c(length(aidx), length(sidx), length(yidx)))
+  if(VERSION != "R") { 
+
+    prev <- .Call(ageprevC, mod,
+                  as.integer(aidx), as.integer(sidx),
+                  as.integer(yidx), as.integer(agspan))
+    
+  } else {
+
+    idx <- data.frame(aidx=aidx, sidx=sidx, yidx=yidx, agspan=agspan)
+    idx$gidx <- seq_len(nrow(idx))
+    
+    ## Add M/F entries with same id if sidx = 0.
+    ## This is probably a pretty inefficient way of doing this...
+    
+    if(any(idx$sidx == 0)){
+      idx <- rbind(idx[idx$sidx != 0,], transform(idx[idx$sidx == 0,], sidx = 1), transform(idx[idx$sidx == 0,], sidx = 2))
+      idx <- idx[order(idx$gidx, idx$sidx),]
+    }
+    
+    idx$id <- seq_len(nrow(idx))
+    
+    increment <- unlist(lapply(idx$agspan, seq_len))-1
+    id_idx <- rep(idx$id, idx$agspan)
+    
+    g_idx <- idx$gidx[id_idx]
+    a_idx <- idx$aidx[id_idx] + increment
+    s_idx <- idx$sidx[id_idx]
+    y_idx <- idx$yidx[id_idx]
+    
+    hivn <- fastmatch::ctapply(mod[cbind(a_idx, s_idx, 1, y_idx)], g_idx, sum)
+    hivp <- fastmatch::ctapply(mod[cbind(a_idx, s_idx, 2, y_idx)], g_idx, sum)
+    prev <- hivp/(hivn+hivp)
+
+  }
+
+  if(expand)
+    prev <- array(prev, dimout)
+    
   return(prev)
 }
-
 
 ageincid <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL){
 
@@ -852,6 +945,107 @@ ageartcov <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NUL
     artcov <- array(artcov, c(length(aidx), length(sidx), length(yidx)))
   return(artcov)
 }
+
+
+#' Age-specific prevalence among pregnant women
+#' 
+#' @param expand whether to expand aidx, yidx, sidx, and agspan
+agepregprev <- function(mod, fp,
+                        aidx=3:9*5-fp$ss$AGE_START+1L,
+                        yidx=1:fp$ss$PROJ_YEARS,
+                        agspan=5,
+                        expand=FALSE){
+  sidx <- fp$ss$f.idx # only women get pregnant
+
+  if(length(agspan)==1)
+    agspan <- rep(agspan, length(aidx))
+  
+  if(expand){
+    idx <- expand.grid(aidx=aidx, sidx=sidx, yidx=yidx)
+    idx$agspan <- rep(agspan, times=length(sidx)*length(yidx))
+  } else
+    idx <- data.frame(aidx=aidx, sidx=sidx, yidx=yidx, agspan=agspan)
+
+  idx$id <- seq_len(nrow(idx))
+
+  increment <- unlist(lapply(idx$agspan, seq_len))-1
+  a_idx <- rep(idx$aidx, idx$agspan) + increment
+  s_idx <- rep(idx$sidx, idx$agspan)
+  y_idx <- rep(idx$yidx, idx$agspan)
+  yminus1_idx <- rep(pmax(idx$yidx-1, 1), idx$agspan)
+  id_idx <- rep(idx$id, idx$agspan)
+
+  ## get index in asfr and ha_frr array
+  fert_idx <- match(a_idx, fp$ss$p.fert.idx)
+  hfert_idx <- match(fp$ss$ag.idx[a_idx], fp$ss$h.fert.idx)
+
+  hivp <- (mod[cbind(a_idx, s_idx, 2, y_idx)] + mod[cbind(a_idx, s_idx, 2, yminus1_idx)]) / 2
+  hivn <- (mod[cbind(a_idx, s_idx, 1, y_idx)] + mod[cbind(a_idx, s_idx, 1, yminus1_idx)]) / 2
+
+  ## Calculate age-specific FRR given the CD4 and ART duration distribution
+  hivpop_fert <- attr(mod, "hivpop")[ , fp$ss$h.fert.idx, fp$ss$f.idx, ]
+  artpop_fert <- attr(mod, "artpop")[ , , fp$ss$h.fert.idx, fp$ss$f.idx, ]
+  ha_frr <- (colSums(hivpop_fert * fp$frr_cd4) + colSums(artpop_fert * fp$frr_art,,2)) / (colSums(hivpop_fert) + colSums(artpop_fert,,2))
+  
+  births_a <- fp$asfr[cbind(fert_idx, y_idx)] * (hivn + hivp)
+  pregprev_a <- 1 - hivn / (hivn + ha_frr[cbind(hfert_idx, y_idx)] * hivp)
+
+  fastmatch::ctapply(pregprev_a * births_a, id_idx, sum) / fastmatch::ctapply(births_a, id_idx, sum)
+}
+
+
+
+#' Age-specific ART coverage among pregnant women
+#' 
+#' @param expand whether to expand aidx, yidx, sidx, and agspan
+agepregartcov <- function(mod, fp,
+                          aidx=3:9*5-fp$ss$AGE_START+1L,
+                          yidx=1:fp$ss$PROJ_YEARS,
+                          agspan=5,
+                          expand=FALSE){
+  sidx <- fp$ss$f.idx # only women get pregnant
+  
+  if(length(agspan)==1)
+    agspan <- rep(agspan, length(aidx))
+  
+  if(expand){
+    idx <- expand.grid(aidx=aidx, sidx=sidx, yidx=yidx)
+    idx$agspan <- rep(agspan, times=length(sidx)*length(yidx))
+  } else
+    idx <- data.frame(aidx=aidx, sidx=sidx, yidx=yidx, agspan=agspan)
+  
+  idx$id <- seq_len(nrow(idx))
+  
+  increment <- unlist(lapply(idx$agspan, seq_len))-1
+  a_idx <- rep(idx$aidx, idx$agspan) + increment
+  s_idx <- rep(idx$sidx, idx$agspan)
+  y_idx <- rep(idx$yidx, idx$agspan)
+  yminus1_idx <- rep(pmax(idx$yidx-1, 1), idx$agspan)
+  id_idx <- rep(idx$id, idx$agspan)
+  
+  ## get index in asfr and ha_frr array
+  fert_idx <- match(a_idx, fp$ss$p.fert.idx)
+  hfert_idx <- match(fp$ss$ag.idx[a_idx], fp$ss$h.fert.idx)
+  
+  hivp <- (mod[cbind(a_idx, s_idx, 2, y_idx)] + mod[cbind(a_idx, s_idx, 2, yminus1_idx)]) / 2
+  hivn <- (mod[cbind(a_idx, s_idx, 1, y_idx)] + mod[cbind(a_idx, s_idx, 1, yminus1_idx)]) / 2
+  
+  ## Calculate age-specific FRR given the CD4 and ART duration distribution
+  hivpop_fert <- attr(mod, "hivpop")[ , fp$ss$h.fert.idx, fp$ss$f.idx, ]
+  artpop_fert <- attr(mod, "artpop")[ , , fp$ss$h.fert.idx, fp$ss$f.idx, ]
+  wgt_hivp <- colSums(hivpop_fert * fp$frr_cd4)
+  wgt_art <- colSums(artpop_fert * fp$frr_art,,2)
+
+  ha_frr <- (wgt_hivp + wgt_art) / (colSums(hivpop_fert) + colSums(artpop_fert,,2))
+  ha_artcov <- wgt_art / (wgt_hivp + wgt_art)
+
+  births_a <- fp$asfr[cbind(fert_idx, y_idx)] * (hivn + hivp)
+  pregprev_a <- 1 - hivn / (hivn + ha_frr[cbind(hfert_idx, y_idx)] * hivp)
+  artcov_a <- ha_artcov[cbind(hfert_idx, y_idx)]
+  
+  fastmatch::ctapply(artcov_a * pregprev_a * births_a, id_idx, sum) / fastmatch::ctapply(pregprev_a * births_a, id_idx, sum)
+}
+
 
 
 incid_sexratio.spec <- function(mod){

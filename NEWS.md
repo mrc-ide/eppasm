@@ -92,3 +92,7 @@
 # eppasm 0.5.1
 
 - Add tidy_output() function to generate long format of key output indicators.
+
+# eppasm 0.6.0
+
+- Explicitly model new diagnoses.

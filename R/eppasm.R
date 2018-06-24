@@ -33,6 +33,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   pop <- array(0, c(pAG, NG, pDS, PROJ_YEARS))
   pop[,,1,1] <- fp$basepop
   hivpop <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
+  diagnpop <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
   artpop <- array(0, c(hTS, hDS, hAG, NG, PROJ_YEARS))
 
   ## initialize output
@@ -44,6 +45,9 @@ simmod.specfp <- function(fp, VERSION="C"){
   infections <- array(0, c(pAG, NG, PROJ_YEARS))
   hivdeaths <- array(0, c(pAG, NG, PROJ_YEARS))
   natdeaths <- array(0, c(pAG, NG, PROJ_YEARS))
+
+  diagnoses <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
+  
 
   popadj.prob <- array(0, c(pAG, NG, PROJ_YEARS))
 
@@ -100,6 +104,12 @@ simmod.specfp <- function(fp, VERSION="C"){
     hivpop[,-1,,i] <- hivpop[,-1,,i] + sweep(hivpop[,-hAG,,i-1], 2:3, hiv.ag.prob[-hAG,], "*")
     hivpop[,1,,i] <- hivpop[,1,,i] + sweep(fp$paedsurv_cd4dist[,,i], 2, hivp_entrants * (1-fp$entrantartcov[,i]), "*")
 
+    if(i > fp$t_diagn_start){
+      diagnpop[,,,i] <- diagnpop[,,,i-1]
+      diagnpop[,-hAG,,i] <- diagnpop[,-hAG,,i] - sweep(diagnpop[,-hAG,,i-1], 2:3, hiv.ag.prob[-hAG,], "*")
+      diagnpop[,-1,,i] <- diagnpop[,-1,,i] + sweep(diagnpop[,-hAG,,i-1], 2:3, hiv.ag.prob[-hAG,], "*")
+    }
+    
     if(i > fp$tARTstart){
       artpop[,,,,i] <- artpop[,,,,i-1]
       artpop[,,-hAG,,i] <- artpop[,,-hAG,,i] - sweep(artpop[,,-hAG,,i-1], 3:4, hiv.ag.prob[-hAG,], "*")
@@ -115,6 +125,8 @@ simmod.specfp <- function(fp, VERSION="C"){
     natdeaths[,,i] <- rowSums(deaths,,2)
 
     hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.sx.prob, "*")
+    if(i > fp$t_diagn_start)
+      diagnpop[,,,i] <- sweep(diagnpop[,,,i], 2:3, hiv.sx.prob, "*")
     if(i > fp$tARTstart)
       artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.sx.prob, "*")
 
@@ -126,6 +138,8 @@ simmod.specfp <- function(fp, VERSION="C"){
     pop[,,,i] <- sweep(pop[,,,i], 1:2, mr.prob, "*")
 
     hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")
+    if(i > fp$t_diagn_start)
+      diagnpop[,,,i] <- sweep(diagnpop[,,,i], 2:3, hiv.mr.prob, "*")
     if(i > fp$tARTstart)
       artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.mr.prob, "*")
 
@@ -156,7 +170,7 @@ simmod.specfp <- function(fp, VERSION="C"){
           rvec[ts] <- calc_rtrend_rt(fp$proj.steps[ts], fp, rvec[ts-1], prevlast, pop, i, ii)
         else
           rvec[ts] <- fp$rvec[ts]
-
+        
         ## number of infections by age / sex
         if(exists("incidmod", where=fp) && fp$incidmod == "transm")
           infections.ts <- calc_infections_simpletransm(fp, pop, hivpop, artpop, i, ii, rvec[ts])
@@ -178,19 +192,31 @@ simmod.specfp <- function(fp, VERSION="C"){
       ## disease progression and mortality
       grad[-hDS,,] <- grad[-hDS,,] - fp$cd4_prog * hivpop[-hDS,,,i]  # remove cd4 stage progression (untreated)
       grad[-1,,] <- grad[-1,,] + fp$cd4_prog * hivpop[-hDS,,,i]      # add cd4 stage progression (untreated)
-
+      
       grad <- grad - fp$cd4_mort * hivpop[,,,i]              # HIV mortality, untreated
-
-      ## Remove hivdeaths from pop
-      hivdeaths.ts <- DT*(colSums(fp$cd4_mort * hivpop[,,,i]) + colSums(fp$art_mort * artpop[,,,,i],,2))
-      calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
-      hivdeaths_p.ts <- apply(hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
-      pop[,,2,i] <- pop[,,2,i] - hivdeaths_p.ts
-      hivdeaths[,,i] <- hivdeaths[,,i] + hivdeaths_p.ts
+      hivdeaths.ts <- colSums(fp$cd4_mort * hivpop[,,,i])
 
       hivpop[,,,i] <- hivpop[,,,i] + DT*grad
 
-      ## ART initiation
+      ## diagnosed population: diagnosis, progression, and mortality
+      if(i >= fp$t_diagn_start){
+
+        grad_diagn <- array(0, c(hDS, hAG, NG))
+
+        new_diagn <- fp$diagn_rate[,,,i] * (hivpop[,,,i] - diagnpop[,,,i])
+        grad_diagn <- grad_diagn + new_diagn
+
+        grad_diagn[-hDS,,] <- grad_diagn[-hDS,,] - fp$cd4_prog * diagnpop[-hDS,,,i]  # remove cd4 stage progression (untreated)
+        grad_diagn[-1,,] <- grad_diagn[-1,,] + fp$cd4_prog * diagnpop[-hDS,,,i]      # add cd4 stage progression (untreated)
+        
+        grad_diagn <- grad_diagn - fp$cd4_mort * diagnpop[,,,i]                      # HIV mortality, untreated
+
+        diagnpop[,,,i] <- diagnpop[,,,i] + DT * grad_diagn
+        diagnoses[,,,i] <- diagnoses[,,,i] + DT * new_diagn
+      }
+
+        
+      ## ART population
       if(i >= fp$tARTstart) {
 
         gradART <- array(0, c(hTS, hDS, hAG, NG))
@@ -201,13 +227,16 @@ simmod.specfp <- function(fp, VERSION="C"){
 
         gradART <- gradART - fp$art_mort * artpop[,,,,i]                  # ART mortality
 
-        ## hivdeaths.ts <- hivdeaths.ts + colSums(fp$art_mort * artpop[,,,,i],,2)
+        hivdeaths.ts <- hivdeaths.ts + colSums(fp$art_mort * artpop[,,,,i],,2)
         artpop[,,,, i] <- artpop[,,,, i] + DT * gradART
         
         
         ## ART dropout
         ## remove proportion from all adult ART groups back to untreated pop
         hivpop[,,,i] <- hivpop[,,,i] + DT*fp$art_dropout[i]*colSums(artpop[,,,,i])
+        if(i >= fp$t_diagn_start)
+          diagnpop[,,,i] <- diagnpop[,,,i] + DT*fp$art_dropout[i]*colSums(artpop[,,,,i])
+
         artpop[,,,,i] <- artpop[,,,,i] - DT*fp$art_dropout[i]*artpop[,,,,i]
 
         ## calculate number eligible for ART
@@ -297,9 +326,22 @@ simmod.specfp <- function(fp, VERSION="C"){
         
         hivpop[, h.age15plus.idx,, i] <- hivpop[, h.age15plus.idx,, i] - artinit
         artpop[1,, h.age15plus.idx,, i] <- artpop[1,, h.age15plus.idx,, i] + artinit
+        
+        if(i >= fp$t_diagn_start){
+          newdiagn <- pmax(artinit - diagnpop[,,,i], 0)
+          diagnoses[,,,i] <- diagnoses[,,,i] + newdiagn
+          diagnpop[,,,i] <- diagnpop[,,,i] - (artinit - newdiagn)
+        }
       }
-    }
+        
+      ## Remove hivdeaths from pop
+      calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
+      hivdeaths_p.ts <- apply(DT*hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
+      pop[,,2,i] <- pop[,,2,i] - hivdeaths_p.ts
+      hivdeaths[,,i] <- hivdeaths[,,i] + hivdeaths_p.ts
 
+    }
+      
     ## ## Code for calculating new infections once per year to match prevalence (like Spectrum)
     ## ## incidence
     ## prev.i <- sum(pop[p.age15to49.idx,,2,i]) / sum(pop[p.age15to49.idx,,,i]) # prevalence age 15 to 49
@@ -318,7 +360,7 @@ simmod.specfp <- function(fp, VERSION="C"){
       
       pop[,,hivn.idx,i] <- pop[,,hivn.idx,i] - infections[,,i]
       pop[,,hivp.idx,i] <- pop[,,hivp.idx,i] + infections[,,i]
-      
+
       hivpop[,,,i] <- hivpop[,,,i] + sweep(fp$cd4_initdist, 2:3, apply(infections[,,i], 2, ctapply, ag.idx, sum), "*")
       incid15to49[i] <- sum(infections[p.age15to49.idx,,i])
     }
@@ -331,7 +373,9 @@ simmod.specfp <- function(fp, VERSION="C"){
 
       pop[,,,i] <- sweep(pop[,,,i], 1:2, popadj.prob[,,i], "*")
       hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.popadj.prob, "*")
-      if(t >= fp$tARTstart)
+      if(i >= fp$t_diagn_start)
+        diagnpop[,,,i] <- sweep(diagnpop[,,,i], 2:3, hiv.popadj.prob, "*")
+      if(i >= fp$tARTstart)
         artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.popadj.prob, "*")
         
     }
@@ -354,11 +398,14 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "incid15to49") <- incid15to49
   attr(pop, "sexinc") <- sexinc15to49out
   attr(pop, "hivpop") <- hivpop
+  attr(pop, "diagnpop") <- diagnpop
   attr(pop, "artpop") <- artpop
 
   attr(pop, "infections") <- infections
   attr(pop, "hivdeaths") <- hivdeaths
   attr(pop, "natdeaths") <- natdeaths
+
+  attr(pop, "diagnoses") <- diagnoses
 
   attr(pop, "popadjust") <- popadj.prob
   

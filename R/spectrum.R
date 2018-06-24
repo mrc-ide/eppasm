@@ -698,3 +698,11 @@ artcov15plus.spec <- function(mod, sex=1:2){
 }
 
 age15pop.spec <- function(mod){colSums(mod[1,,,],,2)}
+
+calc_undiagnosed.spec <- function(mod, fp){
+  num_hivpos <- colSums(mod[,,fp$ss$hivp.idx,],,2)
+  num_undiagnosed <- colSums(attr(mod, "hivpop"),,3) - colSums(attr(mod, "diagnpop"),,3)
+  val <- num_undiagnosed / num_hivpos
+  val[is.na(val)] <- 1.0
+  val
+}

@@ -313,6 +313,17 @@ extern "C" {
     multi_array_ref<double, 4> diagnoses(REAL(s_diagnoses), extents[PROJ_YEARS][NG][hAG][hDS]);
     memset(REAL(s_diagnoses), 0, length(s_diagnoses)*sizeof(double));
 
+    SEXP s_artinits = PROTECT(allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_artinits_dim = PROTECT(allocVector(INTSXP, 4));
+    INTEGER(s_artinits_dim)[0] = hDS;
+    INTEGER(s_artinits_dim)[1] = hAG;
+    INTEGER(s_artinits_dim)[2] = NG;
+    INTEGER(s_artinits_dim)[3] = PROJ_YEARS;
+    setAttrib(s_artinits, R_DimSymbol, s_artinits_dim);
+    setAttrib(s_pop, install("artinits"), s_artinits);
+    multi_array_ref<double, 4> artinits(REAL(s_artinits), extents[PROJ_YEARS][NG][hAG][hDS]);
+    memset(REAL(s_artinits), 0, length(s_artinits)*sizeof(double));
+
     SEXP s_popadjust = PROTECT(allocVector(REALSXP, pAG * NG * PROJ_YEARS));
     SEXP s_popadjust_dim = PROTECT(allocVector(INTSXP, 3));
     INTEGER(s_popadjust_dim)[0] = pAG;
@@ -775,6 +786,7 @@ extern "C" {
 		    diagnpop[t][g][ha][hm] -= artinit_hahm - new_diagn;
 		    diagnoses[t][g][ha][hm] += new_diagn;
 		  }
+		  artinits[t][g][ha][hm] += artinit_hahm;
                 }
 	      
             } else { // Use mixture of eligibility and expected mortality for initiation distribution
@@ -791,6 +803,7 @@ extern "C" {
 		    diagnpop[t][g][ha][hm] -= artinit_hahm - new_diagn;
 		    diagnoses[t][g][ha][hm] += new_diagn;
 		  }
+		  artinits[t][g][ha][hm] += artinit_hahm;
                 }
             }
 
@@ -940,7 +953,7 @@ extern "C" {
       incid15to49[t] /= hivn15to49[t-1];
     }
 
-    UNPROTECT(26);
+    UNPROTECT(28);
     return s_pop;
   }
 }

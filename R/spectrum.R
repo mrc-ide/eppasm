@@ -706,3 +706,35 @@ calc_undiagnosed.spec <- function(mod, fp){
   val[is.na(val)] <- 1.0
   val
 }
+
+
+
+#' Calculate median value in an ordered array
+#'
+#' Calculates the median value across a number of values in an array, assuming
+#' a uniform distribution of values within bins of the array.
+#'
+#' @param arr a vector representing a categorical distribution
+#'
+#' @return a numeric between 0 and length(arr) indicating median value
+arr_median <- function(arr,
+                       lim1 = c(1000, 500, 350, 250, 200, 100, 50),
+                       lim2 = c(500, 350, 250, 200, 100, 50, 0)) {
+
+  arr <- arr / sum(arr)
+  cumarr <- c(0, cumsum(arr))
+  
+  idx <- max(which(cumarr < 0.5))
+  resid <- (0.5 - cumarr[idx]) / diff(cumarr[idx+0:1])
+
+  lim1[idx] + resid*(lim2[idx] - lim1[idx])
+}
+
+artinit_median_cd4 <- function(mod){
+  apply(attr(modR, "artinits"), 4, function(x) arr_median(rowSums(x)))
+}
+
+diagnosis_median_cd4 <- function(mod){
+  apply(attr(modR, "diagnoses"), 4, function(x) arr_median(rowSums(x)))
+}
+

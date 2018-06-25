@@ -47,6 +47,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   natdeaths <- array(0, c(pAG, NG, PROJ_YEARS))
 
   diagnoses <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
+  artinits <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
   
 
   popadj.prob <- array(0, c(pAG, NG, PROJ_YEARS))
@@ -332,6 +333,8 @@ simmod.specfp <- function(fp, VERSION="C"){
           diagnoses[,,,i] <- diagnoses[,,,i] + newdiagn
           diagnpop[,,,i] <- diagnpop[,,,i] - (artinit - newdiagn)
         }
+
+        artinits[,,,i] <- artinits[,,,i] + artinit
       }
         
       ## Remove hivdeaths from pop
@@ -406,6 +409,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "natdeaths") <- natdeaths
 
   attr(pop, "diagnoses") <- diagnoses
+  attr(pop, "artinits") <- artinits
 
   attr(pop, "popadjust") <- popadj.prob
   

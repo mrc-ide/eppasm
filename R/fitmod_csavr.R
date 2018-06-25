@@ -49,6 +49,9 @@ fitmod_csavr <- function(obj, ..., B0 = 1e5, B = 1e4, B.re = 3000, number_k = 50
   ## Update fp
   fp <- update(obj$fp, ...)
 
+  if(fp$eppmod == "logrw")
+    fp <- prepare_logrw(fp, 1975.5)
+
   ## Prepare likelihood data
   likdat <- prepare_likdat_csavr(obj$csavrd, fp)
 

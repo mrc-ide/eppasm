@@ -26,14 +26,26 @@ idbllogistic <- function(t, p){
 #' Calculate predicted number of new diagnoses
 calc_diagnoses <- function(mod, fp){
 
+  colSums(attr(mod, "diagnoses"),,3)
+}
+
+cumgamma_diagn_rate <- function(gamma_max, delta_rate, fp){
+
+  delta_t <- rep(0, fp$ss$PROJ_YEARS)
+  ii <- fp$t_diagn_start:fp$ss$PROJ_YEARS
+
+  delta_t[ii] <- gamma_max * pgamma(ii - (ii[1] - 1), shape=1, rate = delta_rate)
+
+  ## Diagnosis rate assumed proportional to expected mortality
+  fp$diagn_rate <- array(fp$cd4_mort,
+                         c(fp$ss$hDS, fp$ss$hAG, fp$ss$NG, fp$ss$PROJ_YEARS))
+
   ii <- seq_len(fp$ss$PROJ_YEARS)
   delta_t <- fp$gamma_max * pgamma(ii, shape=1, rate = fp$delta_rate)
 
-  val <- attr(mod, "hivpop")
-  val <- sweep(sweep(val, 1:3, fp$cd4_mort, "*"), 4, delta_t, "*")
-  val <- colSums(val,, 3)
+  fp$diagn_rate <- sweep(fp$diagn_rate, 4, delta_t, "*")
 
-  return(val)
+  fp
 }
 
 
@@ -60,9 +72,21 @@ create_param_csavr <- function(theta, fp){
     fp$rvec <- exp(rlogistic(fp$proj.steps, par))
     fp$iota <- exp(theta[5])
   }
+
+  if(fp$eppmod == "logrw"){
+    nparam_incid <- fp$numKnots + 1L
+    beta <- theta[1:fp$numKnots]
+
+    param <- list(beta = beta,
+                  rvec = exp(as.vector(fp$rvec.spldes %*% beta)),
+                  iota = transf_iota(theta[fp$numKnots+1], fp))
+    fp[names(param)] <- param
+  }
     
   fp$gamma_max <- exp(theta[nparam_incid+1])
   fp$delta_rate <- exp(theta[nparam_incid+2])
+
+  fp <- cumgamma_diagn_rate(fp$gamma_max, fp$delta_rate, fp)
 
   fp
 }
@@ -98,62 +122,107 @@ logiota_pr_mean <- -13
 logiota_pr_sd <- 5
 
 sample_prior_csavr <- function(n, fp){
-
-  theta_mean <- numeric()
-  theta_sd <- numeric()
   
-  if(fp$eppmod == "directincid" && fp$incid_func == "ilogistic"){
+  mat_eppmod <- sample_prior_eppmod(n, fp)
+  mat_diagn <- sample_prior_diagn(n, fp)
+  
+  cbind(mat_eppmod, mat_diagn)
+}
+
+sample_prior_eppmod <- function(n, fp){
+
+  if(fp$eppmod == "logrw"){
+    nparam <- fp$numKnots + 1L
+
+    mat <- matrix(NA, n, nparam)
+    mat[,1] <- rnorm(n, 0.2, 1)  # u[1]
+    mat[,2:fp$rt$n_rw] <- bayes_rmvt(n, fp$rt$n_rw-1, rw_prior_shape, rw_prior_rate)  # u[2:numKnots]
+    mat[,fp$numKnots+1] <- sample_iota(n, fp)
+    
+  } else {
+  
+    theta_mean <- numeric()
+    theta_sd <- numeric()
+    
+    if(fp$eppmod == "directincid" && fp$incid_func == "ilogistic"){
     theta_mean <- c(theta_mean, ilogistic_theta_mean)
     theta_sd <- c(theta_sd, ilogistic_theta_sd)
-  }
-  else if(fp$eppmod == "directincid" && fp$incid_func == "idbllogistic"){
-    theta_mean <- c(theta_mean, idbllogistic_theta_mean)
-    theta_sd <- c(theta_sd, idbllogistic_theta_sd)
-  }
+    }
+    else if(fp$eppmod == "directincid" && fp$incid_func == "idbllogistic"){
+      theta_mean <- c(theta_mean, idbllogistic_theta_mean)
+      theta_sd <- c(theta_sd, idbllogistic_theta_sd)
+    }
   else if(fp$eppmod == "rlogistic"){
-    theta_mean <- c(theta_mean, rlog_pr_mean, logiota_pr_mean)
-    theta_sd <- c(theta_sd, rlog_pr_sd, logiota_pr_sd)
-  }
+      theta_mean <- c(theta_mean, rlog_pr_mean, logiota_pr_mean)
+      theta_sd <- c(theta_sd, rlog_pr_sd, logiota_pr_sd)
+    }
+  else if(fp$eppmod == "rlogrw"){
+      epp_nparam <- fp$numKnots+1L
+    }
   else
-    stop("incidnce model not recognized")
-
-  theta_mean <- c(theta_mean, diagn_theta_mean)
-  theta_sd <- c(theta_sd, diagn_theta_sd)
-
+    stop("incidence model not recognized")
+    
   nparam <- length(theta_mean)
+    
+    ## Create matrix of samples
+    v <- rnorm(nparam * n, theta_mean, theta_sd)
+    mat <- t(matrix(v, nparam, n))
+  }
   
-  ## Create matrix of samples
-  v <- rnorm(nparam * n, theta_mean, theta_sd)
-  mat <- t(matrix(v, nparam, n))
+  mat
+}
+
+sample_prior_diagn <- function(n, fp){
+
+  nparam <- length(diagn_theta_mean)
+  val <- rnorm(n * nparam, diagn_theta_mean, diagn_theta_sd)
+  mat <- t(matrix(val, nparam, n))
 
   mat
 }
 
 lprior_csavr <- function(theta, fp){
 
-  theta_mean <- numeric()
-  theta_sd <- numeric()
-  
-  if(fp$eppmod == "directincid" && fp$incid_func == "ilogistic"){
-    theta_mean <- c(theta_mean, ilogistic_theta_mean)
-    theta_sd <- c(theta_sd, ilogistic_theta_sd)
-  }
-  else if(fp$eppmod == "directincid" && fp$incid_func == "idbllogistic"){
-    theta_mean <- c(theta_mean, idbllogistic_theta_mean)
-    theta_sd <- c(theta_sd, idbllogistic_theta_sd)
-  }
-  else if(fp$eppmod == "rlogistic"){
-    theta_mean <- c(theta_mean, rlog_pr_mean, logiota_pr_mean)
-    theta_sd <- c(theta_sd, rlog_pr_sd, logiota_pr_sd)
-  }
+  nparam_eppmod <- get_nparam_eppmod(fp)
+  nparam_diagn <- 2L
 
+  lprior_eppmod(theta[1:nparam_eppmod], fp) +
+    lprior_diagn(theta[nparam_eppmod + 1:nparam_diagn])
+}
+
+lprior_eppmod <- function(theta_eppmod, fp){
+
+  if(fp$eppmod == "directincid" && fp$incid_func == "ilogistic")
+    return(sum(dnorm(theta_eppmod, ilogistic_theta_mean, ilogistic_theta_sd, log=TRUE)))
+  else if(fp$eppmod == "directincid" && fp$incid_func == "idbllogistic")
+    return(sum(dnorm(theta_eppmod, idbllogistic_theta_mean, idbllogistic_theta_sd, log=TRUE)))
+  else if(fp$eppmod == "rlogistic")
+    return(sum(dnorm(theta_eppmod, rlog_pr_mean, rlog_pr_sd, log=TRUE)))
+  else if(fp$eppmod == "logrw"){
+    lpr <- bayes_lmvt(theta_eppmod[2:fp$numKnots], rw_prior_shape, rw_prior_rate)
+    lpr <- lpr + lprior_iota(theta_eppmod[fp$numKnots+1], fp)
+    return(lpr)
+  }
   else
-    stop("incidnce model not recognized")
+    stop("incidence model not recognized")
 
-  theta_mean <- c(theta_mean, diagn_theta_mean)
-  theta_sd <- c(theta_sd, diagn_theta_sd)
+}
 
-  sum(dnorm(theta, theta_mean, theta_sd, log=TRUE))
+lprior_diagn <- function(theta_diagn, fp){
+  sum(dnorm(theta_diagn, diagn_theta_mean, diagn_theta_sd, log=TRUE))
+}
+
+get_nparam_eppmod <- function(fp){
+  if(fp$eppmod == "directincid" && fp$incid_func == "ilogistic")
+    return(length(ilogistic_theta_mean))
+  else if(fp$eppmod == "directincid" && fp$incid_func == "idbllogistic")
+    return(length(idbllogistic_theta_mean))
+  else if(fp$eppmod == "rlogistic")
+    return(length(rlog_pr_mean))
+  else if(fp$eppmod == "logrw")
+    return(fp$numKnots + 1L)
+  else
+    stop("incidence model not recognized")
 }
 
 prior_csavr <- function(theta, fp, log=FALSE){

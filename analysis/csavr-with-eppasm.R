@@ -23,6 +23,7 @@ opts_chunk$set(tidy=TRUE, warning=FALSE, cache=TRUE, message=FALSE)
 options(knitr.kable.NA = '')
 
 ##+ load packages, include=FALSE
+<<<<<<< HEAD
 # devtools::install_github("mrc-ide/epp",auth_token = pat_token)
 # devtools::install_github("mrc-ide/eppasm@csavr",auth_token = pat_token)
 # githubinstall::gh_install_packages("mrc-ide/eppasm",ref = "csavr",auth_token=pat_token)
@@ -34,6 +35,11 @@ devtools::build("C:/Users/josh/Dropbox/hiv_project/eppasm")
 library(epp)
 
 
+=======
+## devtools::install_github("mrc-ide/eppasm@csavr")
+## library(eppasm)
+devtools::load_all("~/Documents/Code/R/eppasm/") # @csavr
+>>>>>>> 0a8320e8c0569fb4bd1e74ba7689baaee56b19ff
 library(magrittr)
 library(broom)
 library(ggplot2)
@@ -72,6 +78,8 @@ nl_pjnz <- "C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/Netherlands_2017_
 
 nl_fp <- prepare_directincid(nl_pjnz)
 nl_fp$artmx_timerr <- rep(1.0, nl_fp$ss$PROJ_YEARS)
+nl_fp$t_diagn_start <- 16L   # assume diagnoses starts in 1985
+nl_fp$diagn_rate <- array(0.2, c(dim(nl_fp$cd4_mort), nl_fp$ss$PROJ_YEARS))
 nl_mod <- simmod(nl_fp)
 nl_mod_1 <- simmod.specfp(nl_fp)
 debug(simmod.specfp(nl_fp))
@@ -83,6 +91,8 @@ cl_pjnz <- "C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/Chile_2017_final.
 
 cl_fp <- prepare_directincid(cl_pjnz)
 cl_fp$artmx_timerr <- rep(1.0, cl_fp$ss$PROJ_YEARS)
+cl_fp$t_diagn_start <- 16L   # assume diagnoses starts in 1985
+cl_fp$diagn_rate <- array(0.2, c(dim(nl_fp$cd4_mort), cl_fp$ss$PROJ_YEARS))
 cl_mod <- simmod(cl_fp)
 cl_mod_1 <- simmod.specfp(cl_fp)
 debug(simmod.specfp)
@@ -125,14 +135,82 @@ cl_csavrd[,c("plhiv", "plhiv_undercount", "new_cases", "new_cases_undercount", "
 #'
 #' ## Model for new diagnoses
 #'
-#' For demonstration purposes, we used an much simplified model for new diagnoses.
-#' We assumed that the untreated population not on ART is equivalent to the
-#' undiagnosed population and modelled the diagnosis rate $\Delta_{s,a,m}(t)$ for
-#' untreated HIV positive persons of sex $s$, age group $a$, and in CD4 stage $m$
-#' at time $t$. The relative diagnosis rate across groups at time $t$ is assumed
-#' to be proportional to the HIV mortality rate $\mu_{s,a,m}$ and the trend in
-#' diagnosis rate of the course of the epidemic is modelled by a cumulative gamma
-#' distribution function with shape parameter 1 and rate parameter $\theta$. That is
+#' ### Adding new diagnoses to EPP-ASM
+#'
+#' We extended the EPP-ASM model to explicitly stratify the untreated HIV positive
+#' population (`hivpop`) population as those who are diagnosed and not diagnosed,
+#' in order to model data about numbers of new HIV diagnoses and output estimates
+#' for the proportion diagnosed in the HIV care cascade.
+#' 
+#' It is assumed that diagnoses does not affect disease progression, mortality,
+#' or HIV transmission. To implement diagnosis in such a way to minimally
+#' affect other model processes, a separate array `diagnpop` of the same dimension as
+#' `hivpop` in order to track the number diagnosed within each stratum of the
+#' untreated HIV positive population. Individuals are not removed from `hivpop` once
+#' they become diagnosed, but all calculations of population progression, disease
+#' progression, and mortality that affect `hivpop` are replicated for the `diagnpop`.
+#'
+#' Upon ART initiation, individuals are removed from `diagnpop` (similar to removal
+#' from `hivpop`. Presently, there are no changes to the allocation of new ART
+#' initiations by age, sex, or CD4 category among the untreated HIV population. New ART
+#' initiations are presumed to come from the 'diagnosed' population where available.
+#' If there are more persons initiating ART in a given age/sex/CD4 stratum than
+#' have been previously diagnosed, then individuals are taken from the undiagnosed
+#' population and added to the number of new diagnoses in that time step (resulting
+#' in a higher number of diagnoses than specified by the diagnosis rate parameter).
+#'
+#' Persons who dropout from ART are returned into the `diagnpop`.
+#' 
+#'
+#' There are two additional model input parameters that must be specified as part
+#' of the `fp` input list:
+#'
+#' * `diagn_rate`: A four-dimensional array (same dimensions as `hivpop`) specifying
+#'    the diagnosis rate per year for undiagnosed HIV positive persons stratified by
+#'    CD4 category, HIV age groups, sex, and projection year.
+#' * `t_diagn_start`: An integer indicating the first projection year in which HIV
+#'    diagnoses may occur. This does not affect the model output, but improves
+#'    computational efficiency by preventing looping over diagnosed population
+#'    calculations for years prior to the first diagnosis. `diagn_rate` should
+#'    be 0 for all years before `t_diagn_start`. Setting `t_diagn_start` to be
+#'    equal to or greater than the number of projection years should result in
+#'    no calculations related to the diagnosed population and result in a
+#'    projection with identical results and no additional computational burden
+#'    as the EPP-ASM model without diagnosis.
+#'
+#'
+#' There are three additional outputs, stored as attributes to the return value
+#' of `simmod()`:
+#'
+#' * `diagnpop`: The number diagnosed within each CD4 stage / HIV age / sex stratum
+#'    of the untreated HIV positive poplation. `diagnpop` is a subset of `hivpop`.
+#' * `diagnoses`: The number of new HIV diagnoses occurring by stratum in each
+#'   projection year (mid-year to mid-year).
+#' * `artinits`: The number of new HIV ART initiations by stratum in each
+#'   projection year (mid-year to mid-year). 
+#'
+#'
+#' Three additional functions are added reporting for calculating outputs related
+#' to diagnoses and ART intiations. These and other functions to be added may be
+#' used for likelihood calculations.
+#'
+#' * `calc_diagnoses()` returns the total number of new diagnoses in each year.
+#' * `diagnosis_median_cd4()` returns the median CD4 count among newly diagnosed
+#'   persons in each year.
+#' * `artinit_median_cd4()` returns the median CD4 count among new ART initiations
+#'   persons in each year.
+#' 
+#'
+#' ### Parametric model for diagnosis rate
+#' 
+#' Modelling new HIV diagnoses requires specifying a parametric model for the
+#' `diagn_rate` input, the HIV diagnosis rate by CD4 stage $m$, age group $a$,
+#' and sex $s$, at time $t$, a function  $\Delta_{s,a,m}(t)$. The relative diagnosis
+#' rate across groups at time $t$ is assumed to be proportional to the HIV mortality
+#' rate $\mu_{s,a,m}$ and the trend in diagnosis rate of the course of the epidemic
+#' is modelled by a cumulative gamma distribution function with shape parameter 1 and
+#' rate parameter $\theta$. That is
+#' 
 #' \begin{equation}
 #'   \Delta_{s,a,m}(t) = \mu_{s,a,m} \cdot \gamma_{max} \cdot
 #'   \int_{t_0}^t e^{-\theta \tau} d\tau
@@ -140,10 +218,9 @@ cl_csavrd[,c("plhiv", "plhiv_undercount", "new_cases", "new_cases_undercount", "
 #' where $t_0$ is the start time
 #' of the epidemic (e.g. $t_0 = 1970$).
 #'
-#' Unlike the approximation by Mahiane, this simple model equating the untreated
-#' population to the undiagnosed population does not track the proportion diagnosed
-#' over the course of the epidemic. The full model should be implemented if this
-#' approach is taken beyond this proof of concept.
+#' This is similar to the approximation by Mahiane, except that we explicilty track
+#' size of the undiagnosed population over the course of the epidemic rather than
+#' using the approximation calcuated based on time since infection.
 #'
 #' For Bayesian inference, we define diffuse prior distributions on the
 #' parameters for the diagnosis rate over time:
@@ -255,12 +332,14 @@ nl_opt1 <- fitmod_csavr(nl, incid_func = "ilogistic", B0=1e4, optfit=TRUE)
 nl_fit1 <- fitmod_csavr(nl, incid_func = "ilogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
 
 ## fit double logistic model for incidence rate
-nl_opt2 <- fitmod_csavr(nl, incid_func = "idbllogistic", B0=1e3, optfit=TRUE)
+nl_opt2 <- fitmod_csavr(nl, incid_func = "idbllogistic", B0=1e2, optfit=TRUE)
 nl_fit2 <- fitmod_csavr(nl, incid_func = "idbllogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
 
 ## fit logistic model for transimssion rate (r(t))
 nl_opt3 <- fitmod_csavr(nl, eppmod="rlogistic", B0=1e4, optfit=TRUE)
 nl_fit3 <- fitmod_csavr(nl, eppmod="rlogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
+
+
 
 #' Fit model to Chile dataset.
 
@@ -300,6 +379,7 @@ ggplot(subset(nl_out, year %in% 1975:2017), aes(year, mean, ymin=lower, ymax=upp
   theme(legend.position = "bottom") +
   scale_x_continuous(element_blank()) + scale_y_continuous(element_blank())
 
+
 #'
 #' The figure below shows model results for Chile.
 ##+ plot cl fit, fig.height = 4.5, fig.width = 7, fig.align = "center", echo=FALSE 
@@ -311,8 +391,7 @@ ggplot(subset(cl_out, year %in% 1975:2017), aes(year, mean, ymin=lower, ymax=upp
   theme(legend.position = "bottom") +
   scale_x_continuous(element_blank()) + scale_y_continuous(element_blank())
 
-#' We should be cautious about over interpreting these results because we have not
-#' fully implemented the model for new diagnoses and all of the parametric
+#' We should be cautious about over interpreting these results because the parametric
 #' models implemented thus far are relatively inflexible to matching data-driven
 #' trends. A few observations:
 #' 

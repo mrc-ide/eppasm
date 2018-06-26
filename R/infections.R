@@ -17,10 +17,16 @@ calc_infections_eppspectrum <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
   hivp.ii <- hivp.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i])*(1-DT*(ii-1))
 
   art.ii <- sum(artpop[,,h.age15to49.idx,,i])
-  if(sum(hivpop[,h.age15to49.idx[1],,i]) > 0)
-    art.ii <- art.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i] * colSums(artpop[,,h.age15to49.idx[1],,i],,2) / (colSums(hivpop[,h.age15to49.idx[1],,i],,1) + colSums(artpop[,,h.age15to49.idx[1],,i],,2))) * (1-DT*(ii-1))
-  if(sum(hivpop[,tail(h.age15to49.idx, 1)+1,,i]) > 0)
-    art.ii <- art.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i] * colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2) / (colSums(hivpop[,tail(h.age15to49.idx, 1)+1,,i],,1) + colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2))) * (1-DT*(ii-1))
+
+  ## Adjust ART population for ageing by sub-year time step
+  hivpop_hAG1 <- colSums(hivpop[,h.age15to49.idx[1],,i],,1) + colSums(artpop[,,h.age15to49.idx[1],,i],,2)
+  if(sum(hivpop_hAG1) > 0)
+    art.ii <- art.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i] * colSums(artpop[,,h.age15to49.idx[1],,i],,2) / hivpop_hAG1) * (1-DT*(ii-1))
+
+  hAG_idxN <- tail(h.age15to49.idx, 1)+1
+  hivpop_hAGN <- colSums(hivpop[,hAG_idxN,,i],,1) + colSums(artpop[,,hAG_idxN,,i],,2)
+  if(sum(hivpop_hAGN) > 0)
+    art.ii <- art.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i] * colSums(artpop[,,hAG_idxN,,i],,2) / hivpop_hAGN) * (1-DT*(ii-1))
   
   transm_prev <- (hivp.ii - art.ii + fp$relinfectART*art.ii) / (hivn.ii+hivp.ii)
 

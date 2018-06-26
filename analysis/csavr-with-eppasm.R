@@ -23,9 +23,9 @@ opts_chunk$set(tidy=TRUE, warning=FALSE, cache=TRUE, message=FALSE)
 options(knitr.kable.NA = '')
 
 ##+ load packages, include=FALSE
-devtools::install_github("mrc-ide/epp",auth_token = pat_token)
-devtools::install_github("mrc-ide/eppasm@csavr",auth_token = pat_token)
-githubinstall::gh_install_packages("mrc-ide/eppasm",ref = "csavr",auth_token=pat_token)
+# devtools::install_github("mrc-ide/epp",auth_token = pat_token)
+# devtools::install_github("mrc-ide/eppasm@csavr",auth_token = pat_token)
+# githubinstall::gh_install_packages("mrc-ide/eppasm",ref = "csavr",auth_token=pat_token)
 library(eppasm)
 ## devtools::load_all("~/Documents/Code/R/eppasm-csavr/") # @csavr
 devtools::load_all("C:/Users/josh/Dropbox/hiv_project/eppasm")

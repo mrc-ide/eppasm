@@ -11,7 +11,7 @@ simmod.specfp <- function(fp, VERSION="C"){
     fp$incidmodInt <- match(fp$incidmod, c("eppspectrum", "transm"))-1L  # -1 for 0-based indexing
     mod <- .Call(eppasmC, fp)
     class(mod) <- "spec"
-    #return(mod)
+    return(mod)
   }
 
 ##################################################################################
@@ -30,39 +30,28 @@ simmod.specfp <- function(fp, VERSION="C"){
   pregprevlag <- rep(0, PROJ_YEARS)
 
   ## initialize projection
-<<<<<<< HEAD
+  
   pop <- array(0, c(pAG, NG, pDS, PROJ_YEARS))                            ### By age group, gender, disease stage (+/-), years
   pop[,,1,1] <- fp$basepop                                                ### Put in the males and females of each age group during start year
   hivpop <- array(0, c(hDS, hAG, NG, PROJ_YEARS))                         ### 7 dis stage, 9 ages, 2 genders, 52 years
+  diagnpop <- array(0, c(hDS, hAG, NG, PROJ_YEARS))                       ### Diag array by disease stage, age, gender, 52 years
   artpop <- array(0, c(hTS, hDS, hAG, NG, PROJ_YEARS))                    ### 3 treatment step, 7 dis stage, 9 age, 2 gen, 52 years
-=======
-  pop <- array(0, c(pAG, NG, pDS, PROJ_YEARS))
-  pop[,,1,1] <- fp$basepop
-  hivpop <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
-  diagnpop <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
-  artpop <- array(0, c(hTS, hDS, hAG, NG, PROJ_YEARS))
->>>>>>> 0a8320e8c0569fb4bd1e74ba7689baaee56b19ff
 
   ## initialize output
   prev15to49 <- numeric(PROJ_YEARS)                                       ### Initialize 52 0s for prevalence from 15 to 49 over time period
   incid15to49 <- numeric(PROJ_YEARS)                                      ### Init 52 0s for inc from 15 to 49 over epi period  
   sexinc15to49out <- array(NA, c(NG, PROJ_YEARS))                         ### matrix of inc for 15-49 each col a different sex
   paedsurvout <- rep(NA, PROJ_YEARS)                                      ### 52 NAs perhaps for birth to 15 survival ????
+  percent_undiag <- rep(0,PROJ_YEARS)
 
   infections <- array(0, c(pAG, NG, PROJ_YEARS))                          ### arrya infections by age, gender, year of project
   hivdeaths <- array(0, c(pAG, NG, PROJ_YEARS))                           ### array of hiv deaths by age, gender, year of epi
   natdeaths <- array(0, c(pAG, NG, PROJ_YEARS))                           ### array of natural deaths in pop
 
-<<<<<<< HEAD
   popadj.prob <- array(0, c(pAG, NG, PROJ_YEARS))                         ### array for adjust by age group, gender, year of epi
-=======
   diagnoses <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
   artinits <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
   
-
-  popadj.prob <- array(0, c(pAG, NG, PROJ_YEARS))
->>>>>>> 0a8320e8c0569fb4bd1e74ba7689baaee56b19ff
-
   entrant_prev_out <- numeric(PROJ_YEARS)                                 ### prevalence for each year of epi
   hivp_entrants_out <- array(0, c(NG, PROJ_YEARS))                        ### number of hiv pos by gender and year of epi
 
@@ -88,10 +77,10 @@ simmod.specfp <- function(fp, VERSION="C"){
     pop[-c(1,pAG),,,i] <- pop[-(pAG-1:0),,,i-1]                         ### So this says the age groups in next year, apart from 
     pop[pAG,,,i] <- pop[pAG,,,i-1] + pop[pAG-1,,,i-1] # open age group  ### 15 and 66 are the same initially as last year
                                                                         #### then this says 66+ age is last years, plus last years 65
-    if(i == 30){
-      browser()
-    }
-    
+    # if(i == 30){
+    #   browser()
+    # }
+    # 
     ## Add lagged births into youngest age group
     if(exists("entrantprev", where=fp))                                 ### This takes our vector of birth rates into 15 year group  
       entrant_prev <- fp$entrantprev[,i]                                ### Birth rates of +ve members coming into pop as prevalence
@@ -140,14 +129,11 @@ simmod.specfp <- function(fp, VERSION="C"){
     pop[,,,i] <- pop[,,,i] - deaths                                                    ## Initially works out death matrix then -s
     natdeaths[,,i] <- rowSums(deaths,,2)
 
-<<<<<<< HEAD
+      
+                                                                                       
     hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.sx.prob, "*")                         ## Works out next hiv pop based on natural
-                                                                                       ## deaths
-=======
-    hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.sx.prob, "*")
     if(i > fp$t_diagn_start)
       diagnpop[,,,i] <- sweep(diagnpop[,,,i], 2:3, hiv.sx.prob, "*")
->>>>>>> 0a8320e8c0569fb4bd1e74ba7689baaee56b19ff
     if(i > fp$tARTstart)
       artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.sx.prob, "*")
 
@@ -212,25 +198,11 @@ simmod.specfp <- function(fp, VERSION="C"){
       }
 
       ## disease progression and mortality
-<<<<<<< HEAD
-      grad[-hDS,,] <- grad[-hDS,,] - fp$cd4_prog * hivpop[-hDS,,,i]  # remove cd4 stage progression (untreated) all can be removed but last class
-      grad[-1,,] <- grad[-1,,] + fp$cd4_prog * hivpop[-hDS,,,i]      # add cd4 stage progression (untreated) all can be jumped into but last class
-
-      grad <- grad - fp$cd4_mort * hivpop[,,,i]              # HIV mortality, untreated
-
-      ## Remove hivdeaths from pop
-      hivdeaths.ts <- DT*(colSums(fp$cd4_mort * hivpop[,,,i]) + colSums(fp$art_mort * artpop[,,,,i],,2)) ## 1/10th deaths on the year
-      calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
-      hivdeaths_p.ts <- apply(hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
-      pop[,,2,i] <- pop[,,2,i] - hivdeaths_p.ts
-      hivdeaths[,,i] <- hivdeaths[,,i] + hivdeaths_p.ts
-=======
       grad[-hDS,,] <- grad[-hDS,,] - fp$cd4_prog * hivpop[-hDS,,,i]  # remove cd4 stage progression (untreated)
       grad[-1,,] <- grad[-1,,] + fp$cd4_prog * hivpop[-hDS,,,i]      # add cd4 stage progression (untreated)
       
       grad <- grad - fp$cd4_mort * hivpop[,,,i]              # HIV mortality, untreated
       hivdeaths.ts <- colSums(fp$cd4_mort * hivpop[,,,i])
->>>>>>> 0a8320e8c0569fb4bd1e74ba7689baaee56b19ff
 
       hivpop[,,,i] <- hivpop[,,,i] + DT*grad
 
@@ -269,16 +241,13 @@ simmod.specfp <- function(fp, VERSION="C"){
 
         ## ART dropout
         ## remove proportion from all adult ART groups back to untreated pop
-<<<<<<< HEAD
-        hivpop[,,,i] <- hivpop[,,,i] + DT*fp$art_dropout[i]*colSums(artpop[,,,,i])     ## Means treats ART pop as separate, not nested!!
-        artpop[,,,,i] <- artpop[,,,,i] - DT*fp$art_dropout[i]*artpop[,,,,i]            ## ART pop isn't nested within HIV pop
-=======
+        ## Means treats ART pop as separate, not nested!!
+        ## ART pop isn't nested within HIV pop
         hivpop[,,,i] <- hivpop[,,,i] + DT*fp$art_dropout[i]*colSums(artpop[,,,,i])
         if(i >= fp$t_diagn_start)
           diagnpop[,,,i] <- diagnpop[,,,i] + DT*fp$art_dropout[i]*colSums(artpop[,,,,i])
 
         artpop[,,,,i] <- artpop[,,,,i] - DT*fp$art_dropout[i]*artpop[,,,,i]
->>>>>>> 0a8320e8c0569fb4bd1e74ba7689baaee56b19ff
 
         ## calculate number eligible for ART
         artcd4_percelig <- 1 - (1-rep(0:1, times=c(fp$artcd4elig_idx[i]-1, hDS - fp$artcd4elig_idx[i]+1))) *
@@ -437,9 +406,14 @@ simmod.specfp <- function(fp, VERSION="C"){
     ## prevalence and incidence 15 to 49
     prev15to49[i] <- sum(pop[p.age15to49.idx,,hivp.idx,i]) / sum(pop[p.age15to49.idx,,,i])
     incid15to49[i] <- sum(incid15to49[i]) / sum(pop[p.age15to49.idx,,hivn.idx,i-1])
+    
+    ## Percent undiagnosed
+    percent_undiag[i] <- (sum(hivpop[,,,i]) - sum(diagnpop[,,,i])) / (sum(hivpop[,,,i]) + sum(artpop[,,,,i])) * 100
+    percent_undiag[is.nan(percent_undiag)] <- 100
+    
   }
 
-
+  
   attr(pop, "prev15to49") <- prev15to49
   attr(pop, "incid15to49") <- incid15to49
   attr(pop, "sexinc") <- sexinc15to49out
@@ -457,6 +431,8 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "popadjust") <- popadj.prob
 
   attr(pop, "pregprevlag") <- pregprevlag
+  
+  attr(pop,"undiagnosed_percent") <- percent_undiag
 
   if(fp$eppmod != "directincid"){
     attr(pop, "incrate15to49_ts") <- incrate15to49.ts.out

@@ -23,7 +23,6 @@ opts_chunk$set(tidy=TRUE, warning=FALSE, cache=TRUE, message=FALSE)
 options(knitr.kable.NA = '')
 
 ##+ load packages, include=FALSE
-<<<<<<< HEAD
 # devtools::install_github("mrc-ide/epp",auth_token = pat_token)
 # devtools::install_github("mrc-ide/eppasm@csavr",auth_token = pat_token)
 # githubinstall::gh_install_packages("mrc-ide/eppasm",ref = "csavr",auth_token=pat_token)
@@ -34,12 +33,6 @@ devtools::build("C:/Users/josh/Dropbox/hiv_project/eppasm")
 
 library(epp)
 
-
-=======
-## devtools::install_github("mrc-ide/eppasm@csavr")
-## library(eppasm)
-devtools::load_all("~/Documents/Code/R/eppasm/") # @csavr
->>>>>>> 0a8320e8c0569fb4bd1e74ba7689baaee56b19ff
 library(magrittr)
 library(broom)
 library(ggplot2)
@@ -80,9 +73,14 @@ nl_fp <- prepare_directincid(nl_pjnz)
 nl_fp$artmx_timerr <- rep(1.0, nl_fp$ss$PROJ_YEARS)
 nl_fp$t_diagn_start <- 16L   # assume diagnoses starts in 1985
 nl_fp$diagn_rate <- array(0.2, c(dim(nl_fp$cd4_mort), nl_fp$ss$PROJ_YEARS))
-nl_mod <- simmod(nl_fp)
-nl_mod_1 <- simmod.specfp(nl_fp)
-debug(simmod.specfp(nl_fp))
+nl_mod <- simmod(nl_fp,VERSION = "R")
+percent_undiag <- attr(nl_mod,"undiagnosed_percent")
+plot(percent_undiag,type="l",col="orange")
+nl_mod_1 <- simmod.specfp(nl_fp,VERSION = "R")
+percent_undiag <- attr(nl_mod_1,"undiagnosed_percent")
+plot(percent_undiag,type="l",col="red")
+abline(v=15,col="blue")
+abline(v=25,col="blue")
 
 nl_fp$relinfectART <- 0.3
 nl_fp$tsEpidemicStart <- 1970.5
@@ -93,13 +91,17 @@ cl_fp <- prepare_directincid(cl_pjnz)
 cl_fp$artmx_timerr <- rep(1.0, cl_fp$ss$PROJ_YEARS)
 cl_fp$t_diagn_start <- 16L   # assume diagnoses starts in 1985
 cl_fp$diagn_rate <- array(0.2, c(dim(nl_fp$cd4_mort), cl_fp$ss$PROJ_YEARS))
-cl_mod <- simmod(cl_fp)
+cl_mod <- simmod(cl_fp,VERSION = "R")
 cl_mod_1 <- simmod.specfp(cl_fp)
-debug(simmod.specfp)
-??debug
-source("C:/Users/josh/Dropbox/hiv_project/eppasm/R/eppasm.R")
-debug(simmod.specfp)
-simmod.specfp(cl_fp)
+percent_undiag_cl <- attr(cl_mod,"undiagnosed")
+lines(percent_undiag_cl,type="l",col="green")
+nl_mod_1 <- simmod.specfp(nl_fp)
+
+# debug(simmod.specfp)
+# ??debug
+# source("C:/Users/josh/Dropbox/hiv_project/eppasm/R/eppasm.R")
+# debug(simmod.specfp)
+# simmod.specfp(cl_fp)
 cl_fp$relinfectART <- 0.3
 cl_fp$tsEpidemicStart <- 1970.5
 
@@ -339,7 +341,43 @@ nl_fit2 <- fitmod_csavr(nl, incid_func = "idbllogistic", B0=1e4, B=1e3, B.re=3e3
 nl_opt3 <- fitmod_csavr(nl, eppmod="rlogistic", B0=1e4, optfit=TRUE)
 nl_fit3 <- fitmod_csavr(nl, eppmod="rlogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
 
+plot_undiagnosed <- function(optim_output,diag_start = 1986, art_start = 1996){
+  tot_undiag_data <- NULL
+  input_label <- paste("input",(1:length(optim_output)),sep = " ")
+  
+  for(i in 1:length(optim_output)){
+    if(length(optim_output) == 1){
+      list_version <- attributes(optim_output[[1]]$mod)
+    }else{
+      list_version <- attributes(optim_output[[i]]$mod)
+    }
+    undiag_percent <- (apply(list_version$hivpop,4,sum) - apply(list_version$diagnpop,4,sum)) / 
+      (apply(list_version$hivpop,4,sum) + apply(list_version$artpop,5,sum)) * 100
+    
+    percent_dat <- cbind.data.frame(undiag_percent,rep(input_label[i],length(undiag_percent)),c(1970:2021))
+    
+    
+    tot_undiag_data <- rbind.data.frame(tot_undiag_data,percent_dat)
+  }
+  
+  names(tot_undiag_data) <- c("undiagnosed","input","time")
+  
+  undiag_plot <- ggplot(data = tot_undiag_data,aes(x=time,y=undiagnosed,group=input))+geom_line(aes(colour=input),size=1.05)+
+    labs(x="Time",y="Percent of HIV +ve population undiagnosed") + 
+    geom_vline(xintercept = diag_start,col="midnightblue",linetype="dotted",size = 1.5) +
+    geom_vline(xintercept = art_start,col="midnightblue",linetype="dotted",size=1.5) + coord_cartesian(ylim = c(0,100))
+  
+  return(list(undiag_df = tot_undiag_data,undiag_plot = undiag_plot))
+  
+}
+  
+optims <- list(nl_opt1,nl_opt2,nl_opt3)
+undiagnosed_analysis <- plot_undiagnosed(optims)
+undiagnosed_analysis$undiag_plot
+undiagnosed_analysis$undiag_df
 
+optim_2_undiag <- plot_undiagnosed(list(nl_opt2))
+optim_2_undiag$undiag_plot
 
 #' Fit model to Chile dataset.
 
@@ -355,6 +393,10 @@ cl_fit2 <- fitmod_csavr(cl, incid_func = "idbllogistic", B0=1e4, B=1e3, B.re=3e3
 ## fit logistic model for transimssion rate (r(t))
 cl_opt3 <- fitmod_csavr(cl, eppmod="rlogistic", B0=1e4, optfit=TRUE)
 cl_fit3 <- fitmod_csavr(cl, eppmod="rlogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
+
+optims_cl <- list(cl_opt1,cl_opt2, cl_opt3)
+optims_plotts <- plot_undiagnosed(optims_cl)
+optims_plotts$undiag_plot
 
 
 ##+ tidy results, include = FALSE

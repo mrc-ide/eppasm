@@ -89,3 +89,8 @@
 # eppasm 0.5.1
 
 - Add tidy_output() function to generate long format of key output indicators.
+
+# eppasm 0.5.2
+
+- Use Beer's coefficients to graduate 5-year age IRRs to single year.
+- Add vignette to develop EPP-ASM to Spectrum workflow.

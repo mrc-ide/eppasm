@@ -30,7 +30,7 @@ calc_diagnoses <- function(mod, fp){
 }
 
 cumgamma_diagn_rate <- function(gamma_max, delta_rate, fp){
-
+  
   delta_t <- rep(0, fp$ss$PROJ_YEARS)
   ii <- fp$t_diagn_start:fp$ss$PROJ_YEARS
 
@@ -51,7 +51,7 @@ cumgamma_diagn_rate <- function(gamma_max, delta_rate, fp){
 
 #' Calculate parameter inputs for CSAVR fit
 create_param_csavr <- function(theta, fp){
-
+  
   if(fp$eppmod == "directincid" && fp$incid_func == "ilogistic"){
     nparam_incid <- 2
     fp$incidinput <- ilogistic(seq_len(fp$ss$PROJ_YEARS), exp(theta[1:2]), 1)
@@ -82,7 +82,7 @@ create_param_csavr <- function(theta, fp){
                   iota = transf_iota(theta[fp$numKnots+1], fp))
     fp[names(param)] <- param
   }
-    
+
   fp$gamma_max <- exp(theta[nparam_incid+1])
   fp$delta_rate <- exp(theta[nparam_incid+2])
 
@@ -95,7 +95,7 @@ create_param_csavr <- function(theta, fp){
 ll_csavr <- function(theta, fp, likdat){
 
   fp <- create_param_csavr(theta, fp)
- 
+
   mod <- simmod(fp)
 
   mod_aidsdeaths <- colSums(attr(mod, "hivdeaths"),,2)
@@ -122,10 +122,10 @@ logiota_pr_mean <- -13
 logiota_pr_sd <- 5
 
 sample_prior_csavr <- function(n, fp){
-  
+
   mat_eppmod <- sample_prior_eppmod(n, fp)
   mat_diagn <- sample_prior_diagn(n, fp)
-  
+
   cbind(mat_eppmod, mat_diagn)
 }
 
@@ -138,12 +138,12 @@ sample_prior_eppmod <- function(n, fp){
     mat[,1] <- rnorm(n, 0.2, 1)  # u[1]
     mat[,2:fp$rt$n_rw] <- bayes_rmvt(n, fp$rt$n_rw-1, rw_prior_shape, rw_prior_rate)  # u[2:numKnots]
     mat[,fp$numKnots+1] <- sample_iota(n, fp)
-    
+
   } else {
-  
+
     theta_mean <- numeric()
     theta_sd <- numeric()
-    
+
     if(fp$eppmod == "directincid" && fp$incid_func == "ilogistic"){
     theta_mean <- c(theta_mean, ilogistic_theta_mean)
     theta_sd <- c(theta_sd, ilogistic_theta_sd)
@@ -161,14 +161,14 @@ sample_prior_eppmod <- function(n, fp){
     }
   else
     stop("incidence model not recognized")
-    
+
   nparam <- length(theta_mean)
-    
+
     ## Create matrix of samples
     v <- rnorm(nparam * n, theta_mean, theta_sd)
     mat <- t(matrix(v, nparam, n))
   }
-  
+
   mat
 }
 

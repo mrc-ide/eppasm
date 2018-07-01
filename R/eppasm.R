@@ -253,7 +253,7 @@ simmod.specfp <- function(fp, VERSION="C"){
         artcd4_percelig <- 1 - (1-rep(0:1, times=c(fp$artcd4elig_idx[i]-1, hDS - fp$artcd4elig_idx[i]+1))) *
           (1-rep(c(0, fp$who34percelig), c(2, hDS-2))) *
           (1-rep(fp$specpop_percelig[i], hDS))
-
+ 
         art15plus.elig <- sweep(hivpop[,h.age15plus.idx,,i], 1, artcd4_percelig, "*")
 
         ## calculate pregnant women

@@ -334,7 +334,7 @@ nl_opt1 <- fitmod_csavr(nl, incid_func = "ilogistic", B0=1e4, optfit=TRUE)
 nl_fit1 <- fitmod_csavr(nl, incid_func = "ilogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
 
 ## fit double logistic model for incidence rate
-nl_opt2 <- fitmod_csavr(nl, incid_func = "idbllogistic", B0=1e2, optfit=TRUE)
+nl_opt2 <- fitmod_csavr(nl, incid_func = "idbllogistic", B0=1e4, optfit=TRUE)
 nl_fit2 <- fitmod_csavr(nl, incid_func = "idbllogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
 
 ## fit logistic model for transimssion rate (r(t))
@@ -376,7 +376,7 @@ undiagnosed_analysis <- plot_undiagnosed(optims)
 undiagnosed_analysis$undiag_plot
 undiagnosed_analysis$undiag_df
 
-optim_2_undiag <- plot_undiagnosed(list(nl_opt2))
+optim_2_undiag <- plot_undiagnosed(list(nl_opt3))
 optim_2_undiag$undiag_plot
 
 #' Fit model to Chile dataset.
@@ -463,4 +463,50 @@ kable(data.frame(Country = rep(c("Netherlands", "Chile"), each=3),
                  IMIS = c(nl_fit1$time[1], nl_fit2$time[1], nl_fit3$time[1],
                           cl_fit1$time[1], cl_fit2$time[1], cl_fit3$time[1])),
       digits=c(NA, NA, 2, 1), align=c("llcc"))
-                            
+
+
+##### Diagnoses plotter 
+
+diagnoses_plotter <- function(optim_results){
+  diagnoses_rates <- optim_results$fp$diagn_rate
+  disease_stage <- as.character(1:nrow(diagnoses_rates))
+  diagnoses_df <- NULL
+  for(i in 1:nrow(diagnoses_rates)){
+    mean_per_stage <- NULL
+    for(ii in 1:52){
+      mean_per_stage[ii] <- mean(diagnoses_rates[i,,,ii])
+    }
+    mean_per_stage <- cbind(mean_per_stage,c(1970:2021),rep(disease_stage[i],length(mean_per_stage)))
+    diagnoses_df <- rbind(diagnoses_df,mean_per_stage)
+  }
+  diagnoses_df <- data.frame(diagnoses_df)
+  names(diagnoses_df) <- c("rate","time","stage")
+  diagnoses_df$rate <- as.numeric(diagnoses_df$rate)
+  diagnoses_df$time <- as.numeric(diagnoses_df$time)
+  
+  rate_plot <- ggplot(data = diagnoses_df,aes(x=time,y=rate,group=stage)) + 
+    geom_line(aes(colour=stage),size=1.05) + labs(y="Diagnosis rate",x="time",title="Diagnoses rates through time by disease stage")
+  
+  return(list(df = diagnoses_df, plot = rate_plot))
+  
+  
+}
+nl_diag <- diagnoses_plotter(nl_opt1)
+nl_diag$plot
+nl_diag$df
+
+nl_2_diag <- diagnoses_plotter(nl_opt2)
+nl_2_diag$plot
+nl_2_diag$df
+
+nl_3_diag <- diagnoses_plotter(nl_opt3)
+nl_3_diag$plot
+
+cl_1_diag <- diagnoses_plotter(cl_opt1)
+cl_1_diag$plot
+
+cl_2_diag <- diagnoses_plotter(cl_opt2)
+cl_2_diag$plot
+
+cl_3_diag <- diagnoses_plotter(cl_opt3)
+cl_3_diag$plot

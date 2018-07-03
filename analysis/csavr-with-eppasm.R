@@ -133,7 +133,7 @@ cl_csavrd[,c("plhiv", "plhiv_undercount", "new_cases", "new_cases_undercount", "
   kable(caption = "Chile case surveillance and vital registration data")
 
 
-#' # Model for case surveillance data
+cl#' # Model for case surveillance data
 #'
 #' ## Model for new diagnoses
 #'

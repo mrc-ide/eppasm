@@ -27,7 +27,25 @@ idbllogistic <- function(t, p){
 calc_diagnoses <- function(mod, fp){
 
   colSums(attr(mod, "diagnoses"),,3)
+  # diagnoses_full <- attributes(mod)
+  # 
+  # diagnoses <- diagnoses_full$diagnoses
+  # 
+  # disease_stage <- as.character(1:nrow(diagnoses))
+  # 
+  # diagnoses_df <- NULL
+  # for(i in 1:nrow(diagnoses)){
+  #   mean_per_stage <- NULL
+  #   for(ii in 1:52){
+  #     mean_per_stage[ii] <- mean(diagnoses[i,,,ii])
+  #   }
+  #   mean_per_stage <- cbind.data.frame(mean_per_stage,c(1970:2021),rep(disease_stage[i],length(mean_per_stage)))
+  #   diagnoses_df <- rbind.data.frame(diagnoses_df,mean_per_stage)
+  # }
+  # names(diagnoses_df) <- c("diagnoses","year","stage")
+  # return(diagnoses_df)
 }
+
 
 cumgamma_diagn_rate <- function(gamma_max, delta_rate, fp){
   

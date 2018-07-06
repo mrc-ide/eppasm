@@ -78,7 +78,7 @@ percent_undiag <- attr(nl_mod,"undiagnosed_percent")
 plot(percent_undiag,type="l",col="orange")
 nl_mod_1 <- simmod.specfp(nl_fp,VERSION = "R")
 percent_undiag <- attr(nl_mod_1,"undiagnosed_percent")
-plot(percent_undiag,type="l",col="red")
+lines(percent_undiag,col="red")
 abline(v=15,col="blue")
 abline(v=25,col="blue")
 
@@ -133,7 +133,7 @@ cl_csavrd[,c("plhiv", "plhiv_undercount", "new_cases", "new_cases_undercount", "
   kable(caption = "Chile case surveillance and vital registration data")
 
 
-cl#' # Model for case surveillance data
+#' # Model for case surveillance data
 #'
 #' ## Model for new diagnoses
 #'
@@ -318,6 +318,8 @@ cl#' # Model for case surveillance data
 #' Spectrum model inputs and the CSAVR data inputs.
 ##+ prepare fitting
 ## Create fitting objects
+nl_fp$likelihood_cd4 <- F
+nl_fp$artinit_use <- F
 nl <- list(fp = nl_fp, csavrd = nl_csavrd)
 cl <- list(fp = cl_fp, csavrd = cl_csavrd)
 

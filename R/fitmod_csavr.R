@@ -2,7 +2,7 @@
 #'
 #' 
 prepare_likdat_csavr <- function(csavrd, fp){
-
+  
   csavrd$idx <- csavrd$year - fp$ss$proj_start + 1L
 
   # Patch to handle '_unreported' specification in <..MV5>
@@ -19,7 +19,7 @@ prepare_likdat_csavr <- function(csavrd, fp){
   aidsdeaths$prop_undercount[is.na(aidsdeaths$prop_undercount)] <- 0
   aidsdeaths$prop_undercount <- aidsdeaths$prop_undercount / 100
 
-  
+  if(fp$likelihood_cd4 == F){
   if(!exists("new_cases_undercount", csavrd))
     csavrd$new_cases_undercount <- 0
   if(exists("new_cases_unreported", csavrd)){
@@ -27,13 +27,34 @@ prepare_likdat_csavr <- function(csavrd, fp){
     csavrd$new_cases <- csavrd$new_cases + csavrd$new_cases_unreported
   }
 
-  diagnoses <- setNames(data.frame(csavrd[c("year", "idx", "new_cases", "new_cases_undercount")]),
+  diagnoses <- setNames(data.frame(csavrd[c("year", "idx", "total_cases", "new_cases_undercount")]),
                         c("year", "idx", "diagnoses", "prop_undercount"))
   diagnoses <- subset(diagnoses, !is.na(diagnoses))
   diagnoses$prop_undercount[is.na(diagnoses$prop_undercount)] <- 0
   diagnoses$prop_undercount <- diagnoses$prop_undercount / 100
+  }else{
+    diagnoses <- setNames(data.frame(csavrd[c("year","idx","total_cases",
+                                              "stage_1_cases","stage_2_cases","stage_3_cases","stage_4_cases")]),
+                          c("year","idx","total_cases","stage_1_cases","stage_2_cases","stage_3_cases","stage_4_cases"))
+    
+  }
   
-  list(diagnoses = diagnoses, aidsdeaths = aidsdeaths)
+  art_init <- NULL
+  
+  if(fp$artinit_use == T){
+    ## So we now decide if we want to use all art_inits or cd4 art_inits 
+    if(fp$likelihood ==F){
+      art_init <- setNames(data.frame(csavrd[c("year","idx","total_art")]),
+                           c("year","idx","total_art"))
+      
+    }else{
+    
+    art_init <- setNames(data.frame(csavrd[c("year","idx","stage_1_art","stage_2_art","stage_3_art","stage_4_art")]),
+                         c("year","idx","stage_1_art","stage_2_art","stage_3_art","stage_4_art"))
+    }
+  }
+  
+  list(diagnoses = diagnoses, aidsdeaths = aidsdeaths, art_init = art_init)
 }
 
 

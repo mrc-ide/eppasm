@@ -19,7 +19,7 @@
 #define pAG_15PLUS  66
 
 #define hAG 9
-#define hDS 7
+#define hDS 4
 #define hTS 3
 
 #define hIDX_FERT 0
@@ -193,7 +193,7 @@ extern "C" {
       relinfectART = *REAL(getListElement(s_fp, "relinfectART"));
       tsEpidemicStart = *REAL(getListElement(s_fp, "tsEpidemicStart"));
       iota = *REAL(getListElement(s_fp, "iota"));
-      
+
       if(eppmod == EPP_RSPLINE)
 	rspline_rvec = REAL(getListElement(s_fp, "rvec"));
       else if(eppmod == EPP_RTREND){
@@ -228,7 +228,7 @@ extern "C" {
 
     multi_array_ref<double, 3> paedsurv_cd4dist(REAL(getListElement(s_fp, "paedsurv_cd4dist")), extents[PROJ_YEARS][NG][hDS]);
     multi_array_ref<double, 4> paedsurv_artcd4dist(REAL(getListElement(s_fp, "paedsurv_artcd4dist")), extents[PROJ_YEARS][NG][hDS][hTS]);
-    
+
     // initialize output
     SEXP s_pop = PROTECT(allocVector(REALSXP, pAG * NG * pDS * PROJ_YEARS));
     SEXP s_pop_dim = PROTECT(allocVector(INTSXP, 4));
@@ -449,12 +449,12 @@ extern "C" {
 
         double paedsurv_g;
         double entrant_prev;
-	
+
 	if(use_entrantprev)
 	  entrant_prev = entrantprev[t][g];
 	else
 	  entrant_prev = pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1];
-	  
+
         if(bin_popadjust){
           pop[t][HIVN][g][0] =  entrantpop[t-1][g] * (1.0-entrant_prev);
           paedsurv_g = entrantpop[t-1][g] * entrant_prev;
@@ -617,7 +617,7 @@ extern "C" {
             }
           }
         }
-	
+
         for(int g = 0; g < NG; g++)
           for(int ha = 0; ha < hAG; ha++)
             for(int hm = 0; hm < hDS; hm++)
@@ -645,7 +645,7 @@ extern "C" {
 
 	} // if(t >= t_diagn_start)
 
-	
+
         // ART progression, mortality, and initiation
         if(t >= t_ART_start){
           int cd4elig_idx = artcd4elig_idx[t] - 1; // -1 for 0-based indexing vs. 1-based in R
@@ -748,8 +748,8 @@ extern "C" {
             // median CD4 at initiation inputs
             if(med_cd4init_input[t]){
 
-              const int CD4_LOW_LIM[hDS] = {500, 350, 250, 200, 100, 50, 0};
-              const int CD4_UPP_LIM[hDS] = {1000, 500, 350, 250, 200, 100, 50};
+              const int CD4_LOW_LIM[hDS] = {500, 350, 200, 0};
+              const int CD4_UPP_LIM[hDS] = {1000, 500, 350, 200};
 
               int medcd4_idx = med_cd4init_cat[t] - 1; // -1 for 0-based indexing vs. 1-based in R
               double medcat_propbelow = (median_cd4init[t] - CD4_LOW_LIM[medcd4_idx]) / (CD4_UPP_LIM[medcd4_idx] - CD4_LOW_LIM[medcd4_idx]);
@@ -788,7 +788,7 @@ extern "C" {
 		  }
 		  artinits[t][g][ha][hm] += artinit_hahm;
                 }
-	      
+
             } else { // Use mixture of eligibility and expected mortality for initiation distribution
 
               for(int ha = hIDX_15PLUS; ha < hAG; ha++)
@@ -809,10 +809,10 @@ extern "C" {
 
           }
         }
-	
+
 	// remove hivdeaths from pop
 	for(int g = 0; g < NG; g++){
-	  
+
 	  // sum HIV+ population size in each hivpop age group
 	  double hivpop_ha[hAG];
 	  int a = 0;
@@ -823,7 +823,7 @@ extern "C" {
 	      a++;
 	    }
 	  }
-	  
+
 	  // remove hivdeaths proportionally to age-distribution within each age group
 	  a = 0;
 	  for(int ha = 0; ha < hAG; ha++){
@@ -843,12 +843,12 @@ extern "C" {
       } // loop HIVSTEPS_PER_YEAR
 
 
-      
+
       if(eppmod == EPP_DIRECTINCID){
 	// Calculating new infections once per year (like Spectrum)
-	
+
 	double Xhivp = 0.0, Xhivn[NG], Xhivn_incagerr[NG];
-	
+
 	for(int g = 0; g < NG; g++){
 	  Xhivn[g] = 0.0;
 	  Xhivn_incagerr[g] = 0.0;
@@ -864,7 +864,7 @@ extern "C" {
 	double incrate_g[NG];
 	incrate_g[MALE] = incrate_i * (Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
 	incrate_g[FEMALE] = incrate_i * incrr_sex[t]*(Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
-	
+
 	for(int g = 0; g < NG; g++){
 	  int a = 0;
 	  for(int ha = 0; ha < hAG; ha++){
@@ -878,7 +878,7 @@ extern "C" {
 	    }
 	    if(ha < hIDX_15TO49+hAG_15TO49)
 	      incid15to49[t] += infections_ha;
-	    
+
 	    // add infections to hivpop
 	    for(int hm = 0; hm < hDS; hm++)
 	      hivpop[t][g][ha][hm] += infections_ha * cd4_initdist[g][ha][hm];

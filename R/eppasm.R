@@ -309,8 +309,8 @@ simmod.specfp <- function(fp, VERSION="C"){
                         art15plus.elig)
         } else {
 
-          CD4_LOW_LIM <- c(500, 350, 250, 200, 100, 50, 0)
-          CD4_UPP_LIM <- c(1000, 500, 350, 250, 200, 100, 50)
+          CD4_LOW_LIM <- c(500, 350, 200, 0)
+          CD4_UPP_LIM <- c(1000, 500, 350, 200)
 
           medcd4_idx <- fp$med_cd4init_cat[i]
 

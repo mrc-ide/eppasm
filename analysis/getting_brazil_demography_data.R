@@ -122,3 +122,61 @@ entrant_pop_brazil_absolute <- entrant_pop_brazil$PopTotal
 write.csv(entrant_pop_brazil,
           file = "C:/Users/josh/Dropbox/hiv_project/population_data/trimmed_entrant_pop_from_14_years_BRAZIL.csv")
 
+#####################################################################################################################
+## Now lets try and get the fp object with the brazillian data ######################################################
+#####################################################################################################################
+
+brazil_deaths <- read.csv("C:/Users/josh/Dropbox/hiv_project/brazil_mortality_data/Total_deaths_2017_2.csv")
+
+brazil_births <- read.csv("C:/Users/josh/Dropbox/hiv_project/population_data/trimmed_birth_data_from_age_0_total_pop_BRAZIL.csv")
+
+brazil_entrant <- read.csv("C:/Users/josh/Dropbox/hiv_project/population_data/trimmed_entrant_pop_from_14_years_BRAZIL.csv")
+
+brazil_pop <- read.csv("C:/Users/josh/Dropbox/hiv_project/population_data/trimed_pop_by_age_ADULT_BRAZIL.csv")
+
+target_pop <- array(0,c(66,2,52))
+
+for(i in 1970:2021){
+  year_pop <- brazil_pop[brazil_pop$Time==i,]
+  
+  slice <- i - 1969
+  
+  target_pop[,1,slice] <- year_pop$PopMale * 1000
+  target_pop[,2,slice] <- year_pop$PopFemale * 1000
+  
+  
+}
+
+births <- brazil_births$PopTotal
+
+names(births) <- c(1970:2021)
+
+births <- births * 1000
+
+basepop <- array(0,c(66,2))
+
+basepop[,1] <- brazil_pop[brazil_pop$Time == 1970, 10]
+
+basepop[,2] <- brazil_pop[brazil_pop$Time == 1970, 11]
+
+
+
+cl_pjnz <- "C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/Chile_2017_final.pjnz"
+
+cl_fp <- prepare_directincid(cl_pjnz)
+
+brazil_fp <- cl_fp
+
+brazil_fp$basepop <- basepop
+
+brazil_fp$births <- births
+
+brazil_fp$targetpop <- target_pop
+
+brazil_pnjz <- "C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/Brazil_2017_final.PJNZ"
+
+brazil_fp <- prepare_directincid(brazil_pnjz)
+brazil_fp$t_diagn_start <- 16L
+
+
+brazil_simmod <- simmod.specfp(brazil_fp)

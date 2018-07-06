@@ -25,26 +25,70 @@ idbllogistic <- function(t, p){
 
 #' Calculate predicted number of new diagnoses
 calc_diagnoses <- function(mod, fp){
+  
+  if(fp$likelihood_cd4 == F){
+  
+    out <- colSums(attr(mod, "diagnoses"),,3)
+    
+  }
+  
+  if(fp$likelihood_cd4 == T){
+  diagnoses_full <- attributes(mod)
 
-  colSums(attr(mod, "diagnoses"),,3)
-  # diagnoses_full <- attributes(mod)
-  # 
-  # diagnoses <- diagnoses_full$diagnoses
-  # 
-  # disease_stage <- as.character(1:nrow(diagnoses))
-  # 
-  # diagnoses_df <- NULL
-  # for(i in 1:nrow(diagnoses)){
-  #   mean_per_stage <- NULL
-  #   for(ii in 1:52){
-  #     mean_per_stage[ii] <- mean(diagnoses[i,,,ii])
-  #   }
-  #   mean_per_stage <- cbind.data.frame(mean_per_stage,c(1970:2021),rep(disease_stage[i],length(mean_per_stage)))
-  #   diagnoses_df <- rbind.data.frame(diagnoses_df,mean_per_stage)
-  # }
-  # names(diagnoses_df) <- c("diagnoses","year","stage")
-  # return(diagnoses_df)
+  diagnoses <- diagnoses_full$diagnoses
+
+  disease_stage <- as.character(1:nrow(diagnoses))
+
+  diagnoses_df <- NULL
+  for(i in 1:nrow(diagnoses)){
+    sum_per_stage <- NULL
+    for(ii in 1:52){
+      sum_per_stage[ii] <- sum(diagnoses[i,,,ii])
+    }
+    sum_per_stage <- cbind.data.frame(sum_per_stage,c(1970:2021),rep(disease_stage[i],length(sum_per_stage)))
+    diagnoses_df <- rbind.data.frame(diagnoses_df,sum_per_stage)
+  }
+  names(diagnoses_df) <- c("diagnoses","year","stage")
+  
+  out <- diagnoses_df
+  }
+  
+  return(out)
 }
+
+calc_artinits <- function(mod, fp){
+  
+  if(fp$likelihood_cd4 == F){
+    
+    art_df <- colSums(attr(mod,"artinits"),,3)
+  }else{
+  
+  
+  art_full <- attributes(mod)
+  
+  art <- art_full$artinits
+  
+  disease_stage_art <- as.character(1:nrow(art))
+  
+  art_df <- NULL
+  for(i in 1:nrow(art)){
+    tot_per_stage <- NULL
+    for(ii in 1:52){
+      tot_per_stage[ii] <- sum(art[i,,,ii])
+    }
+    
+    tot_per_stage <- cbind.data.frame(tot_per_stage,c(1970:2021),rep(disease_stage_art[i],length(tot_per_stage)))
+    art_df <- rbind.data.frame(art_df, tot_per_stage)
+  }
+  
+  names(art_df) <- c("artinit","year","stage")
+  }
+  
+  return(art_df)
+  
+}
+
+  
 
 
 cumgamma_diagn_rate <- function(gamma_max, delta_rate, fp){
@@ -62,7 +106,7 @@ cumgamma_diagn_rate <- function(gamma_max, delta_rate, fp){
   delta_t <- fp$gamma_max * pgamma(ii, shape=1, rate = fp$delta_rate)
 
   fp$diagn_rate <- sweep(fp$diagn_rate, 4, delta_t, "*")
-
+  
   fp
 }
 
@@ -109,20 +153,83 @@ create_param_csavr <- function(theta, fp){
   fp
 }
 
-#' Log-liklihood for new diagnoses and AIDS deaths
+#' Log-liklihood for new diagnoses and AIDS deaths and ART inits if want to use that
 ll_csavr <- function(theta, fp, likdat){
-
+  
   fp <- create_param_csavr(theta, fp)
 
   mod <- simmod(fp)
 
   mod_aidsdeaths <- colSums(attr(mod, "hivdeaths"),,2)
   ll_aidsdeaths <- with(likdat$aidsdeaths, sum(dpois(aidsdeaths, mod_aidsdeaths[idx] * (1 - prop_undercount), log=TRUE)))
-
+  
   mod_diagnoses <- calc_diagnoses(mod, fp)
+  
+  if(fp$likelihood_cd4 == F){
+  
   ll_diagnoses <- with(likdat$diagnoses, sum(dpois(diagnoses, mod_diagnoses[idx] * (1 - prop_undercount), log=TRUE)))
+  
+  }else{
+    ## So what I'm doing here is first using cases when we have no cd4 counts, so I extract those years from the data and model
+    ## Then we sum up the likelihood of these two vectors for the period before 2001 when no cd4 counts 
+    
+    ll_diagnoses <- 0
+    pre_cd4_data <- likdat$diagnoses[likdat$diagnoses$year < fp$time_at_which_get_cd4_counts, ]
+    pre_cd4_mod_data <- mod_diagnoses[mod_diagnoses$year < fp$time_at_which_get_cd4_counts, ]
+    
+    pre_cd4_mod_vals <- rep(0,(fp$time_at_which_get_cd4_counts - 1970))
+    for(i in 1970:(fp$time_at_which_get_cd4_counts-1)){
+      year_dat <- pre_cd4_mod_data[pre_cd4_mod_data$year == i,]
+      year_diag <- sum(year_dat$diagnoses)
+      pre_cd4_mod_vals[i-1969] <- year_diag
+    }
+    
+    ll_diagnoses <- with(pre_cd4_data, sum(dpois(total_cases, pre_cd4_mod_vals[idx], log=TRUE)))
 
-  ll_aidsdeaths + ll_diagnoses
+   ## Now from 2001 onwards we have cd4 counts, so below I extract the data from 2001 onwards from both data frames
+   ## then I use the fact the model data only has 4 levels, and calculate the likelihood for each stage and add this 
+   ## iteratively to the overall ll for our diagnoses data 
+    
+    post_cd4_mod_data <- mod_diagnoses[mod_diagnoses$year >= fp$time_at_which_get_cd4_counts, ]
+    for(i in 1:length(levels(mod_diagnoses$stage))){
+      current_stage <- as.character(i)
+      likdat_stage <- likdat$diagnoses[likdat$diagnoses$year >= fp$time_at_which_get_cd4_counts, ]
+      mod_stage <- post_cd4_mod_data[post_cd4_mod_data$stage == current_stage, ]
+      index_to_check <- c(1:nrow(likdat_stage))
+      
+      col_index <- i + 3
+      
+      ll_diagnoses_current_stage <- sum(dpois(likdat_stage[,col_index], mod_stage$diagnoses[index_to_check], log = T))
+      
+      ll_diagnoses <- ll_diagnoses + ll_diagnoses_current_stage
+    }
+  }
+  
+  ll_art_inits <- 0
+  
+  if(fp$artinit_use == T){
+    
+    mod_artinits <- calc_artinits(mod, fp)
+  
+    if(fp$likelihood_cd4 == F){
+      ll_art_inits <- with(likdat$art_init, sum(dpois(total_art, mod_artinits[idx], log = T)))
+    }
+  for(i in 1:length(levels(mod_artinits))){
+    current_stage <- as.character(i)
+    mod_stage <- mod_artinits[mod_artinits$stage == current_stage, ]
+    likdat_stage <- likdat$art_init[likdat$art_init$year >= 2006, c(1,2,i+2)]
+    index_to_check <- likdat_stage$idx
+    
+    ll_art_inits_current_stage <- sum(dpois(likdat_stage[,3], mod_stage[index_to_check, 1], log = T))
+    
+    ll_art_inits <- ll_art_inits + ll_art_inits_current_stage
+    
+    }
+  
+  }
+  
+return(ll_aidsdeaths + ll_diagnoses + ll_art_inits)
+
 }
 
 

@@ -154,6 +154,7 @@ brazil_csvard_test$stage_3_cases[21:35] <- detec_stage_3
 brazil_csvard_test$stage_4_cases <- rep(0, nrow(brazil_csvard_test))
 brazil_csvard_test$stage_4_cases[21:35] <- detec_stage_4
 
+names(brazil_art_number) <- c("year","total_art")
 brazil_csvard_test$total_art <- rep(0, nrow(brazil_csvard_test))
 brazil_csvard_test$total_art[26:35] <- brazil_art_number$total_art[6:15]
 
@@ -203,7 +204,7 @@ mod_aids_deaths <- colSums(brazil_mod_out$hivdeaths,,2)
 ll_aidsdeaths <- sum(dpois(brazil$csavrd$aids_deaths[4:35], mod_aids_deaths[15:46] , log=TRUE))
 
 
-brazil_opt1 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e4, optfit=TRUE)
+brazil_opt1 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e5, optfit=TRUE)
 brazil_fit1 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
 
 ## fit double logistic model for incidence rate

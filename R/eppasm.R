@@ -297,7 +297,7 @@ simmod.specfp <- function(fp, VERSION="C"){
             }
           }
         }
-
+        browser()
         art15plus.inits <- pmax(artnum.ii - colSums(artpop[,,h.age15plus.idx,,i],,3), 0)
 
         ## calculate ART initiation distribution

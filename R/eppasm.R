@@ -297,7 +297,7 @@ simmod.specfp <- function(fp, VERSION="C"){
             }
           }
         }
-        browser()
+        
         art15plus.inits <- pmax(artnum.ii - colSums(artpop[,,h.age15plus.idx,,i],,3), 0)
 
         ## calculate ART initiation distribution
@@ -308,9 +308,15 @@ simmod.specfp <- function(fp, VERSION="C"){
           artinit <- pmin(sweep(artinit.weight * art15plus.elig, 3, art15plus.inits, "*"),
                         art15plus.elig)
         } else {
-
+          
+          if(fp$ss$hDS == 4){
           CD4_LOW_LIM <- c(500, 350, 200, 0)
           CD4_UPP_LIM <- c(1000, 500, 350, 200)
+          }
+          if(fp$ss$hDS == 7){
+            CD4_LOW_LIM <- c(500, 350, 250, 200, 100, 50, 0)
+            CD4_UPP_LIM <- c(1000, 500, 350, 250, 200, 100, 50)
+          }
 
           medcd4_idx <- fp$med_cd4init_cat[i]
 

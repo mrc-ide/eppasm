@@ -19,7 +19,7 @@
 #define pAG_15PLUS  66
 
 #define hAG 9
-#define hDS 4
+#define hDS 7
 #define hTS 3
 
 #define hIDX_FERT 0
@@ -748,8 +748,8 @@ extern "C" {
             // median CD4 at initiation inputs
             if(med_cd4init_input[t]){
 
-              const int CD4_LOW_LIM[hDS] = {500, 350, 200, 0};
-              const int CD4_UPP_LIM[hDS] = {1000, 500, 350, 200};
+              const int CD4_LOW_LIM[hDS] = {500, 350, 250, 200, 100, 50, 0};
+              const int CD4_UPP_LIM[hDS] = {1000, 500, 350, 250, 200, 100, 50};
 
               int medcd4_idx = med_cd4init_cat[t] - 1; // -1 for 0-based indexing vs. 1-based in R
               double medcat_propbelow = (median_cd4init[t] - CD4_LOW_LIM[medcd4_idx]) / (CD4_UPP_LIM[medcd4_idx] - CD4_LOW_LIM[medcd4_idx]);

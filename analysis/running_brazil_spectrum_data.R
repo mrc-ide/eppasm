@@ -33,7 +33,7 @@ brazil_fp$likelihood_cd4 <- F
 brazil_fp$artinit_use <- F
 
 #############################################################################################################
-## Lets read in the csvar data fro brazil from spectrum #####################################################
+## Lets read in the csvar data for brazil from spectrum #####################################################
 #############################################################################################################
 
 brazil_csavrd <- read_csavr_data(brazil_pjnz)
@@ -41,7 +41,7 @@ brazil_csavrd[brazil_csavrd == 0] <- NA
 brazil_csavrd$idx <- brazil_csavrd$year - brazil_fp$ss$proj_start + 1L
 
 brazil <- list(fp = brazil_fp, csavrd = brazil_csavrd)
-
+colnames(brazil$csavrd)[4] <- "total_cases"
 
 brazil_opt1 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e4, optfit=TRUE)
 brazil_fit1 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
@@ -56,15 +56,15 @@ brazil_fit1 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e4, B=1e3, B.r
 # 3 = 3 + 4
 # 4 = 5 + 6 + 7
 
-brazil_fp$ss$hDS <- 4
+brazil_fp$ss$hDS <- 4L
 
 brazil_fp$cd4_initdist[3,,] <- brazil_fp$cd4_initdist[3,,] + brazil_fp$cd4_initdist[4,,] 
 brazil_fp$cd4_initdist[4,,] <- brazil_fp$cd4_initdist[5,,] + brazil_fp$cd4_initdist[6,,] + brazil_fp$cd4_initdist[7,,] 
 brazil_fp$cd4_initdist <- brazil_fp$cd4_initdist[-c(5,6,7),,]
 
-brazil_fp$cd4_prog[3,,] <- brazil_fp$cd4_prog[4,,]
-brazil_fp$cd4_prog <- brazil_fp$cd4_prog[-c(4,5,6),,]
-
+brazil_fp$cd4_prog[3,,] <- brazil_fp$cd4_prog[4,,]                                              ### Here the rate of leaving the 
+brazil_fp$cd4_prog <- brazil_fp$cd4_prog[-c(4,5,6),,]                                           ### 3rd class is rate of leaving 
+                                                                                                ### original's 4th
 fp_alter <- function(fp_func,mean = F){
   if(nrow(fp_func) != 7 & nrow(fp_func) != 6 | length(dim(fp_func)) != 3){
     stop("Don't know how to deal with this input")
@@ -112,10 +112,12 @@ brazil_fp$paedsurv_artcd4dist[1:2,,,] <- 0
 brazil_fp$paedsurv_artcd4dist <- brazil_fp$paedsurv_artcd4dist[,-c(5,6,7),,]
 brazil_fp$diagn_rate <- array(0.2, c(dim(brazil_fp$cd4_mort), brazil_fp$ss$PROJ_YEARS))
 
+brazil_fp$med_cd4init_cat 
+
 brazil_mod <- simmod(brazil_fp,VERSION = "R")
 
 percent_undiag <- attr(brazil_mod,"undiagnosed_percent")
-plot(percent_undiag,type="l",col="orange")
+lines(percent_undiag,col="midnightblue")
 
 ###################################################################################################
 ## Now we've modified the input data to have 4 cd4 classes let's use our Brazil dataset !!! #######
@@ -189,22 +191,23 @@ save(brazil_csvard_test,
 devtools::load_all("C:/Users/josh/Dropbox/hiv_project/eppasm")
 devtools::build("C:/Users/josh/Dropbox/hiv_project/eppasm")
 
-brazil_fp$diagn_rate <- array(0.2, c(dim(brazil_fp$cd4_mort), brazil_fp$ss$PROJ_YEARS))
-brazil_fp$likelihood_cd4 <- T
-brazil_fp$artinit_use <- T
+brazil_fp$diagn_rate <- array(0.8, c(dim(brazil_fp$cd4_mort), brazil_fp$ss$PROJ_YEARS))
+brazil_fp$likelihood_cd4 <- F
+brazil_fp$artinit_use <- F
 brazil_fp$artcd4elig_idx <- rep(1L, length(brazil_fp$artcd4elig_idx))
 brazil <- list(fp = brazil_fp, csavrd = brazil_csvard_test)
 
 brazil_mod <- simmod(brazil$fp,VERSION = "R")
 brazil_mod_out <- attributes(brazil_mod)
-plot(brazil_mod_out$undiagnosed_percent,col="blueviolet",type = "l")
+lines(brazil_mod_out$undiagnosed_percent,col="blueviolet")
 mod_aids_deaths <- colSums(brazil_mod_out$hivdeaths,,2)
 
 
 ll_aidsdeaths <- sum(dpois(brazil$csavrd$aids_deaths[4:35], mod_aids_deaths[15:46] , log=TRUE))
-
-
-brazil_opt1 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e5, optfit=TRUE)
+compo <- cbind.data.frame(brazil$csavrd$aids_deaths[4:35], mod_aids_deaths[15:46])
+compo
+mod_aid
+brazil_opt1 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e4, optfit=TRUE)
 brazil_fit1 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
 
 ## fit double logistic model for incidence rate
@@ -215,4 +218,52 @@ brazil_fit2 <- fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, B=1e3, 
 brazil_opt3 <- fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, optfit=TRUE)
 brazil_fit3 <- fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
 
+#############################################################################################################
+## Now lets change it back to our 7 classes, the only slight of hand here is now the dfs for likelihood are #
+## summed across the requisite classes ######################################################################
+#############################################################################################################
+devtools::load_all("C:/Users/josh/Dropbox/hiv_project/eppasm")
+devtools::build("C:/Users/josh/Dropbox/hiv_project/eppasm")
+
+brazil_pjnz <- "C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/Brazil_2017_final.PJNZ"
+
+brazil_fp <- prepare_directincid(brazil_pjnz)
+brazil_fp$artmx_timerr <- rep(1.0, brazil_fp$ss$PROJ_YEARS)
+brazil_fp$t_diagn_start <- 10L   # assume diagnoses starts in 1985
+brazil_fp$diagn_rate <- array(0.2, c(dim(brazil_fp$cd4_mort), brazil_fp$ss$PROJ_YEARS))
+brazil_mod <- simmod(brazil_fp,VERSION = "R")
+percent_undiag <- attr(brazil_mod,"undiagnosed_percent")
+plot(percent_undiag,type="l",col="orange")
+
+brazil_fp$relinfectART <- 0.3
+brazil_fp$tsEpidemicStart <- 1970.5
+brazil_fp$likelihood_cd4 <- F
+brazil_fp$artinit_use <- F
+brazil_fp$diagn_rate <- array(0.8, c(dim(brazil_fp$cd4_mort), brazil_fp$ss$PROJ_YEARS))
+brazil_fp$likelihood_cd4 <- F
+brazil_fp$artinit_use <- F
+brazil_fp$time_at_which_get_cd4_counts <- 2001
+brazil_fp$stages <- 4L
+brazil_fp$artcd4elig_idx <- rep(1L, length(brazil_fp$artcd4elig_idx))
+brazil <- list(fp = brazil_fp, csavrd = brazil_csvard_test)
+brazil_mod <- simmod(brazil$fp,VERSION = "R")
+brazil_mod_out <- attributes(brazil_mod)
+lines(brazil_mod_out$undiagnosed_percent,col="blueviolet")
+mod_aids_deaths <- colSums(brazil_mod_out$hivdeaths,,2)
+
+
+ll_aidsdeaths <- sum(dpois(brazil$csavrd$aids_deaths[4:35], mod_aids_deaths[15:46] , log=TRUE))
+compo <- cbind.data.frame(brazil$csavrd$aids_deaths[4:35], mod_aids_deaths[15:46])
+compo
+
+brazil_opt1 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e3, optfit=TRUE)
+brazil_fit1 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
+
+## fit double logistic model for incidence rate
+brazil_opt2 <- fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, optfit=TRUE)
+brazil_fit2 <- fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
+
+## fit logistic model for transimssion rate (r(t))
+brazil_opt3 <- fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, optfit=TRUE)
+brazil_fit3 <- fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
 

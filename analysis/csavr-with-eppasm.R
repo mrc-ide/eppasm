@@ -320,7 +320,85 @@ cl_csavrd[,c("plhiv", "plhiv_undercount", "new_cases", "new_cases_undercount", "
 ## Create fitting objects
 nl_fp$likelihood_cd4 <- F
 nl_fp$artinit_use <- F
+
+###############################################################################################
+## Lets transform the NL data to 4 cd4 stages and see if that is what is affecting fitting ####
+###############################################################################################
+nl_fp$ss$hDS <- 4L
+
+nl_fp$cd4_initdist[3,,] <- nl_fp$cd4_initdist[3,,] + nl_fp$cd4_initdist[4,,] 
+nl_fp$cd4_initdist[4,,] <- nl_fp$cd4_initdist[5,,] + nl_fp$cd4_initdist[6,,] + nl_fp$cd4_initdist[7,,] 
+nl_fp$cd4_initdist <- nl_fp$cd4_initdist[-c(5,6,7),,]
+
+nl_fp$cd4_prog[3,,] <- nl_fp$cd4_prog[4,,]
+nl_fp$cd4_prog <- nl_fp$cd4_prog[-c(4,5,6),,]
+
+fp_alter <- function(fp_func,mean = F){
+  if(nrow(fp_func) != 7 & nrow(fp_func) != 6 | length(dim(fp_func)) != 3){
+    stop("Don't know how to deal with this input")
+  }
+  
+  
+  if(nrow(fp_func) == 7){
+    if(mean == F){
+      fp_func[3,,] <- fp_func[3,,] + fp_func[4,,]
+      fp_func[4,,] <- fp_func[5,,] + fp_func[6,,] + fp_func[7,,]
+      fp_func <- fp_func[-c(5,6,7),,]
+    } else {
+      fp_func[3,,] <- ((fp_func[3,,] * 2) + fp_func[4,,]) / 3
+      fp_func[4,,] <- ((fp_func[5,,] * 2) + fp_func[6,,] + fp_func[7,,]) / 4
+      fp_func <- fp_func[-c(5,6,7),,]
+      
+    }
+  }
+  if(nrow(fp_func) == 6){
+    if(mean == F){
+      fp_func[3,,] <- fp_func[3,,] + fp_func[4,,]
+      fp_func <- fp_func[-c(4,5,6),,]
+    }else{
+      fp_func[3,,] <- (fp_func[3,,] + fp_func[4,,]) / 2
+      fp_func <- fp_func[-c(4,5,6),,]
+    }
+  }
+  return(fp_func)
+}
+
+nl_fp$cd4_mort <- fp_alter(nl_fp$cd4_mort, mean = T)
+nl_fp$frr_cd4 <- fp_alter(nl_fp$frr_cd4)  
+nl_fp$paedsurv_cd4dist <- fp_alter(nl_fp$paedsurv_cd4dist)
+
+nl_fp$frr_art[,3,,] <- nl_fp$frr_art[,3,,] + nl_fp$frr_art[,4,,]
+nl_fp$frr_art[,4,,] <- nl_fp$frr_art[,5,,] + nl_fp$frr_art[,6,,] + nl_fp$frr_art[,7,,]
+nl_fp$frr_art <- nl_fp$frr_art[,-c(5,6,7),,]
+
+nl_fp$art_mort[,3,,] <- (nl_fp$art_mort[,3,,] * 2/3) + (nl_fp$art_mort[,4,,] * 1/3)
+nl_fp$art_mort[,4,,] <- (nl_fp$art_mort[,5,,] * 1/2) + (nl_fp$art_mort[,6,,] * 1/4) + (nl_fp$art_mort[,7,,] * 1/4) 
+nl_fp$art_mort <- nl_fp$art_mort[,-c(5,6,7),,]
+
+nl_fp$paedsurv_artcd4dist[3,4,,] <- 1L
+nl_fp$paedsurv_artcd4dist[1:2,,,] <- 0
+nl_fp$paedsurv_artcd4dist <- nl_fp$paedsurv_artcd4dist[,-c(5,6,7),,]
+nl_fp$diagn_rate <- array(0.2, c(dim(nl_fp$cd4_mort), nl_fp$ss$PROJ_YEARS))
+
+nl_fp$artcd4elig_idx
+
+nl_fp$med_cd4init_cat[nl_fp$med_cd4init_cat == 4] <- 3L
+nl_fp$med_cd4init_cat[nl_fp$med_cd4init_cat >= 5] <- 4L
+nl_fp$med_cd4init_cat
+
+
+nl_mod <- simmod(nl_fp,VERSION = "R")
+
+percent_undiag <- attr(nl_mod,"undiagnosed_percent")
+lines(percent_undiag,col="orange")
+
+########################################################################################
+## So now we will run the model on the 4 cd4 stage NL data #############################
+########################################################################################
+
 nl <- list(fp = nl_fp, csavrd = nl_csavrd)
+colnames(nl$csavrd)[4] <- "total_cases"
+
 cl <- list(fp = cl_fp, csavrd = cl_csavrd)
 
 

@@ -50,9 +50,25 @@ calc_diagnoses <- function(mod, fp){
   }
   names(diagnoses_df) <- c("diagnoses","year","stage")
   
-  out <- diagnoses_df
-  }
+  stage_1_data <- diagnoses_df[diagnoses_df$stage == "1", ]
+  names(stage_1_data) <- c("diagnoses","year","stage")
   
+  stage_2_data <- diagnoses_df[diagnoses_df$stage == "2", ]
+  names(stage_2_data) <- c("diagnoses","year","stage")
+  
+  stage_3_data <- cbind.data.frame((diagnoses_df[diagnoses_df$stage == "3", 1] + diagnoses_df[diagnoses_df$stage == "4", 1]),
+                                   c(1970:2021), rep("3", nrow(stage_1_data)))
+  names(stage_3_data) <- c("diagnoses","year","stage")
+  
+  stage_4_data <- cbind.data.frame((diagnoses_df[diagnoses_df$stage == "5", 1] + diagnoses_df[diagnoses_df$stage == "6", 1] + 
+                                      diagnoses_df[diagnoses_df$stage == "7", 1]),
+                                   c(1970:2021), rep("4", nrow(stage_1_data)))
+  names(stage_4_data) <- c("diagnoses","year","stage")
+  diagnoses_df_condensed <- rbind.data.frame(stage_1_data, stage_2_data, stage_3_data, stage_4_data)
+  
+  out <- diagnoses_df_condensed
+  }
+
   return(out)
 }
 
@@ -62,7 +78,6 @@ calc_artinits <- function(mod, fp){
     
     art_df <- colSums(attr(mod,"artinits"),,3)
   }else{
-  
   
   art_full <- attributes(mod)
   
@@ -80,8 +95,24 @@ calc_artinits <- function(mod, fp){
     tot_per_stage <- cbind.data.frame(tot_per_stage,c(1970:2021),rep(disease_stage_art[i],length(tot_per_stage)))
     art_df <- rbind.data.frame(art_df, tot_per_stage)
   }
-  
   names(art_df) <- c("artinit","year","stage")
+  
+  stage_1_data <- art_df[art_df$stage == "1", ]
+  names(stage_1_data) <- c("artinit","year","stage")
+  
+  stage_2_data <- art_df[art_df$stage == "2", ]
+  names(stage_2_data) <- c("artinit","year","stage")
+  
+  stage_3_data <- cbind.data.frame((art_df[art_df$stage == "3", 1] + art_df[art_df$stage == "4", 1]),
+                                c(1970:2021), rep("3", nrow(stage_1_data)))
+  names(stage_3_data) <- c("artinit","year","stage")
+  
+  stage_4_data <- cbind.data.frame((art_df[art_df$stage == "5", 1] + art_df[art_df$stage == "6", 1] + 
+                                      art_df[art_df$stage == "7", 1]),
+                                   c(1970:2021), rep("4", nrow(stage_1_data)))
+  names(stage_4_data) <- c("artinit","year","stage")
+  
+  art_df <- rbind.data.frame(stage_1_data, stage_2_data, stage_3_data, stage_4_data)
   }
   
   return(art_df)
@@ -160,7 +191,9 @@ ll_csavr <- function(theta, fp, likdat){
 
   mod <- simmod(fp)
 
-  mod_aidsdeaths <- colSums(attr(mod, "hivdeaths"),,2)
+  mod_aidsdeaths <- colSums(attr(mod, "hivdeaths"),,2) ## getting some odd NAs in here sometimes, for the moment lets let NA = 0
+  mod_aidsdeaths[is.na(mod_aidsdeaths)] <- 0 
+  
   ll_aidsdeaths <- with(likdat$aidsdeaths, sum(dpois(aidsdeaths, mod_aidsdeaths[idx] * (1 - prop_undercount), log=TRUE)))
   
   mod_diagnoses <- calc_diagnoses(mod, fp)
@@ -184,6 +217,11 @@ ll_csavr <- function(theta, fp, likdat){
       pre_cd4_mod_vals[i-1969] <- year_diag
     }
     
+    ## Also sometimes getting some weird NA/ NAN values in pre_cd4_mod_vals, will for the moment make these equal to 0
+    pre_cd4_mod_vals[is.nan(pre_cd4_mod_vals)] <- 0
+    pre_cd4_mod_vals[is.na(pre_cd4_mod_vals)] <- 0
+    
+    
     ll_diagnoses <- with(pre_cd4_data, sum(dpois(total_cases, pre_cd4_mod_vals[idx], log=TRUE)))
 
    ## Now from 2001 onwards we have cd4 counts, so below I extract the data from 2001 onwards from both data frames
@@ -191,7 +229,7 @@ ll_csavr <- function(theta, fp, likdat){
    ## iteratively to the overall ll for our diagnoses data 
     
     post_cd4_mod_data <- mod_diagnoses[mod_diagnoses$year >= fp$time_at_which_get_cd4_counts, ]
-    for(i in 1:length(levels(mod_diagnoses$stage))){
+    for(i in 1:fp$stages){
       current_stage <- as.character(i)
       likdat_stage <- likdat$diagnoses[likdat$diagnoses$year >= fp$time_at_which_get_cd4_counts, ]
       mod_stage <- post_cd4_mod_data[post_cd4_mod_data$stage == current_stage, ]
@@ -213,8 +251,8 @@ ll_csavr <- function(theta, fp, likdat){
   
     if(fp$likelihood_cd4 == F){
       ll_art_inits <- with(likdat$art_init, sum(dpois(total_art, mod_artinits[idx], log = T)))
-    }
-  for(i in 1:length(levels(mod_artinits))){
+    }else
+  for(i in 1:fp$stages){
     current_stage <- as.character(i)
     mod_stage <- mod_artinits[mod_artinits$stage == current_stage, ]
     likdat_stage <- likdat$art_init[likdat$art_init$year >= 2006, c(1,2,i+2)]
@@ -228,7 +266,9 @@ ll_csavr <- function(theta, fp, likdat){
   
   }
   
-return(ll_aidsdeaths + ll_diagnoses + ll_art_inits)
+tot_likelihood <- ll_aidsdeaths + ll_diagnoses + ll_art_inits
+  
+return(tot_likelihood)
 
 }
 
@@ -307,7 +347,7 @@ sample_prior_diagn <- function(n, fp){
 }
 
 lprior_csavr <- function(theta, fp){
-
+  
   nparam_eppmod <- get_nparam_eppmod(fp)
   nparam_diagn <- 2L
 
@@ -316,7 +356,7 @@ lprior_csavr <- function(theta, fp){
 }
 
 lprior_eppmod <- function(theta_eppmod, fp){
-
+  
   if(fp$eppmod == "directincid" && fp$incid_func == "ilogistic")
     return(sum(dnorm(theta_eppmod, ilogistic_theta_mean, ilogistic_theta_sd, log=TRUE)))
   else if(fp$eppmod == "directincid" && fp$incid_func == "idbllogistic")

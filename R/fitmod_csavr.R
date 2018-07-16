@@ -122,7 +122,7 @@ calc_rt <- function(mod, fp) incid(mod) / (prev(mod) * (1 - (1 - fp$relinfectART
 
 #' Simulate posterior model outputs
 simfit.csavrfit <- function(fit){
-
+  
   fp_list <- lapply(seq_len(nrow(fit$resample)), function(ii) create_param_csavr(fit$resample[ii,], fit$fp))
   mod_list <- lapply(fp_list, simmod)
   
@@ -132,9 +132,19 @@ simfit.csavrfit <- function(fit){
 
   fit$diagnoses <- mapply(calc_diagnoses, mod = mod_list, fp = fp_list)
   idx <- fit$likdat$diagnoses$idx
-  fit$reported_diagnoses <- array(NA, dim(fit$diagnoses))
+  fit$reported_diagnoses <- array(NA, c(52,ncol(fit$diagnoses)))
+  if(fp_list[[1]]$likelihood_cd4 == F){
   fit$reported_diagnoses[idx, ] <- fit$diagnoses[idx, ] * (1 - fit$likdat$diagnoses$prop_undercount)
-  
+  }else{
+    for(i in 1:ncol(fit$diagnoses)){
+      a <- fit$diagnoses[1, i] 
+      b <- a$diagnoses
+      tot_diag_across_cd4 <- b[1:52] + b[53:104] + b[105:156] + b[157:208]
+      fit$reported_diagnoses[idx, i] <- tot_diag_across_cd4[idx] 
+      
+    }
+  }
+    
   fit$hivdeaths <- sapply(mod_list, calc_hivdeaths)
   idx <- fit$likdat$aidsdeaths$idx
   fit$reported_aidsdeaths <- array(NA, dim(fit$hivdeaths))
@@ -147,7 +157,7 @@ simfit.csavrfit <- function(fit){
 }
 
 tidy.csavrfit <- function(fit){
-
+  
   if(!exists("prev", fit))
     fit <- simfit(fit)
   
@@ -159,17 +169,25 @@ tidy.csavrfit <- function(fit){
   dfdiagn <- data.frame(outcome = "Reported diagnoses (15+)",
                         year = years,
                         estci2(fit$reported_diagnoses))
+  if(fit$fp$likelihood_cd4 == F){
   dfdiagn <- merge(dfdiagn,
                    with(fit$likdat$diagnoses,
                         data.frame(year = year, lik_data = diagnoses)),
                    all.x=TRUE)
+  }else{
+    dfdiagn <- merge(dfdiagn,
+                     with(fit$likdat$diagnoses,
+                          data.frame(year = year, lik_data = total_cases)),
+                     all.x=TRUE)
+    
+  }
 
-  dfplhiv <- data.frame(outcome = "PLHIV (15+)",
-                        year = years,
-                        estci2(fit$plhiv))
-  dfplhiv <- merge(dfplhiv,
-                   setNames(fit$dat[c("year", "plhiv")],
-                            c("year", "vld_data")))
+  # dfplhiv <- data.frame(outcome = "PLHIV (15+)",
+  #                       year = years,
+  #                       estci2(fit$plhiv))
+  # dfplhiv <- merge(dfplhiv,
+  #                  setNames(fit$dat[c("year", "plhiv")],
+  #                           c("year", "vld_data")))
 
   dfhivdeaths <- data.frame(outcome = "Reported AIDS deaths (15+)",
                             year = years,
@@ -192,7 +210,7 @@ tidy.csavrfit <- function(fit){
                        estci2(fit$prev))
 
                    
-  df <- list(dfdiagn, dfplhiv, dfhivdeaths, dflogrt, dfincid, dfprev)
+  df <- list(dfdiagn, dfhivdeaths, dflogrt, dfincid, dfprev)
   df <- lapply(df, function(x){x[setdiff(vars, names(x))] <- NA; x})
   
   do.call(rbind, df)

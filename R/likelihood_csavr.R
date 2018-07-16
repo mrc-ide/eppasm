@@ -119,6 +119,56 @@ calc_artinits <- function(mod, fp){
   
 }
 
+cumulative_linear_diagn_rate <- function(linear_params, fp){
+  
+  ## Linear params should be 12 values:
+  ## First two represent increase rate for cd4 <350 from 1986 to 2000
+  ## Second two represent baseline of cd4 > 350 from 1996 to 2000
+  ## Params 5-8 represent linear increase for the detection rates of each cd4 class from 2001 to 2010 with SISCEL
+  ## Params 9-12 represent linear increase for the detection rates of each cd4 class from 2011 to 2015 
+  
+  detec_array <- array(0, c(fp$ss$hDS, fp$ss$hAG, fp$ss$NG, fp$ss$PROJ_YEARS))
+  
+  ## base detection rate for the last two cd4 classes from 1981 to 1985
+  
+  detec_array[c(3:4),,,11:16] <- 0.01
+  detec_array[5:7,,,11:16] <- 0.05
+  
+  ### linear increase 1986 - 2000
+  
+  detec_array[3:4,,,17:31] <- sweep(detec_array[3:4,,,17:31],4,(0.01 + seq(1,15,1) * linear_params[1]),"+")
+  detec_array[5:7,,,17:31] <- sweep(detec_array[5:7,,,17:31],4,(0.05 + seq(1,15,1) * linear_params[2]),"+")
+  
+  ## For highest cd4 classes, detection in this instance is 0 up to 1996, then have this flat rate from 1996 onwards
+  
+  detec_array[1,,,27:31] <- linear_params[3]
+  detec_array[2,,,27:31] <- linear_params[4]
+  
+  ## linear increase 2001 to 2009 ###
+  
+  detec_array[1,,,32:40] <- sweep(detec_array[1,,,32:40], 3, (0.02 + seq(1,9,1) * linear_params[5]), "+")
+  detec_array[2,,,32:40] <- sweep(detec_array[2,,,32:40], 3, (0.02 + seq(1,9,1) * linear_params[6]), "+")
+  detec_array[3:4,,,32:40] <- sweep(detec_array[3:4,,,32:40], 4, (detec_array[3,1,1,31] + seq(1,9,1) * linear_params[7]), "+")
+  detec_array[5:7,,,32:40] <- sweep(detec_array[5:7,,,32:40], 4, (detec_array[5,1,1,31] + seq(1,9,1) * linear_params[8]), "+")
+  
+  ### linear increase 2010 to 2015 #####
+  
+  detec_array[1,,,41:46] <- sweep(detec_array[1,,,41:46], 3, (detec_array[1,1,1,40] + seq(1,6,1) * linear_params[9]), "+")
+  detec_array[2,,,41:46] <- sweep(detec_array[2,,,41:46], 3, (detec_array[2,1,1,40] + seq(1,6,1) * linear_params[10]), "+")
+  detec_array[3:4,,,41:46] <- sweep(detec_array[3:4,,,41:46], 4,(detec_array[3,1,1,40] + seq(1,6,1) * linear_params[11]), "+")
+  detec_array[5:7,,,41:46] <- sweep(detec_array[5:7,,,41:46], 4,(detec_array[5,1,1,40] + seq(1,6,1) * linear_params[12]), "+")
+  
+  ### same values during proj period 2016 - 2021
+  
+  detec_array[1,,,47:52] <- detec_array[1,,,46] 
+  detec_array[2,,,47:52] <- detec_array[2,,,46]
+  detec_array[3:4,,,47:52] <- detec_array[3:4,,,46]
+  detec_array[5:7,,,47:52] <- detec_array[5:7,,,46]
+  
+  fp$diagn_rate <- detec_array
+  
+  return(fp)
+}
   
 
 
@@ -175,12 +225,16 @@ create_param_csavr <- function(theta, fp){
                   iota = transf_iota(theta[fp$numKnots+1], fp))
     fp[names(param)] <- param
   }
-
+  if(fp$linear_diagnosis == FALSE){
   fp$gamma_max <- exp(theta[nparam_incid+1])
   fp$delta_rate <- exp(theta[nparam_incid+2])
 
   fp <- cumgamma_diagn_rate(fp$gamma_max, fp$delta_rate, fp)
-
+  }else{
+    linear_params <- theta[nparam_incid+1:(length(theta)-nparam_incid)]
+    
+    fp <- cumulative_linear_diagn_rate(linear_params, fp) 
+  }
   fp
 }
 
@@ -190,12 +244,20 @@ ll_csavr <- function(theta, fp, likdat){
   fp <- create_param_csavr(theta, fp)
 
   mod <- simmod(fp)
+  
+  ll_aidsdeaths <- 0 
+  
+  if(fp$aidsdeath == T){
 
   mod_aidsdeaths <- colSums(attr(mod, "hivdeaths"),,2) ## getting some odd NAs in here sometimes, for the moment lets let NA = 0
-  mod_aidsdeaths[is.na(mod_aidsdeaths)] <- 0 
+  # mod_aidsdeaths[is.na(mod_aidsdeaths)] <- 0 
   
   ll_aidsdeaths <- with(likdat$aidsdeaths, sum(dpois(aidsdeaths, mod_aidsdeaths[idx] * (1 - prop_undercount), log=TRUE)))
+  }
   
+  ll_diagnoses <- 0
+  
+  if(fp$diagnoses_use == T){
   mod_diagnoses <- calc_diagnoses(mod, fp)
   
   if(fp$likelihood_cd4 == F){
@@ -218,9 +280,9 @@ ll_csavr <- function(theta, fp, likdat){
     }
     
     ## Also sometimes getting some weird NA/ NAN values in pre_cd4_mod_vals, will for the moment make these equal to 0
-    pre_cd4_mod_vals[is.nan(pre_cd4_mod_vals)] <- 0
-    pre_cd4_mod_vals[is.na(pre_cd4_mod_vals)] <- 0
-    
+    # pre_cd4_mod_vals[is.nan(pre_cd4_mod_vals)] <- 0
+    # pre_cd4_mod_vals[is.na(pre_cd4_mod_vals)] <- 0
+    # 
     
     ll_diagnoses <- with(pre_cd4_data, sum(dpois(total_cases, pre_cd4_mod_vals[idx], log=TRUE)))
 
@@ -242,7 +304,7 @@ ll_csavr <- function(theta, fp, likdat){
       ll_diagnoses <- ll_diagnoses + ll_diagnoses_current_stage
     }
   }
-  
+  }
   ll_art_inits <- 0
   
   if(fp$artinit_use == T){
@@ -283,14 +345,20 @@ idbllogistic_theta_sd <- c(5, 5, 10, 5, 5)
 diagn_theta_mean <- c(3, -3)
 diagn_theta_sd <- c(5, 5)
 
+diagn_linear_theta_mean <- c(runif(12,min = 0, max= 0.1))
+diagn_linear_theta_sd <- c(runif(12, min = 0, max = 0.05))
+
 logiota_pr_mean <- -13
 logiota_pr_sd <- 5
 
 sample_prior_csavr <- function(n, fp){
 
   mat_eppmod <- sample_prior_eppmod(n, fp)
+  if(fp$linear_diagnosis == TRUE){
+    mat_diagn <- sample_prior_piecewise_diagn(n, fp)
+  }else{
   mat_diagn <- sample_prior_diagn(n, fp)
-
+  }
   cbind(mat_eppmod, mat_diagn)
 }
 
@@ -343,6 +411,15 @@ sample_prior_diagn <- function(n, fp){
   val <- rnorm(n * nparam, diagn_theta_mean, diagn_theta_sd)
   mat <- t(matrix(val, nparam, n))
 
+  mat
+}
+
+sample_prior_piecewise_diagn <- function(n, fp){
+  
+  nparam <- length(diagn_linear_theta_mean)
+  val <- rnorm(n * nparam, diagn_linear_theta_mean, diagn_linear_theta_sd)
+  mat <- t(matrix(val, nparam, n))
+  
   mat
 }
 

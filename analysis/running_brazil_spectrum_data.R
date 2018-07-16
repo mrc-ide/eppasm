@@ -267,3 +267,139 @@ brazil_fit2 <- fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, B=1e3, 
 brazil_opt3 <- fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, optfit=TRUE)
 brazil_fit3 <- fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
 
+
+#######################################################################################################
+## do some tidying up and plotting now ################################################################
+#######################################################################################################
+devtools::load_all("C:/Users/josh/Dropbox/hiv_project/eppasm")
+devtools::build("C:/Users/josh/Dropbox/hiv_project/eppasm")
+
+
+brazil_out1 <- tidy(brazil_fit1) %>% data.frame(model = "logistic", .)
+brazil_out2 <- tidy(brazil_fit2) %>% data.frame(model = "double logistic", .)
+brazil_out3 <- tidy(brazil_fit3) %>% data.frame(model = "rlogistic", .)
+brazil_out <- rbind(brazil_out1, brazil_out2, brazil_out3)
+
+
+
+
+no_cd4_fit <- ggplot(subset(brazil_out, year %in% 1975:2017), aes(year, mean, ymin=lower, ymax=upper, color=model, fill=model)) +
+              geom_line() + geom_ribbon(linetype = "blank", alpha=0.3) + 
+              facet_wrap(~outcome, scales="free") +
+              geom_point(aes(y=lik_data), col="darkred", size=0.5)
+  # geom_point(aes(y=vld_data), col="grey40", size=0.5)
+#   theme(legend.position = "bottom") +
+#   scale_x_continuous(element_blank()) + scale_y_continuous(element_blank())
+# brazil_out
+
+###################################################################################################
+## Lets run the models with cd4 likelihood and see what happens !!! ###############################
+###################################################################################################
+brazil_fp$likelihood_cd4 <- T
+brazil <- list(fp = brazil_fp, csavrd = brazil_csvard_test)
+
+brazil_opt1_cd4 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e3, optfit=TRUE)
+brazil_fit1_cd4 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
+
+## fit double logistic model for incidence rate
+brazil_opt2_cd4 <- fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, optfit=TRUE)
+brazil_fit2_cd4 <- fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
+
+## fit logistic model for transimssion rate (r(t))
+brazil_opt3_cd4 <- fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, optfit=TRUE)
+brazil_fit3_cd4 <- fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
+
+#### Tidy up the data #####
+
+brazil_out1_cd4 <- tidy(brazil_fit1_cd4) %>% data.frame(model = "logistic", .)
+brazil_out2_cd4 <- tidy(brazil_fit2_cd4) %>% data.frame(model = "double logistic", .)
+brazil_out3_cd4 <- tidy(brazil_fit3_cd4) %>% data.frame(model = "rlogistic", .)
+brazil_out_cd4 <- rbind(brazil_out1_cd4, brazil_out2_cd4, brazil_out3_cd4)
+
+
+
+no_cd4_fit <- ggplot(subset(brazil_out1_cd4, year %in% 1975:2017), aes(year, mean, ymin=lower, ymax=upper, color=model, fill=model)) +
+  geom_line(size=1.05) + geom_ribbon(alpha=0.2) + 
+  facet_wrap(~outcome, scales="free") +
+  geom_point(aes(y=lik_data), col="darkred", size=0.5)
+
+
+#################################################################################################################
+## Loading up Tara's ART numbers for Brazil ##################~~~~~~~~~~#########################################
+#################################################################################################################
+
+brazil_art_use <- read.csv("C:/Users/josh/Dropbox/hiv_project/brazil_mortality_data/spectrum.MoH.ARTuse.csv",header =  T)
+
+ratio <- brazil_art_use[1,2:53] / brazil_art_use[3, 2:53]
+
+ratio[28:30] <- ratio[31]
+
+art_use_for_input <- brazil_art_use[5, 2:53]
+
+male_art <- round(ratio * art_use_for_input)
+female_art <- round((1 - ratio) * art_use_for_input)
+
+art_input <- rbind(male_art, female_art)
+art_input[is.na(art_input)] <- 0
+art_input <- as.matrix(art_input)
+
+art_format <- brazil_fp$art15plus_num
+
+art_format[1:2,1:52] <- art_input
+
+brazil$fp$art15plus_num <- art_input
+
+brazil_opt1_cd4 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e3, optfit=TRUE)
+brazil_fit1_cd4 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
+
+brazil_opt2_cd4 <- fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, optfit=TRUE)
+brazil_fit2_cd4 <- fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
+
+## fit logistic model for transimssion rate (r(t))
+brazil_opt3_cd4 <- fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, optfit=TRUE)
+brazil_fit3_cd4 <- fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
+
+load("C:/Users/josh/Dropbox/hiv_project/EPPASM_runs/mod_1_cd4_likelihood_tara_ART",verbose = T)
+brazil_out1_cd4 <- tidy(brazil_fit1_cd4) %>% data.frame(model = "logistic", .)
+brazil_out2_cd4 <- tidy(brazil_fit2_cd4) %>% data.frame(model = "double logistic", .)
+brazil_out3_cd4 <- tidy(brazil_fit3_cd4) %>% data.frame(model = "rlogistic", .)
+brazil_out_cd4 <- rbind(brazil_out1_cd4, brazil_out2_cd4, brazil_out3_cd4)
+
+
+
+no_cd4_fit <- ggplot(subset(brazil_out_cd4, year %in% 1975:2017), aes(year, mean, ymin=lower, ymax=upper, color=model, fill=model)) +
+  geom_line(size=1.05) + geom_ribbon(alpha=0.2) + 
+  facet_wrap(~outcome, scales="free") +
+  geom_point(aes(y=lik_data), col="darkred", size=0.5)
+  
+
+
+###########################################################################################################################
+## lets change the start of ART till when we have datapoints ##############################################################
+###########################################################################################################################
+
+brazil$fp$tARTstart <- 28L
+
+brazil_opt1_cd4 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e3, optfit=TRUE)
+brazil_fit1_cd4 <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
+
+brazil_opt2_cd4 <- fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, optfit=TRUE)
+brazil_fit2_cd4 <- fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
+
+## fit logistic model for transimssion rate (r(t))
+brazil_opt3_cd4 <- fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, optfit=TRUE)
+brazil_fit3_cd4 <- fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
+
+brazil_out1_cd4 <- tidy(brazil_fit1_cd4) %>% data.frame(model = "logistic", .)
+brazil_out2_cd4 <- tidy(brazil_fit2_cd4) %>% data.frame(model = "double logistic", .)
+brazil_out3_cd4 <- tidy(brazil_fit3_cd4) %>% data.frame(model = "rlogistic", .)
+brazil_out_cd4 <- rbind(brazil_out1_cd4, brazil_out2_cd4, brazil_out3_cd4)
+
+
+
+no_cd4_fit <- ggplot(subset(brazil_out_cd4, year %in% 1975:2017), aes(year, mean, ymin=lower, ymax=upper, color=model, fill=model)) +
+  geom_line(size=1.05) + geom_ribbon(alpha=0.2) + 
+  facet_wrap(~outcome, scales="free") +
+  geom_point(aes(y=lik_data), col="darkred", size=0.5)
+
+

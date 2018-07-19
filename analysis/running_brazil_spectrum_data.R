@@ -402,4 +402,129 @@ no_cd4_fit <- ggplot(subset(brazil_out_cd4, year %in% 1975:2017), aes(year, mean
   facet_wrap(~outcome, scales="free") +
   geom_point(aes(y=lik_data), col="darkred", size=0.5)
 
+#########################################################################################################
+## now lets get the corrected ART mortality numbers in there ############################################
+#########################################################################################################
+
+tara_art_mort <- read.csv("C:/Users/josh/Dropbox/hiv_project/brazil_mortality_data/brazil_art_numbers.csv")
+
+test_art_mort <- array(0, dim = c(3,7,9,2))
+
+tara_art_mort_male <- tara_art_mort[ ,2:5]
+tara_art_mort_female <- tara_art_mort[ ,6:9]
+
+tara_art_mort_male_under_6 <- tara_art_mort_male[1:7,]
+tara_art_mort_male_6_to_12 <- tara_art_mort_male[8:14, ]
+tara_art_mort_male_over_12 <- tara_art_mort_male[15:21, ]
+
+tara_art_mort_female_under_6 <- tara_art_mort_female[1:7,]
+tara_art_mort_female_6_to_12 <- tara_art_mort_female[8:14, ]
+tara_art_mort_female_over_12 <- tara_art_mort_female[15:21, ]
+
+test_art_mort[1,,1:3,1] <- tara_art_mort_male_under_6[,1]
+test_art_mort[2,,1:3,1] <- tara_art_mort_male_6_to_12[,1]
+test_art_mort[3,,1:3,1] <- tara_art_mort_male_over_12[,1]
+
+test_art_mort[1,,4:5,1] <- tara_art_mort_male_under_6[,2]
+test_art_mort[2,,4:5,1] <- tara_art_mort_male_6_to_12[,2]
+test_art_mort[3,,4:5,1] <- tara_art_mort_male_over_12[,2]
+
+test_art_mort[1,,6:7,1] <- tara_art_mort_male_under_6[,3]
+test_art_mort[2,,6:7,1] <- tara_art_mort_male_6_to_12[,3]
+test_art_mort[3,,6:7,1] <- tara_art_mort_male_over_12[,3]
+
+test_art_mort[1,,8:9,1] <- tara_art_mort_male_under_6[,4]
+test_art_mort[2,,8:9,1] <- tara_art_mort_male_6_to_12[,4]
+test_art_mort[3,,8:9,1] <- tara_art_mort_male_over_12[,4]
+
+test_art_mort[1,,1:3,2] <- tara_art_mort_female_under_6[,1]
+test_art_mort[2,,1:3,2] <- tara_art_mort_female_6_to_12[,1]
+test_art_mort[3,,1:3,2] <- tara_art_mort_female_over_12[,1]
+
+test_art_mort[1,,4:5,2] <- tara_art_mort_female_under_6[,2]
+test_art_mort[2,,4:5,2] <- tara_art_mort_female_6_to_12[,2]
+test_art_mort[3,,4:5,2] <- tara_art_mort_female_over_12[,2]
+
+test_art_mort[1,,6:7,2] <- tara_art_mort_female_under_6[,3]
+test_art_mort[2,,6:7,2] <- tara_art_mort_female_6_to_12[,3]
+test_art_mort[3,,6:7,2] <- tara_art_mort_female_over_12[,3]
+
+test_art_mort[1,,8:9,2] <- tara_art_mort_female_under_6[,4]
+test_art_mort[2,,8:9,2] <- tara_art_mort_female_6_to_12[,4]
+test_art_mort[3,,8:9,2] <- tara_art_mort_female_over_12[,4]
+
+save(test_art_mort,
+     file = "C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/corrected_ART_mort_brazil")
+
+
+#####################################################################################
+## Using Tara's actual art mort number ##############################################
+#####################################################################################
+
+tara_art_mort <- read.csv("C:/Users/josh/Dropbox/hiv_project/brazil_mortality_data/art_mort_total_brazil.csv")
+
+test_art_mort <- array(0, dim = c(3, 7, 9, 2))
+
+tara_art_mort_male <- tara_art_mort[tara_art_mort$sex == "M", ]
+tara_art_mort_female <- tara_art_mort[tara_art_mort$sex == "F", ]
+
+tara_male_0_6_months <- tara_art_mort_male[tara_art_mort_male$episode == 1, ]
+tara_male_7_12_months <- tara_art_mort_male[tara_art_mort_male$episode == 2, ]
+tara_male_13_onwards <- tara_art_mort_male[tara_art_mort_male$episode == 3, ]
+
+tara_female_0_6_months <- tara_art_mort_female[tara_art_mort_female$episode == 1, ]
+tara_female_7_12_months <- tara_art_mort_female[tara_art_mort_female$episode == 2, ]
+tara_female_13_onwards <- tara_art_mort_female[tara_art_mort_female$episode == 3, ]
+
+#### 2015 only data 
+
+tara_male_0_6_months_2015 <- tara_male_0_6_months[tara_male_0_6_months$yr_ART == 2015, ]
+tara_male_7_12_months_2015 <- tara_male_7_12_months[tara_male_7_12_months$yr_ART == 2015, ]
+tara_male_13_onwards_2015 <- tara_male_13_onwards[tara_male_13_onwards$yr_ART == 2015, ]
+
+tara_female_0_6_months_2015 <- tara_female_0_6_months[tara_female_0_6_months$yr_ART == 2015, ]
+tara_female_7_12_months_2015 <- tara_female_7_12_months[tara_female_7_12_months$yr_ART == 2015, ]
+tara_female_13_onwards_2015 <- tara_female_13_onwards[tara_female_13_onwards$yr_ART == 2015, ]
+
+########## inputting the values 
+
+test_art_mort[1,,1:3,1] <- tara_male_0_6_months_2015[tara_male_0_6_months_2015$curr_age_ART_yr_gp == 1, 7]
+test_art_mort[2,,1:3,1] <- tara_male_7_12_months_2015[tara_male_7_12_months_2015$curr_age_ART_yr_gp == 1, 7]
+test_art_mort[3,,1:3,1] <- tara_male_13_onwards_2015[tara_male_13_onwards_2015$curr_age_ART_yr_gp == 1, 7]
+
+test_art_mort[1,,4:5,1] <- tara_male_0_6_months_2015[tara_male_0_6_months_2015$curr_age_ART_yr_gp == 2, 7]
+test_art_mort[2,,4:5,1] <- tara_male_7_12_months_2015[tara_male_7_12_months_2015$curr_age_ART_yr_gp == 2, 7]
+test_art_mort[3,,4:5,1] <- tara_male_13_onwards_2015[tara_male_13_onwards_2015$curr_age_ART_yr_gp == 2, 7]
+
+test_art_mort[1,,6:7,1] <- tara_male_0_6_months_2015[tara_male_0_6_months_2015$curr_age_ART_yr_gp == 3, 7]
+test_art_mort[2,,6:7,1] <- tara_male_7_12_months_2015[tara_male_7_12_months_2015$curr_age_ART_yr_gp == 3, 7]
+test_art_mort[3,,6:7,1] <- tara_male_13_onwards_2015[tara_male_13_onwards_2015$curr_age_ART_yr_gp == 3, 7]
+
+test_art_mort[1,,8:9,1] <- tara_male_0_6_months_2015[tara_male_0_6_months_2015$curr_age_ART_yr_gp == 4, 7]
+test_art_mort[2,,8:9,1] <- tara_male_7_12_months_2015[tara_male_7_12_months_2015$curr_age_ART_yr_gp == 4, 7]
+test_art_mort[3,,8:9,1] <- tara_male_13_onwards_2015[tara_male_13_onwards_2015$curr_age_ART_yr_gp == 4, 7]
+
+test_art_mort[1,,1:3,2] <- tara_female_0_6_months_2015[tara_female_0_6_months_2015$curr_age_ART_yr_gp == 1, 7]
+test_art_mort[2,,1:3,2] <- tara_female_7_12_months_2015[tara_female_7_12_months_2015$curr_age_ART_yr_gp == 1, 7]
+test_art_mort[3,,1:3,2] <- tara_female_13_onwards_2015[tara_female_13_onwards_2015$curr_age_ART_yr_gp == 1, 7]
+
+test_art_mort[1,,4:5,2] <- tara_female_0_6_months_2015[tara_female_0_6_months_2015$curr_age_ART_yr_gp == 2, 7]
+test_art_mort[2,,4:5,2] <- tara_female_7_12_months_2015[tara_female_7_12_months_2015$curr_age_ART_yr_gp == 2, 7]
+test_art_mort[3,,4:5,2] <- tara_female_13_onwards_2015[tara_female_13_onwards_2015$curr_age_ART_yr_gp == 2, 7]
+
+test_art_mort[1,,6:7,2] <- tara_female_0_6_months_2015[tara_female_0_6_months_2015$curr_age_ART_yr_gp == 3, 7]
+test_art_mort[2,,6:7,2] <- tara_female_7_12_months_2015[tara_female_7_12_months_2015$curr_age_ART_yr_gp == 3, 7]
+test_art_mort[3,,6:7,2] <- tara_female_13_onwards_2015[tara_female_13_onwards_2015$curr_age_ART_yr_gp == 3, 7]
+
+test_art_mort[1,,8:9,2] <- tara_female_0_6_months_2015[tara_female_0_6_months_2015$curr_age_ART_yr_gp == 4, 7]
+test_art_mort[2,,8:9,2] <- tara_female_7_12_months_2015[tara_female_7_12_months_2015$curr_age_ART_yr_gp == 4, 7]
+test_art_mort[3,,8:9,2] <- tara_female_13_onwards_2015[tara_female_13_onwards_2015$curr_age_ART_yr_gp == 4, 7]
+
+save(test_art_mort,
+     file = "C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/2015_vals_corrected_ART_mort_brazil")
+
+
+
+
+
 

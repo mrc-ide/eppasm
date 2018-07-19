@@ -100,3 +100,103 @@ abline(v= 11, col="red")
 lines(detec_array[4,9,1,], type = "l", col="blueviolet")
 lines(detec_array[2,9,1,], type = "l", col="forestgreen")
 lines(detec_array[1,9,1,], type = "l", col="cyan")
+
+
+##############################################################################################################
+## Testing out CD4 based gamma distributed with different rates ##############################################
+##############################################################################################################
+
+## Just some arbitrary values to play around with 
+
+gamma_max_1 <- 4910.455
+delta_rate_1 <- 0.00524
+
+gamma_max_2 <- 5000
+delta_rate_2 <- 0.0059
+
+gamma_max_3 <- 4500
+delta_rate_3 <- 0.006
+
+gamma_max_4 <- 4000
+delta_rate_4 <- 0.004
+
+
+delta_t <- rep(0, brazil_fp$ss$PROJ_YEARS)
+
+##########################
+## Rates from 1980-1986 ##
+##########################
+
+time_vec <- c(11:17)
+
+delta_t[11:17] <- gamma_max_1 * pgamma(1:length(time_vec), shape=1, rate = delta_rate_1)
+
+############################
+## Rates from 1987 - 2000 ##
+############################
+
+time_vec <- c(18:31)
+
+delta_t[time_vec] <- gamma_max_2 * pgamma(1:length(time_vec), shape = 1, rate = delta_rate_2) + delta_t[17]
+
+#############################
+## Rates from 2001 - 2009 ###
+#############################
+
+time_vec  <- c(32:40)
+
+delta_t[time_vec] <- gamma_max_3 * pgamma(1:length(time_vec), shape = 1, rate = delta_rate_3) + delta_t[31]
+
+##############################
+## Rates from 2010 - 2015 ####
+##############################
+
+time_vec <- c(41:46)
+
+delta_t[time_vec] <- gamma_max_4 * pgamma(1:length(time_vec), shape = 1, rate = delta_rate_4) + delta_t[40]
+
+################################
+## Constant from 2015 onwards ##
+################################
+
+time_vec <- c(47:52)
+
+delta_t[time_vec] <- delta_t[46]
+
+#############################################################
+## Multiply this by the cd4 stages for our diagnosis rates ##
+#############################################################
+
+fp$diagn_rate <- array(fp$cd4_mort,
+                       c(fp$ss$hDS, fp$ss$hAG, fp$ss$NG, fp$ss$PROJ_YEARS))
+
+fp$diagn_rate <- sweep(fp$diagn_rate, 4, delta_t, "*")
+
+
+
+###################################################################################################
+## Testing out Jeff's linear picewise diagnosis rate ##############################################
+###################################################################################################
+
+test_fp <- brazil$fp
+
+knots <- c(1970,1981, 1986, 1996, 2001, 2009, 2015)
+theta <- c(0, 0, 0.1, 0.4, 0.6, 0.9, 1.1)
+
+diagn_trend <- approx(knots, theta, 1970:2021, rule = 2)$y
+
+## Mortality rate relative to Men, 25-34, CD4 100-200
+cd4_rel_diagn <- test_fp$cd4_mort / test_fp$cd4_mort[5, 4, 1]
+
+test_fp$diagn_rate <- array(cd4_rel_diagn,
+                       c(test_fp$ss$hDS, test_fp$ss$hAG, test_fp$ss$NG, test_fp$ss$PROJ_YEARS))
+test_fp$diagn_rate <- sweep(test_fp$diagn_rate, 4, diagn_trend, "*")
+
+
+
+
+
+
+
+
+

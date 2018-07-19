@@ -119,6 +119,27 @@ calc_artinits <- function(mod, fp){
   
 }
 
+knot_linear_diagn_rate <- function(knot_params, fp){
+  
+  # knots <- c(1970, 1980, 1986, 1996, 2001, 2009, 2015)
+  # theta <- c(0, knot_params)
+  knots <- c(1986, 1996, 2000, 2009, 2015)
+  theta <- knot_params
+  
+  
+  diagn_trend <- approx(knots, theta, 1970:2021, rule = 2)$y
+  
+  ## Mortality rate relative to Men, 25-34, CD4 100-200
+  cd4_rel_diagn <- fp$cd4_mort / fp$cd4_mort[5, 4, 1]
+  
+  fp$diagn_rate <- array(cd4_rel_diagn,
+                              c(fp$ss$hDS, fp$ss$hAG, fp$ss$NG, fp$ss$PROJ_YEARS))
+  fp$diagn_rate <- sweep(fp$diagn_rate, 4, diagn_trend, "*")
+  
+  return(fp)
+  
+}
+
 cumulative_linear_diagn_rate <- function(linear_params, fp){
   
   ## Linear params should be 12 values:
@@ -225,16 +246,23 @@ create_param_csavr <- function(theta, fp){
                   iota = transf_iota(theta[fp$numKnots+1], fp))
     fp[names(param)] <- param
   }
-  if(fp$linear_diagnosis == FALSE){
+  if(fp$linear_diagnosis == "gamma"){
   fp$gamma_max <- exp(theta[nparam_incid+1])
   fp$delta_rate <- exp(theta[nparam_incid+2])
 
   fp <- cumgamma_diagn_rate(fp$gamma_max, fp$delta_rate, fp)
-  }else{
+  }
+  if(fp$linear_diagnosis == "12 param"){
     linear_params <- theta[nparam_incid+1:(length(theta)-nparam_incid)]
     
     fp <- cumulative_linear_diagn_rate(linear_params, fp) 
   }
+  if(fp$linear_diagnosis == "knot_linear"){
+    knot_params <- theta[nparam_incid+1:(length(theta) - nparam_incid)]
+    
+    fp <- knot_linear_diagn_rate(knot_params, fp)
+  }
+  
   fp
 }
 
@@ -345,8 +373,11 @@ idbllogistic_theta_sd <- c(5, 5, 10, 5, 5)
 diagn_theta_mean <- c(3, -3)
 diagn_theta_sd <- c(5, 5)
 
-diagn_linear_theta_mean <- c(runif(12,min = 0, max= 0.1))
-diagn_linear_theta_sd <- c(runif(12, min = 0, max = 0.05))
+diagn_linear_theta_mean <- rep(0.5, 12)
+diagn_linear_theta_sd <- rep(0.5,12)
+
+diagn_knot_linear_mean <- c(0.1, 0.5, 3, 9, 15)
+diagn_knot_linear_sd <- c(0.05, 0.2, 1, 2, 2.5)
 
 logiota_pr_mean <- -13
 logiota_pr_sd <- 5
@@ -354,11 +385,16 @@ logiota_pr_sd <- 5
 sample_prior_csavr <- function(n, fp){
 
   mat_eppmod <- sample_prior_eppmod(n, fp)
-  if(fp$linear_diagnosis == TRUE){
+  if(fp$linear_diagnosis == "12 param"){
     mat_diagn <- sample_prior_piecewise_diagn(n, fp)
-  }else{
+  }
+  if(fp$linear_diagnosis == "gamma"){
   mat_diagn <- sample_prior_diagn(n, fp)
   }
+  if(fp$linear_diagnosis == "knot_linear"){
+    mat_diagn <- sample_prior_knot_diagn(n, fp)
+  }
+
   cbind(mat_eppmod, mat_diagn)
 }
 
@@ -422,6 +458,15 @@ sample_prior_piecewise_diagn <- function(n, fp){
   
   mat
 }
+
+sample_prior_knot_diagn <- function(n, fp){
+  nparam <- length(diagn_knot_linear_mean)
+  val <- rnorm(n * nparam, diagn_knot_linear_mean, diagn_knot_linear_sd)
+  mat <- t(matrix(val, nparam, n))
+  
+  mat
+}
+
 
 lprior_csavr <- function(theta, fp){
   

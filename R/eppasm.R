@@ -164,7 +164,8 @@ simmod.specfp <- function(fp, VERSION="C"){
 
     ## events at dt timestep
     for(ii in seq_len(hiv_steps_per_year)){
-
+      if(i >= 31)
+        browser()
       ts <- (i-2)/DT + ii                              ## This ensures you go from i year, then only ten steps within that year
       
      
@@ -298,7 +299,8 @@ simmod.specfp <- function(fp, VERSION="C"){
           }
         }
         
-        art15plus.inits <- pmax(artnum.ii - colSums(artpop[,,h.age15plus.idx,,i],,3), 0)
+        art15plus.inits <- pmax(artnum.ii - colSums(artpop[,,h.age15plus.idx,,i],,3), 0)              ## This is as art15plus_num is total number
+        
 
         ## calculate ART initiation distribution
         if(!fp$med_cd4init_input[i]){

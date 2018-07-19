@@ -33,7 +33,7 @@ brazil_fp$artinit_use <- FALSE
 brazil_fp$time_at_which_get_cd4_counts <- 2001
 
 brazil_fp$diagn_rate <- array(0.8, c(dim(brazil_fp$cd4_mort), brazil_fp$ss$PROJ_YEARS))
-brazil_fp$likelihood_cd4 <- TRUE
+brazil_fp$likelihood_cd4 <- F
 brazil_fp$artinit_use <- FALSE
 brazil_fp$artcd4elig_idx <- rep(1L, length(brazil_fp$artcd4elig_idx))
 brazil_fp$stages <- 4L
@@ -49,21 +49,31 @@ load("C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/corrected_art_starters_
 brazil$fp$art15plus_num <- art_format
 
 #########################################################################################################
+## Lets use tara's art mortality rates ##################################################################
+#########################################################################################################
+
+load("C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/corrected_ART_mort_brazil", verbose = T)
+
+brazil$fp$art_mort <- test_art_mort
+
+#########################################################################################################
 ## Now lets run the model with the raw diagnoses and AIDS deaths and see the output #####################
 #########################################################################################################
 brazil$fp$aidsdeaths <- FALSE
-brazil$fp$diagnoses_uses <- FALSE
+brazil$fp$diagnoses_uses <- TRUE
 brazil$fp$tARTstart <- 28L
-brazil$fp$linear_diagnosis <- FALSE
+brazil$fp$likelihood_cd4 <- TRUE
+brazil$fp$linear_diagnosis <- "12 param"
+
 
 brazil_opt1_cd4_both <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e3, optfit=TRUE)
 brazil_fit1_cd4_both <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
 
-brazil_opt2_cd4_both <- fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, optfit=TRUE)
+brazil_opt2_cd4_both <- fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e3, optfit=TRUE)
 brazil_fit2_cd4_both <- fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
 
 ## fit logistic model for transimssion rate (r(t))
-brazil_opt3_cd4_both <- fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, optfit=TRUE)
+brazil_opt3_cd4_both <- fitmod_csavr(brazil, eppmod="rlogistic", B0=1e3, optfit=TRUE)
 brazil_fit3_cd4_both <- fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, B=1e3, B.re=3e3, opt_iter=1:3*5)
 
 brazil_out1_cd4_both <- tidy(brazil_fit1_cd4_both) %>% data.frame(model = "logistic", .)
@@ -235,3 +245,21 @@ no_diag_DEATHS_fit
 load("C:/Users/josh/Dropbox/hiv_project/EPPASM_runs/Plots/PLOT_no_cd4_tara_ART_both_DIAG_and_AIDSdeaths", verbose = T)
 no_cd4_diag_and_deaths_fit <- no_cd4_fit
 no_cd4_diag_and_deaths_fit
+
+
+############################################################################################################
+## Runnning the optims for the aidsdeaths, lets use the 6 knot linear diagnosis rate #######################
+############################################################################################################
+
+brazil$fp$linear_diagnosis <- "knot_linear"
+
+brazil_opt1_knot_linear <- fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e3, optfit=TRUE)
+
+brazil_opt2_knot_linear <- fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, optfit=TRUE)
+
+brazil_opt3_knot_linear <- fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, optfit=TRUE)
+
+
+
+
+

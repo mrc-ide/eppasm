@@ -328,6 +328,8 @@ plot_undiagnosed <- function(optim_output,diag_start = 1980, art_start = 1996){
   tot_diagnoses <- NULL
   tot_diag_rate <- NULL
   art_init_tot <- NULL
+  tot_divided <- NULL
+  
   
   for(i in 1:length(optim_output)){
     if(length(optim_output) == 1){
@@ -394,6 +396,20 @@ plot_undiagnosed <- function(optim_output,diag_start = 1980, art_start = 1996){
     
     art_init_tot <- rbind.data.frame(art_init_tot, funky_dist_4)
     
+    ### Deaths by wether on ART on not
+    
+    deaths_by_hiv <- colSums(list_version$hivpopdeaths,,3)
+    deaths_on_art <- colSums(list_version$artpopdeaths,,4)
+    
+    deaths_divided_df <- cbind.data.frame(deaths_by_hiv, deaths_on_art, c(1970:2021))
+    names(deaths_divided_df) <- c("hiv","art","time")
+    
+    deaths_funky <- reshape2::melt(deaths_divided_df, id = "time")
+    deaths_funky$input <- rep(input_label[i], nrow(deaths_funky))
+    
+    tot_divided <- rbind.data.frame(tot_divided, deaths_funky)
+    
+    
     
     
     
@@ -404,7 +420,10 @@ plot_undiagnosed <- function(optim_output,diag_start = 1980, art_start = 1996){
   names(tot_diagnoses) <-c("diagnoses", "input", "year")
   names(tot_diag_rate) <-c("rate","input","year")
   names(art_init_tot) <- c("time","cat","val","input")
+  names(tot_divided) <- c("time","class","deaths","input")
+  
   art_init_tot$cat_input <- paste(art_init_tot$cat, art_init_tot$input, sep = "")
+  tot_divided$class_input <- paste(tot_divided$class, tot_divided$input, sep ="")
   
   
   
@@ -432,19 +451,28 @@ plot_undiagnosed <- function(optim_output,diag_start = 1980, art_start = 1996){
   art_init_rate_plot <- ggplot(data = art_init_tot, aes(x = time, y = val, group = cat_input)) +
                                  geom_line(aes(colour = cat, linetype = input), size = 1.01) +
                                  labs(x = "time", y = "init numbers per class")
+  tot_divided_plot <- ggplot(data = tot_divided, aes(x = time, y = deaths, group = class_input)) +
+    geom_line(aes(colour = class, linetype = input), size = 1.01) +
+    labs(x = "time", y = "deaths from AIDS")
   
   
-  combined_plot <- ggpubr::ggarrange(undiag_plot, deaths_plot, diagnoses_plots, diag_rate_plot, ncol = 2, nrow = 2, align = c("v"))
+  combined_plot <- ggpubr::ggarrange(undiag_plot, deaths_plot, diagnoses_plots,
+                                     diag_rate_plot, art_init_rate_plot, tot_divided_plot,
+                                     ncol = 2, nrow = 3, align = c("v")) 
   
   return(list(undiag_df = tot_undiag_data,undiag_plot = undiag_plot, diagnoses_df = tot_diagnoses, diagnoses_plot = diagnoses_plots,
               deaths_df = tot_deaths, deaths_plot = deaths_plot, rate_plot = diag_rate_plot, combined_plot = combined_plot,
-              art_inits = art_init_rate_plot))
+              art_inits = art_init_rate_plot, deaths_div = tot_divided_plot))
   
 }
 
 undiag <- plot_undiagnosed(opt_list)
-
 undiag$combined_plot
+ggpubr::annotate_figure(undiag$combined_plot,
+                        top = ggpubr::text_grob("Knot_linear diagnosis rates,updated ART mortality, otherwise constant Spectrum values",
+                                                color = "red", size = 14))
+
+
 undiag$diagnoses_plot
 undiag$rate_plot
 

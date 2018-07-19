@@ -166,8 +166,7 @@ simmod.specfp <- function(fp, VERSION="C"){
 
     ## events at dt timestep
     for(ii in seq_len(hiv_steps_per_year)){
-      if(i >= 31)
-        browser()
+      
       ts <- (i-2)/DT + ii                              ## This ensures you go from i year, then only ten steps within that year
 
 

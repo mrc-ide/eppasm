@@ -247,6 +247,7 @@ extern "C" {
     INTEGER(s_hivpop_dim)[3] = PROJ_YEARS;
     setAttrib(s_hivpop, R_DimSymbol, s_hivpop_dim);
     setAttrib(s_pop, install("hivpop"), s_hivpop);
+    multi_array_ref<double, 4> hivpop(REAL(s_hivpop), extents[PROJ_YEARS][NG][hAG][hDS]);
     memset(REAL(s_hivpop), 0, length(s_hivpop)*sizeof(double));
 
     SEXP s_diagnpop = PROTECT(allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
@@ -291,6 +292,29 @@ extern "C" {
     setAttrib(s_pop, install("hivdeaths"), s_hivdeaths);
     multi_array_ref<double, 3> hivdeaths(REAL(s_hivdeaths), extents[PROJ_YEARS][NG][pAG]);
     memset(REAL(s_hivdeaths), 0, length(s_hivdeaths)*sizeof(double));
+
+    SEXP s_hivpopdeaths = PROTECT(allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_hivpopdeaths_dim = PROTECT(allocVector(INTSXP, 4));
+    INTEGER(s_hivpopdeaths_dim)[0] = hDS;
+    INTEGER(s_hivpopdeaths_dim)[1] = hAG;
+    INTEGER(s_hivpopdeaths_dim)[2] = NG;
+    INTEGER(s_hivpopdeaths_dim)[3] = PROJ_YEARS;
+    setAttrib(s_hivpopdeaths, R_DimSymbol, s_hivpopdeaths_dim);
+    setAttrib(s_pop, install("hivpopdeaths"), s_hivpopdeaths);
+    multi_array_ref<double, 4> hivpopdeaths(REAL(s_hivpopdeaths), extents[PROJ_YEARS][NG][hAG][hDS]);
+    memset(REAL(s_hivpopdeaths), 0, length(s_hivpopdeaths)*sizeof(double));
+
+    SEXP s_artpopdeaths = PROTECT(allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_artpopdeaths_dim = PROTECT(allocVector(INTSXP, 5));
+    INTEGER(s_artpopdeaths_dim)[0] = hTS;
+    INTEGER(s_artpopdeaths_dim)[1] = hDS;
+    INTEGER(s_artpopdeaths_dim)[2] = hAG;
+    INTEGER(s_artpopdeaths_dim)[3] = NG;
+    INTEGER(s_artpopdeaths_dim)[4] = PROJ_YEARS;
+    setAttrib(s_artpopdeaths, R_DimSymbol, s_artpopdeaths_dim);
+    setAttrib(s_pop, install("artpopdeaths"), s_artpopdeaths);
+    multi_array_ref<double, 5> artpopdeaths(REAL(s_artpopdeaths), extents[PROJ_YEARS][NG][hAG][hDS][hTS]);
+    memset(REAL(s_artpopdeaths), 0, length(s_artpopdeaths)*sizeof(double));
 
     SEXP s_natdeaths = PROTECT(allocVector(REALSXP, pAG * NG * PROJ_YEARS));
     SEXP s_natdeaths_dim = PROTECT(allocVector(INTSXP, 3));
@@ -392,7 +416,6 @@ extern "C" {
 
     // HIV population with stage stratification
     // double hivpop[PROJ_YEARS][NG][hAG][hDS];
-    multi_array_ref<double, 4> hivpop(REAL(s_hivpop), extents[PROJ_YEARS][NG][hAG][hDS]);
     for(int g = 0; g < NG; g++)
       for(int ha = 0; ha < hAG; ha++)
         for(int hm = 0; hm < hDS; hm++)
@@ -562,6 +585,7 @@ extern "C" {
             for(int hm = 0; hm < hDS; hm++){
               double deaths = cd4_mort[g][ha][hm] * hivpop[t][g][ha][hm];
               hivdeaths_ha[g][ha] += DT*deaths;
+	      hivpopdeaths[t][g][ha][hm] += DT*deaths;
               grad[g][ha][hm] = -deaths;
             }
             for(int hm = 1; hm < hDS; hm++){
@@ -660,6 +684,7 @@ extern "C" {
                 for(int hu = 0; hu < hTS; hu++){
                   double deaths = art_mort[g][ha][hm][hu] * artpop[t][g][ha][hm][hu];
                   hivdeaths_ha[g][ha] += DT*deaths;
+		  artpopdeaths[t][g][ha][hm][hu] += DT*deaths;
                   gradART[hu] = -deaths;
                 }
 
@@ -953,7 +978,7 @@ extern "C" {
       incid15to49[t] /= hivn15to49[t-1];
     }
 
-    UNPROTECT(28);
+    UNPROTECT(32);
     return s_pop;
   }
 }

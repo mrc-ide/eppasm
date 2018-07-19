@@ -46,6 +46,9 @@ simmod.specfp <- function(fp, VERSION="C"){
   hivdeaths <- array(0, c(pAG, NG, PROJ_YEARS))
   natdeaths <- array(0, c(pAG, NG, PROJ_YEARS))
 
+  hivpopdeaths <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
+  artpopdeaths <- array(0, c(hTS, hDS, hAG, NG, PROJ_YEARS))
+
   diagnoses <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
   artinits <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
   
@@ -195,9 +198,11 @@ simmod.specfp <- function(fp, VERSION="C"){
       grad[-1,,] <- grad[-1,,] + fp$cd4_prog * hivpop[-hDS,,,i]      # add cd4 stage progression (untreated)
       
       grad <- grad - fp$cd4_mort * hivpop[,,,i]              # HIV mortality, untreated
-      hivdeaths.ts <- colSums(fp$cd4_mort * hivpop[,,,i])
+      hivdeaths.ts <- fp$cd4_mort * hivpop[,,,i]
+      hivdeaths_hAG.ts <- colSums(hivdeaths.ts)
 
       hivpop[,,,i] <- hivpop[,,,i] + DT*grad
+      hivpopdeaths[,,, i] <- hivpopdeaths[,,, i] + DT * hivdeaths.ts
 
       ## diagnosed population: diagnosis, progression, and mortality
       if(i >= fp$t_diagn_start){
@@ -228,8 +233,10 @@ simmod.specfp <- function(fp, VERSION="C"){
 
         gradART <- gradART - fp$art_mort * artpop[,,,,i]                  # ART mortality
 
-        hivdeaths.ts <- hivdeaths.ts + colSums(fp$art_mort * artpop[,,,,i],,2)
+        artdeaths.ts <- fp$art_mort * artpop[,,,,i]
+        hivdeaths_hAG.ts <- hivdeaths_hAG.ts + colSums(artdeaths.ts,,2)
         artpop[,,,, i] <- artpop[,,,, i] + DT * gradART
+        artpopdeaths[,,,, i] <- artpopdeaths[,,,, i] + DT * artdeaths.ts
         
         
         ## ART dropout
@@ -339,7 +346,7 @@ simmod.specfp <- function(fp, VERSION="C"){
         
       ## Remove hivdeaths from pop
       calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
-      hivdeaths_p.ts <- apply(DT*hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
+      hivdeaths_p.ts <- apply(DT*hivdeaths_hAG.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
       pop[,,2,i] <- pop[,,2,i] - hivdeaths_p.ts
       hivdeaths[,,i] <- hivdeaths[,,i] + hivdeaths_p.ts
 
@@ -407,6 +414,9 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "infections") <- infections
   attr(pop, "hivdeaths") <- hivdeaths
   attr(pop, "natdeaths") <- natdeaths
+  
+  attr(pop, "hivpopdeaths") <- hivpopdeaths
+  attr(pop, "artpopdeaths") <- artpopdeaths
 
   attr(pop, "diagnoses") <- diagnoses
   attr(pop, "artinits") <- artinits

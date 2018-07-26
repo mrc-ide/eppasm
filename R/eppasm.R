@@ -305,9 +305,72 @@ simmod.specfp <- function(fp, VERSION="C"){
         }
 
         art15plus.inits <- pmax(artnum.ii - colSums(artpop[,,h.age15plus.idx,,i],,3), 0)              ## This is as art15plus_num is total number
-
-
+        
         ## calculate ART initiation distribution
+        if(fp$use_cd4_art == TRUE){
+          if((i-1 + 1970) < fp$time_at_which_get_cd4_counts | (i - 1 + 1970) > fp$time_cd4_stop){
+            expect.mort.weight <- sweep(fp$cd4_mort[, h.age15plus.idx,], 3,
+                                        colSums(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,],,2), "/")
+            artinit.weight <- sweep(expect.mort.weight, 3, 1/colSums(art15plus.elig,,2), "+")/2
+            artinit <- pmin(sweep(artinit.weight * art15plus.elig, 3, art15plus.inits, "*"),
+                            art15plus.elig)
+          }else{
+            
+            i_as_year <- i - (2001 - 1970)
+            
+            initial_dist <- array(0,dim = c(4,2))
+            initial_dist[,1] <- fp$tara_art_cd4[,i_as_year] * art15plus.inits[1]
+            initial_dist[,2] <- fp$tara_art_cd4[,i_as_year] * art15plus.inits[2]
+            
+            ## have to work out weightings, ofr first two classses, should be mortality weighted just across those rows
+            ## for stages 3 and 4 has to be weighted by mortality across multiple rows. 
+            mort_times_elig <- fp$cd4_mort * art15plus.elig
+            
+            tot_array <- array(0,dim = c(7,1,2))
+            tot_array[,,1:2] <- apply(mort_times_elig,3,rowSums)[,1:2]
+            
+            weight_row <- array(0, dim = c(7,9,2))
+            weight_row[1,,1] <- mort_times_elig[1,,1] / tot_array[1,1,1]
+            weight_row[2,,1] <- mort_times_elig[2,,1] / tot_array[2,1,1]
+            weight_row[1,,2] <- mort_times_elig[1,,2] / tot_array[1,1,2]
+            weight_row[2,,2] <- mort_times_elig[2,,2] / tot_array[2,1,2]
+            
+            ## now for the more challenging combining of the 3 + 4 categories into one for cd4 classes
+            
+            weight_row[3,,1] <- mort_times_elig[3,,1] / (tot_array[3,1,1] + tot_array[4,1,1]) 
+            weight_row[4,,1] <- mort_times_elig[4,,1] / (tot_array[3,1,1] + tot_array[4,1,1]) 
+            weight_row[3,,2] <- mort_times_elig[3,,2] / (tot_array[3,1,2] + tot_array[4,1,2]) 
+            weight_row[4,,2] <- mort_times_elig[4,,2] / (tot_array[3,1,2] + tot_array[4,1,2]) 
+            
+            ## Now for the final four cd4 categories combining as one 
+            
+            weight_row[5,,1] <- mort_times_elig[5,,1] / (tot_array[5,1,1] + tot_array[6,1,1] + tot_array[7,1,1])
+            weight_row[6,,1] <- mort_times_elig[6,,1] / (tot_array[5,1,1] + tot_array[6,1,1] + tot_array[7,1,1])
+            weight_row[7,,1] <- mort_times_elig[7,,1] / (tot_array[5,1,1] + tot_array[6,1,1] + tot_array[7,1,1])
+            weight_row[5,,2] <- mort_times_elig[5,,2] / (tot_array[5,1,2] + tot_array[6,1,2] + tot_array[7,1,2])
+            weight_row[6,,2] <- mort_times_elig[6,,2] / (tot_array[5,1,2] + tot_array[6,1,2] + tot_array[7,1,2])
+            weight_row[7,,2] <- mort_times_elig[7,,2] / (tot_array[5,1,2] + tot_array[6,1,2] + tot_array[7,1,2])
+            
+            ## Now for creating our numbers going onto art 
+            
+            artinit <- array(0, dim = c(hDS, hAG, NG))
+            
+            artinit[1:2,,1] <- initial_dist[1:2,1] * weight_row[1:2,,1]
+            artinit[1:2,,2] <- initial_dist[1:2,2] * weight_row[1:2,,2]
+            
+            artinit[3:4,,1] <- initial_dist[3,1] * weight_row[3:4,,1]
+            artinit[3:4,,2] <- initial_dist[3,2] * weight_row[3:4,,2]
+            
+            artinit[5:7,,1] <- initial_dist[4,1] * weight_row[5:7,,1]
+            artinit[5:7,,2] <- initial_dist[4,2] * weight_row[5:7,,2]
+            
+            ## this now has the mortality as a fraction of total mortality across the row, so for rows 1 and 2 is fine 
+           
+           
+          }
+          
+        }else{
+        
         if(!fp$med_cd4init_input[i]){
           expect.mort.weight <- sweep(fp$cd4_mort[, h.age15plus.idx,], 3,
                                       colSums(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,],,2), "/")
@@ -349,6 +412,8 @@ simmod.specfp <- function(fp, VERSION="C"){
           if(medcd4_idx > 0)
             artinit[1:(medcd4_idx-1),,] <- sweep(art15plus.elig[1:(medcd4_idx-1),,,drop=FALSE], 3, initprob_above, "*")
         }
+        }
+        
 
         hivpop[, h.age15plus.idx,, i] <- hivpop[, h.age15plus.idx,, i] - artinit
         artpop[1,, h.age15plus.idx,, i] <- artpop[1,, h.age15plus.idx,, i] + artinit
@@ -444,7 +509,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "diagnoses") <- diagnoses
   attr(pop, "artinits") <- artinits
 
-  attr(pop, "popadjust") <- popadj.prob
+  #attr(pop, "popadjust") <- popadj.prob
 
   attr(pop, "pregprevlag") <- pregprevlag
 

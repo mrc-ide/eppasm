@@ -362,7 +362,8 @@ return(tot_likelihood)
 
 }
 
-
+rw_mean <- rep(0.5, 52)
+rw_sd <- rep(0.25, 52)
 
 ilogistic_theta_mean <- c(-1, -10)
 ilogistic_theta_sd <- c(5, 5)
@@ -399,7 +400,7 @@ sample_prior_csavr <- function(n, fp){
 }
 
 sample_prior_eppmod <- function(n, fp){
-
+  
   if(fp$eppmod == "logrw"){
     nparam <- fp$numKnots + 1L
 
@@ -427,6 +428,7 @@ sample_prior_eppmod <- function(n, fp){
     }
   else if(fp$eppmod == "rlogrw"){
       epp_nparam <- fp$numKnots+1L
+      theta_mean <- c(theta_mean, rw_mean)
     }
   else
     stop("incidence model not recognized")

@@ -53,7 +53,7 @@ brazil_pjnz <- "C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/Brazil_2017_f
 
 brazil_fp <- prepare_directincid(brazil_pjnz)
 brazil_fp$artmx_timerr <- rep(1.0, brazil_fp$ss$PROJ_YEARS)
-brazil_fp$t_diagn_start <- 10L   # assume diagnoses starts in 1985
+brazil_fp$t_diagn_start <- 11L   # assume diagnoses starts in 1985
 
 
 brazil_fp$relinfectART <- 0.3
@@ -298,7 +298,7 @@ save(brazil_out_cd4, file = "C:/Users/josh/Dropbox/hiv_project/EPPASM_runs/clust
 
 brazil$fp$linear_diagnosis <- "knot_linear"
 brazil$fp$t_diagn_start <- 11L
-brazil$fp$med_cd4init_input <- rep(0L, 52)
+
 
 brazil_opt1_knot_linear <- obj$enqueue(fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e3, optfit=TRUE),
                                        name = "optim_knot_linear_mod_1")
@@ -318,6 +318,12 @@ brazil_opt3_knot_linear$log()
 opt_1_res <- brazil_opt1_knot_linear$result()
 opt_2_res <- brazil_opt2_knot_linear$result()
 opt_3_res <- brazil_opt3_knot_linear$result()
+
+save(opt_2_res,
+     file = "C:/Users/josh/Dropbox/hiv_project/EPPASM_runs/cluster_runs/cluster_results/optim_knotlinear_mod_2")
+save(opt_3_res,
+     file = "C:/Users/josh/Dropbox/hiv_project/EPPASM_runs/cluster_runs/cluster_results/optim_knotlinear_mod_3")
+
 
 opt_list <- list(opt_1_res, opt_2_res, opt_3_res)
 
@@ -498,30 +504,32 @@ undiag_alt$deaths_plot
 ## run with the med cat eliminated see what that does ########################
 ##############################################################################
 
-brazil$fp$med_cd4init_cat <- rep(0L, 52)
+brazil$fp$artcd4elig_idx <- rep(1L, 52)
 
-brazil_opt1_knot_linear <- obj$enqueue(fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e3, optfit=TRUE),
+brazil_opt1_knot_linear_altered_cd4_index <- obj$enqueue(fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e3, optfit=TRUE),
                                        name = "optim_knot_linear_mod_1")
-brazil_opt1_knot_linear$status()
-brazil_opt1_knot_linear$log()
+brazil_opt1_knot_linear_altered_cd4_index$status()
+brazil_opt1_knot_linear_altered_cd4_index$log()
 
-brazil_opt2_knot_linear <- obj$enqueue(fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, optfit=TRUE),
+brazil_opt2_knot_linear_altered_cd4_index <- obj$enqueue(fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, optfit=TRUE),
                                        name = "optim_knot_linear_mod_2")
-brazil_opt2_knot_linear$status()
-brazil_opt2_knot_linear$log()
+brazil_opt2_knot_linear_altered_cd4_index$status()
+brazil_opt2_knot_linear_altered_cd4_index$log()
 
-brazil_opt3_knot_linear <- obj$enqueue(fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, optfit=TRUE),
+brazil_opt3_knot_linear_altered_cd4_index <- obj$enqueue(fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, optfit=TRUE),
                                        name = "optim_knot_linear_mod_3")
-brazil_opt3_knot_linear$status()
-brazil_opt3_knot_linear$log()
+brazil_opt3_knot_linear_altered_cd4_index$status()
+brazil_opt3_knot_linear_altered_cd4_index$log()
 
-opt_1_res_eliminated_cd4 <- brazil_opt1_knot_linear$result()
-opt_2_res_eliminated_cd4 <- brazil_opt2_knot_linear$result()
-opt_3_res_eliminated_cd4 <- brazil_opt3_knot_linear$result()
+opt_1_res_altered_cd4_index <- brazil_opt1_knot_linear_altered_cd4_index$result()
+opt_2_res_altered_cd4_index <- brazil_opt2_knot_linear_altered_cd4_index$result()
+opt_3_res_altered_cd4_index <- brazil_opt3_knot_linear_altered_cd4_index$result()
 
-opt_list_eliminated <- list(opt_1_res_eliminated_cd4, opt_1_res_eliminated_cd4, opt_3_res_eliminated_cd4)
+opt_list_altered_cd4_index <- list(opt_1_res_altered_cd4_index,
+                                   opt_1_res_altered_cd4_index,
+                                   opt_3_res_altered_cd4_index)
 
-undiag_eliminated <- plot_undiagnosed(opt_list_eliminated)
+undiag__altered_cd4_index <- plot_undiagnosed(opt_list_altered_cd4_index)
 
 
 undiag_eliminated$undiag_plot
@@ -529,39 +537,41 @@ undiag_eliminated$diagnoses_plot
 undiag_eliminated$deaths_plot
 undiag_eliminated$rate_plot
 
-undiag_eliminated$combined_plot
+undiag__altered_cd4_index$combined_plot
+ggpubr::annotate_figure(undiag__altered_cd4_index$combined_plot,
+                        top = ggpubr::text_grob("Knot_linear diagnosis rates,updated ART mortality, ART eligibility index set to 1",
+                                                color = "red", size = 14))
 
 #############################################################################################################
 ## Now lets try altering the median_cd4init_ all to 0, as in 2009 this has some value #######################
 #############################################################################################################
 brazil$fp$linear_diagnosis <- "knot_linear"
 brazil$fp$t_diagn_start <- 11L
-brazil$fp$artinit_use <- TRUE
+
 which(brazil$fp$median_cd4init != 0)
 
 brazil$fp$median_cd4init[which(brazil$fp$median_cd4init != 0)] <- 0L
-brazil$fp$med_cd4init_input <- rep(0L, 52)
-brazil$fp$med_cd4init_cat <- rep(0L, 52)
+brazil$fp$med_cd4init_cat < - rep(0L, 52)
+brazil$fp$artcd4elig_idx <- brazil_fp$artcd4elig_idx
 
-
-brazil_opt1_all_0_art_init_fit <- obj$enqueue(fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e3, optfit=TRUE),
+brazil_opt1_median_cd4_init_to_0 <- obj$enqueue(fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e3, optfit=TRUE),
                                        name = "optim_knot_linear_mod_1")
-brazil_opt1_all_0_art_init_fit$status()
-brazil_opt1_all_0_art_init_fit$log()
+brazil_opt1_median_cd4_init_to_0$status()
+brazil_opt1_median_cd4_init_to_0$log()
 
-brazil_opt2_all_0_art_init_fit <- obj$enqueue(fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, optfit=TRUE),
+brazil_opt2_median_cd4_init_to_0 <- obj$enqueue(fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, optfit=TRUE),
                                        name = "optim_knot_linear_mod_2")
-brazil_opt2_all_0_art_init_fit$status()
-brazil_opt2_all_0_art_init_fit$log()
+brazil_opt2_median_cd4_init_to_0$status()
+brazil_opt2_median_cd4_init_to_0$log()
 
-brazil_opt3_all_0_art_init_fit <- obj$enqueue(fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, optfit=TRUE),
+brazil_opt3_median_cd4_init_to_0 <- obj$enqueue(fitmod_csavr(brazil, eppmod="rlogistic", B0=5e4, optfit=TRUE),
                                        name = "optim_knot_linear_mod_3")
-brazil_opt3_all_0_art_init_fit$status()
-brazil_opt3_all_0_art_init_fit$log()
+brazil_opt3_median_cd4_init_to_0$status()
+brazil_opt3_median_cd4_init_to_0$log()
 
-opt_1_res_eliminated_median <- brazil_opt1_median_0$result()
-opt_2_res_eliminated_median <- brazil_opt2_median_0$result()
-opt_3_res_eliminated_median <- brazil_opt3_median_0$result()
+opt_1_res_eliminated_median <- brazil_opt1_median_cd4_init_to_0$result()
+opt_2_res_eliminated_median <- brazil_opt2_median_cd4_init_to_0$result()
+opt_3_res_eliminated_median <- brazil_opt3_median_cd4_init_to_0$result()
 
 opt_list_eliminated_median <- list(opt_1_res_eliminated_median, opt_1_res_eliminated_median,
                                     opt_3_res_eliminated_median)
@@ -569,6 +579,112 @@ opt_list_eliminated_median <- list(opt_1_res_eliminated_median, opt_1_res_elimin
 undiag_eliminated_median <- plot_undiagnosed(opt_list_eliminated_median)
 undiag_eliminated_median$art_inits
 undiag_eliminated_median$combined_plot
+
+ggpubr::annotate_figure(undiag_eliminated_median$combined_plot,
+                        top = ggpubr::text_grob("Knot_linear diagnosis rates,updated ART mortality, Median CD4 set to 0 and Med CD4 cat set to 0",
+                                                color = "red", size = 14))
+
+
+##########################################################################################
+## Setting all CD4 catergories to baseline ###############################################
+##########################################################################################
+
+brazil$fp$linear_diagnosis <- "knot_linear"
+brazil$fp$t_diagn_start <- 11L
+
+which(brazil$fp$median_cd4init != 0)
+
+brazil$fp$median_cd4init[which(brazil$fp$median_cd4init != 0)] <- 0L
+brazil$fp$med_cd4init_cat <- rep(0L, 52)
+brazil$fp$artcd4elig_idx <- rep(1L, 52)
+brazil$fp$med_cd4init_input <- rep(0L, 52)
+
+
+brazil_opt1_all_to_0 <- obj$enqueue(fitmod_csavr(brazil, incid_func = "ilogistic", B0=1e3, optfit=TRUE),
+                                                name = "optim_knot_linear_mod_1")
+brazil_opt1_all_to_0$status()
+brazil_opt1_all_to_0$log()
+
+brazil_opt2_all_to_0 <- obj$enqueue(fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, optfit=TRUE),
+                                                name = "optim_knot_linear_mod_2")
+brazil_opt2_all_to_0$status()
+brazil_opt2_all_to_0$log()
+
+brazil_opt3_all_to_0 <- obj$enqueue(fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, optfit=TRUE),
+                                                name = "optim_knot_linear_mod_3")
+brazil_opt3_all_to_0$status()
+brazil_opt3_all_to_0$log()
+
+opt_1_res_all_to_0 <- brazil_opt1_all_to_0$result()
+opt_2_res_all_to_0 <- brazil_opt2_all_to_0$result()
+opt_3_res_all_to_0 <- brazil_opt3_all_to_0$result()
+
+opt_list_all_to_0 <- list(opt_1_res_all_to_0, opt_1_res_all_to_0,
+                                   opt_3_res_all_to_0)
+
+undiag_all_to_0 <- plot_undiagnosed(opt_list_all_to_0)
+undiag_all_to_0$art_inits
+undiag_all_to_0$combined_plot
+
+ggpubr::annotate_figure(undiag_all_to_0$combined_plot,
+                        top = ggpubr::text_grob("Knot linear diagnosis rates,updated ART mortality, all CD4 catergories set to 1 or 0",
+                                                color = "red", size = 14))
+
+
+
+####################################################################################################################
+## Artificially setting the eligibility criteria to only those who have aids to see affect on hiv deaths ###########
+####################################################################################################################
+
+brazil$fp$median_cd4init[which(brazil$fp$median_cd4init != 0)] <- 100L 
+brazil$fp$med_cd4init_cat <- rep(5L, 52)
+brazil$fp$med_cd4init_input <- rep(0L, 52)
+brazil$fp$artcd4elig_idx <- rep(5L, 52)
+brazil$fp$med_cd4init_input <- brazil_fp$med_cd4init_input
+
+
+brazil_opt1_elig_only_AIDS <- obj$enqueue(fitmod_csavr(brazil, incid_func = "ilogistic", B0=5e4, optfit=TRUE),
+                                    name = "optim_knot_linear_mod_1")
+brazil_opt1_elig_only_AIDS$status()
+brazil_opt1_elig_only_AIDS$log()
+
+brazil_opt2_elig_only_AIDS <- obj$enqueue(fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, optfit=TRUE),
+                                    name = "optim_knot_linear_mod_2")
+brazil_opt2_elig_only_AIDS$status()
+brazil_opt2_elig_only_AIDS$log()
+
+brazil_opt3_elig_only_AIDS <- obj$enqueue(fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, optfit=TRUE),
+                                    name = "optim_knot_linear_mod_3")
+brazil_opt3_elig_only_AIDS$status()
+brazil_opt3_elig_only_AIDS$log()
+
+opt_1_elig_only_AIDS <- brazil_opt1_elig_only_AIDS$result()
+opt_2_elig_only_AIDS <- brazil_opt2_elig_only_AIDS$result()
+opt_3_elig_only_AIDS <- brazil_opt3_elig_only_AIDS$result()
+
+opt_list_elig_only_AIDS <- list(opt_1_elig_only_AIDS, opt_1_elig_only_AIDS,
+                          opt_3_elig_only_AIDS)
+
+undiag_elig_only_AIDS <- plot_undiagnosed(opt_list_elig_only_AIDS)
+undiag_elig_only_AIDS$art_inits
+undiag_elig_only_AIDS$combined_plot
+
+ggpubr::annotate_figure(undiag_elig_only_AIDS$combined_plot,
+                        top = ggpubr::text_grob("Knot linear diagnosis rates,updated ART mortality, only AIDS patients eligible for ART",
+                                                color = "red", size = 14))
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ##### all init cats sets to 0
 
@@ -639,5 +755,91 @@ save(brazil,
 brazil$fp$artcd4elig_idx <- rep(1L, 52)
 save(brazil,
      file = "C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/brazil_obj_artcd4_elig_index_changed_to_1")
+
+#########################################################################################################
+## Using Jeff's Spectrum ART numbers ####################################################################
+#########################################################################################################
+
+jeff_numbers <- read.csv("C:/Users/josh/Dropbox/hiv_project/brazil_mortality_data/adult-art-by-sex_Spectrum2018.csv")
+jeff_numbers$year <- seq(1997, by = 1, length.out = nrow(jeff_numbers))
+
+brazil$fp$art15plus_num[1,28:52] <- jeff_numbers$ï..Male
+brazil$fp$art15plus_num[2,28:52] <- jeff_numbers$Female
+
+spectrum_art_numbers <- brazil$fp$art15plus_num
+
+save(spectrum_art_numbers,
+     file = "C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/spectrum_ART_numbers")
+
+#### Run with even elgibility first ####
+
+brazil_opt2_even_elig <- obj$enqueue(fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, optfit=TRUE),
+                                         name = "optim_knot_linear_mod_2")
+brazil_opt2_even_elig$status()
+brazil_opt2_even_elig$log()
+
+brazil_opt3_even_elig <- obj$enqueue(fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, optfit=TRUE),
+                                         name = "optim_knot_linear_mod_3")
+brazil_opt3_even_elig$status()
+brazil_opt3_even_elig$log()
+
+opt_2_res_even_elig <- brazil_opt2_even_elig$result()
+opt_3_res_even_elig <- brazil_opt3_even_elig$result()
+
+opt_list_even_elig <- list(opt_2_res_even_elig,
+                               opt_3_res_even_elig)
+
+undiag_even_elig <- plot_undiagnosed(opt_list_even_elig)
+undiag_even_elig$art_inits
+undiag_even_elig$combined_plot
+
+ggpubr::annotate_figure(undiag_even_elig$combined_plot,
+                        top = ggpubr::text_grob("Knot linear diagnosis rates, all CD4 classes eligible  Spectrum ART numbers",
+                                                color = "red", size = 14))
+
+save(brazil,
+     file = "C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/brazil_obj_everything_spectrum_standard")
+brazil$fp$artcd4elig_idx <- rep(1L, 52)
+save(brazil,
+     file = "C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/brazil_obj_artcd4_elig_index_changed_to_1")
+
+######################
+## orig cd4 elig #####
+######################
+
+brazil$fp$artcd4elig_idx <- brazil_fp$artcd4elig_idx 
+
+brazil_opt2_orig_elig <- obj$enqueue(fitmod_csavr(brazil, incid_func = "idbllogistic", B0=1e4, optfit=TRUE),
+                                     name = "optim_knot_linear_mod_2")
+brazil_opt2_orig_elig$status()
+brazil_opt2_orig_elig$log()
+
+brazil_opt3_orig_elig <- obj$enqueue(fitmod_csavr(brazil, eppmod="rlogistic", B0=1e4, optfit=TRUE),
+                                     name = "optim_knot_linear_mod_3")
+brazil_opt3_orig_elig$status()
+brazil_opt3_orig_elig$log()
+
+opt_2_res_orig_elig <- brazil_opt2_orig_elig$result()
+opt_3_res_orig_elig <- brazil_opt3_orig_elig$result()
+
+opt_list_orig_elig <- list(opt_2_res_orig_elig,
+                           opt_3_res_orig_elig)
+
+undiag__orig_elig <- plot_undiagnosed(opt_list_orig_elig)
+undiag_even_elig$art_inits
+undiag__orig_elig$combined_plot
+
+ggpubr::annotate_figure(undiag__orig_elig$combined_plot,
+                        top = ggpubr::text_grob("Knot linear diagnosis rates, original spectrum classes, Spectrum ART numbers",
+                                                color = "red", size = 14))
+
+
+
+save(brazil,
+     file = "C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/brazil_obj_everything_spectrum_standard")
+brazil$fp$artcd4elig_idx <- rep(1L, 52)
+save(brazil,
+     file = "C:/Users/josh/Dropbox/hiv_project/jeff_eppasm_data/brazil_obj_artcd4_elig_index_changed_to_1")
+
 
 

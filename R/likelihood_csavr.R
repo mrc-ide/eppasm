@@ -217,8 +217,8 @@ cumgamma_diagn_rate <- function(gamma_max, delta_rate, fp){
 create_param_csavr <- function(theta, fp){
   
   if(fp$eppmod == "directincid" && fp$incid_func == "ilogistic"){
-    nparam_incid <- 2
-    fp$incidinput <- ilogistic(seq_len(fp$ss$PROJ_YEARS), exp(theta[1:2]), 1)
+    nparam_incid <- 3
+    fp$incidinput <- ilogistic(seq_len(fp$ss$PROJ_YEARS), exp(theta[1:2]), theta[3] - fp$ss$proj_start)
   }
 
   if(fp$eppmod == "directincid" && fp$incid_func == "idbllogistic"){
@@ -365,8 +365,8 @@ return(tot_likelihood)
 rw_mean <- rep(0.5, 52)
 rw_sd <- rep(0.25, 52)
 
-ilogistic_theta_mean <- c(-1, -10)
-ilogistic_theta_sd <- c(5, 5)
+ilogistic_theta_mean <- c(-1, -10, 1995)
+ilogistic_theta_sd <- c(5, 5, 10)
 
 idbllogistic_theta_mean <- c(-1, -1, 1995, -10, -10)
 idbllogistic_theta_sd <- c(5, 5, 10, 5, 5)

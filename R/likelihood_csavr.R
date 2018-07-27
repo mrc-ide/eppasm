@@ -237,7 +237,7 @@ create_param_csavr <- function(theta, fp){
     fp$iota <- exp(theta[5])
   }
 
-  if(fp$eppmod == "logrw"){
+  if(fp$eppmod %in% c("logrw", "logrspline")){
     nparam_incid <- fp$numKnots + 1L
     beta <- theta[1:fp$numKnots]
 
@@ -246,6 +246,7 @@ create_param_csavr <- function(theta, fp){
                   iota = transf_iota(theta[fp$numKnots+1], fp))
     fp[names(param)] <- param
   }
+
   if(fp$linear_diagnosis == "gamma"){
   fp$gamma_max <- exp(theta[nparam_incid+1])
   fp$delta_rate <- exp(theta[nparam_incid+2])
@@ -409,6 +410,15 @@ sample_prior_eppmod <- function(n, fp){
     mat[,2:fp$rt$n_rw] <- bayes_rmvt(n, fp$rt$n_rw-1, rw_prior_shape, rw_prior_rate)  # u[2:numKnots]
     mat[,fp$numKnots+1] <- sample_iota(n, fp)
 
+  } else if(fp$eppmod == "logrspline") {
+
+    nparam <- fp$numKnots + 1L
+
+    mat <- matrix(NA, n, nparam)
+    mat[,1] <- rnorm(n, 0.2, 1)  # u[1]
+    mat[,2:fp$numKnots] <- bayes_rmvt(n, fp$numKnots-1,tau2_init_shape, tau2_init_rate)  # u[2:numKnots]
+    mat[,fp$numKnots+1] <- sample_iota(n, fp)
+
   } else {
 
     theta_mean <- numeric()
@@ -491,6 +501,10 @@ lprior_eppmod <- function(theta_eppmod, fp){
     lpr <- bayes_lmvt(theta_eppmod[2:fp$numKnots], rw_prior_shape, rw_prior_rate)
     lpr <- lpr + lprior_iota(theta_eppmod[fp$numKnots+1], fp)
     return(lpr)
+  } else if(fp$eppmod == "logrspline"){
+    lpr <- bayes_lmvt(theta_eppmod[rsp$fp$rtpenord:fp$numKnots], tau2_prior_shape, tau2_prior_rate)
+    lpr <- lpr + lprior_iota(theta_eppmod[fp$numKnots+1], fp)
+    return(lpr)
   }
   else
     stop("incidence model not recognized")
@@ -508,7 +522,7 @@ get_nparam_eppmod <- function(fp){
     return(length(idbllogistic_theta_mean))
   else if(fp$eppmod == "rlogistic")
     return(length(rlog_pr_mean))
-  else if(fp$eppmod == "logrw")
+  else if(fp$eppmod %in% c("logrw", "logrspline"))
     return(fp$numKnots + 1L)
   else
     stop("incidence model not recognized")

@@ -73,7 +73,7 @@ prepare_hybrid_r <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5, rw_st
 
 
 prepare_logrw <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5){
-
+    
   fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - tsEpidemicStart))]
   rw_steps <- fp$proj.steps[fp$proj.steps >= fp$tsEpidemicStart]
 
@@ -89,8 +89,7 @@ prepare_logrw <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5){
   
   ## Random walk design matrix
   rt$rw_knots <- seq(min(rw_steps), max(rw_steps), length.out=rt$n_rw+1)
-  rt$rwX <- outer(rw_steps, rt$rw_knots[1:rt$n_rw], ">=")
-  class(rt$rwX) <- "integer"
+  rt$rwX <- cbind(1, pmin(pmax(outer(rw_steps, rt$rw_knots[2:rt$n_rw], "-"), 0), 1))
 
   fp$rt <- rt
 

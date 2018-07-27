@@ -80,17 +80,22 @@
 
 
 
-# eppasm 0.5.0
+# eppasm 0.5
 
+## eppasm 0.5.0
 - Implement age-specific prevalence among pregnant women.
 - Refactor age-specific prevalence function.
 - Add age-specific ART coverage function.
 
-# eppasm 0.5.1
+## eppasm 0.5.1
 
 - Add tidy_output() function to generate long format of key output indicators.
 
-# eppasm 0.5.2
+## eppasm 0.5.2
 
 - Use Beer's coefficients to graduate 5-year age IRRs to single year.
 - Add vignette to develop EPP-ASM to Spectrum workflow.
+
+## eppasm 0.5.3
+
+- Mor constrained  prior for log(iota) ~ Unif(log(1e-13), log(0.0025)), matching EPP software.

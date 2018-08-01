@@ -99,3 +99,5 @@
 ## eppasm 0.5.3
 
 - Mor constrained  prior for log(iota) ~ Unif(log(1e-13), log(0.0025)), matching EPP software.
+
+- Add posterior predictive outputs for site-level ANC data

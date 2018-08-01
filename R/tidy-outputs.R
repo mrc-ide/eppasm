@@ -1,4 +1,8 @@
 tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
+
+  idvars <- data.frame(country = country,
+                       eppregion = eppregion,
+                       modlab = modlab)
   print(paste(country, eppregion))
 
   ss <- fit$fp$ss
@@ -20,123 +24,153 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
   agegr3$aidx <- agegr3$age - ss$AGE_START + 1
   agegr3$yidx <- agegr3$year - ss$proj_start + 1
 
-  fit <- simfit(fit, pregprev = pred, ageprevdat = fit$likdat$hhs.dat,
-                agegr3=agegr3, aidsdeaths = TRUE,
-                artcov = TRUE, ancartcov=TRUE)
+
+  ## simulate model projections
+  param_list <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
+  
+  if(fit$fp$eppmod == "rspline")
+    fit <- rw_projection(fit)
+  
+  fp_list <- lapply(param_list, function(par) update(fit$fp, list=par))
+  mod_list <- lapply(fp_list, simmod)
+
+
 
   ## Assemble results
 
   year <- fit$fp$ss$proj_start + 1:fit$fp$ss$PROJ_YEARS - 1L
 
-  fit$artcov[is.na(fit$artcov)] <- 0
-  fit$ancartcov[is.na(fit$ancartcov)] <- 0
 
-  core <- rbind(data.frame(country = country,
+  ## Core results
+  rvec <- sapply(mod_list, attr, "rvec_ts")
+  rvecidx <- c(1, seq_len(ss$PROJ_YEARS-1) * ss$hiv_steps_per_year)
+  rvec <- rvec[rvecidx, ]
+
+  prev <- sapply(mod_list, prev)
+  incid <- mapply(incid, mod = mod_list, fp = fp_list)
+  popsize <- sapply(mod_list, colSums, dims=3)
+  
+  aidsdeaths <- sapply(lapply(mod_list, attr, "hivdeaths"), colSums, dims=2)
+  artcov <- sapply(mod_list, artcov15plus)
+  ancartcov <- mapply(agepregartcov, mod_list, fp_list, MoreArgs=list(aidx=1, yidx=1:fit$fp$ss$PROJ_YEARS, agspan=35, expand=TRUE))
+
+
+  artcov[is.na(artcov)] <- 0
+  ancartcov[is.na(ancartcov)] <- 0
+
+  core <- list(prev = prev,
+               incid = incid,
+               aidsdeaths15pl = aidsdeaths,
+               artcov15pl = artcov,
+               pregartcov = ancartcov,
+               "r(t)" = rvec,
+               "log r(t)" = log(rvec))
+  core <- lapply(core, estci2)
+  core <- Map(data.frame,
+              country = country,
+              eppregion = eppregion,
+              indicator = names(core),
+              model = modlab,
+              core)
+
+  ## ADD INCIDENCE SEX RATIO
+               
+  ## core <- rbind(core,
+  ##               data.frame(country = country,
+  ##                          eppregion = eppregion,
+  ##                          year = dimnames(fit$agegr3incid)[[3]],
+  ##                          model = modlab,
+  ##                          indicator = "incidence sex ratio",
+  ##                          estci2(fit$agegr3incid["15-49", "female",,] /
+  ##                                 fit$agegr3incid["15-49", "male",,])))
+
+  ## pregprev <- data.frame(country = country,
+  ##                        eppregion = eppregion,
+  ##                        pred, model=modlab, estci2(fit$pregprev))
+
+  agegr3prev <- mapply(ageprev, mod=mod_list,
+                       MoreArgs=list(aidx=agegr3$aidx,
+                                     sidx=agegr3$sidx,
+                                     yidx=agegr3$yidx,
+                                     agspan=agegr3$agspan))
+  
+  agegr3prev <- data.frame(country = country,
                            eppregion = eppregion,
-                           year = year,
-                           indicator="prev",
+                           agegr3,
                            model = modlab,
-                           estci2(fit$prev)),
-                data.frame(country = country,
-                           eppregion = eppregion,
-                           year = year,
-                           indicator = "incid",
-                           model = modlab,
-                           estci2(fit$incid)),
-                data.frame(country = country,
-                           eppregion = eppregion,
-                           year = year,
-                           indicator = "aidsdeaths15pl",
-                           model = modlab,
-                           estci2(fit$aidsdeaths)),
-                subset(data.frame(country = country,
-                                  eppregion = eppregion,
-                                  year = year,
-                                  indicator = "artcov15pl",
-                                  model = modlab,
-                                  estci2(fit$artcov)),
-                       year >= 2000),
-                subset(data.frame(country = country,
-                                  eppregion = eppregion,
-                                  year = year,
-                                  indicator = "pregartcov",
-                                  model = modlab,
-                                  estci2(fit$ancartcov)),
-                       year >= 2000))
+                           estci2(agegr3prev))
 
-  rvecidx <- seq_len(ss$PROJ_YEARS-1)*ss$hiv_steps_per_year
+  ## agegr3incid <- reshape2::melt(estci2(fit$agegr3incid),
+  ##                       varnames = c("agegr", "sex", "year", "outcome"))
+  ## ageincid <- data.frame(country = country,
+  ##                        eppregion = eppregion,
+  ##                        indicator = "incidence",
+  ##                        model=modlab,
+  ##                        reshape2::dcast(ageincid, ... ~ outcome, value.var="value"))
 
-  core <- rbind(core,
-                data.frame(country = country,
-                           eppregion = eppregion,
-                           year = year[-1],
-                           indicator = "r(t)",
-                           model = modlab,
-                           estci2(fit$rvec[rvecidx, ])),
-                data.frame(country = country,
-                           eppregion = eppregion,
-                           year = year[-1],
-                           indicator = "log r(t)",
-                           model = modlab,
-                           estci2(log(fit$rvec[rvecidx, ]))))
+  ## ageinfections <- reshape2::melt(estci2(fit$agegr3incid),
+  ##                                 varnames = c("agegr", "sex", "year", "outcome"))
+  ## ageinfections <- data.frame(country = country,
+  ##                             eppregion = eppregion,
+  ##                             indicator = "infections",
+  ##                             model=modlab,
+  ##                             reshape2::dcast(ageinfections, ... ~ outcome, value.var="value"))
 
-  core <- rbind(core,
-                data.frame(country = country,
-                           eppregion = eppregion,
-                           year = dimnames(fit$agegr3incid)[[3]],
-                           model = modlab,
-                           indicator = "incidence sex ratio",
-                           estci2(fit$agegr3incid["15-49", "female",,] /
-                                  fit$agegr3incid["15-49", "male",,])))
+  ## relincid <- reshape2::melt(fit$relincid,
+  ##                            varnames = c("agegr", "sex", "year", "outcome"))
+  ## relincid <- data.frame(country = country,
+  ##                        eppregion = eppregion,
+  ##                        indicator = "relincid",
+  ##                        model=modlab,
+  ##                        reshape2::dcast(relincid, ... ~ outcome, value.var="value"))
 
-  pregprev <- data.frame(country = country,
-                         eppregion = eppregion,
-                         pred, model=modlab, estci2(fit$pregprev))
+  ## Age specific prevalence predictions in survey years
+  ageprevdat <- fit$likdat$hhs.dat[c("year", "sex", "agegr", "n", "prev", "se", "ci_l", "ci_u", "aidx", "sidx", "yidx", "agspan")]
 
-  agegr3 <- data.frame(country = country,
-                       eppregion = eppregion,
-                       agegr3, model = modlab, estci2(fit$agegr3prev))
-
-
-  ageincid <- reshape2::melt(estci2(fit$agegr3incid),
-                        varnames = c("agegr", "sex", "year", "outcome"))
-  ageincid <- data.frame(country = country,
-                         eppregion = eppregion,
-                         indicator = "incidence",
-                         model=modlab,
-                         reshape2::dcast(ageincid, ... ~ outcome, value.var="value"))
-
-  ageinfections <- reshape2::melt(estci2(fit$agegr3incid),
-                                  varnames = c("agegr", "sex", "year", "outcome"))
-  ageinfections <- data.frame(country = country,
-                              eppregion = eppregion,
-                              indicator = "infections",
-                              model=modlab,
-                              reshape2::dcast(ageinfections, ... ~ outcome, value.var="value"))
-
-  relincid <- reshape2::melt(fit$relincid,
-                             varnames = c("agegr", "sex", "year", "outcome"))
-  relincid <- data.frame(country = country,
-                         eppregion = eppregion,
-                         indicator = "relincid",
-                         model=modlab,
-                         reshape2::dcast(relincid, ... ~ outcome, value.var="value"))
-
+  ageprevpred <- mapply(ageprev,
+                       mod = mod_list,
+                       MoreArgs = list(aidx=ageprevdat$aidx,
+                                       sidx=ageprevdat$sidx,
+                                       yidx=ageprevdat$yidx,
+                                       agspan=ageprevdat$agspan))
   ageprevdat <- data.frame(country = country,
                            eppregion = eppregion,
                            model = modlab,
-                           fit$likdat$hhs.dat[c("year", "sex", "agegr", "n", "prev", "se", "ci_l", "ci_u")],
-                           estci2(fit$ageprevdat))
+                           ageprevdat,
+                           estci2(ageprevpred))
+
+  ## Site-level ANC outputs
+  b_site <- Map(sample_b_site, mod_list, fp_list,
+                list(fit$likdat$ancsite.dat), resid = FALSE)
+  
+  newdata <- expand.grid(site = unique(fit$likdat$ancsite.dat$df$site),
+                         year = 1985:2020,
+                         type = "ancss",
+                         age = 15,
+                         agspan = 35,
+                         n = 300)
+  new_df <- ancsite_pred_df(newdata, fit$fp)
+
+  ancsite_pred <- mapply(sample_ancsite_pred, mod_list, fp_list,
+                         b_site = b_site,
+                         MoreArgs = list(newdata = new_df))
+  ancsite_pred <- data.frame(newdata, estci2(ancsite_pred))
+  
+  ancsite_pred <- merge(ancsite_pred,
+                        fit$likdat$ancsite.dat$df[c("site", "year", "type", "age", "agspan", "n", "prev", "pstar", "W", "v")],
+                        by = c("site", "year", "type", "age", "agspan"),
+                        suffixes = c("_sim", "_obs"), all.x=TRUE)
   
   out <- list(country = country,
               eppregion = eppregion,
               core = core,
               ageprevdat=ageprevdat,
-              pregprev = pregprev,
-              agegr3 = agegr3,
-              ageincid = ageincid,
-              ageinfections = ageinfections,
-              relincid = relincid)
+              ## pregprev = pregprev,
+              agegr3prev = agegr3prev,
+              ancsite_pred = ancsite_pred)
+              ## ageincid = ageincid,
+              ## ageinfections = ageinfections,
+              ## relincid = relincid)
 }
 
 

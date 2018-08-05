@@ -228,7 +228,7 @@ extern "C" {
 
     multi_array_ref<double, 3> paedsurv_cd4dist(REAL(getListElement(s_fp, "paedsurv_cd4dist")), extents[PROJ_YEARS][NG][hDS]);
     multi_array_ref<double, 4> paedsurv_artcd4dist(REAL(getListElement(s_fp, "paedsurv_artcd4dist")), extents[PROJ_YEARS][NG][hDS][hTS]);
-    
+
     // initialize output
     SEXP s_pop = PROTECT(allocVector(REALSXP, pAG * NG * pDS * PROJ_YEARS));
     SEXP s_pop_dim = PROTECT(allocVector(INTSXP, 4));
@@ -454,7 +454,7 @@ extern "C" {
 	  entrant_prev = entrantprev[t][g];
 	else
 	  entrant_prev = pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1];
-	  
+
         if(bin_popadjust){
           pop[t][HIVN][g][0] =  entrantpop[t-1][g] * (1.0-entrant_prev);
           paedsurv_g = entrantpop[t-1][g] * entrant_prev;
@@ -788,7 +788,7 @@ extern "C" {
 		  }
 		  artinits[t][g][ha][hm] += artinit_hahm;
                 }
-	      
+
             } else { // Use mixture of eligibility and expected mortality for initiation distribution
 
               for(int ha = hIDX_15PLUS; ha < hAG; ha++)

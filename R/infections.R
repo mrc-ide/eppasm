@@ -35,12 +35,6 @@ calc_infections_eppspectrum <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
   agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc15to49.ts/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$incrr_age[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
   infections.ts <- agesex.inc * pop[,,hivn.idx,i]
 
-  ## distribute new infections according to Beer's coefficients
-  if(exists("irr", fp) && exists("Amat", fp$irr)){
-    infections.ts <- fp$irr$Amat %*% apply(infections.ts, 2, fastmatch::ctapply, ceiling(seq_len(fp$ss$pAG)/5), sum)
-    infections.ts <- pmax(infections.ts, 0)
-  }
-
   attr(infections.ts, "incrate15to49.ts") <- incrate15to49.ts
   attr(infections.ts, "prevcurr") <- hivp.ii / (hivn.ii+hivp.ii)
 
@@ -212,8 +206,7 @@ transf_incrr <- function(theta_incrr, param, fp){
       f15to24_adjust <- approx(c(2002, 2007, 2012), c(-5, 0, 5)*c(par[5], 0, par[6]), years, rule=2)$y
       param$incrr_age[1:10,,] <- sweep(param$incrr_age[1:10,,,drop=FALSE], 2:3, exp(rbind(m15to24_adjust, f15to24_adjust)), "*")      
     }
-    ## cubic spline interpolation of age IRRs
-    ## note: this is really slow and not very good. Need to figure out something better
+    ## Beers interpolation of 5-year IRRs to 1-year IRRs
     if(exists("smoothirr", fp) && fp$smoothirr){
       smooth_irr <- function(y){
         yval <- c(-5, log(y[0:12*5+1]))

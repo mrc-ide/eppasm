@@ -135,8 +135,11 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
 
   fp$incrr_sex <- projp$incrr_sex[as.character(proj_start:proj_end)]
   
-  projp.p.ag <- findInterval(AGE_START-1 + 1:pAG, seq(0, 85, 5))
-  fp$incrr_age <- projp$incrr_age[projp.p.ag,,as.character(proj_start:proj_end)]
+  ## Use Beer's coefficients to distribution IRRs by age/sex
+  Amat <- create_beers(17)
+  fp$incrr_age <- apply(projp$incrr_age, 2:3, function(x)  Amat %*% x)[AGE_START + 1:pAG, , as.character(proj_start:proj_end)]
+  fp$incrr_age[fp$incrr_age < 0] <- 0
+  
   
   projp.h.ag <- findInterval(AGE_START + cumsum(h.ag.span) - h.ag.span, c(15, 25, 35, 45))  # NOTE: Will not handle AGE_START < 15 presently
   fp$cd4_initdist <- projp$cd4_initdist[,projp.h.ag,]

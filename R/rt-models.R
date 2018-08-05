@@ -271,7 +271,7 @@ calc_rtrend_rt <- function(t, fp, rveclast, prevlast, pop, i, ii){
 ####  Model for iota  ####
 
 
-logiota.unif.prior <- c(log(1e-14), 0)
+logiota.unif.prior <- log(c(1e-13, 0.0025))
 r0logiotaratio.unif.prior <- c(-25, -5)
 
 logit <- function(p) log(p/(1-p))
@@ -292,14 +292,15 @@ transf_iota <- function(par, fp){
 }
 
 lprior_iota <- function(par, fp){
-  ## !!! CHECK THIS FUNCTION IS DOING THE RIGHT THING
+
   if(exists("prior_args", where = fp)){
     for(i in seq_along(fp$prior_args))
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
 
+
   if(exists("logitiota", fp) && fp$logitiota)
-    ldinvlogit(par)
+    ldinvlogit(par)  # Note: parameter is defined on range logiota.unif.prior, so no need to check bound
   else
     dunif(par, logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
 }

@@ -27,6 +27,10 @@ calc_infections_eppspectrum <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
   incrate15to49.ts <- r_ts * transm_prev + fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
   sexinc15to49.ts <- incrate15to49.ts*c(1, fp$incrr_sex[i])*sum(pop[p.age15to49.idx,,hivn.idx,i])/(sum(pop[p.age15to49.idx,m.idx,hivn.idx,i]) + fp$incrr_sex[i]*sum(pop[p.age15to49.idx, f.idx,hivn.idx,i]))
   agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc15to49.ts/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$incrr_age[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
+
+  ## Adjust age-specific incidence among men for circumcision coverage
+  agesex.inc[ , m.idx] <- agesex.inc[ , m.idx] * (1 - fp$circ_incid_rr * fp$circ_prop[ , i])
+  
   infections.ts <- agesex.inc * pop[,,hivn.idx,i]
 
   attr(infections.ts, "incrate15to49.ts") <- incrate15to49.ts
@@ -70,6 +74,10 @@ calc_infections_simpletransm <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
 
   sexinc15to49.ts <- (r_sex * hivtransm_prev)[2:1] + fp$mf_transm_rr[i]^c(-0.25, 0.25) * fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
   agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc15to49.ts/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$incrr_age[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
+
+  ## Adjust age-specific incidence among men for circumcision coverage
+  agesex.inc[ , m.idx] <- agesex.inc[ , m.idx] * (1 - fp$circ_incid_rr * fp$circ_prop[ , i])
+  
   infections.ts <- agesex.inc * pop[,,hivn.idx,i]
 
   attr(infections.ts, "incrate15to49.ts") <- sum(infections.ts[p.age15to49.idx,]) / sum(hivn.ii)
@@ -153,6 +161,13 @@ NPARAM_LININCRR <- 6
 incrr_trend_mean <- c(0.0, 0.035, -0.02, -0.09, -0.016, -0.06)
 incrr_trend_sd <- c(0.07, 0.07, 0.1, 0.1, 0.08, 0.08)
 
+## Incidence rate ratios for age 50 plus, relative to 15-49
+incrr_50plus_logdiff <- cbind(male   = log(0.493510) - log(c(0.358980, 0.282400, 0.259240, 0.264920, 0.254790, 0.164140, 0.000000)),
+                              female = log(0.440260) - log(c(0.336720, 0.239470, 0.167890, 0.146590, 0.171350, 0.000000, 0.000000)))
+
+## Beers coefficient matrix
+beers_Amat <- create_beers(17)[16:81, 4:17]
+
 getnparam_incrr <- function(fp){
   switch(fp$fitincrr,
          "TRUE"=NPARAM_RW2,
@@ -177,13 +192,16 @@ transf_incrr <- function(theta_incrr, param, fp){
     ## param$sigma_agepen <- exp(theta_incrr[incrr_nparam])
     param$sigma_agepen <- 0.4
     
-    param$logincrr_age <- array(0, c(7, 2))
-    param$logincrr_age[-3,] <- theta_incrr[2:13]
+    param$logincrr_age <- array(0, c(14, 2))
+    param$logincrr_age[c(1:2, 4:7), ] <- theta_incrr[2:13]
+    param$logincrr_age[8:14, ] <- sweep(-incrr_50plus_logdiff, 2,
+                                        param$logincrr_age[7, ], "+")
+
+    ## Smooth 5-year age group IRRs to 1-year IRRs
+    incrr_age <- beers_Amat %*% exp(param$logincrr_age)
+    incrr_age[incrr_age < 0] <- 0
     
-    param$incrr_age <- fp$incrr_age
-    param$incrr_age[fp$ss$p.age15to49.idx,,] <- apply(exp(param$logincrr_age), 2, rep, each=5)
-    param$incrr_age[36:66,,] <- sweep(fp$incrr_age[36:66,,fp$ss$PROJ_YEARS], 2,
-                                      param$incrr_age[35,,fp$ss$PROJ_YEARS]/fp$incrr_age[35,,fp$ss$PROJ_YEARS], "*")
+    param$incrr_age <- array(incrr_age, c(dim(incrr_age), fp$ss$PROJ_YEARS))
 
     years <- with(fp$ss, proj_start+1:PROJ_YEARS-1)
     if(fp$fitincrr == "linincrr"){
@@ -200,38 +218,37 @@ transf_incrr <- function(theta_incrr, param, fp){
       f15to24_adjust <- approx(c(2002, 2007, 2012), c(-5, 0, 5)*c(par[5], 0, par[6]), years, rule=2)$y
       param$incrr_age[1:10,,] <- sweep(param$incrr_age[1:10,,,drop=FALSE], 2:3, exp(rbind(m15to24_adjust, f15to24_adjust)), "*")      
     }
-    ## Beers interpolation of 5-year IRRs to 1-year IRRs
-    if(exists("smoothirr", fp) && fp$smoothirr){
-      smooth_irr <- function(y){
-        yval <- c(-5, log(y[0:12*5+1]))
-        yval <- pmax(yval, -8)
-        exp(spline(2:15*5+2, yval, xout=15:80)$y)
-      }
-      idx <- approx(c(2002, 2012), c(1,11), years, rule=2)$y
-      param$incrr_age <- apply(param$incrr_age[,,2002-fp$ss$proj_start + 1:11], 2:3, smooth_irr)[,,idx]
-    }
-    
+
   } else if(fp$fitincrr=="lognorm"){
     param$logincrr_age <- cbind(calc_lognorm_logagerr(theta_incrr[2:4]),
                                 calc_lognorm_logagerr(theta_incrr[5:7]))
-    param$incrr_age <- fp$incrr_age
-    param$incrr_age[,,] <- apply(exp(param$logincrr_age), 2, rep, c(rep(5, 13), 1))
+
+    ## Smooth 5-year age group IRRs to 1-year IRRs
+    incrr_age <- beers_Amat %*% exp(param$logincrr_age)
+    incrr_age[incrr_age < 0] <- 0
     
+    param$incrr_age <- array(incrr_age, c(dim(incrr_age), fp$ss$PROJ_YEARS))
+
   } else if(fp$fitincrr == "relbehav"){
+
+    stop("relbehav is not implemented currently")
     
-    par <- theta_incrr[2:incrr_nparam]
-    param$adjustpar <- par
-    logadjust1 <- cbind(approx(c(17, 27, 38, 49), c(par[1], 0, cumsum(par[2:3])), xout=15:80, rule=2)$y,
-                        approx(c(17, 27, 38, 49), c(par[4], 0, cumsum(par[5:6])), xout=15:80, rule=2)$y)
+    ## par <- theta_incrr[2:incrr_nparam]
+    ## param$adjustpar <- par
+    ## logadjust1 <- cbind(approx(c(17, 27, 38, 49), c(par[1], 0, cumsum(par[2:3])), xout=15:80, rule=2)$y,
+    ##                     approx(c(17, 27, 38, 49), c(par[4], 0, cumsum(par[5:6])), xout=15:80, rule=2)$y)
     
-    logadjust2 <- cbind(approx(c(17, 27, 38, 49), c(par[1]+par[7], 0, cumsum(par[2:3])), xout=15:80, rule=2)$y,
-                        approx(c(17, 27, 38, 49), c(par[4]+par[8], 0, cumsum(par[5:6])), xout=15:80, rule=2)$y)
+    ## logadjust2 <- cbind(approx(c(17, 27, 38, 49), c(par[1]+par[7], 0, cumsum(par[2:3])), xout=15:80, rule=2)$y,
+    ##                     approx(c(17, 27, 38, 49), c(par[4]+par[8], 0, cumsum(par[5:6])), xout=15:80, rule=2)$y)
     
-    BREAK_YEAR <- 36
-    param$incrr_age <- fp$logrelbehav
-    param$incrr_age[,,1:(BREAK_YEAR-1)] <- exp(sweep(fp$logrelbehav[,,1:(BREAK_YEAR-1)], 1:2, logadjust1, "+"))
-    param$incrr_age[,,BREAK_YEAR:fp$SIM_YEARS] <- exp(sweep(fp$logrelbehav[,,BREAK_YEAR:fp$SIM_YEARS], 1:2, logadjust2, "+"))
+    ## BREAK_YEAR <- 36
+    ## param$incrr_age <- fp$logrelbehav
+    ## param$incrr_age[,,1:(BREAK_YEAR-1)] <- exp(sweep(fp$logrelbehav[,,1:(BREAK_YEAR-1)], 1:2, logadjust1, "+"))
+    ## param$incrr_age[,,BREAK_YEAR:fp$SIM_YEARS] <- exp(sweep(fp$logrelbehav[,,BREAK_YEAR:fp$SIM_YEARS], 1:2, logadjust2, "+"))
   }
+
+
+
   
   return(param)
 }

@@ -68,12 +68,14 @@ double calc_rtrend_rt(const multi_array_ref<double, 4> pop, double rtrend_tstab,
 void calc_infections_eppspectrum(const multi_array_ref<double, 4> pop, const multi_array_ref<double, 4> hivpop, const multi_array_ref<double, 5> artpop,
                                  double r_ts, double relinfectART, double iota,
                                  double *incrr_sex, const multi_array_ref<double, 3> incrr_age,
+				 double circ_incid_rr, const multi_array_ref<double, 2> circ_prop,
                                  int t_ART_start, double DT, int t, int hts, int *hAG_START, int *hAG_SPAN,
                                  double *prevcurr, double *incrate15to49_ts, double infections_ts[NG][pAG]);
 
 void calc_infections_simpletransm(const multi_array_ref<double, 4> pop, const multi_array_ref<double, 4> hivpop, const multi_array_ref<double, 5> artpop,
                                   double r_ts, double relinfectART, double iota,
                                   const double *mf_transm_rr, const double *relsexact_cd4cat, const multi_array_ref<double, 3> incrr_age,
+				  double circ_incid_rr, const multi_array_ref<double, 2> circ_prop,
                                   int t_ART_start, double DT, int t, int hts, int *hAG_START, int *hAG_SPAN,
                                   double *prevcurr, double *incrate15to49_ts, double infections_ts[NG][pAG]);
 
@@ -175,7 +177,7 @@ extern "C" {
 
     double *incidinput;
     int pIDX_INCIDPOP, pAG_INCIDPOP;
-    double tsEpidemicStart, iota, relinfectART;
+    double tsEpidemicStart, iota, relinfectART, circ_incid_rr;
     double *rspline_rvec;
     double *rtrend_beta, rtrend_tstab, rtrend_r0;
     if(eppmod == EPP_DIRECTINCID){
@@ -185,6 +187,9 @@ extern "C" {
 	pAG_INCIDPOP = pAG_15TO49;
       else
 	pAG_INCIDPOP = pAG_15PLUS;
+
+      circ_incid_rr = 0.0; // incidence rate is directly specified, so no circumcision adjustment
+      
     } else {
       relinfectART = *REAL(getListElement(s_fp, "relinfectART"));
       tsEpidemicStart = *REAL(getListElement(s_fp, "tsEpidemicStart"));
@@ -198,8 +203,12 @@ extern "C" {
 	rtrend_tstab = *REAL(getListElement(s_rtrend, "tStabilize"));
 	rtrend_r0 = *REAL(getListElement(s_rtrend, "r0"));
       }
+
+      circ_incid_rr = *REAL(getListElement(s_fp, "circ_incid_rr"));
     }
 
+    multi_array_ref<double, 2> circ_prop(REAL(getListElement(s_fp, "circ_prop")), extents[PROJ_YEARS][pAG]);
+    
 
     // vertical transmission and survival
     double *verttrans_lag = REAL(getListElement(s_fp, "verttrans_lag"));
@@ -554,12 +563,14 @@ extern "C" {
           if(incidmod == INCIDMOD_EPPSPEC)
             calc_infections_eppspectrum(pop, hivpop, artpop,
                                         rvec[ts], relinfectART, (projsteps[ts] == tsEpidemicStart) ? iota : 0.0,
-                                        incrr_sex, incrr_age, t_ART_start, DT, t, hts, hAG_START, hAG_SPAN,
+                                        incrr_sex, incrr_age, circ_incid_rr, circ_prop,
+					t_ART_start, DT, t, hts, hAG_START, hAG_SPAN,
                                         &prevcurr, &incrate15to49_ts_out[ts], infections_ts);
           else
             calc_infections_simpletransm(pop, hivpop, artpop,
                                          rvec[ts], relinfectART, (projsteps[ts] == tsEpidemicStart) ? iota : 0.0,
-                                         mf_transm_rr, relsexact_cd4cat, incrr_age, t_ART_start, DT, t, hts, hAG_START, hAG_SPAN,
+                                         mf_transm_rr, relsexact_cd4cat, incrr_age, circ_incid_rr, circ_prop,
+					 t_ART_start, DT, t, hts, hAG_START, hAG_SPAN,
                                          &prevcurr, &incrate15to49_ts_out[ts], infections_ts);
 
           prev15to49_ts_out[ts] = prevcurr;
@@ -952,6 +963,7 @@ double calc_rtrend_rt(const multi_array_ref<double, 4> pop, double rtrend_tstab,
 void calc_infections_eppspectrum(const multi_array_ref<double, 4> pop, const multi_array_ref<double, 4> hivpop, const multi_array_ref<double, 5> artpop,
                                  double r_ts, double relinfectART, double iota,
                                  double *incrr_sex, const multi_array_ref<double, 3> incrr_age,
+				 double circ_incid_rr, const multi_array_ref<double, 2> circ_prop,
                                  int t_ART_start, double DT, int t, int hts, int *hAG_START, int *hAG_SPAN,
                                  double *prevcurr, double *incrate15to49_ts, double infections_ts[NG][pAG])
 {
@@ -1010,12 +1022,16 @@ void calc_infections_eppspectrum(const multi_array_ref<double, 4> pop, const mul
   incrate15to49_g[MALE] = *incrate15to49_ts * (Xhivn_g[MALE]+Xhivn_g[FEMALE]) / (Xhivn_g[MALE] + incrr_sex[t]*Xhivn_g[FEMALE]);
   incrate15to49_g[FEMALE] = *incrate15to49_ts * incrr_sex[t]*(Xhivn_g[MALE]+Xhivn_g[FEMALE]) / (Xhivn_g[MALE] + incrr_sex[t]*Xhivn_g[FEMALE]);
 
-
   // annualized infections by age and sex
   for(int g = 0; g < NG; g++)
     for(int a = 0; a < pAG; a++){
       infections_ts[g][a] = pop[t][HIVN][g][a] * incrate15to49_g[g] * incrr_age[t][g][a] * Xhivn_g[g] / Xhivn_incagerr[g];
     }
+
+  // adjust male infections for circumcision
+  if(circ_incid_rr > 0)
+    for(int a = 0; a < pAG; a++)
+      infections_ts[MALE][a] *= (1 - circ_incid_rr * circ_prop[t][a]);
 
   return;
 }
@@ -1024,6 +1040,7 @@ void calc_infections_eppspectrum(const multi_array_ref<double, 4> pop, const mul
 void calc_infections_simpletransm(const multi_array_ref<double, 4> pop, const multi_array_ref<double, 4> hivpop, const multi_array_ref<double, 5> artpop,
                                   double r_ts, double relinfectART, double iota,
                                   const double *mf_transm_rr, const double *relsexact_cd4cat, const multi_array_ref<double, 3> incrr_age,
+				  double circ_incid_rr, const multi_array_ref<double, 2> circ_prop,
                                   int t_ART_start, double DT, int t, int hts, int *hAG_START, int *hAG_SPAN,
                                   double *prevcurr, double *incrate15to49_ts, double infections_ts[NG][pAG])
 {
@@ -1100,6 +1117,11 @@ void calc_infections_simpletransm(const multi_array_ref<double, 4> pop, const mu
     for(int a = 0; a < pAG; a++){
       infections_ts[g][a] = pop[t][HIVN][g][a] * incrate15to49_g[g] * incrr_age[t][g][a] * Xhivn[g] / Xhivn_incagerr[g];
     }
+
+  // adjust male infections for circumcision
+  if(circ_incid_rr > 0)
+    for(int a = 0; a < pAG; a++)
+      infections_ts[MALE][a] *= (1 - circ_incid_rr * circ_prop[t][a]);
 
   return;
 }

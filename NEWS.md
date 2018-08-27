@@ -108,3 +108,8 @@
 
 - Explicitly model new diagnoses.
 - Add number of new diagnoses and ART initiations by age, sex, and CD4 category as model outputs.
+
+
+# eppasm 0.7.0
+
+- Model HIV testing

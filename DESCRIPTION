@@ -7,6 +7,8 @@ Description: What the package does (one paragraph).
 Depends: R (>= 3.1.0),
 Imports: epp (>= 0.3.3), fastmatch (>= 1.1), abind (>= 1.4), mgcv (>= 1.8), mvtnorm, reshape2
 LinkingTo: BH
+Remotes:
+    jeffeaton/epp
 License: GPL-3
 Encoding: UTF-8
 LazyData: true

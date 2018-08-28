@@ -7,3 +7,4 @@
 *.out
 *.dll
 dev/*
+inst/doc

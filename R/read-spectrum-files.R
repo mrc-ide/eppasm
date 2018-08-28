@@ -400,6 +400,11 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     }
   }
 
+  if(exists_dptag("<MortalityRates MV>"))
+    artmx_timerr <- setNames(dpsub("<MortalityRates MV>", 2, timedat.idx), proj.years)
+  else
+    artmx_timerr <- setNames(rep(1.0, length(proj.years)), proj.years)
+
   
   ## program parameters
   if(dp.vers %in% c("<General 3>", "<General5>")){
@@ -490,17 +495,28 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     age14hivpop["ART1YR", "CD4_0",,] <- hivpop14 * artcov14
   }
   
-  projp <- list("yr_start"=yr_start, "yr_end"=yr_end,
+  projp <- list("yr_start"=yr_start,
+                "yr_end"=yr_end,
                 "relinfectART"=relinfectART,
                 "fert_rat"=fert_rat,
                 "cd4fert_rat"=cd4fert_rat,
                 "frr_art6mos"=frr_art6mos,
-                "incrr_sex"=incrr_sex, "incrr_age"=incrr_age,
-                "cd4_initdist"=cd4_initdist, "cd4_prog"=cd4_prog, "cd4_mort"=cd4_mort, "art_mort"=art_mort,
-                "art15plus_numperc"=art15plus_numperc, "art15plus_num"=art15plus_num,
-                "art15plus_eligthresh"=art15plus_eligthresh, "artelig_specpop"=artelig_specpop,
-                "median_cd4init"=median_cd4init, "art_dropout"=art_dropout,
-                "verttrans"=verttrans, "hivpop"=hivpop, "hivdeaths"=hivdeaths,
+                "incrr_sex"=incrr_sex,
+                "incrr_age"=incrr_age,
+                "cd4_initdist"=cd4_initdist,
+                "cd4_prog"=cd4_prog,
+                "cd4_mort"=cd4_mort,
+                "art_mort"=art_mort,
+                "artmx_timerr"=artmx_timerr,
+                "art15plus_numperc"=art15plus_numperc,
+                "art15plus_num"=art15plus_num,
+                "art15plus_eligthresh"=art15plus_eligthresh,
+                "artelig_specpop"=artelig_specpop,
+                "median_cd4init"=median_cd4init,
+                "art_dropout"=art_dropout,
+                "verttrans"=verttrans,
+                "hivpop"=hivpop,
+                "hivdeaths"=hivdeaths,
                 "age14hivpop"=age14hivpop)
   class(projp) <- "projp"
   attr(projp, "version") <- version

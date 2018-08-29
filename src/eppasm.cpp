@@ -1078,8 +1078,8 @@ extern "C" {
 
 	    if(t >= t_hts_start) {
 	      double popadjrate_hivn_ha = hivnpop_ha > 0 ? popadj_hivn_ha / hivnpop_ha : 0.0;
-	      testnegpop[t][HIVN][g][ha] *= 1+popadj_hivn_ha;
-	      testnegpop[t][HIVP][g][ha] *= 1+popadj_ha;
+	      testnegpop[t][HIVN][g][ha] *= 1+popadjrate_hivn_ha;
+	      testnegpop[t][HIVP][g][ha] *= 1+popadjrate_ha;
 	    }
 	    
             for(int hm = 0; hm < hDS; hm++){

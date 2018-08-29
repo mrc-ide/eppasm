@@ -349,6 +349,17 @@ extern "C" {
     multi_array_ref<double, 4> diagnoses(REAL(s_diagnoses), extents[PROJ_YEARS][NG][hAG][hDS]);
     memset(REAL(s_diagnoses), 0, length(s_diagnoses)*sizeof(double));
 
+    SEXP s_late_diagnoses = PROTECT(allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_late_diagnoses_dim = PROTECT(allocVector(INTSXP, 4));
+    INTEGER(s_late_diagnoses_dim)[0] = hDS;
+    INTEGER(s_late_diagnoses_dim)[1] = hAG;
+    INTEGER(s_late_diagnoses_dim)[2] = NG;
+    INTEGER(s_late_diagnoses_dim)[3] = PROJ_YEARS;
+    setAttrib(s_late_diagnoses, R_DimSymbol, s_late_diagnoses_dim);
+    setAttrib(s_pop, install("late_diagnoses"), s_late_diagnoses);
+    multi_array_ref<double, 4> late_diagnoses(REAL(s_late_diagnoses), extents[PROJ_YEARS][NG][hAG][hDS]);
+    memset(REAL(s_late_diagnoses), 0, length(s_late_diagnoses)*sizeof(double));
+
     SEXP s_artinits = PROTECT(allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
     SEXP s_artinits_dim = PROTECT(allocVector(INTSXP, 4));
     INTEGER(s_artinits_dim)[0] = hDS;
@@ -900,6 +911,7 @@ extern "C" {
 		    
 		    diagnpop[t][g][ha][hm] -= artinit_hahm - new_diagn;
 		    diagnoses[t][g][ha][hm] += new_diagn;
+		    late_diagnoses[t][g][ha][hm] += new_diagn;
 		  }
 		  
 		  hivpop[t][g][ha][hm] -= artinit_hahm;
@@ -934,6 +946,7 @@ extern "C" {
 		    new_diagn_ha += new_diagn;
 		    diagnpop[t][g][ha][hm] -= artinit_hahm - new_diagn;
 		    diagnoses[t][g][ha][hm] += new_diagn;
+		    late_diagnoses[t][g][ha][hm] += new_diagn;
 		  }
 
 
@@ -1116,7 +1129,7 @@ extern "C" {
       incid15to49[t] /= hivn15to49[t-1];
     }
 
-    UNPROTECT(34);
+    UNPROTECT(36);
     return s_pop;
   }
 }

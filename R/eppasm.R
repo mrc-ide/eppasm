@@ -52,6 +52,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   artpopdeaths <- array(0, c(hTS, hDS, hAG, NG, PROJ_YEARS))
 
   diagnoses <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
+  late_diagnoses <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
   artinits <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
 
   popadj.prob <- array(0, c(pAG, NG, PROJ_YEARS))
@@ -410,6 +411,7 @@ simmod.specfp <- function(fp, VERSION="C"){
           prop_testneg <- testnegpop[ , , hivp.idx, i] / colSums(hivpop[,,,i] - diagnpop[,,,i])
 
           testnegpop[ , , hivp.idx, i] <- testnegpop[ , , hivp.idx, i] - prop_testneg * colSums(newdiagn)
+          late_diagnoses[,,,i] <- late_diagnoses[,,,i] + newdiagn
           diagnoses[,,,i] <- diagnoses[,,,i] + newdiagn
           diagnpop[,,,i] <- diagnpop[,,,i] - (artinit - newdiagn)
         }
@@ -515,6 +517,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "artpopdeaths") <- artpopdeaths
 
   attr(pop, "diagnoses") <- diagnoses
+  attr(pop, "late_diagnoses") <- late_diagnoses
   attr(pop, "artinits") <- artinits
 
   attr(pop, "popadjust") <- popadj.prob

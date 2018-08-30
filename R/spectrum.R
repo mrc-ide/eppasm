@@ -154,16 +154,11 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$frr_cd4 <- array(1, c(hDS, length(h.fert.idx), PROJ_YEARS))
   fp$frr_cd4[,,] <- rep(projp$fert_rat[fert_rat.h.ag, as.character(proj_start:proj_end)], each=hDS)
   fp$frr_cd4 <- sweep(fp$frr_cd4, 1, projp$cd4fert_rat, "*")
+  fp$frr_cd4 <- fp$frr_cd4 * projp$frr_scalar
   
-  fp$frr_art <- array(1, c(hTS, hDS, length(h.fert.idx), PROJ_YEARS))
-  fp$frr_art[1:2,,,] <- rep(fp$frr_cd4, each=2)
-
-  if(!is.null(frr_art6mos))
-    fp$frr_art[2,,,] <- frr_art6mos
-
-  if(!is.null(frr_art1yr))
-    fp$frr_art[3,,,] <- frr_art1yr  # relative fertility of women on ART > 1 year
-
+  fp$frr_art <- array(1.0, c(hTS, hDS, length(h.fert.idx), PROJ_YEARS))
+  fp$frr_art[1,,,] <- fp$frr_cd4 # 0-6 months
+  fp$frr_art[2:3, , , ] <- sweep(fp$frr_art[2:3, , , ], 3, projp$frr_art6mos[fert_rat.h.ag] * projp$frr_scalar, "*") # 6-12mos, >1 years
 
   ## ART eligibility and numbers on treatment
 

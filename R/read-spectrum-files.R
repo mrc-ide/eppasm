@@ -350,7 +350,11 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   } else if(exists_dptag("<HIVTFR MV3>")){
     fert_rat <- sapply(dpsub("<HIVTFR MV3>", 2:8, timedat.idx), as.numeric)
     dimnames(fert_rat) <- list(agegr=seq(15, 45, 5), year=proj.years)
+  } else if(exists_dptag("<HIVTFR MV4>")){
+    fert_rat <- sapply(dpsub("<HIVTFR MV4>", 2:8, timedat.idx), as.numeric)
+    dimnames(fert_rat) <- list(agegr=seq(15, 45, 5), year=proj.years)
   }
+
 
   if(dp.vers == "Spectrum2017")
     cd4fert_rat <- as.numeric(dpsub("<FertCD4Discount MV>", 2, 4+1:DS))
@@ -358,9 +362,17 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     cd4fert_rat <- rep(1.0, DS)
 
   if(exists_dptag("<RatioWomenOnART MV>"))
-    frr_art6mos <- as.numeric(dpsub("<RatioWomenOnART MV>", 2, 4))
+    frr_art6mos <- rep(as.numeric(dpsub("<RatioWomenOnART MV>", 2, 4)), 7)
+  else if(exists_dptag("<RatioWomenOnART MV2>"))
+    frr_art6mos <- as.numeric(dpsub("<RatioWomenOnART MV2>", 2, 4+0:6))
   else
-    frr_art6mos <- 1.0
+    frr_art6mos <- rep(1.0, 6)
+  names(frr_art6mos) <- seq(15, 45, 5)
+
+  if(exists_dptag("<FRRbyLocation MV>"))
+    frr_scalar <- as.numeric(dpsub("<FRRbyLocation MV>", 2, 4))
+  else
+    frr_scalar <- 1.0
 
   ## sex/age-specific incidence ratios (time varying)
   incrr_age <- array(NA, c(AG, NG, length(proj.years)), list(0:(AG-1)*5, c("Male", "Female"), proj.years))
@@ -551,6 +563,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
                 "fert_rat" = fert_rat,
                 "cd4fert_rat" = cd4fert_rat,
                 "frr_art6mos" = frr_art6mos,
+                "frr_scalar" = frr_scalar,
                 "incrr_sex" = incrr_sex,
                 "incrr_age" = incrr_age,
                 "cd4_initdist" = cd4_initdist,

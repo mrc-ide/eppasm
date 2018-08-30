@@ -146,6 +146,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$cd4_prog <- (1-exp(-projp$cd4_prog[,projp.h.ag,] / hiv_steps_per_year)) * hiv_steps_per_year
   fp$cd4_mort <- projp$cd4_mort[,projp.h.ag,]
   fp$art_mort <- projp$art_mort[,,projp.h.ag,]
+  fp$artmx_timerr <- projp$artmx_timerr
 
   frr_agecat <- as.integer(rownames(projp$fert_rat))
   frr_agecat[frr_agecat == 18] <- 17

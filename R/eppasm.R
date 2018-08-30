@@ -182,7 +182,7 @@ simmod.specfp <- function(fp, VERSION="C"){
       grad <- grad - fp$cd4_mort * hivpop[,,,i]              # HIV mortality, untreated
 
       ## Remove hivdeaths from pop
-      hivdeaths.ts <- DT*(colSums(fp$cd4_mort * hivpop[,,,i]) + colSums(fp$art_mort * artpop[,,,,i],,2))
+      hivdeaths.ts <- DT*(colSums(fp$cd4_mort * hivpop[,,,i]) + colSums(fp$art_mort * fp$artmx_timerr[i] * artpop[,,,,i],,2))
       calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
       hivdeaths_p.ts <- apply(hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
       pop[,,2,i] <- pop[,,2,i] - hivdeaths_p.ts
@@ -199,9 +199,8 @@ simmod.specfp <- function(fp, VERSION="C"){
         gradART[1:2,,,] <- gradART[1:2,,,] - 2.0 * artpop[1:2,,,, i]      # remove ART duration progression (HARD CODED 6 months duration)
         gradART[2:3,,,] <- gradART[2:3,,,] + 2.0 * artpop[1:2,,,, i]      # add ART duration progression (HARD CODED 6 months duration)
 
-        gradART <- gradART - fp$art_mort * artpop[,,,,i]                  # ART mortality
+        gradART <- gradART - fp$art_mort * fp$artmx_timerr[i] * artpop[,,,,i]                  # ART mortality
 
-        ## hivdeaths.ts <- hivdeaths.ts + colSums(fp$art_mort * artpop[,,,,i],,2)
         artpop[,,,, i] <- artpop[,,,, i] + DT * gradART
 
 

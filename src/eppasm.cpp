@@ -338,6 +338,23 @@ extern "C" {
     multi_array_ref<double, 3> natdeaths(REAL(s_natdeaths), extents[PROJ_YEARS][NG][pAG]);
     memset(REAL(s_natdeaths), 0, length(s_natdeaths)*sizeof(double));
 
+    // 0: negative, never tested
+    // 1: negative, previously tested
+    // 2: positive, never tested
+    // 3: positive, previously tested negative
+    // 4: positive, diagnosed and untreated
+    // 5: positive, on ART
+    SEXP s_hivtests = PROTECT(allocVector(REALSXP, hAG * NG * 6 * PROJ_YEARS));
+    SEXP s_hivtests_dim = PROTECT(allocVector(INTSXP, 4));
+    INTEGER(s_hivtests_dim)[0] = hAG;
+    INTEGER(s_hivtests_dim)[1] = NG;
+    INTEGER(s_hivtests_dim)[2] = 6;
+    INTEGER(s_hivtests_dim)[3] = PROJ_YEARS;
+    setAttrib(s_hivtests, R_DimSymbol, s_hivtests_dim);
+    setAttrib(s_pop, install("hivtests"), s_hivtests);
+    multi_array_ref<double, 4> hivtests(REAL(s_hivtests), extents[PROJ_YEARS][6][NG][hAG]);
+    memset(REAL(s_hivtests), 0, length(s_hivtests)*sizeof(double));
+    
     SEXP s_diagnoses = PROTECT(allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
     SEXP s_diagnoses_dim = PROTECT(allocVector(INTSXP, 4));
     INTEGER(s_diagnoses_dim)[0] = hDS;
@@ -670,8 +687,10 @@ extern "C" {
 		hivn_pop_ha += pop[t][HIVN][g][a];
 		a++;
 	      }
+	      hivtests[t][0][g][ha] += DT * hts_rate[t][0][g][ha] * (hivn_pop_ha - testnegpop[t][0][g][ha]);
+	      hivtests[t][1][g][ha] += DT * hts_rate[t][1][g][ha] * testnegpop[t][0][g][ha];
 	      testnegpop[t][HIVN][g][ha] += DT * hts_rate[t][HIVN][g][ha] * (hivn_pop_ha - testnegpop[t][HIVN][g][ha]);
-	      
+
 
 	      // New diagnoses among HIV positive population
 
@@ -691,6 +710,15 @@ extern "C" {
 	      for(int hm = 0; hm < hDS; hm++){
 		double diagn_naive = diagn_rate[t][0][g][ha][hm] * (1.0 - prop_testneg) * (hivpop[t][g][ha][hm] - diagnpop[t][g][ha][hm]);
 		double diagn_testneg = diagn_rate[t][1][g][ha][hm] * prop_testneg * (hivpop[t][g][ha][hm] - diagnpop[t][g][ha][hm]);
+
+		hivtests[t][2][g][ha] += DT * diagn_naive;
+		hivtests[t][3][g][ha] += DT * diagn_testneg;
+		hivtests[t][4][g][ha] += DT * diagn_rate[t][2][g][ha][hm] * diagnpop[t][g][ha][hm];
+		if(t >= t_ART_start){
+		  for(int hu = 0; hu < hTS; hu++)
+		    hivtests[t][5][g][ha] += DT * diagn_rate[t][3][g][ha][hm] * artpop[t][g][ha][hm][hu];
+		}
+		
 		grad_testneg_hivp -= diagn_testneg;
 		diagnoses[t][g][ha][hm] += DT * (diagn_naive + diagn_testneg);
 		grad_diagn[hm] = (diagn_naive + diagn_testneg) - cd4_mort[g][ha][hm] * diagnpop[t][g][ha][hm];
@@ -920,8 +948,13 @@ extern "C" {
                 }
 
 		// Remove share of excess ART initiations from testnegpop
-		if(t >= t_hts_start)
-		  testnegpop[t][HIVP][g][ha] -= new_diagn_ha * testnegpop[t][HIVP][g][ha] / undiagnosed_ha;
+		if(t >= t_hts_start & new_diagn_ha > 0){
+		  double new_among_testneg = new_diagn_ha * testnegpop[t][HIVP][g][ha] / undiagnosed_ha;
+		  Rprintf("%f\n", new_among_testneg);
+		  hivtests[t][2][g][ha] += new_diagn_ha - new_among_testneg; // new diagnoses among never tested
+		  hivtests[t][3][g][ha] += new_among_testneg;
+		  testnegpop[t][HIVP][g][ha] -= new_among_testneg;
+		}
 
 	      } // end loop over ha
 
@@ -956,8 +989,12 @@ extern "C" {
                 }
 
 		// Remove share of excess ART initiations from testnegpop
-		if(t >= t_hts_start)
-		  testnegpop[t][HIVP][g][ha] -= new_diagn_ha * testnegpop[t][HIVP][g][ha] / undiagnosed_ha;
+		if(t >= t_hts_start & new_diagn_ha > 0){
+		  double new_among_testneg = new_diagn_ha * testnegpop[t][HIVP][g][ha] / undiagnosed_ha;
+		  hivtests[t][2][g][ha] += new_diagn_ha - new_among_testneg; // new diagnoses among never tested
+		  hivtests[t][3][g][ha] += new_among_testneg;
+		  testnegpop[t][HIVP][g][ha] -= new_among_testneg;
+		}
 
 	      } // end loop over ha
             }
@@ -1129,7 +1166,7 @@ extern "C" {
       incid15to49[t] /= hivn15to49[t-1];
     }
 
-    UNPROTECT(36);
+    UNPROTECT(38);
     return s_pop;
   }
 }

@@ -366,7 +366,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   else if(exists_dptag("<RatioWomenOnART MV2>"))
     frr_art6mos <- as.numeric(dpsub("<RatioWomenOnART MV2>", 2, 4+0:6))
   else
-    frr_art6mos <- rep(1.0, 6)
+    frr_art6mos <- rep(1.0, 7)
   names(frr_art6mos) <- seq(15, 45, 5)
 
   if(exists_dptag("<FRRbyLocation MV>"))

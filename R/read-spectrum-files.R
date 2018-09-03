@@ -36,6 +36,12 @@ read_country <- function(pjnz){
   pjn <- read_pjn(pjnz)
   cc <- as.integer(pjn[which(pjn[,1] == "<Projection Parameters>")+2, 4])
   return(with(spectrum5_countrylist, Country[Code == cc]))
+}
+
+read_iso3 <- function(pjnz){
+  pjn <- read_pjn(pjnz)
+  cc <- as.integer(pjn[which(pjn[,1] == "<Projection Parameters>")+2, 4])
+  return(with(spectrum5_countrylist, iso3[Code == cc]))
 }  
 
 ###################################################
@@ -241,6 +247,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
   
   class(specres) <- "specres"
   attr(specres, "country") <- read_country(pjnz)
+  attr(specres, "iso3") <- read_iso3(pjnz)
   attr(specres, "region") <- read_region(pjnz)
 
   return(specres)

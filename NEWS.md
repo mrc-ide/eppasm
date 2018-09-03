@@ -73,7 +73,6 @@
 - Add function to generate summary model outputs
 
 # eppasm 0.3.4
-
 - Merge updates from v0.1.2 into v0.3.3
 
 # eppasm 0.4.0
@@ -83,15 +82,33 @@
 - Model fitting for case surveillance and vital registration data.
 - Add support for parsing updated "<FitIncidenceEditorValues MV5>" tag
 
-# eppasm 0.5.0
+# eppasm 0.5
 
+## eppasm 0.5.0
 - Implement age-specific prevalence among pregnant women.
 - Refactor age-specific prevalence function.
 - Add age-specific ART coverage function.
 
-# eppasm 0.5.1
+## eppasm 0.5.1
 
 - Add tidy_output() function to generate long format of key output indicators.
+
+## eppasm 0.5.2
+
+- Use Beer's coefficients to graduate 5-year age IRRs to single year.
+- Add vignette to develop EPP-ASM to Spectrum workflow.
+
+## eppasm 0.5.3
+
+- More constrained  prior for log(iota) ~ Unif(log(1e-13), log(0.0025)), matching EPP software.
+
+- Add posterior predictive outputs for site-level ANC data
+
+## eppasm 0.5.4
+
+- Updates for Spectrum v5.72:
+ - Update fertility rate ratio input parameters to allow ART FRR by age. (
+ - Add time-varying mortality on ART
 
 # eppasm 0.6.0
 

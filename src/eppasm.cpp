@@ -134,6 +134,7 @@ extern "C" {
     multi_array_ref<double, 3> cd4_prog(REAL(getListElement(s_fp, "cd4_prog")), extents[NG][hAG][hDS-1]);
     multi_array_ref<double, 3> cd4_mort(REAL(getListElement(s_fp, "cd4_mort")), extents[NG][hAG][hDS]);
     multi_array_ref<double, 4> art_mort(REAL(getListElement(s_fp, "art_mort")), extents[NG][hAG][hDS][hTS]);
+    double *artmx_timerr = REAL(getListElement(s_fp, "artmx_timerr"));
 
     // sub-fertility
     multi_array_ref<double, 3> frr_cd4(REAL(getListElement(s_fp, "frr_cd4")), extents[PROJ_YEARS][hAG_FERT][hDS]);
@@ -228,7 +229,7 @@ extern "C" {
 
     multi_array_ref<double, 3> paedsurv_cd4dist(REAL(getListElement(s_fp, "paedsurv_cd4dist")), extents[PROJ_YEARS][NG][hDS]);
     multi_array_ref<double, 4> paedsurv_artcd4dist(REAL(getListElement(s_fp, "paedsurv_artcd4dist")), extents[PROJ_YEARS][NG][hDS][hTS]);
-    
+
     // initialize output
     SEXP s_pop = PROTECT(allocVector(REALSXP, pAG * NG * pDS * PROJ_YEARS));
     SEXP s_pop_dim = PROTECT(allocVector(INTSXP, 4));
@@ -477,7 +478,7 @@ extern "C" {
 	  entrant_prev = entrantprev[t][g];
 	else
 	  entrant_prev = pregprevlag[t-1] * verttrans_lag[t-1] * paedsurv_lag[t-1];
-	  
+
         if(bin_popadjust){
           pop[t][HIVN][g][0] =  entrantpop[t-1][g] * (1.0-entrant_prev);
           paedsurv_g = entrantpop[t-1][g] * entrant_prev;
@@ -682,7 +683,7 @@ extern "C" {
                 double gradART[hTS];
 
                 for(int hu = 0; hu < hTS; hu++){
-                  double deaths = art_mort[g][ha][hm][hu] * artpop[t][g][ha][hm][hu];
+                  double deaths = art_mort[g][ha][hm][hu] * artmx_timerr[t] * artpop[t][g][ha][hm][hu];
                   hivdeaths_ha[g][ha] += DT*deaths;
 		  artpopdeaths[t][g][ha][hm][hu] += DT*deaths;
                   gradART[hu] = -deaths;
@@ -813,7 +814,7 @@ extern "C" {
 		  }
 		  artinits[t][g][ha][hm] += artinit_hahm;
                 }
-	      
+
             } else { // Use mixture of eligibility and expected mortality for initiation distribution
 
               for(int ha = hIDX_15PLUS; ha < hAG; ha++)

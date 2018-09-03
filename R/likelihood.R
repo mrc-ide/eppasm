@@ -64,25 +64,29 @@ ancrtsite.beta.pr.sd <- 0.05
 ## ancrtsite.vinfl.pr.rate <- 1/0.015
 
 
-#' Prepare site-level ANC prevalence data for EPP random-effects likelihood
+#' Prepare design matrix indices for ANC prevalence predictions
 #'
-#' @param ancitedat data.frame of site-level ANC data
-#' @param fp fixed parameter input list, including state space
-prepare_ancsite_likdat <- function(ancsitedat, fp){
+#' @param ancsite_df data.frame of site-level ANC design for predictions
+#' @param fp fixed parameter input list
+#'
+#' @examples
+#' pjnz <- system.file("extdata/testpjnz", "Botswana2017.PJNZ", package="eppasm")
+#' bw <- prepare_spec_fit(pjnz, proj.end=2021.5)
+#'
+#' 
+#' bw_u_ancsite <- attr(bw$Urban, "eppd")$ancsitedat
+#' fp <- attr(bw$Urban, "specfp")
+#'
+#' ancsite_pred_df(bw_u_ancsite, fp)
+#' 
+ancsite_pred_df <- function(ancsite_df, fp) {
 
-  df <- ancsitedat
-  anchor.year <-   anchor.year <- fp$ss$proj_start
+  df <- ancsite_df
+  anchor.year <- fp$ss$proj_start
   
   df$aidx <- df$age - fp$ss$AGE_START + 1L
   df$yidx <- df$year - anchor.year + 1
-
-  ## Calculate probit transformed prevalence and variance approximation
-  df$pstar <- (df$prev * df$n + 0.5) / (df$n + 1)
-  df$W <- qnorm(df$pstar)
-  df$v <- 2 * pi * exp(df$W^2) * df$pstar * (1 - df$pstar) / df$n
-
-  df$type <- factor(df$type, c("ancss", "ancrt"))
-
+  
   ## List of all unique agegroup / year combinations for which prevalence is needed
   datgrp <- unique(df[c("aidx", "yidx", "agspan")])
   datgrp$qMidx <- seq_len(nrow(datgrp))
@@ -91,22 +95,42 @@ prepare_ancsite_likdat <- function(ancsitedat, fp){
   df <- merge(df, datgrp)
 
   ## Indices for prevalence group
-  df <- df[c("site", "year", "used", "type", "age", "agspan",
-             "n", "prev", "pstar", "W", "v", "aidx", "yidx", "qMidx")]
-  df <- df[order(df$site, df$year, -df$agspan, df$age),]
-  df$muidx <- seq_len(nrow(df))
+  df$df_idx <- seq_len(nrow(df))
 
-  ## Design matrix for fixed effects portion 
+  list(df = df, datgrp = datgrp)
+}
+
+
+#' Prepare site-level ANC prevalence data for EPP random-effects likelihood
+#'
+#' @param ancsitedat data.frame of site-level ANC data
+#' @param fp fixed parameter input list, including state space
+
+prepare_ancsite_likdat <- function(ancsitedat, fp){
+
+  d <- ancsite_pred_df(ancsitedat, fp)
+
+  df <- d$df[c("site", "year", "used", "type", "age", "agspan",
+               "n", "prev", "aidx", "yidx", "qMidx", "df_idx")]
+  
+  ## Calculate probit transformed prevalence and variance approximation
+  df$pstar <- (df$prev * df$n + 0.5) / (df$n + 1)
+  df$W <- qnorm(df$pstar)
+  df$v <- 2 * pi * exp(df$W^2) * df$pstar * (1 - df$pstar) / df$n
+
+  ## Design matrix for fixed effects portion
+  df$type <- factor(df$type, c("ancss", "ancrt"))
   Xancsite <- model.matrix(~type, df)
+
 
   W.lst <- split(df$W, factor(df$site))
   v.lst <- split(df$v, factor(df$site))
-  muidx.lst <- split(df$muidx, factor(df$site))
+  df_idx.lst <- split(df$df_idx, factor(df$site))
 
   list(df = df,
-       datgrp = datgrp,
+       datgrp = d$datgrp,
        Xancsite = Xancsite,
-       muidx.lst = muidx.lst)
+       df_idx.lst = df_idx.lst)
 }
 
 ll_ancsite <- function(mod, fp, coef=c(0, 0), vinfl=0, dat){
@@ -125,8 +149,8 @@ ll_ancsite <- function(mod, fp, coef=c(0, 0), vinfl=0, dat){
   d <- df$W - mu
   v <- df$v + vinfl
   
-  d.lst <- lapply(dat$muidx.lst, function(idx) d[idx])
-  v.lst <- lapply(dat$muidx.lst, function(idx) v[idx])
+  d.lst <- lapply(dat$df_idx.lst, function(idx) d[idx])
+  v.lst <- lapply(dat$df_idx.lst, function(idx) v[idx])
   
   log(anclik::anc_resid_lik(d.lst, v.lst))
 }

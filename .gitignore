@@ -9,6 +9,4 @@
 dev/*
 analysis/*_cache/*
 analysis/*_files/*
-inst/extdata/testpjnz/Botswana2017.PJNZ
-data-raw/test-pjnz.R
 inst/doc

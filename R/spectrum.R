@@ -257,6 +257,11 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   
   fp$netmig_hivprob <- 0.4*0.22
   fp$netmighivsurv <- 0.25/0.22
+
+
+  ## Default diagnosis rate parameters
+  fp$t_diagn_start <- ss$PROJ_YEARS + 1L
+  fp$diagn_rate <- array(0.0, c(ss$hDS, ss$hAG, NG, ss$PROJ_YEARS))
   
   class(fp) <- "specfp"
 

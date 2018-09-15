@@ -286,7 +286,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   eppd <- attr(obj, "eppd")
 
   has_ancrtsite <- exists("ancsitedat", eppd) && any(eppd$ancsitedat$type == "ancss")
-  has_ancrtcens <- exists("ancrtcens", eppd) && nrow(eppd$ancrtcens)
+  has_ancrtcens <- !is.null(eppd$ancrtcens) && nrow(eppd$ancrtcens)
   
   if(!has_ancrtsite)
     fp$ancrtsite.beta <- 0

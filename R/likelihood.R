@@ -703,7 +703,11 @@ ll <- function(theta, fp, likdat){
     } else {
       rvec.ann <- fp$rvec[fp$proj.steps %% 1 == 0.5]
       equil.rprior.mean <- epp:::muSS/(1-pnorm(qM.all[lastdata.idx]))
-      equil.rprior.sd <- sqrt(mean((epp:::muSS/(1-pnorm(qM.all[lastdata.idx - 9:0])) - rvec.ann[lastdata.idx - 9:0])^2))  # empirical sd based on 10 previous years
+      if(!is.null(fp$prior_args$equil.rprior.sd))
+        equil.rprior.sd <- fp$prior_args$equil.rprior.sd
+      else
+        equil.rprior.sd <- sqrt(mean((epp:::muSS/(1-pnorm(qM.all[lastdata.idx - 9:0])) - rvec.ann[lastdata.idx - 9:0])^2))  # empirical sd based on 10 previous years
+      
       ll.rprior <- sum(dnorm(rvec.ann[(lastdata.idx+1L):length(qM.all)], equil.rprior.mean, equil.rprior.sd, log=TRUE))  # prior starts year after last data
     }
   } else

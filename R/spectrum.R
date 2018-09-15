@@ -258,6 +258,12 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$netmig_hivprob <- 0.4*0.22
   fp$netmighivsurv <- 0.25/0.22
   
+  ## Circumcision parameters (default no effect)
+  fp$circ_incid_rr <- 0.0  # no reduction
+  fp$circ_prop <- array(0.0, c(ss$pAG, ss$PROJ_YEARS),
+                        list(age = ss$AGE_START + 1:ss$pAG - 1L,
+                             year = ss$proj_start + 1:ss$PROJ_YEARS - 1L))
+  
   class(fp) <- "specfp"
 
   return(fp)

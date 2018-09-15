@@ -354,11 +354,11 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   } else if(exists_dptag("<HIVTFR MV2>")) {
     fert_rat <- sapply(dpsub("<HIVTFR MV2>", 2:7, timedat.idx), as.numeric)
     dimnames(fert_rat) <- list(agegr=c(15, 18, seq(20, 35, 5)), year=proj.years)  # this version of Spectrum stratified fertility reduction by 15-17, 18-19, 20-24, ...
-  } else if(exists_dptag("<HIVTFR MV3>")){
+  } else if(exists_dptag("<HIVTFR MV3>")) {
     fert_rat <- sapply(dpsub("<HIVTFR MV3>", 2:8, timedat.idx), as.numeric)
     dimnames(fert_rat) <- list(agegr=seq(15, 45, 5), year=proj.years)
-  } else if(exists_dptag("<HIVTFR MV4>")){
-    fert_rat <- sapply(dpsub("<HIVTFR MV4>", 2:8, timedat.idx), as.numeric)
+  } else if(exists_dptag("<HIVTFR MV4>")) {
+    fert_rat <- vapply(dpsub("<HIVTFR MV4>", 2:8, timedat.idx), as.numeric, numeric(7))
     dimnames(fert_rat) <- list(agegr=seq(15, 45, 5), year=proj.years)
   }
 

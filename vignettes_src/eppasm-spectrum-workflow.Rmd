@@ -39,10 +39,10 @@ bw <- prepare_spec_fit(pjnz, proj.end=2021.5)
 bwfit <- list()
 
 bwfit$Urban <- fitmod(bw$Urban,
-                      eppmod = "rlogistic_rw", rw_start = 2005, fitincrr = "linincrr",
+                      eppmod = "rlogistic_rw", rw_start = 2005, fitincrr = FALSE,
                       B0=1e4, B=1e3, opt_iter = 1:2*5, number_k=50)
 bwfit$Rural <- fitmod(bw$Rural,
-                      eppmod = "rlogistic_rw", rw_start = 2005, fitincrr = "linincrr",
+                      eppmod = "rlogistic_rw", rw_start = 2005, fitincrr = FALSE,
                       B0=1e4, B=1e3, opt_iter = 1:2*5, number_k=50)
 ```
 
@@ -51,7 +51,7 @@ data period. The `extend_projection()` function extends the random walk for $r(t
 through the end of the projection period.
 
 ```{r, extend_projection}
-bwfit <- lapply(bwfit, extend_projection, proj_years = 52)
+bwfit <- lapply(bwfit[1], extend_projection, proj_years = 52)
 ```
 
 ## Pooling EPP subpopulation results
@@ -181,3 +181,107 @@ theta_urban1 <- dput(c(bwfit$Urban$resample[1,]))
 
 theta_rural1 <- dput(c(bwfit$Rural$resample[1,]))
 ```	
+
+
+# National EPP fit outputs
+
+Reproduce the above with a national EPP fit rather than Urban / Rural fits
+
+```{r national}
+
+devtools::load_all("~/Documents/Code/R/eppasmdata")
+
+bw <- prepare_national_fit(pjnz, proj.end=2021.5)
+attr(bw, "eppd") <- create_eppd("Botswana")
+
+bwfit <- fitmod(bw,
+                eppmod = "rlogistic_rw", rw_start = 2005, fitincrr = "linincrr",
+                B0=1e4, B=1e3, opt_iter = 1:2*5, number_k=50)
+bwfit <- extend_projection(bwfit, 52)
+
+bwfit$param <- lapply(seq_len(nrow(bwfit$resample)), function(ii) fnCreateParam(bwfit$resample[ii,], bwfit$fp))
+fplist <- lapply(bwfit$param, function(par) update(bwfit$fp, list=par))
+bwnat <- lapply(fplist, simmod)
+
+bwnat <- sim_mod_list(bwfit)
+
+
+dimnm <- list(age = 15:80, sex = c("male", "female"), year = 1970:2021)
+
+totpop <- lapply(bwnat, apply, c(1, 2, 4), sum) %>%
+  abind::abind(., rev.along=0, use.dnns=TRUE,
+               new.names = c(dimnm, list(sampleid = seq_along(.)))) %>%
+  melt %>%
+  data.table(., outcome = "totpop")
+
+hivpop <- lapply(bwnat, function(x) x[ , , 2, ]) %>%
+  abind::abind(., rev.along=0, use.dnns=TRUE,
+               new.names = c(dimnm, list(sampleid = seq_along(.)))) %>%
+  melt %>%
+  data.table(., outcome = "hivpop")
+
+infections <- lapply(bwnat, attr, "infections") %>%
+  abind::abind(., rev.along=0, use.dnns=TRUE,
+               new.names = c(dimnm, list(sampleid = seq_along(.)))) %>%
+  melt %>%
+  data.table(., outcome = "infections")
+
+natdeaths <- lapply(bwnat, attr, "natdeaths") %>%
+  abind::abind(., rev.along=0, use.dnns=TRUE,
+               new.names = c(dimnm, list(sampleid = seq_along(.)))) %>%
+  melt %>%
+  data.table(., outcome = "natdeaths")
+
+hivdeaths <- lapply(bwnat, attr, "hivdeaths") %>%
+  abind::abind(., rev.along=0, use.dnns=TRUE,
+               new.names = c(dimnm, list(sampleid = seq_along(.)))) %>%
+  melt %>%
+  data.table(., outcome = "hivdeaths")
+
+outputs_age <- rbind(totpop, hivpop, infections, natdeaths, hivdeaths)
+
+outputs_age$outcome <- factor(outputs_age$outcome, c("totpop", "hivpop", "infections", "natdeaths", "hivdeaths"))
+
+dcast(outputs_age[sampleid == 1], year + sex + age ~ outcome) %>%
+  write.csv("bwnat_ageoutputs_single-resample_v2.csv", row.names=FALSE)
+
+dcast(outputs_age[ , .(value = median(value)), .(year, sex, age, outcome)],
+      year + sex + age ~ outcome) %>%
+  write.csv("bwnat_ageoutputs_median_v2.csv", row.names=FALSE)
+
+dcast(outputs_age[ , .(value = mean(value)), .(year, sex, age, outcome)],
+      year + sex + age ~ outcome) %>%
+  write.csv("bwnat_ageoutputs_mean_v2.csv", row.names=FALSE)
+
+
+
+hivprev <- sapply(bwnat, prev) %>%
+  "dimnames<-"(list(year = 1970:2021, sampleid = seq_len(ncol(.)))) %>%
+  melt %>%
+  data.table(., outcome = "prev15to49")
+
+hivincid <- sapply(bwnat, incid) %>%
+  "dimnames<-"(list(year = 1970:2021, sampleid = seq_len(ncol(.)))) %>%
+  melt %>%
+  data.table(., outcome = "incid15to49")
+
+artcov <- sapply(bwnat, artcov15plus) %>%
+  "dimnames<-"(list(year = 1970:2021, sampleid = seq_len(ncol(.)))) %>%
+  melt %>%
+  data.table(., outcome = "artcov15plus")
+
+outputs_aggr <- rbind(hivprev, hivincid, artcov)
+
+outputs_aggr$outcome <- factor(outputs_aggr$outcome,
+                               c("prev15to49", "incid15to49", "artcov15plus"))
+
+dcast(outputs_aggr[sampleid == 1], year ~ outcome) %>%
+  write.csv("bwnat_aggroutputs_single-resample_v2.csv", row.names=FALSE)
+
+dcast(outputs_aggr[ , .(value = median(value)), .(year, outcome)],
+      year ~ outcome) %>%
+  write.csv("bwnat_aggroutputs_median_v2.csv", row.names=FALSE)
+
+dcast(outputs_aggr[ , .(value = mean(value)), .(year, outcome)],
+      year ~ outcome) %>%
+  write.csv("bwnat_aggroutputs_mean_v2.csv", row.names=FALSE)

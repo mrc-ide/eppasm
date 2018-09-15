@@ -93,10 +93,7 @@ ancsite_pred_df <- function(ancsite_df, fp) {
 
   ## Indices for accessing prevalence offset from datgrp
   df <- merge(df, datgrp)
-
-  ## Indices for prevalence group
-  df$df_idx <- seq_len(nrow(df))
-
+  
   list(df = df, datgrp = datgrp)
 }
 
@@ -111,7 +108,7 @@ prepare_ancsite_likdat <- function(ancsitedat, fp){
   d <- ancsite_pred_df(ancsitedat, fp)
 
   df <- d$df[c("site", "year", "used", "type", "age", "agspan",
-               "n", "prev", "aidx", "yidx", "qMidx", "df_idx")]
+               "n", "prev", "aidx", "yidx", "qMidx")]
   
   ## Calculate probit transformed prevalence and variance approximation
   df$pstar <- (df$prev * df$n + 0.5) / (df$n + 1)
@@ -122,10 +119,8 @@ prepare_ancsite_likdat <- function(ancsitedat, fp){
   df$type <- factor(df$type, c("ancss", "ancrt"))
   Xancsite <- model.matrix(~type, df)
 
-
-  W.lst <- split(df$W, factor(df$site))
-  v.lst <- split(df$v, factor(df$site))
-  df_idx.lst <- split(df$df_idx, factor(df$site))
+  ## Indices for observation
+  df_idx.lst <- split(seq_len(nrow(df)), factor(df$site))
 
   list(df = df,
        datgrp = d$datgrp,
@@ -708,7 +703,11 @@ ll <- function(theta, fp, likdat){
     } else {
       rvec.ann <- fp$rvec[fp$proj.steps %% 1 == 0.5]
       equil.rprior.mean <- epp:::muSS/(1-pnorm(qM.all[lastdata.idx]))
-      equil.rprior.sd <- sqrt(mean((epp:::muSS/(1-pnorm(qM.all[lastdata.idx - 9:0])) - rvec.ann[lastdata.idx - 9:0])^2))  # empirical sd based on 10 previous years
+      if(!is.null(fp$prior_args$equil.rprior.sd))
+        equil.rprior.sd <- fp$prior_args$equil.rprior.sd
+      else
+        equil.rprior.sd <- sqrt(mean((epp:::muSS/(1-pnorm(qM.all[lastdata.idx - 9:0])) - rvec.ann[lastdata.idx - 9:0])^2))  # empirical sd based on 10 previous years
+      
       ll.rprior <- sum(dnorm(rvec.ann[(lastdata.idx+1L):length(qM.all)], equil.rprior.mean, equil.rprior.sd, log=TRUE))  # prior starts year after last data
     }
   } else

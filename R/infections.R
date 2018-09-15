@@ -27,6 +27,10 @@ calc_infections_eppspectrum <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
   incrate15to49.ts <- r_ts * transm_prev + fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
   sexinc15to49.ts <- incrate15to49.ts*c(1, fp$incrr_sex[i])*sum(pop[p.age15to49.idx,,hivn.idx,i])/(sum(pop[p.age15to49.idx,m.idx,hivn.idx,i]) + fp$incrr_sex[i]*sum(pop[p.age15to49.idx, f.idx,hivn.idx,i]))
   agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc15to49.ts/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$incrr_age[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
+
+  ## Adjust age-specific incidence among men for circumcision coverage
+  agesex.inc[ , m.idx] <- agesex.inc[ , m.idx] * (1 - fp$circ_incid_rr * fp$circ_prop[ , i])
+  
   infections.ts <- agesex.inc * pop[,,hivn.idx,i]
 
   attr(infections.ts, "incrate15to49.ts") <- incrate15to49.ts
@@ -41,39 +45,44 @@ calc_infections_simpletransm <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
   invisible(list2env(fp$ss, environment())) # put ss variables in environment for convenience
 
   ts <- (i-2)/DT + ii
-
+  
   ## Calculate prevalence of unsuppressed viral load among sexually active population
-  hivn.ii <- colSums(pop[p.age15to49.idx,,hivn.idx,i])
-  hivn.ii <- hivn.ii - pop[p.age15to49.idx[1],,hivn.idx,i]*(1-DT*(ii-1))
-  hivn.ii <- hivn.ii + pop[tail(p.age15to49.idx,1)+1,,hivn.idx,i]*(1-DT*(ii-1))
 
-  ## Calculate proportion in each HIV age group who are in 15 to 49 population, accounting for partial year time step
-  ha1 <- h.age15to49.idx[1]  
-  haM <- h.age15to49.idx[length(h.age15to49.idx)]+1  # age group one above 15 to 49
-  prop_include <- rbind(ifelse(pop[agfirst.idx[ha1],,hivp.idx,i] > 0,
-                               1 - pop[agfirst.idx[ha1],,hivp.idx,i] / colSums(pop[agfirst.idx[ha1]+1:h.ag.span[ha1]-1,,hivp.idx,i]) * (1-DT*(ii-1)),
-                               c(1.0, 1.0)),
-                        matrix(1, length(h.age15to49.idx)-1, NG),
-                        ifelse(pop[agfirst.idx[haM],,hivp.idx,i] > 0,
-                               pop[agfirst.idx[haM],,hivp.idx,i] / colSums(pop[agfirst.idx[haM]+1:h.ag.span[haM]-1,,hivp.idx,i]) * (1-DT*(ii-1)),
-                               c(0, 0)))
-                        
+  contacts_ii <- sweep((pop[c(2:pAG, pAG), , , i] * (1-DT*(ii-1)) + pop[ , , , i] * DT*(ii-1)),
+                       1:2, fp$relbehav_age, "*")
 
-  hivp_noart.ii <- colSums(colSums(sweep(hivpop[,c(h.age15to49.idx, haM),,i], 1, fp$relsexact_cd4cat, "*")) * prop_include)
-  art.ii <- colSums(colSums(artpop[,,c(h.age15to49.idx, haM),,i],,2) * prop_include)
   
-  ## Prevalence of unsuppressed viral load among sexually active population
-  hivtransm_prev <- (hivp_noart.ii + fp$relinfectART * art.ii) / (hivn.ii+hivp_noart.ii+art.ii)
-  
+  hivpop_w_ha <- colSums(sweep(hivpop[ , , , i], 1, fp$relsexact_cd4cat, "*"), , 1)
+  hivpop_ha <- colSums(hivpop[ , , , i],,1)
+  artpop_ha <- colSums(artpop[ , , , , i],,2)
+
+  hivcontacts_ha <- (hivpop_w_ha + artpop_ha) / (hivpop_ha + artpop_ha)
+  hivcontacts_ha[is.na(hivcontacts_ha)] <- 0
+
+  hivtransm_ha <- (hivpop_w_ha + fp$relinfectART * artpop_ha) / (hivpop_ha + artpop_ha)
+  hivtransm_ha[is.na(hivtransm_ha)] <- 0
+
+  hivn_ii <- contacts_ii[ , , hivn.idx]
+  hivcontacts_ii <- contacts_ii[ , , hivp.idx] * hivcontacts_ha[fp$ss$ag.idx, ]
+  hivtransm_ii <- contacts_ii[ , , hivp.idx] * hivtransm_ha[fp$ss$ag.idx, ]
+
+  hivtransm_prev <- colSums(hivtransm_ii) / (colSums(hivn_ii) + colSums(hivcontacts_ii))
+
   ## r_sex[1:2] is the transmission rate by (Men, Women)
   r_sex <- c(sqrt(fp$mf_transm_rr[i]), 1/sqrt(fp$mf_transm_rr[i])) * r_ts
 
   sexinc15to49.ts <- (r_sex * hivtransm_prev)[2:1] + fp$mf_transm_rr[i]^c(-0.25, 0.25) * fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
   agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc15to49.ts/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$incrr_age[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
+
+  ## Adjust age-specific incidence among men for circumcision coverage
+  agesex.inc[ , m.idx] <- agesex.inc[ , m.idx] * (1 - fp$circ_incid_rr * fp$circ_prop[ , i])
+  
   infections.ts <- agesex.inc * pop[,,hivn.idx,i]
 
-  attr(infections.ts, "incrate15to49.ts") <- sum(infections.ts[p.age15to49.idx,]) / sum(hivn.ii)
-  attr(infections.ts, "prevcurr") <- sum(hivp_noart.ii+art.ii) / sum(hivn.ii+hivp_noart.ii+art.ii)
+  attr(infections.ts, "incrate15to49.ts") <- 0 # sum(infections.ts[p.age15to49.idx,]) / sum(hivn.ii)
+  ## attr(infections.ts, "prevcurr") <- sum(hivp_noart.ii+art.ii) / sum(hivn.ii+hivp_noart.ii+art.ii)
+
+  attr(infections.ts, "prevcurr") <- 0 # sum(hivp.ii) / sum(hivp.ii + hivn.ii)
 
   return(infections.ts)
 }
@@ -153,12 +162,23 @@ NPARAM_LININCRR <- 6
 incrr_trend_mean <- c(0.0, 0.035, -0.02, -0.09, -0.016, -0.06)
 incrr_trend_sd <- c(0.07, 0.07, 0.1, 0.1, 0.08, 0.08)
 
+## Incidence rate ratios for age 50 plus, relative to 15-49
+incrr_50plus_logdiff <- cbind(male   = log(0.493510) - log(c(0.358980, 0.282400, 0.259240, 0.264920, 0.254790, 0.164140, 0.000000)),
+                              female = log(0.440260) - log(c(0.336720, 0.239470, 0.167890, 0.146590, 0.171350, 0.000000, 0.000000)))
+
+## Beers coefficient matrix
+beers_Amat <- create_beers(17)[16:81, 4:17]
+
 getnparam_incrr <- function(fp){
-  switch(fp$fitincrr,
-         "TRUE"=NPARAM_RW2,
-         linincrr=NPARAM_RW2+NPARAM_LININCRR,
-         lognorm=7,
-         relbehav=NPAR_RELBEHAV, 0)
+  value <- switch(as.character(fp$fitincrr),
+                  "FALSE" = 0,
+                  "TRUE" = NPARAM_RW2,
+                  linincrr = NPARAM_RW2+NPARAM_LININCRR,
+                  lognorm = 7,
+                  relbehav = NPAR_RELBEHAV, NA)
+  if(is.na(value))
+    stop(paste0("fitincrr model '", fp$fitincrr, "' is not recognized"))
+  value
 }
 
 transf_incrr <- function(theta_incrr, param, fp){
@@ -177,13 +197,16 @@ transf_incrr <- function(theta_incrr, param, fp){
     ## param$sigma_agepen <- exp(theta_incrr[incrr_nparam])
     param$sigma_agepen <- 0.4
     
-    param$logincrr_age <- array(0, c(7, 2))
-    param$logincrr_age[-3,] <- theta_incrr[2:13]
+    param$logincrr_age <- array(0, c(14, 2))
+    param$logincrr_age[c(1:2, 4:7), ] <- theta_incrr[2:13]
+    param$logincrr_age[8:14, ] <- sweep(-incrr_50plus_logdiff, 2,
+                                        param$logincrr_age[7, ], "+")
+
+    ## Smooth 5-year age group IRRs to 1-year IRRs
+    incrr_age <- beers_Amat %*% exp(param$logincrr_age)
+    incrr_age[incrr_age < 0] <- 0
     
-    param$incrr_age <- fp$incrr_age
-    param$incrr_age[fp$ss$p.age15to49.idx,,] <- apply(exp(param$logincrr_age), 2, rep, each=5)
-    param$incrr_age[36:66,,] <- sweep(fp$incrr_age[36:66,,fp$ss$PROJ_YEARS], 2,
-                                      param$incrr_age[35,,fp$ss$PROJ_YEARS]/fp$incrr_age[35,,fp$ss$PROJ_YEARS], "*")
+    param$incrr_age <- array(incrr_age, c(dim(incrr_age), fp$ss$PROJ_YEARS))
 
     years <- with(fp$ss, proj_start+1:PROJ_YEARS-1)
     if(fp$fitincrr == "linincrr"){
@@ -200,38 +223,37 @@ transf_incrr <- function(theta_incrr, param, fp){
       f15to24_adjust <- approx(c(2002, 2007, 2012), c(-5, 0, 5)*c(par[5], 0, par[6]), years, rule=2)$y
       param$incrr_age[1:10,,] <- sweep(param$incrr_age[1:10,,,drop=FALSE], 2:3, exp(rbind(m15to24_adjust, f15to24_adjust)), "*")      
     }
-    ## Beers interpolation of 5-year IRRs to 1-year IRRs
-    if(exists("smoothirr", fp) && fp$smoothirr){
-      smooth_irr <- function(y){
-        yval <- c(-5, log(y[0:12*5+1]))
-        yval <- pmax(yval, -8)
-        exp(spline(2:15*5+2, yval, xout=15:80)$y)
-      }
-      idx <- approx(c(2002, 2012), c(1,11), years, rule=2)$y
-      param$incrr_age <- apply(param$incrr_age[,,2002-fp$ss$proj_start + 1:11], 2:3, smooth_irr)[,,idx]
-    }
-    
+
   } else if(fp$fitincrr=="lognorm"){
     param$logincrr_age <- cbind(calc_lognorm_logagerr(theta_incrr[2:4]),
                                 calc_lognorm_logagerr(theta_incrr[5:7]))
-    param$incrr_age <- fp$incrr_age
-    param$incrr_age[,,] <- apply(exp(param$logincrr_age), 2, rep, c(rep(5, 13), 1))
+
+    ## Smooth 5-year age group IRRs to 1-year IRRs
+    incrr_age <- beers_Amat %*% exp(param$logincrr_age)
+    incrr_age[incrr_age < 0] <- 0
     
+    param$incrr_age <- array(incrr_age, c(dim(incrr_age), fp$ss$PROJ_YEARS))
+
   } else if(fp$fitincrr == "relbehav"){
+
+    stop("relbehav is not implemented currently")
     
-    par <- theta_incrr[2:incrr_nparam]
-    param$adjustpar <- par
-    logadjust1 <- cbind(approx(c(17, 27, 38, 49), c(par[1], 0, cumsum(par[2:3])), xout=15:80, rule=2)$y,
-                        approx(c(17, 27, 38, 49), c(par[4], 0, cumsum(par[5:6])), xout=15:80, rule=2)$y)
+    ## par <- theta_incrr[2:incrr_nparam]
+    ## param$adjustpar <- par
+    ## logadjust1 <- cbind(approx(c(17, 27, 38, 49), c(par[1], 0, cumsum(par[2:3])), xout=15:80, rule=2)$y,
+    ##                     approx(c(17, 27, 38, 49), c(par[4], 0, cumsum(par[5:6])), xout=15:80, rule=2)$y)
     
-    logadjust2 <- cbind(approx(c(17, 27, 38, 49), c(par[1]+par[7], 0, cumsum(par[2:3])), xout=15:80, rule=2)$y,
-                        approx(c(17, 27, 38, 49), c(par[4]+par[8], 0, cumsum(par[5:6])), xout=15:80, rule=2)$y)
+    ## logadjust2 <- cbind(approx(c(17, 27, 38, 49), c(par[1]+par[7], 0, cumsum(par[2:3])), xout=15:80, rule=2)$y,
+    ##                     approx(c(17, 27, 38, 49), c(par[4]+par[8], 0, cumsum(par[5:6])), xout=15:80, rule=2)$y)
     
-    BREAK_YEAR <- 36
-    param$incrr_age <- fp$logrelbehav
-    param$incrr_age[,,1:(BREAK_YEAR-1)] <- exp(sweep(fp$logrelbehav[,,1:(BREAK_YEAR-1)], 1:2, logadjust1, "+"))
-    param$incrr_age[,,BREAK_YEAR:fp$SIM_YEARS] <- exp(sweep(fp$logrelbehav[,,BREAK_YEAR:fp$SIM_YEARS], 1:2, logadjust2, "+"))
+    ## BREAK_YEAR <- 36
+    ## param$incrr_age <- fp$logrelbehav
+    ## param$incrr_age[,,1:(BREAK_YEAR-1)] <- exp(sweep(fp$logrelbehav[,,1:(BREAK_YEAR-1)], 1:2, logadjust1, "+"))
+    ## param$incrr_age[,,BREAK_YEAR:fp$SIM_YEARS] <- exp(sweep(fp$logrelbehav[,,BREAK_YEAR:fp$SIM_YEARS], 1:2, logadjust2, "+"))
   }
+
+
+
   
   return(param)
 }
@@ -302,3 +324,5 @@ sample_incrr <- function(n, fp){
 }
 
 ldsamp_incrr <- lprior_incrr
+
+

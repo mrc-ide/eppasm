@@ -259,11 +259,22 @@ simmod.specfp <- function(fp, VERSION="C"){
 
         ## calculate ART initiation distribution
         if(!fp$med_cd4init_input[i]){
+
           expect.mort.weight <- sweep(fp$cd4_mort[, h.age15plus.idx,], 3,
-                                      colSums(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,],,2), "/")
+                                      colSums(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,],,2), "/")          
           artinit.weight <- sweep(expect.mort.weight, 3, 1/colSums(art15plus.elig,,2), "+")/2
           artinit <- pmin(sweep(artinit.weight * art15plus.elig, 3, art15plus.inits, "*"),
                           art15plus.elig)
+
+          ## ## Allocation by average mortality across CD4, trying to match Spectrum
+          ## artelig_by_cd4 <- apply(art15plus.elig, c(1, 3), sum)
+          ## expectmort_by_cd4 <- apply(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,], c(1, 3), sum)
+
+          ## artinit_dist <- (sweep(artelig_by_cd4, 2, colSums(artelig_by_cd4), "/") +
+          ##                  sweep(expectmort_by_cd4, 2, colSums(expectmort_by_cd4), "/")) / 2
+          ## artinit <- sweep(art15plus.elig, c(1, 3), sweep(artinit_dist / artelig_by_cd4, 2, art15plus.inits, "*"), "*")
+          ## artinit <- pmin(artinit, art15plus.elig, na.rm=TRUE)
+
         } else {
 
           CD4_LOW_LIM <- c(500, 350, 250, 200, 100, 50, 0)

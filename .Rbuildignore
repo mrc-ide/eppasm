@@ -1,2 +1,4 @@
 dev/*
 ^data-raw$
+^vignettes_src$
+^analysis$

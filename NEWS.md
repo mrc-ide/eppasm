@@ -99,8 +99,8 @@
 ## eppasm 0.5.3
 
 - More constrained  prior for log(iota) ~ Unif(log(1e-13), log(0.0025)), matching EPP software.
-
 - Add posterior predictive outputs for site-level ANC data
+- Incorporate an effect of percentage circumcised on male HIV incidence rate.
 
 ## eppasm 0.5.4
 

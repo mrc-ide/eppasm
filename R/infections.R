@@ -45,30 +45,29 @@ calc_infections_simpletransm <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
   invisible(list2env(fp$ss, environment())) # put ss variables in environment for convenience
 
   ts <- (i-2)/DT + ii
-
+  
   ## Calculate prevalence of unsuppressed viral load among sexually active population
-  hivn.ii <- colSums(pop[p.age15to49.idx,,hivn.idx,i])
-  hivn.ii <- hivn.ii - pop[p.age15to49.idx[1],,hivn.idx,i]*(1-DT*(ii-1))
-  hivn.ii <- hivn.ii + pop[tail(p.age15to49.idx,1)+1,,hivn.idx,i]*(1-DT*(ii-1))
 
-  ## Calculate proportion in each HIV age group who are in 15 to 49 population, accounting for partial year time step
-  ha1 <- h.age15to49.idx[1]  
-  haM <- h.age15to49.idx[length(h.age15to49.idx)]+1  # age group one above 15 to 49
-  prop_include <- rbind(ifelse(pop[agfirst.idx[ha1],,hivp.idx,i] > 0,
-                               1 - pop[agfirst.idx[ha1],,hivp.idx,i] / colSums(pop[agfirst.idx[ha1]+1:h.ag.span[ha1]-1,,hivp.idx,i]) * (1-DT*(ii-1)),
-                               c(1.0, 1.0)),
-                        matrix(1, length(h.age15to49.idx)-1, NG),
-                        ifelse(pop[agfirst.idx[haM],,hivp.idx,i] > 0,
-                               pop[agfirst.idx[haM],,hivp.idx,i] / colSums(pop[agfirst.idx[haM]+1:h.ag.span[haM]-1,,hivp.idx,i]) * (1-DT*(ii-1)),
-                               c(0, 0)))
-                        
+  contacts_ii <- sweep((pop[c(2:pAG, pAG), , , i] * (1-DT*(ii-1)) + pop[ , , , i] * DT*(ii-1)),
+                       1:2, fp$relbehav_age, "*")
 
-  hivp_noart.ii <- colSums(colSums(sweep(hivpop[,c(h.age15to49.idx, haM),,i], 1, fp$relsexact_cd4cat, "*")) * prop_include)
-  art.ii <- colSums(colSums(artpop[,,c(h.age15to49.idx, haM),,i],,2) * prop_include)
   
-  ## Prevalence of unsuppressed viral load among sexually active population
-  hivtransm_prev <- (hivp_noart.ii + fp$relinfectART * art.ii) / (hivn.ii+hivp_noart.ii+art.ii)
-  
+  hivpop_w_ha <- colSums(sweep(hivpop[ , , , i], 1, fp$relsexact_cd4cat, "*"), , 1)
+  hivpop_ha <- colSums(hivpop[ , , , i],,1)
+  artpop_ha <- colSums(artpop[ , , , , i],,2)
+
+  hivcontacts_ha <- (hivpop_w_ha + artpop_ha) / (hivpop_ha + artpop_ha)
+  hivcontacts_ha[is.na(hivcontacts_ha)] <- 0
+
+  hivtransm_ha <- (hivpop_w_ha + fp$relinfectART * artpop_ha) / (hivpop_ha + artpop_ha)
+  hivtransm_ha[is.na(hivtransm_ha)] <- 0
+
+  hivn_ii <- contacts_ii[ , , hivn.idx]
+  hivcontacts_ii <- contacts_ii[ , , hivp.idx] * hivcontacts_ha[fp$ss$ag.idx, ]
+  hivtransm_ii <- contacts_ii[ , , hivp.idx] * hivtransm_ha[fp$ss$ag.idx, ]
+
+  hivtransm_prev <- colSums(hivtransm_ii) / (colSums(hivn_ii) + colSums(hivcontacts_ii))
+
   ## r_sex[1:2] is the transmission rate by (Men, Women)
   r_sex <- c(sqrt(fp$mf_transm_rr[i]), 1/sqrt(fp$mf_transm_rr[i])) * r_ts
 
@@ -80,8 +79,10 @@ calc_infections_simpletransm <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
   
   infections.ts <- agesex.inc * pop[,,hivn.idx,i]
 
-  attr(infections.ts, "incrate15to49.ts") <- sum(infections.ts[p.age15to49.idx,]) / sum(hivn.ii)
-  attr(infections.ts, "prevcurr") <- sum(hivp_noart.ii+art.ii) / sum(hivn.ii+hivp_noart.ii+art.ii)
+  attr(infections.ts, "incrate15to49.ts") <- 0 # sum(infections.ts[p.age15to49.idx,]) / sum(hivn.ii)
+  ## attr(infections.ts, "prevcurr") <- sum(hivp_noart.ii+art.ii) / sum(hivn.ii+hivp_noart.ii+art.ii)
+
+  attr(infections.ts, "prevcurr") <- 0 # sum(hivp.ii) / sum(hivp.ii + hivn.ii)
 
   return(infections.ts)
 }
@@ -169,11 +170,15 @@ incrr_50plus_logdiff <- cbind(male   = log(0.493510) - log(c(0.358980, 0.282400,
 beers_Amat <- create_beers(17)[16:81, 4:17]
 
 getnparam_incrr <- function(fp){
-  switch(fp$fitincrr,
-         "TRUE"=NPARAM_RW2,
-         linincrr=NPARAM_RW2+NPARAM_LININCRR,
-         lognorm=7,
-         relbehav=NPAR_RELBEHAV, 0)
+  value <- switch(as.character(fp$fitincrr),
+                  "FALSE" = 0,
+                  "TRUE" = NPARAM_RW2,
+                  linincrr = NPARAM_RW2+NPARAM_LININCRR,
+                  lognorm = 7,
+                  relbehav = NPAR_RELBEHAV, NA)
+  if(is.na(value))
+    stop(paste0("fitincrr model '", fp$fitincrr, "' is not recognized"))
+  value
 }
 
 transf_incrr <- function(theta_incrr, param, fp){
@@ -319,3 +324,5 @@ sample_incrr <- function(n, fp){
 }
 
 ldsamp_incrr <- lprior_incrr
+
+

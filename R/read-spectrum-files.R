@@ -347,8 +347,11 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   } else if(exists_dptag("<HIVTFR MV2>")) {
     fert_rat <- sapply(dpsub("<HIVTFR MV2>", 2:7, timedat.idx), as.numeric)
     dimnames(fert_rat) <- list(agegr=c(15, 18, seq(20, 35, 5)), year=proj.years)  # this version of Spectrum stratified fertility reduction by 15-17, 18-19, 20-24, ...
-  } else if(exists_dptag("<HIVTFR MV3>")){
+  } else if(exists_dptag("<HIVTFR MV3>")) {
     fert_rat <- sapply(dpsub("<HIVTFR MV3>", 2:8, timedat.idx), as.numeric)
+    dimnames(fert_rat) <- list(agegr=seq(15, 45, 5), year=proj.years)
+  } else if(exists_dptag("<HIVTFR MV4>")) {
+    fert_rat <- vapply(dpsub("<HIVTFR MV4>", 2:8, timedat.idx), as.numeric, numeric(7))
     dimnames(fert_rat) <- list(agegr=seq(15, 45, 5), year=proj.years)
   }
 
@@ -540,19 +543,29 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   } else
     age14totpop <- NULL
   
-  projp <- list("yr_start"=yr_start, "yr_end"=yr_end,
-                "relinfectART"=relinfectART,
-                "fert_rat"=fert_rat,
-                "cd4fert_rat"=cd4fert_rat,
-                "frr_art6mos"=frr_art6mos,
-                "incrr_sex"=incrr_sex, "incrr_age"=incrr_age,
-                "cd4_initdist"=cd4_initdist, "cd4_prog"=cd4_prog, "cd4_mort"=cd4_mort, "art_mort"=art_mort,
-                "art15plus_numperc"=art15plus_numperc, "art15plus_num"=art15plus_num,
-                "art15plus_eligthresh"=art15plus_eligthresh, "artelig_specpop"=artelig_specpop,
-                "median_cd4init"=median_cd4init, "art_dropout"=art_dropout,
-                "verttrans"=verttrans, "hivpop"=hivpop, "hivdeaths"=hivdeaths,
-                "age14hivpop"=age14hivpop,
-                "age14totpop"=age14totpop)
+  projp <- list("yr_start" = yr_start,
+                "yr_end" = yr_end,
+                "relinfectART" = relinfectART,
+                "fert_rat" = fert_rat,
+                "cd4fert_rat" = cd4fert_rat,
+                "frr_art6mos" = frr_art6mos,
+                "incrr_sex" = incrr_sex,
+                "incrr_age" = incrr_age,
+                "cd4_initdist" = cd4_initdist,
+                "cd4_prog" = cd4_prog,
+                "cd4_mort" = cd4_mort,
+                "art_mort" = art_mort,
+                "art15plus_numperc" = art15plus_numperc,
+                "art15plus_num" = art15plus_num,
+                "art15plus_eligthresh" = art15plus_eligthresh,
+                "artelig_specpop" = artelig_specpop,
+                "median_cd4init" = median_cd4init,
+                "art_dropout" = art_dropout,
+                "verttrans" = verttrans,
+                "hivpop" = hivpop,
+                "hivdeaths" = hivdeaths,
+                "age14hivpop" = age14hivpop,
+                "age14totpop" = age14totpop)
   class(projp) <- "projp"
   attr(projp, "version") <- version
   attr(projp, "validdate") <- validdate

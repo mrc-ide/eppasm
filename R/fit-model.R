@@ -306,18 +306,17 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   likdat <- prepare_likdat(eppd, fp)
   fp$ancsitedata <- as.logical(nrow(likdat$ancsite.dat$df))
 
-  if(fp$eppmod %in% c("rhybrid", "logrw", "rlogistic_rw")){  # THIS IS REALLY MESSY, NEED TO REFACTOR CODE
-
+  if(fp$eppmod %in% c("rhybrid", "logrw", "rlogistic_rw")) { # THIS IS REALLY MESSY, NEED TO REFACTOR CODE
+    
     fp$SIM_YEARS <- as.integer(max(likdat$ancsite.dat$df$yidx,
                                    likdat$hhs.dat$yidx,
                                    likdat$ancrtcens.dat$yidx,
                                    likdat$hhsincid.dat$idx,
                                    likdat$sibmx.dat$idx))
-
+      
     fp$proj.steps <- seq(fp$ss$proj_start+0.5, fp$ss$proj_start-1+fp$SIM_YEARS+0.5, by=1/fp$ss$hiv_steps_per_year)
   } else
     fp$SIM_YEARS <- fp$ss$PROJ_YEARS
-
 
   ## Prepare the EPP model
   tsEpidemicStart <- if(epp) fp$tsEpidemicStart else fp$ss$time_epi_start+0.5

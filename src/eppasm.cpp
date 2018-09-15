@@ -74,7 +74,8 @@ void calc_infections_eppspectrum(const multi_array_ref<double, 4> pop, const mul
 
 void calc_infections_simpletransm(const multi_array_ref<double, 4> pop, const multi_array_ref<double, 4> hivpop, const multi_array_ref<double, 5> artpop,
                                   double r_ts, double relinfectART, double iota,
-                                  const double *mf_transm_rr, const double *relsexact_cd4cat, const multi_array_ref<double, 3> incrr_age,
+                                  const double *mf_transm_rr, const double *relsexact_cd4cat, const multi_array_ref<double, 2> relbehav_age,
+				  const multi_array_ref<double, 3> incrr_age,
 				  double circ_incid_rr, const multi_array_ref<double, 2> circ_prop,
                                   int t_ART_start, double DT, int t, int hts, int *hAG_START, int *hAG_SPAN,
                                   double *prevcurr, double *incrate15to49_ts, double infections_ts[NG][pAG]);
@@ -164,13 +165,16 @@ extern "C" {
     double *incrr_sex;
     double *mf_transm_rr;
     double *relsexact_cd4cat;
+    double *a_relbehav_age;
     if(incidmod == INCIDMOD_EPPSPEC)
       incrr_sex = REAL(getListElement(s_fp, "incrr_sex"));
     else {
       mf_transm_rr = REAL(getListElement(s_fp, "mf_transm_rr"));
       relsexact_cd4cat = REAL(getListElement(s_fp, "relsexact_cd4cat"));
+      a_relbehav_age = REAL(getListElement(s_fp, "relbehav_age"));
     }
-
+    multi_array_ref<double, 2> relbehav_age(a_relbehav_age, extents[NG][pAG]);
+    
     multi_array_ref<double, 3> incrr_age(REAL(getListElement(s_fp, "incrr_age")), extents[PROJ_YEARS][NG][pAG]);
 
     int eppmod = *INTEGER(getListElement(s_fp, "eppmodInt"));
@@ -569,7 +573,8 @@ extern "C" {
           else
             calc_infections_simpletransm(pop, hivpop, artpop,
                                          rvec[ts], relinfectART, (projsteps[ts] == tsEpidemicStart) ? iota : 0.0,
-                                         mf_transm_rr, relsexact_cd4cat, incrr_age, circ_incid_rr, circ_prop,
+                                         mf_transm_rr, relsexact_cd4cat, relbehav_age,
+					 incrr_age, circ_incid_rr, circ_prop,
 					 t_ART_start, DT, t, hts, hAG_START, hAG_SPAN,
                                          &prevcurr, &incrate15to49_ts_out[ts], infections_ts);
 
@@ -1039,7 +1044,9 @@ void calc_infections_eppspectrum(const multi_array_ref<double, 4> pop, const mul
 
 void calc_infections_simpletransm(const multi_array_ref<double, 4> pop, const multi_array_ref<double, 4> hivpop, const multi_array_ref<double, 5> artpop,
                                   double r_ts, double relinfectART, double iota,
-                                  const double *mf_transm_rr, const double *relsexact_cd4cat, const multi_array_ref<double, 3> incrr_age,
+                                  const double *mf_transm_rr, const double *relsexact_cd4cat,
+				  const multi_array_ref<double, 2> relbehav_age,
+				  const multi_array_ref<double, 3> incrr_age,
 				  double circ_incid_rr, const multi_array_ref<double, 2> circ_prop,
                                   int t_ART_start, double DT, int t, int hts, int *hAG_START, int *hAG_SPAN,
                                   double *prevcurr, double *incrate15to49_ts, double infections_ts[NG][pAG])
@@ -1049,13 +1056,15 @@ void calc_infections_simpletransm(const multi_array_ref<double, 4> pop, const mu
   double Xhivn[NG], Xhivn_incagerr[NG];  // population sizes by sex, not adjusted (for age incidence)
   double Xhivn_adj[NG], Xhivp_noart[NG], Xart[NG], Xtot[NG];  // population sizes, adjusted for partial year timestep offset
   double Chivn[NG], Chivp_noart[NG], Cart[NG], Ctot[NG]; // Number of contacts, adjusted
+
+	  
   for(int g = 0; g < NG; g++){
 
     Xhivn[g] = 0.0;
     Xhivn_incagerr[g] = 0.0;
     Xhivp_noart[g] = 0.0;
     Xart[g] = 0.0;
-    Chivp_noart[g] = 0.0;
+    // Chivp_noart[g] = 0.0;
     for(int a = pIDX_15TO49; a < pIDX_15TO49+pAG_15TO49; a++){
       Xhivn[g] += pop[t][HIVN][g][a];
       Xhivn_incagerr[g] += incrr_age[t][g][a] * pop[t][HIVN][g][a];
@@ -1081,12 +1090,12 @@ void calc_infections_simpletransm(const multi_array_ref<double, 4> pop, const mu
 
       for(int hm = 0; hm < hDS; hm++){
         Xhivp_noart[g] += hivpop[t][g][ha][hm] * prop_include;
-        Chivp_noart[g] += hivpop[t][g][ha][hm] * relsexact_cd4cat[hm] * prop_include;
+        // Chivp_noart[g] += hivpop[t][g][ha][hm] * relsexact_cd4cat[hm] * prop_include;
         if(t >= t_ART_start)
           for(int hu = 0; hu < hTS; hu++)
             Xart[g] += artpop[t][g][ha][hm][hu] * prop_include;
       }
-      Cart[g] = Xart[g];
+      // Cart[g] = Xart[g];
     }  // end loop over ha
 
     // adjust HIV negative population for partial year time step
@@ -1094,11 +1103,51 @@ void calc_infections_simpletransm(const multi_array_ref<double, 4> pop, const mu
     Xhivn_adj[g] -= pop[t][HIVN][g][pIDX_15TO49] * (1.0 - DT*hts);
     Xhivn_adj[g] += pop[t][HIVN][g][pIDX_15TO49+pAG_15TO49] * (1.0 - DT*hts);
 
-    Chivn[g] = Xhivn_adj[g];
+    // Calculate relative contacts
+
+    Chivn[g] = 0.0;
+    Chivp_noart[g] = 0.0;
+    Cart[g] = 0.0;
+    
+    int a = 0;
+    for(int ha = 0; ha < hAG; ha++){
+
+      // Contacts per HIV positive person in ha
+
+      double Xhivp_ha = 0.0;
+      double Chivp_relbehav_ha = 0.0;
+      double Chivp_noart_ha = 0.0;
+      double Cart_ha = 0.0;
+
+      for(int i = 0; i < hAG_SPAN[ha]; i++){
+	Xhivp_ha += pop[t][HIVP][g][a];
+	if(a < pIDX_15PLUS + pAG_15PLUS - 1)
+	  Chivp_relbehav_ha += relbehav_age[g][a] * (pop[t][HIVP][g][a] * DT*hts + pop[t][HIVP][g][a+1] * (1.0 - DT*hts));
+	else
+	  Chivp_relbehav_ha += relbehav_age[g][pIDX_15PLUS+pAG_15PLUS - 1] * pop[t][HIVP][g][pIDX_15PLUS+pAG_15PLUS - 1];
+	a++;
+      }
+
+      for(int hm = 0; hm < hDS; hm++){
+        Chivp_noart_ha += hivpop[t][g][ha][hm] * relsexact_cd4cat[hm];
+        if(t >= t_ART_start)
+          for(int hu = 0; hu < hTS; hu++)
+            Cart_ha += artpop[t][g][ha][hm][hu];
+      }
+
+      if(Xhivp_ha > 0){
+	Chivp_noart[g] += Chivp_relbehav_ha * Chivp_noart_ha / Xhivp_ha;
+	Cart[g] += Chivp_relbehav_ha * Cart_ha / Xhivp_ha;
+      }
+    }
+
+    for(int a = pIDX_15PLUS; a < pIDX_15PLUS+pAG_15PLUS - 1; a++) {
+      Chivn[g] += relbehav_age[g][a] * (pop[t][HIVN][g][a] * DT*hts + pop[t][HIVN][g][a+1] * (1.0 - DT*hts));
+    }
+    Chivn[g] += relbehav_age[g][pIDX_15PLUS+pAG_15PLUS-1] * pop[t][HIVN][g][pIDX_15PLUS+pAG_15PLUS-1];
 
     Xtot[g] = Xhivn_adj[g] + Xhivp_noart[g] + Xart[g];
     Ctot[g] = Chivn[g] + Chivp_noart[g] + Cart[g];
-
 
   } // end loop over g
 

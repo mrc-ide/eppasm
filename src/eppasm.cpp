@@ -950,7 +950,6 @@ extern "C" {
 		// Remove share of excess ART initiations from testnegpop
 		if(t >= t_hts_start & new_diagn_ha > 0){
 		  double new_among_testneg = new_diagn_ha * testnegpop[t][HIVP][g][ha] / undiagnosed_ha;
-		  Rprintf("%f\n", new_among_testneg);
 		  hivtests[t][2][g][ha] += new_diagn_ha - new_among_testneg; // new diagnoses among never tested
 		  hivtests[t][3][g][ha] += new_among_testneg;
 		  testnegpop[t][HIVP][g][ha] -= new_among_testneg;

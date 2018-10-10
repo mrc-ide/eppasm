@@ -146,6 +146,16 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
   }
   dimnames(artneed.m) <- dimnames(artneed.f) <- list(agegr.lab, proj.years)
 
+  ## ART need - Dec 31
+  if(dp.vers %in% c("<General 3>", "<General5>")){
+    artneed31dec.m <- array(NA, c(17, timedat.idx))
+    artneed31dec.f <- array(NA, c(17, timedat.idx))
+  } else {
+    artneed31dec.m <- sapply(dpsub("<NeedARTDec31 MV>", 6 + 0:16*3, timedat.idx), as.numeric)
+    artneed31dec.f <- sapply(dpsub("<NeedARTDec31 MV>", 7 + 0:16*3, timedat.idx), as.numeric)
+  }
+  dimnames(artneed31dec.m) <- dimnames(artneed31dec.f) <- list(agegr.lab, proj.years)
+
   ## On ART
   if(dp.vers %in% c("<General 3>", "<General5>")){
     artnum.m <- sapply(dpsub("On FL", 5+0:16*3, timedat.idx, 2), as.numeric)
@@ -188,6 +198,10 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
                   "hivnum.f" = hivnum.f,
                   "artnum.m" = artnum.m,
                   "artnum.f" = artnum.f,
+                  "artneed.m" = artneed.m,
+                  "artneed.f" = artneed.f,
+                  "artneed31dec.m" = artneed31dec.m,
+                  "artneed31dec.f" = artneed31dec.f,
                   "newinf.m" = newinf.m,
                   "newinf.f" = newinf.f,
                   "natdeaths.m" = natdeaths.m,
@@ -449,10 +463,12 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     art15plus_num <- sapply(dpsub("<HAARTBySex MV>", 4:5, timedat.idx), as.numeric)
     art15plus_eligthresh <- setNames(as.numeric(dpsub("<CD4ThreshHoldAdults MV>", 2, timedat.idx)), proj.years)
     artelig_specpop <- setNames(dpsub("<PopsEligTreat MV>", 3:9, 2:6), c("description", "pop", "elig", "percent", "year"))
+    art15plus_needart <- sapply(dpsub("<NeedARTDec31 MV>", 3:4, timedat.idx), as.numeric)
   }
     
   dimnames(art15plus_numperc) <- list(sex=c("Male", "Female"), year=proj.years)
   dimnames(art15plus_num) <- list(sex=c("Male", "Female"), year=proj.years)
+  dimnames(art15plus_needart) <- list(sex=c("Male", "Female"), year=proj.years)
 
   artelig_specpop$pop <- c("PW", "TBHIV", "DC", "FSW", "MSM", "IDU", "OTHER")
   artelig_specpop$elig <- as.logical(as.integer(artelig_specpop$elig))
@@ -543,19 +559,30 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   } else
     age14totpop <- NULL
   
-  projp <- list("yr_start"=yr_start, "yr_end"=yr_end,
-                "relinfectART"=relinfectART,
-                "fert_rat"=fert_rat,
-                "cd4fert_rat"=cd4fert_rat,
-                "frr_art6mos"=frr_art6mos,
-                "incrr_sex"=incrr_sex, "incrr_age"=incrr_age,
-                "cd4_initdist"=cd4_initdist, "cd4_prog"=cd4_prog, "cd4_mort"=cd4_mort, "art_mort"=art_mort,
-                "art15plus_numperc"=art15plus_numperc, "art15plus_num"=art15plus_num,
-                "art15plus_eligthresh"=art15plus_eligthresh, "artelig_specpop"=artelig_specpop,
-                "median_cd4init"=median_cd4init, "art_dropout"=art_dropout,
-                "verttrans"=verttrans, "hivpop"=hivpop, "hivdeaths"=hivdeaths,
-                "age14hivpop"=age14hivpop,
-                "age14totpop"=age14totpop)
+  projp <- list("yr_start" = yr_start,
+                "yr_end" = yr_end,
+                "relinfectART" = relinfectART,
+                "fert_rat" = fert_rat,
+                "cd4fert_rat" = cd4fert_rat,
+                "frr_art6mos" = frr_art6mos,
+                "incrr_sex" = incrr_sex,
+                "incrr_age" = incrr_age,
+                "cd4_initdist" = cd4_initdist,
+                "cd4_prog" = cd4_prog,
+                "cd4_mort" = cd4_mort,
+                "art_mort" = art_mort,
+                "art15plus_numperc" = art15plus_numperc,
+                "art15plus_num" = art15plus_num,
+                "art15plus_needart" = art15plus_needart,
+                "art15plus_eligthresh" = art15plus_eligthresh,
+                "artelig_specpop" = artelig_specpop,
+                "median_cd4init" = median_cd4init,
+                "art_dropout" = art_dropout,
+                "verttrans" = verttrans,
+                "hivpop" = hivpop,
+                "hivdeaths" = hivdeaths,
+                "age14hivpop" = age14hivpop,
+                "age14totpop" = age14totpop)
   class(projp) <- "projp"
   attr(projp, "version") <- version
   attr(projp, "validdate") <- validdate

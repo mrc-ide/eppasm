@@ -220,7 +220,13 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
     else
       hivpop <- NA
     hivpop <- array(hivpop, c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
-    
+
+    if(exists_dptag("<OnARTBySingleAge MV>"))
+      artpop <- sapply(dpsub("<OnARTBySingleAge MV>", 2 + c(0:80*3 + 1, 0:80*3 + 2), timedat.idx), as.numeric)
+    else
+      artpop <- NA
+    artpop <- array(artpop, c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+
     if(exists_dptag("<DeathsByAge MV>"))
       natdeaths <- sapply(dpsub("<DeathsByAge MV>", c(4:84, 86:166), timedat.idx), as.numeric)
     else if(exists_dptag("<DeathsByAge MV2>"))

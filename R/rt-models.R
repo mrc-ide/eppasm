@@ -205,18 +205,12 @@ extend_projection <- function(fit, proj_years){
     fpnew <- prepare_logrw(fpnew)
   }
 
-  if(exists("prior_args", fp) && exists("rw_prior_shape", fp$prior_args))
-    sh <- fp$prior_args$rw_prior_shape
-  else
-    sh <- eppasm::rw_prior_shape
-  
-  if(exists("prior_args", fp) && exists("rw_prior_rate", fp$prior_args))
-    rate <- fp$prior_args$rw_prior_rate
-  else
-    rate <- eppasm::rw_prior_rate
-  
   theta <- fit$resample[,idx1:idx2, drop=FALSE]
-  fit$rw_sigma <- sqrt(sample_invgamma_post(theta, sh, rate))
+
+  if(!is.null(fp$prior_args$rw_prior_sd))
+     fit$rw_sigma <- fp$prior_args$rw_prior_sd
+  else
+    fit$rw_sigma <- rw_prior_sd
   
   nsteps <- fpnew$rt$n_rw - fp$rt$n_rw
 

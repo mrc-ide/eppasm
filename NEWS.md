@@ -105,5 +105,11 @@
 ## eppasm 0.5.4
 
 - Updates for Spectrum v5.72:
- - Update fertility rate ratio input parameters to allow ART FRR by age. (
- - Add time-varying mortality on ART
+- Update fertility rate ratio input parameters to allow ART FRR by age.
+- Add time-varying mortality on ART
+
+## eppasm 0.5.5
+
+- Allow specification equilibrium prior standard deviation as a fixed prior parameter.
+- Revise logistic RW model to use fixed standard deviation.
+- Add ANC site-level random effect estimates to tidy_output().

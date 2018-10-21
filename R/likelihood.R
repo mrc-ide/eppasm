@@ -32,6 +32,7 @@ muSS <- 1/11.5               #1/duration for r steady state prior
 
 rw_prior_shape <- 300
 rw_prior_rate <- 1.0
+rw_prior_sd <- 0.06
 
 
 ## r-trend prior parameters
@@ -597,7 +598,7 @@ lprior <- function(theta, fp){
   } else if(fp$eppmod == "rlogistic_rw"){
     epp_nparam <- fp$rt$n_param+1
     lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE)) +
-      bayes_lmvt(theta[4+1:fp$rt$n_rw], rw_prior_shape, rw_prior_rate)
+      sum(dnorm(theta[4+1:fp$rt$n_rw], 0, rw_prior_sd, log=TRUE))
     lpr <- lpr + lprior_iota(theta[fp$rt$n_param+1], fp)
   }
 
@@ -810,7 +811,7 @@ sample.prior <- function(n, fp){
     mat[,4:7] <- t(matrix(rnorm(4*n, rtrend.beta.pr.mean, rtrend.beta.pr.sd), 4, n))  # beta
   } else if(fp$eppmod == "rlogistic_rw") {
     mat[,1:4] <- t(matrix(rnorm(4*n, rlog_pr_mean, rlog_pr_sd), 4))
-    mat[,4+1:fp$rt$n_rw] <- bayes_rmvt(n, fp$rt$n_rw, rw_prior_shape, rw_prior_rate)  # u[2:numKnots]
+    mat[,4+1:fp$rt$n_rw] <- rnorm(n*fp$rt$n_rw, 0, rw_prior_sd)  # u[2:numKnots]
     mat[,fp$rt$n_param+1] <- sample_iota(n, fp)
   }
 
@@ -900,7 +901,7 @@ ldsamp <- function(theta, fp){
   } else if(fp$eppmod == "rlogistic_rw"){
     epp_nparam <- fp$rt$n_param+1
     lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE)) +
-      bayes_lmvt(theta[4+1:fp$rt$n_rw], rw_prior_shape, rw_prior_rate)
+      sum(dnorm(theta[4+1:fp$rt$n_rw], 0, rw_prior_sd, log=TRUE))
     lpr <- lpr + ldsamp_iota(theta[fp$rt$n_param+1], fp)
   }
 

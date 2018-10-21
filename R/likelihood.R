@@ -563,14 +563,11 @@ lprior <- function(theta, fp){
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
 
-  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "rhybrid", "logrw")){
+  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "logrw")){
     epp_nparam <- fp$numKnots+1
 
     nk <- fp$numKnots
 
-    if(fp$eppmod == "rhybrid")
-      lpr <- bayes_lmvt(theta[(1+fp$rt$spline_penord):fp$rt$n_splines], tau2_prior_shape, tau2_prior_rate) +
-        bayes_lmvt(theta[fp$rt$n_splines + 1:fp$rt$n_rw], rw_prior_shape, rw_prior_rate)
     else if(fp$eppmod == "logrw")
       lpr <- bayes_lmvt(theta[2:fp$numKnots], rw_prior_shape, rw_prior_rate)
     else
@@ -586,9 +583,9 @@ lprior <- function(theta, fp){
     lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE))
     lpr <- lpr + lprior_iota(theta[5], fp)
   } else if(fp$eppmod == "rtrend"){ # rtrend
-
+    
     epp_nparam <- 7
-
+    
     lpr <- dunif(round(theta[1]), t0.unif.prior[1], t0.unif.prior[2], log=TRUE) +
       ## dunif(theta[2], t1.unif.prior[1], t1.unif.prior[2], log=TRUE) +
       dnorm(round(theta[2]), t1.pr.mean, t1.pr.sd, log=TRUE) +
@@ -648,7 +645,7 @@ ll <- function(theta, fp, likdat){
   } else
     ll.incpen <- 0
 
-  if (!exists("eppmod", where = fp) || fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "rhybrid"))
+  if (!exists("eppmod", where = fp) || fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline"))
     if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) 
         return(-Inf)
 
@@ -739,7 +736,7 @@ sample.prior <- function(n, fp){
   }
 
   ## Calculate number of parameters
-  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "rhybrid", "logrw"))
+  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "logrw"))
     epp_nparam <- fp$numKnots+1L
   else if(fp$eppmod == "rlogistic")
     epp_nparam <- 5
@@ -776,7 +773,7 @@ sample.prior <- function(n, fp){
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
 
-  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "rhybrid", "logrw")){
+  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "logrw")){
     epp_nparam <- fp$numKnots+1
 
     if(fp$eppmod == "rspline")
@@ -785,10 +782,7 @@ sample.prior <- function(n, fp){
       mat[,1] <- rnorm(n, 0.5, 1)
     else # logrspline, logospline, logrw
       mat[,1] <- rnorm(n, 0.2, 1)                                                   # u[1]
-    if(fp$eppmod == "rhybrid"){
-      mat[,2:fp$rt$n_splines] <- bayes_rmvt(n, fp$rt$n_splines-1,tau2_init_shape, tau2_init_rate)
-      mat[,fp$rt$n_splines+1:fp$rt$n_rw] <- bayes_rmvt(n, fp$rt$n_rw, rw_prior_shape, rw_prior_rate)  # u[2:numKnots]
-    } else if(fp$eppmod == "logrw"){
+    if(fp$eppmod == "logrw"){
       mat[,2:fp$rt$n_rw] <- bayes_rmvt(n, fp$rt$n_rw-1, rw_prior_shape, rw_prior_rate)  # u[2:numKnots]
     } else {
       mat[,2:fp$numKnots] <- bayes_rmvt(n, fp$numKnots-1,tau2_init_shape, tau2_init_rate)  # u[2:numKnots]
@@ -858,7 +852,7 @@ ldsamp <- function(theta, fp){
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
 
-  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "rhybrid", "logrw")){
+  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "logrw")){
     epp_nparam <- fp$numKnots+1
 
     nk <- fp$numKnots
@@ -870,10 +864,7 @@ ldsamp <- function(theta, fp){
     else # logrspline, logospline, logrw
       lpr <- dnorm(theta[1], 0.2, 1, log=TRUE)
 
-    if(fp$eppmod == "rhybrid")
-      lpr <- bayes_lmvt(theta[2:fp$rt$n_splines], tau2_init_shape, tau2_init_rate) +
-        bayes_lmvt(theta[fp$rt$n_splines + 1:fp$rt$n_rw], rw_prior_shape, rw_prior_rate)
-    else if(fp$eppmod == "logrw")
+    if(fp$eppmod == "logrw")
       bayes_lmvt(theta[2:fp$rt$n_rw], rw_prior_shape, rw_prior_rate)
     else
       lpr <- bayes_lmvt(theta[2:nk], tau2_prior_shape, tau2_prior_rate)

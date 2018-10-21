@@ -306,7 +306,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   likdat <- prepare_likdat(eppd, fp)
   fp$ancsitedata <- as.logical(nrow(likdat$ancsite.dat$df))
 
-  if(fp$eppmod %in% c("rhybrid", "logrw", "rlogistic_rw")) { # THIS IS REALLY MESSY, NEED TO REFACTOR CODE
+  if(fp$eppmod %in% c("logrw", "rlogistic_rw")) { # THIS IS REALLY MESSY, NEED TO REFACTOR CODE
     
     fp$SIM_YEARS <- as.integer(max(likdat$ancsite.dat$df$yidx,
                                    likdat$hhs.dat$yidx,
@@ -326,8 +326,6 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
     fp <- prepare_ospline_model(fp, tsEpidemicStart=tsEpidemicStart)
   else if(fp$eppmod == "rtrend")
     fp <- prepare_rtrend_model(fp)
-  else if(fp$eppmod == "rhybrid")
-    fp <- prepare_hybrid_r(fp)
   else if(fp$eppmod == "logrw")
     fp <- prepare_logrw(fp)
   else if(fp$eppmod == "rlogistic_rw")

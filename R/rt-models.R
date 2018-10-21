@@ -1,77 +1,3 @@
-prepare_hybrid_r <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5, rw_start=fp$rw_start, rw_dk=NULL){
-  
-  if(!exists("rtpenord", fp))
-    fp$rtpenord <- 2L
-  
-  if(is.null(rw_start))
-    rw_start <- max(fp$proj.steps)
-  
-  ## if(exists("knots", fp))
-  ##   fp$numKnots <- length(fp$knots) - 4
-
-  fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - tsEpidemicStart))]
-
-  rt <- list()
-  rt$spline_steps <- fp$proj.steps[fp$proj.steps >= fp$tsEpidemicStart & fp$proj.steps <= rw_start]
-  rt$rw_steps <- fp$proj.steps[fp$proj.steps > rw_start & fp$proj.steps <= max(fp$proj.steps)]
-  
-  rt$nsteps_preepi <- length(fp$proj.steps[fp$proj.steps < tsEpidemicStart])
-  
-  if(!exists("n_splines", fp))
-    n_splines <- 7
-  else
-    n_splines <- fp$n_splines
-  
-  if(!exists("n_rw", fp))
-    n_rw <- ceiling(diff(range(rt$rw_steps)))  ##
-  else
-    n_rw <- fp$n_rw
-  
-  
-  rt$n_splines <- n_splines
-  rt$n_rw <- n_rw
-  rt$n_param <- rt$n_splines+rt$n_rw
-  
-  fp$numKnots <- rt$n_splines+rt$n_rw
-  
-  if(rt$n_splines > 0){
-    rt$spline_penord <- fp$rtpenord
-    proj.dur <- diff(range(rt$spline_steps))
-    rvec.knots <- seq(min(rt$spline_steps) - 3*proj.dur/(rt$n_splines-3), max(rt$spline_steps) + 3*proj.dur/(rt$n_splines-3), proj.dur/(rt$n_splines-3))
-    
-    fp$splineX <- splines::splineDesign(rvec.knots, rt$spline_steps)
-    
-    m <- matrix(0, rt$n_splines, rt$n_splines)
-    m[,1] <- 1
-    for(i in 2:rt$n_splines)
-      m[i:rt$n_splines,i] <- 1:(rt$n_splines-i+1)
-
-    rt$splineX <- fp$splineX %*% m
-  }
-  
-  ## Random walk design matrix
-  if(!is.null(rw_dk))
-    rt$rw_knots <- seq(min(rt$rw_steps), max(rt$rw_steps)+rw_dk, by=rw_dk)
-  else 
-    rt$rw_knots <- seq(min(rt$rw_steps), max(rt$rw_steps), length.out=n_rw+1)
-  rt$rwX <- outer(rt$rw_steps, rt$rw_knots[1:n_rw], ">=")
-  class(rt$rwX) <- "integer"
-
-  rt$eppmod <- "rhybrid"
-  fp$rt <- rt
-
-  fp$rvec.spldes <- rbind(matrix(0, rt$nsteps_preepi, fp$numKnots),
-                          cbind(rt$splineX, matrix(0, length(rt$spline_steps), n_rw)),
-                          cbind(matrix(tail(rt$splineX, 1), nrow=length(rt$rw_steps), ncol=n_splines, byrow=TRUE), rt$rwX))
-                                
-  if(!exists("eppmod", fp))
-    fp$eppmod <- "rhybrid"
-  fp$iota <- NULL
-  
-  return(fp)
-}
-
-
 prepare_logrw <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5){
 
   fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - tsEpidemicStart))]
@@ -162,12 +88,8 @@ create_rvec <- function(theta, rt){
     rvec <- c(rvec, rvec[length(rt$rlogistic_steps)] + rt$rwX %*% theta[4+1:rt$n_rw])
     return(exp(rvec))
   }
-  if(rt$eppmod == "rhybrid"){
-    u <- theta[1:rt$n_splines]
-    rvec <- log(rt$splineX %*% u)
-    rvec <- c(rep(0, rt$nsteps_preepi), rvec, rvec[length(rvec)] + rt$rwX %*% theta[rt$n_splines+1:rt$n_rw])
-    return(exp(rvec))
-  }
+  else
+    stop(paste(rt$eppmod, "is not impmented in create_rvec()"))
 }
 
 
@@ -195,10 +117,6 @@ extend_projection <- function(fit, proj_years){
     idx1 <- 5  # start of random walk parameters
     idx2 <- 4+fp$rt$n_rw
     fpnew <- prepare_rlogistic_rw(fpnew, rw_dk=diff(fp$rt$rw_knots[1:2]))
-  } else if(fp$eppmod == "rhybrid"){
-    idx1 <- fp$rt$n_splines+1L # start of random walk parameters
-    idx2 <- fp$rt$n_splines+fp$rt$n_rw
-    fpnew <- prepare_hybrid_r(fpnew, rw_dk=diff(fp$rt$rw_knots[1:2]))
   } else if(fp$eppmod == "logrw") {
     idx1 <- 1L
     idx2 <- fp$rt$n_rw

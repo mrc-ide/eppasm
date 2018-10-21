@@ -43,7 +43,11 @@ rlogistic <- function(t, p){
 }
 
 
-prepare_rlogistic_rw <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5, rw_start=fp$rw_start, rw_dk=NULL){
+#' @param fp model parameters object
+#' @param tsEpidemicStart time step at which epidemic is seeded
+#' @param rw_start time when random walk starts
+#' @param rw_dk distance between random walk knots. If NULL, defaults to about 1 per year
+prepare_rhybrid <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5, rw_start=fp$rw_start, rw_dk=NULL){
 
   if(is.null(rw_start))
     rw_start <- max(fp$proj.steps)
@@ -69,11 +73,11 @@ prepare_rlogistic_rw <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5, r
     rt$rw_knots <- seq(min(rt$rw_steps), max(rt$rw_steps), length.out=n_rw+1)
   rt$rwX <- pmin(pmax(outer(rt$rw_steps, rt$rw_knots[1:n_rw], "-"), 0), 1)  # piecewise linear interpolation
 
-  rt$eppmod <- "rlogistic_rw"
+  rt$eppmod <- "rhybrid"
   fp$rt <- rt
 
   if(!exists("eppmod", fp))
-    fp$eppmod <- "rlogistic_rw"
+    fp$eppmod <- "rhybrid"
   fp$iota <- NULL
   
   return(fp)
@@ -81,7 +85,7 @@ prepare_rlogistic_rw <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5, r
 
 
 create_rvec <- function(theta, rt){
-  if(rt$eppmod == "rlogistic_rw"){
+  if(rt$eppmod == "rhybrid"){
     par <- theta[1:4]
     par[3] <- exp(par[3])
     rvec <- rlogistic(rt$rlogistic_steps, par)
@@ -113,10 +117,10 @@ extend_projection <- function(fit, proj_years){
   fpnew$SIM_YEARS <- as.integer(proj_years)
   fpnew$proj.steps <- with(fpnew$ss, seq(proj_start+0.5, proj_start-1+fpnew$SIM_YEARS+0.5, by=1/hiv_steps_per_year))
 
-  if(fp$eppmod == "rlogistic_rw"){
+  if(fp$eppmod == "rhybrid"){
     idx1 <- 5  # start of random walk parameters
     idx2 <- 4+fp$rt$n_rw
-    fpnew <- prepare_rlogistic_rw(fpnew, rw_dk=diff(fp$rt$rw_knots[1:2]))
+    fpnew <- prepare_rhybrid(fpnew, rw_dk=diff(fp$rt$rw_knots[1:2]))
   } else if(fp$eppmod == "logrw") {
     idx1 <- 1L
     idx2 <- fp$rt$n_rw

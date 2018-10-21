@@ -112,4 +112,5 @@
 
 - Allow specification equilibrium prior standard deviation as a fixed prior parameter.
 - Revise logistic RW model to use fixed standard deviation.
+- Rename rlogistic_rw -> rhybrid
 - Add ANC site-level random effect estimates to tidy_output().

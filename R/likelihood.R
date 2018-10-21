@@ -161,7 +161,8 @@ ll_ancsite <- function(mod, fp, coef=c(0, 0), vinfl=0, dat){
 ## prior parameters for ANCRT census
 log_frr_adjust.pr.mean <- 0
 ## ancrtcens.bias.pr.sd <- 1.0
-log_frr_adjust.pr.sd <- 0.2
+log_frr_adjust.pr.sd <- 1.0
+## log_frr_adjust.pr.sd <- 0.2
 ancrtcens.vinfl.pr.rate <- 1/0.015
 
 prepare_ancrtcens_likdat <- function(dat, fp){
@@ -568,7 +569,7 @@ lprior <- function(theta, fp){
 
     nk <- fp$numKnots
 
-    else if(fp$eppmod == "logrw")
+    if(fp$eppmod == "logrw")
       lpr <- bayes_lmvt(theta[2:fp$numKnots], rw_prior_shape, rw_prior_rate)
     else
       lpr <- bayes_lmvt(theta[(1+fp$rtpenord):nk], tau2_prior_shape, tau2_prior_rate)
@@ -592,7 +593,7 @@ lprior <- function(theta, fp){
       ## dunif(theta[3], logr0.unif.prior[1], logr0.unif.prior[2], log=TRUE) +
       dnorm(theta[3], logr0.pr.mean, logr0.pr.sd, log=TRUE) +
       sum(dnorm(theta[4:7], rtrend.beta.pr.mean, rtrend.beta.pr.sd, log=TRUE))
-  } else if(fp$eppmod == "rlogistic_rw"){
+  } else if(fp$eppmod == "rhybrid"){
     epp_nparam <- fp$rt$n_param+1
     lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE)) +
       sum(dnorm(theta[4+1:fp$rt$n_rw], 0, rw_prior_sd, log=TRUE))
@@ -742,7 +743,7 @@ sample.prior <- function(n, fp){
     epp_nparam <- 5
   else if(fp$eppmod == "rtrend")
     epp_nparam <- 7
-  else if(fp$eppmod == "rlogistic_rw")
+  else if(fp$eppmod == "rhybrid")
     epp_nparam <- fp$rt$n_param+1
 
   if(fp$ancsitedata)
@@ -803,7 +804,7 @@ sample.prior <- function(n, fp){
     ## mat[,3] <- runif(n, logr0.unif.prior[1], logr0.unif.prior[2])  # r0
     mat[,3] <- rnorm(n, logr0.pr.mean, logr0.pr.sd)  # r0
     mat[,4:7] <- t(matrix(rnorm(4*n, rtrend.beta.pr.mean, rtrend.beta.pr.sd), 4, n))  # beta
-  } else if(fp$eppmod == "rlogistic_rw") {
+  } else if(fp$eppmod == "rhybrid") {
     mat[,1:4] <- t(matrix(rnorm(4*n, rlog_pr_mean, rlog_pr_sd), 4))
     mat[,4+1:fp$rt$n_rw] <- rnorm(n*fp$rt$n_rw, 0, rw_prior_sd)  # u[2:numKnots]
     mat[,fp$rt$n_param+1] <- sample_iota(n, fp)
@@ -889,7 +890,7 @@ ldsamp <- function(theta, fp){
       ## dunif(theta[3], logr0.unif.prior[1], logr0.unif.prior[2], log=TRUE) +
       dnorm(theta[3], logr0.pr.mean, logr0.pr.sd, log=TRUE) +
       sum(dnorm(theta[4:7], rtrend.beta.pr.mean, rtrend.beta.pr.sd, log=TRUE))
-  } else if(fp$eppmod == "rlogistic_rw"){
+  } else if(fp$eppmod == "rhybrid"){
     epp_nparam <- fp$rt$n_param+1
     lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE)) +
       sum(dnorm(theta[4+1:fp$rt$n_rw], 0, rw_prior_sd, log=TRUE))

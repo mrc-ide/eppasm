@@ -351,10 +351,10 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
       opt_init <- X0[which.max(lpost0)[1],]
     }
     opt <- optim(opt_init, optfn, fp=fp, likdat=likdat, method=opt_method, control=list(fnscale=-1, trace=4, maxit=opt_maxit, ndeps=rep(opt_diffstep, length(opt_init))))
+    opt$fp <- fp
     opt$likdat <- likdat
     opt$param <- fnCreateParam(opt$par, fp)
-    opt$fp <- update(fp, list=opt$param)
-    opt$mod <- simmod(opt$fp)
+    opt$mod <- simmod(update(fp, list=opt$param))
     if(opthess){
       opt$hessian <- optimHess(opt_init, optfn, fp=fp, likdat=likdat,
                                control=list(fnscale=-1,

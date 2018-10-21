@@ -60,8 +60,8 @@ ancbias.pr.sd <- 1.0
 vinfl.prior.rate <- 1/0.015
 
 ancrtsite.beta.pr.mean <- 0
-## ancrtsite.beta.pr.sd <- 1.0
-ancrtsite.beta.pr.sd <- 0.05
+ancrtsite.beta.pr.sd <- 1.0
+## ancrtsite.beta.pr.sd <- 0.05
 ## ancrtsite.vinfl.pr.rate <- 1/0.015
 
 

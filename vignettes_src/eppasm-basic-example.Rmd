@@ -63,6 +63,12 @@ mod <- simmod(fp_par)
 
 prev(mod)
 incid(mod)
+
+## R version of the model
+modR <- simmod(fp_par, VERSION = "R")
+
+prev(modR)
+incid(modR)
 ```
 
 

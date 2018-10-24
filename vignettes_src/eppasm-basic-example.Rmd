@@ -33,7 +33,17 @@ pjnz <- system.file("extdata/testpjnz", "Botswana2018.PJNZ", package="eppasm")
 bw <- prepare_spec_fit(pjnz, proj.end=2021.5)
 ```
 
-## Single set of parameter inputs
+## Simulate model with direct incidence input (a la Spectrum
+
+```{r, direct_incid}
+fp <- prepare_directincid(pjnz)
+mod <- simmod(fp)
+
+prev(mod)
+incid(mod)
+```
+
+## EPP model with single set of parameter inputs
 
 Prepare model parameters from parameter vector input
 ```{r, single_param}

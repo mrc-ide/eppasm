@@ -1,3 +1,6 @@
+
+#' @import data.table
+#' 
 tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
 
   idvars <- data.frame(country = country,
@@ -135,7 +138,8 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
   ##                        reshape2::dcast(relincid, ... ~ outcome, value.var="value"))
 
   ## Age specific prevalence predictions in survey years
-  ageprevdat <- fit$likdat$hhs.dat[c("year", "sex", "agegr", "n", "prev", "se", "ci_l", "ci_u", "aidx", "sidx", "yidx", "agspan")]
+  vnames <- c("year", "sex", "agegr", "n", "prev", "se", "ci_l", "ci_u", "aidx", "sidx", "yidx", "agspan")
+  ageprevdat <- fit$likdat$hhs.dat[intersect(names(fit$likdat$hhs.dat), vnames)]
 
   ageprevpred <- mapply(ageprev,
                        mod = mod_list,
@@ -155,6 +159,9 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
                   list(fit$likdat$ancsite.dat), resid = FALSE)
 
     b_site_sigma <- sapply(b_site, anclik::sample.sigma2)
+
+    b_site_df <- estci2(do.call(cbind, b_site))
+    ancsite_b <- data.frame(idvars, site = rownames(b_site_df), b_site_df)
     
     newdata <- expand.grid(site = unique(fit$likdat$ancsite.dat$df$site),
                            year = 1985:2020,
@@ -175,14 +182,17 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
                           suffixes = c("_sim", "_obs"), all.x=TRUE)
     
     ancsite_pred <- data.frame(idvars, ancsite_pred)
-  } else
+  } else {
     ancsite_pred <- NULL
+    ancsite_b <- NULL
+  }
    
   out <- list(core = core,
               ageprevdat=ageprevdat,
               pregprev = pregprev,
               agegr3prev = agegr3prev,
-              ancsite_pred = ancsite_pred)
+              ancsite_pred = ancsite_pred,
+              ancsite_b = ancsite_b)
               ## ageincid = ageincid,
               ## ageinfections = ageinfections,
               ## relincid = relincid)

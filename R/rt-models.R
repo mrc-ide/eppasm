@@ -46,11 +46,19 @@ rlogistic <- function(t, p){
 #' @param fp model parameters object
 #' @param tsEpidemicStart time step at which epidemic is seeded
 #' @param rw_start time when random walk starts
+#' @param rw_nstep_trans number of RW steps for transition to full variance. If NULL, defaults to 5 steps
 #' @param rw_dk distance between random walk knots. If NULL, defaults to about 1 per year
-prepare_rhybrid <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5, rw_start=fp$rw_start, rw_dk=NULL){
+prepare_rhybrid <- function(fp,
+                            tsEpidemicStart = fp$ss$time_epi_start+0.5,
+                            rw_start = fp$rw_start,
+                            rw_nstep_trans = fp$rw_nstep_trans,
+                            rw_dk = NULL){
 
   if(is.null(rw_start))
     rw_start <- max(fp$proj.steps)
+
+  if(is.null(rw_nstep_trans))
+    rw_nstep_trans <- 5
 
   fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - tsEpidemicStart))]
 
@@ -65,6 +73,8 @@ prepare_rhybrid <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5, rw_sta
 
   rt$n_rw <- n_rw
   rt$n_param <- 4+rt$n_rw  # 4 parameters for rlogistic
+
+  rt$rw_nstep_trans <- pmin(rw_nstep_trans, n_rw)
   
   ## Random walk design matrix
   if(!is.null(rw_dk))
@@ -89,7 +99,16 @@ create_rvec <- function(theta, rt){
     par <- theta[1:4]
     par[3] <- exp(par[3])
     rvec <- rlogistic(rt$rlogistic_steps, par)
-    rvec <- c(rvec, rvec[length(rt$rlogistic_steps)] + rt$rwX %*% theta[4+1:rt$n_rw])
+
+    th_rw <- theta[4+1:rt$n_rw]
+
+    if(rt$rw_nstep_trans > 0){
+      xx <- seq_len(rt$rw_nstep_trans)
+      th_rw[xx] <- th_rw[xx] * xx / (rt$rw_nstep_trans + 1L)
+    }
+    
+    rvec <- c(rvec, rvec[length(rt$rlogistic_steps)] + rt$rwX %*% th_rw)
+
     return(exp(rvec))
   }
   else

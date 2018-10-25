@@ -286,3 +286,55 @@ plot_output <- function(out, data_color = "grey20", th = theme_light()){
 
   return(list(ggCore, ggAgegr3, ggPregPrev))
 }
+
+
+
+get_pointwise_ll <- function(fit, newdata = fit$likdat){
+
+  ## simulate model projections
+  param_list <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
+  
+  if(fit$fp$eppmod == "rspline")
+    fit <- rw_projection(fit)
+  if(fit$fp$eppmod == "rhybrid")
+    fit <- extend_projection(fit, proj_years = fit$fp$ss$PROJ_YEARS)
+  
+  fp_list <- lapply(param_list, function(par) update(fit$fp, list=par))
+  mod_list <- lapply(fp_list, simmod)
+
+
+  ## Site-level ANC data
+  if(nrow(fit$likdat$ancsite.dat$df)) {
+    b_site <- Map(sample_b_site, mod_list, fp_list,
+                  list(fit$likdat$ancsite.dat), resid = FALSE)
+    
+    ancsite_ll <- mapply(ll_ancsite_conditional, mod_list, fp_list,
+                         b_site = b_site,
+                         MoreArgs = list(newdata = newdata$ancsite.dat))
+  } else {
+    ancsite_ll <- NULL
+  }
+
+  ## ANC-RT census data
+  if(exists("ancrtcens.dat", newdata))
+    ancrtcens_ll <- mapply(ll_ancrtcens, mod = mod_list, fp = fp_list,
+                           MoreArgs = list(dat = newdata$ancrtcens.dat, pointwise = TRUE))
+  else
+    ancrtcens_ll <- NULL
+
+  ## Household survey data
+  if(exists("hhs.dat", where=newdata)){
+    if(exists("ageprev", fit$fp) && fit$fp$ageprev=="binom")
+      hhs_ll <- mapply(ll_hhsage_binom, mod_list,
+                       MoreArgs = list(dat = newdata$hhs.dat, pointwise = TRUE))
+    else ## use probit likelihood
+      hhs_ll <- mapply(ll_hhsage, mod_list,
+                       MoreArgs = list(dat = newdata$hhs.dat, pointwise = TRUE))
+  } else {
+    hhs_ll <- NULL
+  }
+
+  list(ancsite = ancsite_ll,
+       ancrtcens = ancrtcens_ll,
+       hhs = hhs_ll)
+}

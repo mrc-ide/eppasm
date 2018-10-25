@@ -114,3 +114,4 @@
 - Revise logistic RW model to use fixed standard deviation.
 - Rename rlogistic_rw -> rhybrid
 - Add ANC site-level random effect estimates to tidy_output().
+- Add get_pointwise_ll() to calculate pointwise log-likelihood for data or new data inputs

@@ -185,13 +185,21 @@ prepare_ancrtcens_likdat <- function(dat, fp){
   return(dat)
 }
 
-ll_ancrtcens <- function(mod, dat, fp){
+ll_ancrtcens <- function(mod, dat, fp, pointwise = FALSE){
   if(!nrow(dat))
     return(0)
+
   qM.prev <- suppressWarnings(qnorm(agepregprev(mod, fp, dat$aidx, dat$yidx, dat$agspan)))
+
   if(any(is.na(qM.prev)))
-    return(-Inf)
-  sum(dnorm(dat$W.ancrt, qM.prev, sqrt(dat$v.ancrt + fp$ancrtcens.vinfl), log=TRUE))
+    val <- rep(-Inf, nrow(dat))
+  else
+    val <- dnorm(dat$W.ancrt, qM.prev, sqrt(dat$v.ancrt + fp$ancrtcens.vinfl), log=TRUE)
+
+  if(pointwise)
+    return(val)
+
+  sum(val)
 }
 
 
@@ -403,22 +411,36 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
 }
 
 #' Log likelihood for age-specific household survey prevalence
-ll_hhsage <- function(mod, dat){
+ll_hhsage <- function(mod, dat, pointwise = FALSE){
+
   qM.age <- suppressWarnings(qnorm(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan)))
+  
   if(any(is.na(qM.age)))
-    return(-Inf)
-  sum(dnorm(dat$W.hhs, qM.age, dat$sd.W.hhs, log=TRUE))
+    val <- rep(-Inf, nrow(dat))
+  else
+    val <- dnorm(dat$W.hhs, qM.age, dat$sd.W.hhs, log=TRUE)
+
+  if(pointwise)
+    return(val)
+  sum(val)
 }
 
 
 #' Log likelihood for age-specific household survey prevalence using binomial approximation
-ll_hhsage_binom <- function(mod, dat){
+ll_hhsage_binom <- function(mod, dat, pointwise = FALSE){
+
   prevM.age <- suppressWarnings(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan))
-  if(any(is.na(prevM.age)) || any(prevM.age >= 1)) return(-Inf)
-  ll <- sum(ldbinom(dat$x_eff, dat$n_eff, prevM.age))
-  if(is.na(ll))
-    return(-Inf)
-  return(ll)
+
+  if(any(is.na(prevM.age)) || any(prevM.age >= 1))
+    val <- rep(-Inf, nrow(dat))
+  else
+    val <- ldbinom(dat$x_eff, dat$n_eff, prevM.age)
+  val[is.na(val)] <- -Inf
+
+  if(pointwise)
+    return(val)
+
+  sum(val)
 }
 
 

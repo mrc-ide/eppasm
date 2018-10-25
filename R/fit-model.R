@@ -8,10 +8,10 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
 
   ## epp
   eppd <- epp::read_epp_data(pjnz)
-  epp.subp <- epp::read_epp_subpops(pjnz)
-  epp.input <- epp::read_epp_input(pjnz)
+  ## epp.subp <- epp::read_epp_subpops(pjnz)
+  ## epp.input <- epp::read_epp_input(pjnz)
 
-  epp.subp.input <- epp::fnCreateEPPSubpops(epp.input, epp.subp, eppd)
+  ## epp.subp.input <- epp::fnCreateEPPSubpops(epp.input, epp.subp, eppd)
 
   country <- attr(eppd, "country")
   cc <- attr(eppd, "country_code")
@@ -51,7 +51,7 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
     mapply(function(set, value){ attributes(set)[[attrib]] <- value; set}, obj, value.lst)
 
   val <- set.list.attr(val, "eppd", eppd)
-  val <- set.list.attr(val, "eppfp", lapply(epp.subp.input, epp::fnCreateEPPFixPar, proj.end = proj.end))
+  ## val <- set.list.attr(val, "eppfp", lapply(epp.subp.input, epp::fnCreateEPPFixPar, proj.end = proj.end))
   val <- set.list.attr(val, "specfp", specfp.subp)
   val <- set.list.attr(val, "country", read_country(pjnz))
   val <- set.list.attr(val, "region", names(eppd))
@@ -246,11 +246,14 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps
 
   ## aggregate census data across regions
   ancrtcens <- do.call(rbind, lapply(eppd, "[[", "ancrtcens"))
-  if(!is.null(ancrtcens) && nrow(ancrtcens)){
-    ancrtcens$x <- ancrtcens$prev * ancrtcens$n
-    ancrtcens <- aggregate(cbind(x,n) ~ year, ancrtcens, sum)
-    ancrtcens$prev <- ancrtcens$x / ancrtcens$n
-    ancrtcens <- ancrtcens[c("year", "prev", "n")]
+  if(!is.null(ancrtcens)) {
+    ancrtcens <- subset(ancrtcens, !is.na(prev) & !is.na(n))
+    if(nrow(ancrtcens)){
+      ancrtcens$x <- ancrtcens$prev * ancrtcens$n
+      ancrtcens <- aggregate(cbind(x,n) ~ year, ancrtcens, sum)
+      ancrtcens$prev <- ancrtcens$x / ancrtcens$n
+      ancrtcens <- ancrtcens[c("year", "prev", "n")]
+    }
   }
   
   attr(val, "eppd") <- list(anc.used = do.call(c, lapply(eppd, "[[", "anc.used")),
@@ -455,20 +458,20 @@ simfit.specfit <- function(fit,
     if(rwproj)
       fit <- rw_projection(fit)
 
-    fp.list <- lapply(fit$param, function(par) update(fit$fp, list=par))
+    fp_list <- lapply(fit$param, function(par) update(fit$fp, list=par))
     mod.list <- lapply(fp_list, simmod)
 
   } else {
-    fp.list <- rep(fit$fp, length(mod.list))
+    fp_list <- rep(fit$fp, length(mod.list))
   }
   
   fit$rvec <- sapply(mod.list, attr, "rvec_ts")
   fit$prev <- sapply(mod.list, prev)
-  fit$incid <- mapply(incid, mod = mod.list, fp = fp.list)
+  fit$incid <- mapply(incid, mod = mod.list, fp = fp_list)
   fit$popsize <- sapply(mod.list, colSums, dims=3)
 
   if(inherits(pregprev, "data.frame"))
-    fit$pregprev <- mapply(agepregprev, mod=mod.list, fp=fp.list,
+    fit$pregprev <- mapply(agepregprev, mod=mod.list, fp=fp_list,
                            MoreArgs=list(aidx=pregprev$aidx, yidx=pregprev$yidx, agspan=pregprev$agspan))
   else if(is.logical(pregprev) && pregprev == TRUE)
 
@@ -505,7 +508,7 @@ simfit.specfit <- function(fit,
     fit$artcov <- sapply(mod.list, artcov15plus)
 
   if(ancartcov)
-    fit$ancartcov <- mapply(agepregartcov, mod.list, fp.list, MoreArgs=list(aidx=1, yidx=1:fit$fp$ss$PROJ_YEARS, agspan=35, expand=TRUE))
+    fit$ancartcov <- mapply(agepregartcov, mod.list, fp_list, MoreArgs=list(aidx=1, yidx=1:fit$fp$ss$PROJ_YEARS, agspan=35, expand=TRUE))
 
   if(mxoutputs){
     fit$agemx <- abind::abind(lapply(mod.list, agemx), rev.along=0)

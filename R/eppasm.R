@@ -402,18 +402,34 @@ simmod.specfp <- function(fp, VERSION="C"){
         }
 
         if(i >= fp$t_hts_start){
+          # ---- PROPOSITION ----- 
+          # 'newdiagn' is an array that contains how many new diagnoses are in deficit in the diagnosed population to match ART initiations
           newdiagn <- pmax(artinit - diagnpop[,,,i], 0)
-
-          ## Remove share of excess ART initiations from testnegpop
-          ## elig_idx <- fp$artcd4elig_idx[i]:hDS
-          ## prop_testneg <- testnegpop[ , , hivp.idx, i] / colSums(hivpop[elig_idx,,,i] - diagnpop[elig_idx,,,i])
-
+          # 'prop_testneg' calculates the ratio of individuals in the hiv+ testnegpop as compared to the hiv+ never tested group
+          # (is that the correct interpretation?)
           prop_testneg <- testnegpop[ , , hivp.idx, i] / colSums(hivpop[,,,i] - diagnpop[,,,i])
-
+          # here, the 'testnegpop' now becomes aware according to their relative proportion.
           testnegpop[ , , hivp.idx, i] <- testnegpop[ , , hivp.idx, i] - prop_testneg * colSums(newdiagn)
           late_diagnoses[,,,i] <- late_diagnoses[,,,i] + newdiagn
           diagnoses[,,,i] <- diagnoses[,,,i] + newdiagn
+          # Here, we remove from the diagnpop the artinitiation (minus the late diagnoses)
           diagnpop[,,,i] <- diagnpop[,,,i] - (artinit - newdiagn)
+          # To not artificially inflate awareness, we substitute back those late diagnoses from those in available CD4 cell count categories.
+          diagn_deficit <- pmax(artinit - diagnpop[,,,i], 0)
+          diagn_surplus <- pmax(diagnpop[,,,i] - artinit, 0)
+            frac_exc <- array(0, c(hDS, hAG, 2))
+            frac_exc[,,1] <- matrix(rep(colSums(diagn_deficit[,,1]) / colSums(diagn_surplus[,,1]), each = hDS),
+                                    nrow = hDS, ncol = hAG)
+            frac_exc[,,2] <- matrix(rep(colSums(diagn_deficit[,,2]) / colSums(diagn_surplus[,,2]), each = hDS),
+                                    nrow = hDS, ncol = hAG)
+          # We only substitute back if there is enough people 
+          frac_exc[!is.finite(frac_exc)] <- 0
+          frac_exc[frac_exc > 1] <- 1
+          to_put_back <- diagn_surplus[,,] * frac_exc
+          diagnpop[,,,i] <- diagnpop[,,,i] - to_put_back
+          testnegpop[ , , hivp.idx, i] <- testnegpop[ , , hivp.idx, i] + prop_testneg * colSums(to_put_back)
+          late_diagnoses[,,,i] <- late_diagnoses[,,,i] - to_put_back
+          diagnoses[,,,i] <- diagnoses[,,,i] - to_put_back
         }
 
         hivpop[, h.age15plus.idx,, i] <- hivpop[, h.age15plus.idx,, i] - artinit

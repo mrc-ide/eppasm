@@ -45,3 +45,22 @@ sample_ancsite_pred <- function(mod, fp, newdata, b_site){
   v <- 2 * pi * exp(mu^2) * pnorm(mu) * (1 - pnorm(mu))/df$n + fp$v.infl
   rnorm(nrow(df), mu, sqrt(v))
 }  
+
+
+#' Pointwise likelihood for site-level ANC observations given site-level effects
+#' 
+ll_ancsite_conditional <- function(mod, fp, newdata, b_site){
+
+  coef <- c(fp$ancbias, fp$ancrtsite.beta)
+  
+  df <- newdata$df
+  qM <- suppressWarnings(qnorm(agepregprev(mod, fp, newdata$datgrp$aidx, newdata$datgrp$yidx, newdata$datgrp$agspan)))
+
+  ## Design matrix for fixed effects portion
+  df$type <- factor(df$type, c("ancss", "ancrt"))
+  Xancsite <- model.matrix(~type, df)
+
+  mu <- qM[df$qMidx] + Xancsite %*% coef + b_site[match(df$site, names(b_site))]
+  v <- 2 * pi * exp(mu^2) * pnorm(mu) * (1 - pnorm(mu))/df$n + fp$v.infl
+  dnorm(df$W, mu, sqrt(v), log=TRUE)
+}  

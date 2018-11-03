@@ -1,3 +1,6 @@
+
+#' @import data.table
+#' 
 tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
 
   idvars <- data.frame(country = country,
@@ -6,15 +9,8 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
   print(paste(country, eppregion))
 
   ss <- fit$fp$ss
-  
-  ## pregprev predictions
-  pred <- rbind(data.frame(year = 1980:2018, age = 15, agspan = 35),
-                expand.grid(year = 1990:2018, age = 3:9*5, agspan =5))
-  pred$agegr <- with(pred, paste0(age, "-", age+agspan-1))
-  pred$agegr <- relevel(factor(pred$agegr), "15-49")
-  pred$aidx <- pred$age - ss$AGE_START + 1
-  pred$yidx <- pred$year - ss$proj_start+ 1
 
+  
   ## agegr3 predictions
   agegr3 <- merge(expand.grid(year = 1999:2018, sex=c("male", "female"),
                               age = c(15, 25, 35)),
@@ -54,10 +50,11 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
   artcov <- sapply(mod_list, artcov15plus)
   ancartcov <- mapply(agepregartcov, mod_list, fp_list, MoreArgs=list(aidx=1, yidx=1:fit$fp$ss$PROJ_YEARS, agspan=35, expand=TRUE))
 
-
   artcov[is.na(artcov)] <- 0
   ancartcov[is.na(ancartcov)] <- 0
 
+  year <- fit$fp$ss$proj_start + 1:fit$fp$ss$PROJ_YEARS - 1L
+  
   core <- list(prev = prev,
                incid = incid,
                aidsdeaths15pl = aidsdeaths,
@@ -67,11 +64,11 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
                "log r(t)" = log(rvec))
   core <- lapply(core, estci2)
   core <- Map(data.frame,
-              country = country,
-              eppregion = eppregion,
+              list(idvars),
+              year = list(year),
               indicator = names(core),
-              model = modlab,
               core)
+  core <- do.call(rbind, core)
 
   ## ADD INCIDENCE SEX RATIO
                
@@ -84,9 +81,6 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
   ##                          estci2(fit$agegr3incid["15-49", "female",,] /
   ##                                 fit$agegr3incid["15-49", "male",,])))
 
-  ## pregprev <- data.frame(country = country,
-  ##                        eppregion = eppregion,
-  ##                        pred, model=modlab, estci2(fit$pregprev))
 
   agegr3prev <- mapply(ageprev, mod=mod_list,
                        MoreArgs=list(aidx=agegr3$aidx,
@@ -100,6 +94,25 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
                            model = modlab,
                            estci2(agegr3prev))
 
+  ## Prevalence among pregnant women
+  pregprev_pred <- rbind(data.frame(year = 1980:2020, age = 15, agspan = 35),
+                         data.frame(year = 1980:2020, age = 15, agspan = 10),
+                         data.frame(year = 1980:2020, age = 25, agspan = 25),
+                         expand.grid(year = 1980:2020, age = 3:9*5, agspan = 5))
+  pregprev_pred$agegr <- with(pregprev_pred, paste0(age, "-", age+agspan-1))
+  pregprev_pred$agegr <- factor(pregprev_pred$agegr, c("15-49", "15-24", "25-49", paste0(3:9*5, "-", 3:9*5+4)))
+  pregprev_pred$aidx <- pregprev_pred$age - ss$AGE_START + 1
+  pregprev_pred$yidx <- pregprev_pred$year - ss$proj_start+ 1
+
+  pregprev <- mapply(agepregprev, mod=mod_list, fp=fp_list,
+                     MoreArgs = list(aidx=pregprev_pred$aidx,
+                                     yidx=pregprev_pred$yidx,
+                                     agspan=pregprev_pred$agspan))
+  pregprev <- data.frame(idvars,
+                         pregprev_pred,
+                         estci2(pregprev))
+
+  
   ## agegr3incid <- reshape2::melt(estci2(fit$agegr3incid),
   ##                       varnames = c("agegr", "sex", "year", "outcome"))
   ## ageincid <- data.frame(country = country,
@@ -125,7 +138,8 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
   ##                        reshape2::dcast(relincid, ... ~ outcome, value.var="value"))
 
   ## Age specific prevalence predictions in survey years
-  ageprevdat <- fit$likdat$hhs.dat[c("year", "sex", "agegr", "n", "prev", "se", "ci_l", "ci_u", "aidx", "sidx", "yidx", "agspan")]
+  vnames <- c("year", "sex", "agegr", "n", "prev", "se", "ci_l", "ci_u", "aidx", "sidx", "yidx", "agspan")
+  ageprevdat <- fit$likdat$hhs.dat[intersect(names(fit$likdat$hhs.dat), vnames)]
 
   ageprevpred <- mapply(ageprev,
                        mod = mod_list,
@@ -140,34 +154,45 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
                            estci2(ageprevpred))
 
   ## Site-level ANC outputs
-  b_site <- Map(sample_b_site, mod_list, fp_list,
-                list(fit$likdat$ancsite.dat), resid = FALSE)
-  
-  newdata <- expand.grid(site = unique(fit$likdat$ancsite.dat$df$site),
-                         year = 1985:2020,
-                         type = "ancss",
-                         age = 15,
+  if(nrow(fit$likdat$ancsite.dat$df)) {
+    b_site <- Map(sample_b_site, mod_list, fp_list,
+                  list(fit$likdat$ancsite.dat), resid = FALSE)
+
+    b_site_sigma <- sapply(b_site, anclik::sample.sigma2)
+
+    b_site_df <- estci2(do.call(cbind, b_site))
+    ancsite_b <- data.frame(idvars, site = rownames(b_site_df), b_site_df)
+    
+    newdata <- expand.grid(site = unique(fit$likdat$ancsite.dat$df$site),
+                           year = 1985:2020,
+                           type = "ancss",
+                           age = 15,
                          agspan = 35,
                          n = 300)
-  new_df <- ancsite_pred_df(newdata, fit$fp)
-
-  ancsite_pred <- mapply(sample_ancsite_pred, mod_list, fp_list,
-                         b_site = b_site,
-                         MoreArgs = list(newdata = new_df))
-  ancsite_pred <- data.frame(newdata, estci2(ancsite_pred))
-  
-  ancsite_pred <- merge(ancsite_pred,
-                        fit$likdat$ancsite.dat$df[c("site", "year", "type", "age", "agspan", "n", "prev", "pstar", "W", "v")],
-                        by = c("site", "year", "type", "age", "agspan"),
-                        suffixes = c("_sim", "_obs"), all.x=TRUE)
-  
-  out <- list(country = country,
-              eppregion = eppregion,
-              core = core,
+    new_df <- ancsite_pred_df(newdata, fit$fp)
+    
+    ancsite_pred <- mapply(sample_ancsite_pred, mod_list, fp_list,
+                           b_site = b_site,
+                           MoreArgs = list(newdata = new_df))
+    ancsite_pred <- data.frame(newdata, estci2(ancsite_pred))
+    
+    ancsite_pred <- merge(ancsite_pred,
+                          fit$likdat$ancsite.dat$df[c("site", "year", "type", "age", "agspan", "n", "prev", "pstar", "W", "v")],
+                          by = c("site", "year", "type", "age", "agspan"),
+                          suffixes = c("_sim", "_obs"), all.x=TRUE)
+    
+    ancsite_pred <- data.frame(idvars, ancsite_pred)
+  } else {
+    ancsite_pred <- NULL
+    ancsite_b <- NULL
+  }
+   
+  out <- list(core = core,
               ageprevdat=ageprevdat,
-              ## pregprev = pregprev,
+              pregprev = pregprev,
               agegr3prev = agegr3prev,
-              ancsite_pred = ancsite_pred)
+              ancsite_pred = ancsite_pred,
+              ancsite_b = ancsite_b)
               ## ageincid = ageincid,
               ## ageinfections = ageinfections,
               ## relincid = relincid)
@@ -175,12 +200,7 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
 
 
 combine_tidy <- function(...){
-
-  dots <- list(...)
-  vars <- setdiff(names(dots[[1]]), c("country", "eppregion"))
-
-  out <- dots[[1]][c("country", "eppregion")]
-  c(out, Map(rbind, ...))
+  Map(rbind, ...)
 }
 
 
@@ -265,4 +285,56 @@ plot_output <- function(out, data_color = "grey20", th = theme_light()){
     ggtitle(paste0(out$country, " - ", out$eppregion), "Pregnant women prevalence")
 
   return(list(ggCore, ggAgegr3, ggPregPrev))
+}
+
+
+
+get_pointwise_ll <- function(fit, newdata = fit$likdat){
+
+  ## simulate model projections
+  param_list <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
+  
+  if(fit$fp$eppmod == "rspline")
+    fit <- rw_projection(fit)
+  if(fit$fp$eppmod == "rhybrid")
+    fit <- extend_projection(fit, proj_years = fit$fp$ss$PROJ_YEARS)
+  
+  fp_list <- lapply(param_list, function(par) update(fit$fp, list=par))
+  mod_list <- lapply(fp_list, simmod)
+
+
+  ## Site-level ANC data
+  if(nrow(fit$likdat$ancsite.dat$df)) {
+    b_site <- Map(sample_b_site, mod_list, fp_list,
+                  list(fit$likdat$ancsite.dat), resid = FALSE)
+    
+    ancsite_ll <- mapply(ll_ancsite_conditional, mod_list, fp_list,
+                         b_site = b_site,
+                         MoreArgs = list(newdata = newdata$ancsite.dat))
+  } else {
+    ancsite_ll <- NULL
+  }
+
+  ## ANC-RT census data
+  if(exists("ancrtcens.dat", newdata))
+    ancrtcens_ll <- mapply(ll_ancrtcens, mod = mod_list, fp = fp_list,
+                           MoreArgs = list(dat = newdata$ancrtcens.dat, pointwise = TRUE))
+  else
+    ancrtcens_ll <- NULL
+
+  ## Household survey data
+  if(exists("hhs.dat", where=newdata)){
+    if(exists("ageprev", fit$fp) && fit$fp$ageprev=="binom")
+      hhs_ll <- mapply(ll_hhsage_binom, mod_list,
+                       MoreArgs = list(dat = newdata$hhs.dat, pointwise = TRUE))
+    else ## use probit likelihood
+      hhs_ll <- mapply(ll_hhsage, mod_list,
+                       MoreArgs = list(dat = newdata$hhs.dat, pointwise = TRUE))
+  } else {
+    hhs_ll <- NULL
+  }
+
+  list(ancsite = ancsite_ll,
+       ancrtcens = ancrtcens_ll,
+       hhs = hhs_ll)
 }

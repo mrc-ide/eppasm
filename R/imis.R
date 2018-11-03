@@ -123,7 +123,9 @@ imis <- function(B0, B, B_re, number_k, opt_k=NULL, fp, likdat,
       distance_all <- mahalanobis(X_all[1:n_all,], center_all[[k]], diag(diag(cov_prior)))   # Raftery & Bao version
       ## distance_all <- mahalanobis(X_all[1:n_all,], center_all[[k]], cov(X_all))           # Suggested by Fasiolo et al.
       which_close <- order(distance_all)[seq_len(min(n_all, B))]  # Choose B nearest inputs (use n_all if n_all < B)
-      sigma_all[[k]] <- cov.wt(X_all[which_close,], wt = weights[which_close]+1/n_all, center = center_all[[k]])$cov   # Raftery & Bao version      
+      sigma_all[[k]] <- cov.wt(X_all[which_close, , drop=FALSE], wt = weights[which_close]+1/n_all, center = center_all[[k]])$cov   # Raftery & Bao version
+      if(any(is.na(sigma_all[[k]])))
+        sigma_all[[k]] <- cov_prior
       ## sigma_all[[k]] <- cov.wt(X_all[which_close,], center = center_all[[k]])$cov                                   # Suggested by Fasiolo et al.
     }
 

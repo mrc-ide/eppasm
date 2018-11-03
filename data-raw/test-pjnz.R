@@ -1,4 +1,5 @@
 library(devtools)
+devtools::load_all()
 system.file("extdata")
 
 #' This script adds some PNJZ files to the package for software testing and illustration purposes.
@@ -50,3 +51,18 @@ unzip(fp, list=TRUE)
 zip(file, grep("bm2$", unzip(file, list=TRUE)$Name, value=TRUE), flags="-d")
 zip(file, grep("SPU$", unzip(file, list=TRUE)$Name, value=TRUE), flags="-d")
 zip(file, grep("UAC$", unzip(file, list=TRUE)$Name, value=TRUE), flags="-d")
+
+
+
+## Botswana 2018 file
+file.copy("~/Documents/Data/Spectrum files/2018 final/SSA/Botswana_ 2018 updated ART.PJNZ",
+          "~/Documents/Code/R/eppasm/inst/extdata/testpjnz/Botswana2018.PJNZ")
+
+fp <- "~/Documents/Code/R/eppasm/inst/extdata/testpjnz/Botswana2018.PJNZ"
+unzip(fp, list=TRUE)
+
+## Remove files to reduce size
+zip(fp, grep("bm2$", unzip(fp, list=TRUE)$Name, value=TRUE), flags="-d")
+zip(fp, grep("SPU$", unzip(fp, list=TRUE)$Name, value=TRUE), flags="-d")
+zip(fp, grep("UAC$", unzip(fp, list=TRUE)$Name, value=TRUE), flags="-d")
+zip(fp, grep("DPUAD_AUA$", unzip(fp, list=TRUE)$Name, value=TRUE), flags="-d")

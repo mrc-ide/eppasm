@@ -36,6 +36,12 @@ read_country <- function(pjnz){
   pjn <- read_pjn(pjnz)
   cc <- as.integer(pjn[which(pjn[,1] == "<Projection Parameters>")+2, 4])
   return(with(spectrum5_countrylist, Country[Code == cc]))
+}
+
+read_iso3 <- function(pjnz){
+  pjn <- read_pjn(pjnz)
+  cc <- as.integer(pjn[which(pjn[,1] == "<Projection Parameters>")+2, 4])
+  return(with(spectrum5_countrylist, iso3[Code == cc]))
 }  
 
 ###################################################
@@ -228,7 +234,13 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
     else
       hivpop <- NA
     hivpop <- array(hivpop, c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
-    
+
+    if(exists_dptag("<OnARTBySingleAge MV>"))
+      artpop <- sapply(dpsub("<OnARTBySingleAge MV>", 2 + c(0:80*3 + 1, 0:80*3 + 2), timedat.idx), as.numeric)
+    else
+      artpop <- NA
+    artpop <- array(artpop, c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+
     if(exists_dptag("<DeathsByAge MV>"))
       natdeaths <- sapply(dpsub("<DeathsByAge MV>", c(4:84, 86:166), timedat.idx), as.numeric)
     else if(exists_dptag("<DeathsByAge MV2>"))
@@ -255,6 +267,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
   
   class(specres) <- "specres"
   attr(specres, "country") <- read_country(pjnz)
+  attr(specres, "iso3") <- read_iso3(pjnz)
   attr(specres, "region") <- read_region(pjnz)
 
   return(specres)
@@ -361,7 +374,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   } else if(exists_dptag("<HIVTFR MV2>")) {
     fert_rat <- sapply(dpsub("<HIVTFR MV2>", 2:7, timedat.idx), as.numeric)
     dimnames(fert_rat) <- list(agegr=c(15, 18, seq(20, 35, 5)), year=proj.years)  # this version of Spectrum stratified fertility reduction by 15-17, 18-19, 20-24, ...
-  } else if(exists_dptag("<HIVTFR MV3>")){
+  } else if(exists_dptag("<HIVTFR MV3>")) {
     fert_rat <- sapply(dpsub("<HIVTFR MV3>", 2:8, timedat.idx), as.numeric)
     dimnames(fert_rat) <- list(agegr=seq(15, 45, 5), year=proj.years)
   } else if(exists_dptag("<HIVTFR MV4>")) {
@@ -369,15 +382,24 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     dimnames(fert_rat) <- list(agegr=seq(15, 45, 5), year=proj.years)
   }
 
+
   if(dp.vers == "Spectrum2017")
     cd4fert_rat <- as.numeric(dpsub("<FertCD4Discount MV>", 2, 4+1:DS))
   else
     cd4fert_rat <- rep(1.0, DS)
 
   if(exists_dptag("<RatioWomenOnART MV>"))
-    frr_art6mos <- as.numeric(dpsub("<RatioWomenOnART MV>", 2, 4))
+    frr_art6mos <- rep(as.numeric(dpsub("<RatioWomenOnART MV>", 2, 4)), 7)
+  else if(exists_dptag("<RatioWomenOnART MV2>"))
+    frr_art6mos <- as.numeric(dpsub("<RatioWomenOnART MV2>", 2, 4+0:6))
   else
-    frr_art6mos <- 1.0
+    frr_art6mos <- rep(1.0, 7)
+  names(frr_art6mos) <- seq(15, 45, 5)
+
+  if(exists_dptag("<FRRbyLocation MV>"))
+    frr_scalar <- as.numeric(dpsub("<FRRbyLocation MV>", 2, 4))
+  else
+    frr_scalar <- 1.0
 
   ## sex/age-specific incidence ratios (time varying)
   incrr_age <- array(NA, c(AG, NG, length(proj.years)), list(0:(AG-1)*5, c("Male", "Female"), proj.years))
@@ -450,6 +472,11 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
       art_mort[3,,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4WithARTGt12 MV2>", 3, 4:31)), c(DS, 4))
     }
   }
+
+  if(exists_dptag("<MortalityRates MV>"))
+    artmx_timerr <- setNames(as.numeric(dpsub("<MortalityRates MV>", 2, timedat.idx)), proj.years)
+  else
+    artmx_timerr <- setNames(rep(1.0, length(proj.years)), proj.years)
 
   
   ## program parameters
@@ -565,12 +592,14 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
                 "fert_rat" = fert_rat,
                 "cd4fert_rat" = cd4fert_rat,
                 "frr_art6mos" = frr_art6mos,
+                "frr_scalar" = frr_scalar,
                 "incrr_sex" = incrr_sex,
                 "incrr_age" = incrr_age,
                 "cd4_initdist" = cd4_initdist,
                 "cd4_prog" = cd4_prog,
                 "cd4_mort" = cd4_mort,
                 "art_mort" = art_mort,
+                "artmx_timerr" = artmx_timerr,
                 "art15plus_numperc" = art15plus_numperc,
                 "art15plus_num" = art15plus_num,
                 "art15plus_needart" = art15plus_needart,

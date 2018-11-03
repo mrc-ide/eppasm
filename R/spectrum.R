@@ -146,6 +146,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$cd4_prog <- (1-exp(-projp$cd4_prog[,projp.h.ag,] / hiv_steps_per_year)) * hiv_steps_per_year
   fp$cd4_mort <- projp$cd4_mort[,projp.h.ag,]
   fp$art_mort <- projp$art_mort[,,projp.h.ag,]
+  fp$artmx_timerr <- projp$artmx_timerr
 
   frr_agecat <- as.integer(rownames(projp$fert_rat))
   frr_agecat[frr_agecat == 18] <- 17
@@ -154,16 +155,11 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$frr_cd4 <- array(1, c(hDS, length(h.fert.idx), PROJ_YEARS))
   fp$frr_cd4[,,] <- rep(projp$fert_rat[fert_rat.h.ag, as.character(proj_start:proj_end)], each=hDS)
   fp$frr_cd4 <- sweep(fp$frr_cd4, 1, projp$cd4fert_rat, "*")
+  fp$frr_cd4 <- fp$frr_cd4 * projp$frr_scalar
   
-  fp$frr_art <- array(1, c(hTS, hDS, length(h.fert.idx), PROJ_YEARS))
-  fp$frr_art[1:2,,,] <- rep(fp$frr_cd4, each=2)
-
-  if(!is.null(frr_art6mos))
-    fp$frr_art[2,,,] <- frr_art6mos
-
-  if(!is.null(frr_art1yr))
-    fp$frr_art[3,,,] <- frr_art1yr  # relative fertility of women on ART > 1 year
-
+  fp$frr_art <- array(1.0, c(hTS, hDS, length(h.fert.idx), PROJ_YEARS))
+  fp$frr_art[1,,,] <- fp$frr_cd4 # 0-6 months
+  fp$frr_art[2:3, , , ] <- sweep(fp$frr_art[2:3, , , ], 3, projp$frr_art6mos[fert_rat.h.ag] * projp$frr_scalar, "*") # 6-12mos, >1 years
 
   ## ART eligibility and numbers on treatment
 
@@ -261,6 +257,12 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   
   fp$netmig_hivprob <- 0.4*0.22
   fp$netmighivsurv <- 0.25/0.22
+  
+  ## Circumcision parameters (default no effect)
+  fp$circ_incid_rr <- 0.0  # no reduction
+  fp$circ_prop <- array(0.0, c(ss$pAG, ss$PROJ_YEARS),
+                        list(age = ss$AGE_START + 1:ss$pAG - 1L,
+                             year = ss$proj_start + 1:ss$PROJ_YEARS - 1L))
   
   class(fp) <- "specfp"
 

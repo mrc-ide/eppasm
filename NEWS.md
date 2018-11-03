@@ -100,9 +100,23 @@
 
 ## eppasm 0.5.3
 
-- Mor constrained  prior for log(iota) ~ Unif(log(1e-13), log(0.0025)), matching EPP software.
-
+- More constrained  prior for log(iota) ~ Unif(log(1e-13), log(0.0025)), matching EPP software.
 - Add posterior predictive outputs for site-level ANC data
+- Incorporate an effect of percentage circumcised on male HIV incidence rate.
+
+## eppasm 0.5.4
+
+- Updates for Spectrum v5.72:
+- Update fertility rate ratio input parameters to allow ART FRR by age.
+- Add time-varying mortality on ART
+
+## eppasm 0.5.5
+
+- Allow specification equilibrium prior standard deviation as a fixed prior parameter.
+- Revise logistic RW model to use fixed standard deviation.
+- Rename rlogistic_rw -> rhybrid
+- Add ANC site-level random effect estimates to tidy_output().
+- Add get_pointwise_ll() to calculate pointwise log-likelihood for data or new data inputs
 
 # eppasm 0.6.0
 

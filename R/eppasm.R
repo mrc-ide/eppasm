@@ -300,10 +300,11 @@ simmod.specfp <- function(fp, VERSION="C"){
         gradART[1:2,,,] <- gradART[1:2,,,] - 2.0 * artpop[1:2,,,, i]      # remove ART duration progression (HARD CODED 6 months duration)
         gradART[2:3,,,] <- gradART[2:3,,,] + 2.0 * artpop[1:2,,,, i]      # add ART duration progression (HARD CODED 6 months duration)
 
-        gradART <- gradART - fp$art_mort * artpop[,,,,i]                  # ART mortality
+        gradART <- gradART - fp$art_mort * fp$artmx_timerr[i] * artpop[,,,,i]                  # ART mortality
 
         artdeaths.ts <- fp$art_mort * artpop[,,,,i]
         hivdeaths_hAG.ts <- hivdeaths_hAG.ts + colSums(artdeaths.ts,,2)
+
         artpop[,,,, i] <- artpop[,,,, i] + DT * gradART
         artpopdeaths[,,,, i] <- artpopdeaths[,,,, i] + DT * artdeaths.ts
 
@@ -366,11 +367,22 @@ simmod.specfp <- function(fp, VERSION="C"){
 
         ## calculate ART initiation distribution
         if(!fp$med_cd4init_input[i]){
+
           expect.mort.weight <- sweep(fp$cd4_mort[, h.age15plus.idx,], 3,
-                                      colSums(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,],,2), "/")
+                                      colSums(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,],,2), "/")          
           artinit.weight <- sweep(expect.mort.weight, 3, 1/colSums(art15plus.elig,,2), "+")/2
           artinit <- pmin(sweep(artinit.weight * art15plus.elig, 3, art15plus.inits, "*"),
                           art15plus.elig)
+
+          ## ## Allocation by average mortality across CD4, trying to match Spectrum
+          ## artelig_by_cd4 <- apply(art15plus.elig, c(1, 3), sum)
+          ## expectmort_by_cd4 <- apply(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,], c(1, 3), sum)
+
+          ## artinit_dist <- (sweep(artelig_by_cd4, 2, colSums(artelig_by_cd4), "/") +
+          ##                  sweep(expectmort_by_cd4, 2, colSums(expectmort_by_cd4), "/")) / 2
+          ## artinit <- sweep(art15plus.elig, c(1, 3), sweep(artinit_dist / artelig_by_cd4, 2, art15plus.inits, "*"), "*")
+          ## artinit <- pmin(artinit, art15plus.elig, na.rm=TRUE)
+
         } else {
 
           CD4_LOW_LIM <- c(500, 350, 250, 200, 100, 50, 0)
@@ -487,6 +499,7 @@ simmod.specfp <- function(fp, VERSION="C"){
       hiv.popadj.prob[is.nan(hiv.popadj.prob)] <- 0
 
       hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.popadj.prob, "*")
+
       if(i >= fp$t_hts_start) {
 
         hivn.popadj.prob <- apply(popadj.prob[,,i] * pop[,,hivn.idx,i], 2, ctapply, ag.idx, sum) /  apply(pop[,,hivn.idx,i], 2, ctapply, ag.idx, sum)
@@ -496,6 +509,7 @@ simmod.specfp <- function(fp, VERSION="C"){
         testnegpop[,,hivp.idx,i] <- sweep(testnegpop[,,hivp.idx,i], 1:2, hiv.popadj.prob, "*")
         diagnpop[,,,i] <- sweep(diagnpop[,,,i], 2:3, hiv.popadj.prob, "*")
       }
+
       if(i >= fp$tARTstart)
         artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.popadj.prob, "*")
 

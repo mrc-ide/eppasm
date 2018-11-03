@@ -402,30 +402,34 @@ simmod.specfp <- function(fp, VERSION="C"){
         }
 
         if(i >= fp$t_hts_start){
-          # ---- PROPOSITION ----- 
-          # 'newdiagn' is an array that contains how many new diagnoses are in deficit in the diagnosed population to match ART initiations
+
+          ## 'newdiagn' is the number of new diagnoses are in deficit in
+          ## the diagnosed population to match ART initiations
           newdiagn <- pmax(artinit - diagnpop[,,,i], 0)
           diagn_surplus <- pmax(diagnpop[,,,i] - artinit, 0)
-          # 'prop_testneg' calculates the ratio of individuals in the hiv+ testnegpop (never tested) as compared
-          # to the hiv+ ever tested negative group (is that the correct interpretation?)
-          prop_testneg <- testnegpop[ , , hivp.idx, i] / colSums(hivpop[,,,i] - diagnpop[,,,i])
-          # To not artificially inflate awareness, we substitute back those late diagnoses from those in available CD4 cell count categories.
-          frac_exc <- array(0, c(hDS, hAG, 2))
-          frac_exc[,,1] <- matrix(rep(colSums(newdiagn[,,1]) / colSums(diagn_surplus[,,1]), each = hDS),
-                                  nrow = hDS, ncol = hAG)
-          frac_exc[,,2] <- matrix(rep(colSums(newdiagn[,,2]) / colSums(diagn_surplus[,,2]), each = hDS),
-                                  nrow = hDS, ncol = hAG)
-          # We only substitute back if there is enough people 
+
+          ## To not artificially inflate awareness, we substitute back those
+          ## late diagnoses from those in available CD4 cell count categories.
+          frac_exc <- colSums(newdiagn) / colSums(diagn_surplus)
+          
+          ## We only substitute back if there is enough people 
           frac_exc[!is.finite(frac_exc)] <- 0
           frac_exc[frac_exc > 1] <- 1 
-          to_put_back <- diagn_surplus * frac_exc
-          # here, the 'testnegpop' now becomes aware according to their relative proportion.
+          to_put_back <- sweep(diagn_surplus, 2:3, frac_exc, "*")
+
+          ## 'prop_testneg' calculates the proportion of the undiagnosed HIV+
+          ## population who have previously tested negateive
+          prop_testneg <- testnegpop[ , , hivp.idx, i] / colSums(hivpop[,,,i] - diagnpop[,,,i])
+
+          ## here, the 'testnegpop' now becomes aware according to their relative proportion.
           testnegpop[ , , hivp.idx, i] <- testnegpop[ , , hivp.idx, i] - 
-                         prop_testneg * colSums(newdiagn) + prop_testneg * colSums(to_put_back)
-          late_diagnoses[,,,i] <- late_diagnoses[,,,i] + newdiagn
-          diagnoses[,,,i] <- diagnoses[,,,i] + newdiagn
+            prop_testneg * (colSums(newdiagn) - colSums(to_put_back))
+          
+          late_diagnoses[,,,i] <- late_diagnoses[,,,i] + newdiagn - to_put_back
+          diagnoses[,,,i] <- diagnoses[,,,i] + newdiagn - to_put_back
+          
           # Here, we remove from the diagnpop the artinitiation (minus the late diagnoses)
-          diagnpop[,,,i] <- diagnpop[,,,i] - (artinit - newdiagn) - to_put_back
+          diagnpop[,,,i] <- diagnpop[,,,i] - (artinit - newdiagn + to_put_back)
         }
 
         hivpop[, h.age15plus.idx,, i] <- hivpop[, h.age15plus.idx,, i] - artinit

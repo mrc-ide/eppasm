@@ -947,12 +947,29 @@ extern "C" {
 		  artinits[t][g][ha][hm] += artinit_hahm;
                 }
 
-		// Remove share of excess ART initiations from testnegpop
+		// Remove share of excess ART initiations from either diagnpop or testnegpop
 		if(t >= t_hts_start & new_diagn_ha > 0){
-		  double new_among_testneg = new_diagn_ha * testnegpop[t][HIVP][g][ha] / undiagnosed_ha;
-		  hivtests[t][2][g][ha] += new_diagn_ha - new_among_testneg; // new diagnoses among never tested
-		  hivtests[t][3][g][ha] += new_among_testneg;
-		  testnegpop[t][HIVP][g][ha] -= new_among_testneg;
+
+		  double diagn_surplus_ha = 0.0;
+		  for(int hm = 0; hm < hDS; hm++)
+		    diagn_surplus_ha += diagnpop[t][g][ha][hm];
+
+		  double prop_put_back = new_diagn_ha < diagn_surplus_ha ? new_diagn_ha / diagn_surplus_ha : 1.0;
+		  for(int hm = 0; hm < hDS; hm++) {
+		    double put_back = prop_put_back * diagnpop[t][g][ha][hm];
+		    diagnpop[t][g][ha][hm] -= put_back;
+		    diagnoses[t][g][ha][hm] -= put_back;
+		    late_diagnoses[t][g][ha][hm] -= put_back;
+		  }
+
+		  if(new_diagn_ha > diagn_surplus_ha){
+		    new_diagn_ha -= diagn_surplus_ha;
+
+		    double new_among_testneg = new_diagn_ha * testnegpop[t][HIVP][g][ha] / undiagnosed_ha;
+		    hivtests[t][2][g][ha] += new_diagn_ha - new_among_testneg; // new diagnoses among never tested
+		    hivtests[t][3][g][ha] += new_among_testneg;
+		    testnegpop[t][HIVP][g][ha] -= new_among_testneg;
+		  }
 		}
 
 	      } // end loop over ha
@@ -987,12 +1004,29 @@ extern "C" {
 		  artinits[t][g][ha][hm] += artinit_hahm;
                 }
 
-		// Remove share of excess ART initiations from testnegpop
+		// Remove share of excess ART initiations from either diagnpop or testnegpop
 		if(t >= t_hts_start & new_diagn_ha > 0){
-		  double new_among_testneg = new_diagn_ha * testnegpop[t][HIVP][g][ha] / undiagnosed_ha;
-		  hivtests[t][2][g][ha] += new_diagn_ha - new_among_testneg; // new diagnoses among never tested
-		  hivtests[t][3][g][ha] += new_among_testneg;
-		  testnegpop[t][HIVP][g][ha] -= new_among_testneg;
+
+		  double diagn_surplus_ha = 0.0;
+		  for(int hm = 0; hm < hDS; hm++)
+		    diagn_surplus_ha += diagnpop[t][g][ha][hm];
+
+		  double prop_put_back = new_diagn_ha < diagn_surplus_ha ? new_diagn_ha / diagn_surplus_ha : 1.0;
+		  for(int hm = 0; hm < hDS; hm++) {
+		    double put_back = prop_put_back * diagnpop[t][g][ha][hm];
+		    diagnpop[t][g][ha][hm] -= put_back;
+		    diagnoses[t][g][ha][hm] -= put_back;
+		    late_diagnoses[t][g][ha][hm] -= put_back;
+		  }
+
+		  if(new_diagn_ha > diagn_surplus_ha){
+		    new_diagn_ha -= diagn_surplus_ha;
+
+		    double new_among_testneg = new_diagn_ha * testnegpop[t][HIVP][g][ha] / undiagnosed_ha;
+		    hivtests[t][2][g][ha] += new_diagn_ha - new_among_testneg; // new diagnoses among never tested
+		    hivtests[t][3][g][ha] += new_among_testneg;
+		    testnegpop[t][HIVP][g][ha] -= new_among_testneg;
+		  }
 		}
 
 	      } // end loop over ha

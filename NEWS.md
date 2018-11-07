@@ -114,4 +114,9 @@
 - Revise logistic RW model to use fixed standard deviation.
 - Rename rlogistic_rw -> rhybrid
 - Add ANC site-level random effect estimates to tidy_output().
-- Add get_pointwise_ll() to calculate pointwise log-likelihood for data or new data inputs
+- Add get_pointwise_ll() to calculate pointwise log-likelihood for data or new data inputs.
+- Add tidy_aggr() to generate summary outputs for aggregation of subnational fits.
+
+## eppasm 0.5.6
+
+- Re-implement r-hybrid model and incorporate smooth transition from logistic function to random walk.

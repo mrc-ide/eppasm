@@ -67,15 +67,20 @@ prepare_rhybrid <- function(fp,
   rt$rw_start <- rw_start
   rt$rw_trans <- rw_trans
 
+  switch_idx <- max(which(fp$proj.steps <= rw_start))
+  rt$rlogistic_steps <- fp$proj.steps[1:switch_idx]
+  rt$rw_steps <- fp$proj.steps[switch_idx:length(fp$proj.steps)]
+  
   rt$n_rw <- ceiling(max(rt$proj.steps) - rw_start)  # annual steps
   rt$rw_dk <- 1
   rt$rw_knots <- seq(rw_start, rw_start + rt$rw_dk * rt$n_rw, by = rt$rw_dk)
+  rt$rw_idx <- findInterval(rt$rw_steps[-1], rt$rw_knots)
   
   rt$n_param <- 4+rt$n_rw  # 4 parameters for rlogistic
 
   ## Linearly interpolate between 0 and 1 over the period (rw_start, rw_start + rw_trans)
   ## Add a small value to avoid R error in approx() if rw_trans = 0
-  rt$rw_transition <- approx(c(rw_start, rw_start + rw_trans + 0.001), c(0, 1), rt$proj.steps, rule = 2)$y
+  rt$rw_transition <- approx(c(rw_start, rw_start + rw_trans + 0.001), c(0, 1), rt$rw_steps[-1], rule = 2)$y
   
   rt$dt <- 1 / fp$ss$hiv_steps_per_year
 
@@ -89,44 +94,21 @@ prepare_rhybrid <- function(fp,
   return(fp)
 }
 
-
-create_rvec_ew <- function(theta, rt){
-  if(rt$eppmod == "rhybrid"){
-    par <- theta[1:4]
-    par[3] <- exp(par[3])
-    rvec <- rlogistic(rt$rlogistic_steps, par)
-
-    th_rw <- theta[4+1:rt$n_rw]
-
-    if(rt$rw_nstep_trans > 0){
-      xx <- seq_len(rt$rw_nstep_trans)
-      th_rw[xx] <- th_rw[xx] * xx / (rt$rw_nstep_trans + 1L)
-    }
-    
-    rvec <- c(rvec, rvec[length(rt$rlogistic_steps)] + rt$rwX %*% th_rw)
-
-    return(exp(rvec))
-  }
-  else
-    stop(paste(rt$eppmod, "is not impmented in create_rvec()"))
-}
-
-
 create_rvec <- function(theta, rt){
   if(rt$eppmod == "rhybrid"){
 
     par <- theta[1:4]
     par[3] <- exp(par[3])
-    rvec <- rlogistic(rt$proj.steps, par)
+    rvec_rlog <- rlogistic(rt$rlogistic_steps, par)
 
     th_rw <- theta[4+1:rt$n_rw]
 
-    diff_rlog <- c(rvec[1], diff(rvec))
-    diff_rw <- rt$dt * approx(rt$rw_knots, c(0, th_rw), rt$proj.steps, rule = 2, method = "constant", f=1)$y
-
+    diff_rlog <- diff(rlogistic(rt$rw_steps, par))
+    diff_rw <- rt$dt * th_rw[rt$rw_idx]
     diff_rvec <- (1 - rt$rw_transition) * diff_rlog + rt$rw_transition * diff_rw
+    rvec_rw <- cumsum(c(rvec_rlog[length(rvec_rlog)], diff_rvec))
 
-    rvec <- cumsum(diff_rvec)
+    rvec <- c(rvec_rlog, rvec_rw)
 
     return(exp(rvec))
   }

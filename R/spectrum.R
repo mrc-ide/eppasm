@@ -169,8 +169,8 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ## convert percentage to proportion
   fp$art15plus_num[fp$art15plus_isperc] <- fp$art15plus_num[fp$art15plus_isperc] / 100
 
-  ## eligibility starts in projection year idx+1
-  fp$specpop_percelig <- rowSums(with(projp$artelig_specpop[-1,], mapply(function(elig, percent, year) rep(c(0, percent*as.numeric(elig)), c(year - proj_start+1, proj_end - year)), elig, percent, year)))
+  ## eligibility starts in projection year idx
+  fp$specpop_percelig <- rowSums(with(projp$artelig_specpop[-1,], mapply(function(elig, percent, year) rep(c(0, percent*as.numeric(elig)), c(year - proj_start, proj_end - year + 1)), elig, percent, year)))
   fp$artcd4elig_idx <- findInterval(-projp$art15plus_eligthresh[as.character(proj_start:proj_end)], -c(999, 500, 350, 250, 200, 100, 50))
 
   ## Update eligibility threshold from CD4 <200 to <250 to account for additional
@@ -178,7 +178,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   if(artelig200adj)
     fp$artcd4elig_idx <- replace(fp$artcd4elig_idx, fp$artcd4elig_idx==5L, 4L)
 
-  fp$pw_artelig <- with(projp$artelig_specpop["PW",], rep(c(0, elig), c(year - proj_start+1, proj_end - year)))  # are pregnant women eligible (0/1)
+  fp$pw_artelig <- with(projp$artelig_specpop["PW",], rep(c(0, elig), c(year - proj_start, proj_end - year + 1)))  # are pregnant women eligible (0/1)
 
   ## percentage of those with CD4 <350 who are based on WHO Stage III/IV infection
   fp$who34percelig <- who34percelig

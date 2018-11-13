@@ -669,7 +669,7 @@ extern "C" {
                     frr_pop_ha += frr_art[t][ha-hIDX_FERT][hm][hu] * artpop[t][g][ha][hm][hu];
                 }
                 for(int hm = anyelig_idx; hm < cd4elig_idx; hm++){
-                  double pw_elig_hahm = DT * births_by_ha[ha-hIDX_FERT] * frr_cd4[t][ha-hIDX_FERT][hm] * hivpop[t][g][ha][hm] / frr_pop_ha;
+                  double pw_elig_hahm = births_by_ha[ha-hIDX_FERT] * frr_cd4[t][ha-hIDX_FERT][hm] * hivpop[t][g][ha][hm] / frr_pop_ha;
                   artelig_hahm[ha-hIDX_15PLUS][hm] += pw_elig_hahm;
                   Xartelig_15plus += pw_elig_hahm;
                   expect_mort_artelig15plus += cd4_mort[g][ha][hm] * pw_elig_hahm;

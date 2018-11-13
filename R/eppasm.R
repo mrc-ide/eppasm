@@ -179,10 +179,17 @@ simmod.specfp <- function(fp, VERSION="C"){
       grad[-hDS,,] <- grad[-hDS,,] - fp$cd4_prog * hivpop[-hDS,,,i]  # remove cd4 stage progression (untreated)
       grad[-1,,] <- grad[-1,,] + fp$cd4_prog * hivpop[-hDS,,,i]      # add cd4 stage progression (untreated)
 
-      grad <- grad - fp$cd4_mort * hivpop[,,,i]              # HIV mortality, untreated
+      if(fp$scale_cd4_mort == 1){
+        cd4mx_scale <- hivpop[,,,i] / (hivpop[,,,i] + colSums(artpop[,,,,i]))
+        cd4mx_scale[!is.finite(cd4mx_scale)] <- 1.0
+        cd4_mort_ts <- fp$cd4_mort * cd4mx_scale
+      } else
+        cd4_mort_ts <- fp$cd4_mort
 
+      grad <- grad - cd4_mort_ts * hivpop[,,,i]              # HIV mortality, untreated
+      
       ## Remove hivdeaths from pop
-      hivdeaths.ts <- DT*(colSums(fp$cd4_mort * hivpop[,,,i]) + colSums(fp$art_mort * fp$artmx_timerr[i] * artpop[,,,,i],,2))
+      hivdeaths.ts <- DT*(colSums(cd4_mort_ts * hivpop[,,,i]) + colSums(fp$art_mort * fp$artmx_timerr[i] * artpop[,,,,i],,2))
       calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
       hivdeaths_p.ts <- apply(hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
       pop[,,2,i] <- pop[,,2,i] - hivdeaths_p.ts

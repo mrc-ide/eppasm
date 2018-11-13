@@ -120,3 +120,5 @@
 ## eppasm 0.5.6
 
 - Re-implement r-hybrid model and incorporate smooth transition from logistic function to random walk.
+- Implement Spectrum options for new ART patient allocation.
+- Implement option to scale mortality among untreated population by ART coverage (`fp$scale_cd4_mort = 1`)

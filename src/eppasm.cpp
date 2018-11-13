@@ -161,6 +161,7 @@ extern "C" {
 
     int art_alloc_method = *INTEGER(getListElement(s_fp, "art_alloc_method"));
     double art_alloc_mxweight = *REAL(getListElement(s_fp, "art_alloc_mxweight"));
+    int scale_cd4_mort = *INTEGER(getListElement(s_fp, "scale_cd4_mort"));
 
 
     // incidence model
@@ -531,6 +532,9 @@ extern "C" {
       ////  HIV model simulation  ////
       ////////////////////////////////
 
+      int cd4elig_idx = artcd4elig_idx[t] - 1; // -1 for 0-based indexing vs. 1-based in R
+      int anyelig_idx = (specpop_percelig[t] > 0 | pw_artelig[t] > 0) ? 0 : (who34percelig > 0) ? hIDX_CD4_350 : cd4elig_idx;
+
       for(int hts = 0; hts < HIVSTEPS_PER_YEAR; hts++){
 
         int ts = (t-1)*HIVSTEPS_PER_YEAR + hts;
@@ -545,7 +549,16 @@ extern "C" {
         for(int g = 0; g < NG; g++)
           for(int ha = 0; ha < hAG; ha++){
             for(int hm = 0; hm < hDS; hm++){
-              double deaths = cd4_mort[g][ha][hm] * hivpop[t][g][ha][hm];
+
+	      double cd4mx_scale = 1.0;
+	      if(scale_cd4_mort & t >= t_ART_start & hm >= anyelig_idx){
+		double artpop_hahm = 0.0;
+		for(int hu = 0; hu < hTS; hu++)
+		  artpop_hahm += artpop[t][g][ha][hm][hu];
+		cd4mx_scale = hivpop[t][g][ha][hm] / (hivpop[t][g][ha][hm] + artpop_hahm);
+	      }
+	      
+              double deaths = cd4mx_scale * cd4_mort[g][ha][hm] * hivpop[t][g][ha][hm];
               hivdeaths_ha[g][ha] += DT*deaths;
               grad[g][ha][hm] = -deaths;
             }
@@ -614,8 +627,6 @@ extern "C" {
 
         // ART progression, mortality, and initiation
         if(t >= t_ART_start){
-          int cd4elig_idx = artcd4elig_idx[t] - 1; // -1 for 0-based indexing vs. 1-based in R
-          int anyelig_idx = (specpop_percelig[t] > 0 | pw_artelig[t] > 0) ? 0 : (who34percelig > 0) ? hIDX_CD4_350 : cd4elig_idx;
 
           // progression and mortality
           for(int g = 0; g < NG; g++)

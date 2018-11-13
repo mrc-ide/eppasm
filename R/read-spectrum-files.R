@@ -465,6 +465,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     artmx_timerr <- setNames(rep(1.0, length(proj.years)), proj.years)
 
   
+  
   ## program parameters
   if(dp.vers %in% c("<General 3>", "<General5>")){
     art15plus_numperc <- sapply(dp[adult.artnumperc.tidx+3:4, timedat.idx], as.numeric)
@@ -477,6 +478,18 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     art15plus_eligthresh <- setNames(as.numeric(dpsub("<CD4ThreshHoldAdults MV>", 2, timedat.idx)), proj.years)
     artelig_specpop <- setNames(dpsub("<PopsEligTreat MV>", 3:9, 2:6), c("description", "pop", "elig", "percent", "year"))
   }
+
+  if(exists_dptag("<NewARTPatAllocationMethod MV2>"))
+    art_alloc_method <- as.integer(dpsub("<NewARTPatAllocationMethod MV2>", 2, 4))
+  else
+    art_alloc_method <- 1L
+
+  if(exists_dptag("<NewARTPatAlloc MV>"))
+    art_prop_alloc <- as.numeric(dpsub("<NewARTPatAlloc MV>", 2, 4:5))
+  else
+    art_prop_alloc <- c(0.5, 0.5)
+  names(art_prop_alloc) <- c("mx", "elig")
+
     
   dimnames(art15plus_numperc) <- list(sex=c("Male", "Female"), year=proj.years)
   dimnames(art15plus_num) <- list(sex=c("Male", "Female"), year=proj.years)
@@ -589,6 +602,8 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
                 "art15plus_eligthresh" = art15plus_eligthresh,
                 "artelig_specpop" = artelig_specpop,
                 "median_cd4init" = median_cd4init,
+                art_alloc_method = art_alloc_method,
+                art_prop_alloc = art_prop_alloc,
                 "art_dropout" = art_dropout,
                 "verttrans" = verttrans,
                 "hivpop" = hivpop,

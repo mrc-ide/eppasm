@@ -191,6 +191,10 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
 
   fp$tARTstart <- min(unlist(apply(fp$art15plus_num > 0, 1, which)))
 
+  ## New ART patient allocation options
+  fp$art_alloc_method <- projp$art_alloc_method
+  fp$art_alloc_mxweight <- projp$art_prop_alloc[1]
+
   
   ## Vertical transmission and survival to AGE_START for lagged births
   

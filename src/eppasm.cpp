@@ -159,6 +159,9 @@ extern "C" {
     int *med_cd4init_cat = INTEGER(getListElement(s_fp, "med_cd4init_cat"));
     int *med_cd4init_input = INTEGER(getListElement(s_fp, "med_cd4init_input"));
 
+    int art_alloc_method = *INTEGER(getListElement(s_fp, "art_alloc_method"));
+    double art_alloc_mxweight = *REAL(getListElement(s_fp, "art_alloc_mxweight"));
+
 
     // incidence model
     // double *prev15to49 = REAL(getListElement(s_fp, "prev15to49"));
@@ -742,11 +745,29 @@ extern "C" {
                   artpop[t][g][ha][hm][ART0MOS] += artinit_hahm;
                 }
 
-            } else { // Use mixture of eligibility and expected mortality for initiation distribution
+            } else if(art_alloc_method == 4) {  // lowest CD4 first
+
+	      for(int hm = hDS-1; hm >= anyelig_idx; hm--){
+		double artelig_hm = 0;
+		for(int ha = hIDX_15PLUS; ha < hAG; ha++)
+		  artelig_hm += artelig_hahm[ha-hIDX_15PLUS][hm];
+		double init_prop = (artelig_hm == 0 | artinit_hts > artelig_hm) ? 1.0 : artinit_hts / artelig_hm;
+
+		for(int ha = hIDX_15PLUS; ha < hAG; ha++){
+		  double artinit_hahm = init_prop * artelig_hahm[ha-hIDX_15PLUS][hm];
+		  hivpop[t][g][ha][hm] -= artinit_hahm;
+                  artpop[t][g][ha][hm][ART0MOS] += artinit_hahm;
+		}
+		if(init_prop < 1.0)
+		  break;
+		artinit_hts -= init_prop * artelig_hm;
+	      }
+	      
+	    } else { // Use mixture of eligibility and expected mortality for initiation distribution
 
               for(int ha = hIDX_15PLUS; ha < hAG; ha++)
                 for(int hm = anyelig_idx; hm < hDS; hm++){
-                  double artinit_hahm = artinit_hts * artelig_hahm[ha-hIDX_15PLUS][hm] * 0.5 * (1.0/Xartelig_15plus + cd4_mort[g][ha][hm] / expect_mort_artelig15plus);
+                  double artinit_hahm = artinit_hts * artelig_hahm[ha-hIDX_15PLUS][hm] * ((1.0 - art_alloc_mxweight)/Xartelig_15plus + art_alloc_mxweight * cd4_mort[g][ha][hm] / expect_mort_artelig15plus);
                   if(artinit_hahm > artelig_hahm[ha-hIDX_15PLUS][hm]) artinit_hahm = artelig_hahm[ha-hIDX_15PLUS][hm];
                   hivpop[t][g][ha][hm] -= artinit_hahm;
                   artpop[t][g][ha][hm][ART0MOS] += artinit_hahm;

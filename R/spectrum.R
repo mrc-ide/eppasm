@@ -196,7 +196,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$art_alloc_mxweight <- projp$art_prop_alloc[1]
 
   ## Scale mortality among untreated population by ART coverage
-  fp$scale_cd4_mort <- 1L
+  fp$scale_cd4_mort <- projp$scale_cd4_mort
   
   ## Vertical transmission and survival to AGE_START for lagged births
   

@@ -490,6 +490,16 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     art_prop_alloc <- c(0.5, 0.5)
   names(art_prop_alloc) <- c("mx", "elig")
 
+  vers_str <- dpsub("<ValidVers MV>", 2, 4)
+  version <- as.numeric(sub("^([0-9\\.]+).*", "\\1", vers_str))
+  betav <- if(grepl("Beta", vers_str))
+             as.numeric(sub(".*Beta ([0-9]+)$", "\\1", vers_str))
+           else
+             NA
+  if(version >= 5.73 && (betav >= 15 | is.na(betav)))
+    scale_cd4_mort <- 1L
+  else
+    scale_cd4_mort <- 0L
     
   dimnames(art15plus_numperc) <- list(sex=c("Male", "Female"), year=proj.years)
   dimnames(art15plus_num) <- list(sex=c("Male", "Female"), year=proj.years)
@@ -604,6 +614,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
                 "median_cd4init" = median_cd4init,
                 art_alloc_method = art_alloc_method,
                 art_prop_alloc = art_prop_alloc,
+                scale_cd4_mort = scale_cd4_mort,
                 "art_dropout" = art_dropout,
                 "verttrans" = verttrans,
                 "hivpop" = hivpop,

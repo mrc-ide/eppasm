@@ -1,4 +1,3 @@
-temp <- 1
 collapse_epp <- function(loc){
   
   # unaids.year <- loc.table[ihme_loc_id == loc, unaids_recent]

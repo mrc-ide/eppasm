@@ -118,6 +118,12 @@
 - Add ANC site-level random effect estimates to tidy_output().
 - Add get_pointwise_ll() to calculate pointwise log-likelihood for data or new data inputs
 
+## eppasm 0.5.6
+
+- Re-implement r-hybrid model and incorporate smooth transition from logistic function to random walk.
+- Implement Spectrum options for new ART patient allocation.
+- Implement option to scale mortality among untreated population by ART coverage (`fp$scale_cd4_mort = 1`)
+
 # eppasm 0.6.0
 
 - Explicitly model new diagnoses.
@@ -127,3 +133,5 @@
 # eppasm 0.7.0
 
 - Model HIV testing
+- Add get_pointwise_ll() to calculate pointwise log-likelihood for data or new data inputs.
+- Add tidy_aggr() to generate summary outputs for aggregation of subnational fits.

@@ -46,42 +46,43 @@ rlogistic <- function(t, p){
 #' @param fp model parameters object
 #' @param tsEpidemicStart time step at which epidemic is seeded
 #' @param rw_start time when random walk starts
-#' @param rw_nstep_trans number of RW steps for transition to full variance. If NULL, defaults to 5 steps
-#' @param rw_dk distance between random walk knots. If NULL, defaults to about 1 per year
+#' @param rw_trans number of years to transition from logistic differences to RW differences. If NULL, defaults to 5 steps
 prepare_rhybrid <- function(fp,
                             tsEpidemicStart = fp$ss$time_epi_start+0.5,
                             rw_start = fp$rw_start,
-                            rw_nstep_trans = fp$rw_nstep_trans,
-                            rw_dk = NULL){
+                            rw_trans = fp$rw_trans){
 
   if(is.null(rw_start))
     rw_start <- max(fp$proj.steps)
 
-  if(is.null(rw_nstep_trans))
-    rw_nstep_trans <- 5
+  if(is.null(rw_trans))
+    rw_trans <- 5
 
   fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - tsEpidemicStart))]
 
   rt <- list()
-  rt$rlogistic_steps <- fp$proj.steps[fp$proj.steps <= rw_start]
-  rt$rw_steps <- fp$proj.steps[fp$proj.steps > rw_start & fp$proj.steps <= max(fp$proj.steps)]
-  
-  if(!exists("n_rw", fp))
-    n_rw <- ceiling(diff(range(rt$rw_steps)))  ##
-  else
-    n_rw <- fp$n_rw
 
-  rt$n_rw <- n_rw
+  rt$proj.steps <- fp$proj.steps
+  
+  rt$rw_start <- rw_start
+  rt$rw_trans <- rw_trans
+
+  switch_idx <- max(which(fp$proj.steps <= rw_start))
+  rt$rlogistic_steps <- fp$proj.steps[1:switch_idx]
+  rt$rw_steps <- fp$proj.steps[switch_idx:length(fp$proj.steps)]
+  
+  rt$n_rw <- ceiling(max(rt$proj.steps) - rw_start)  # annual steps
+  rt$rw_dk <- 1
+  rt$rw_knots <- seq(rw_start, rw_start + rt$rw_dk * rt$n_rw, by = rt$rw_dk)
+  rt$rw_idx <- findInterval(rt$rw_steps[-1], rt$rw_knots)
+  
   rt$n_param <- 4+rt$n_rw  # 4 parameters for rlogistic
 
-  rt$rw_nstep_trans <- pmin(rw_nstep_trans, n_rw)
+  ## Linearly interpolate between 0 and 1 over the period (rw_start, rw_start + rw_trans)
+  ## Add a small value to avoid R error in approx() if rw_trans = 0
+  rt$rw_transition <- approx(c(rw_start, rw_start + rw_trans + 0.001), c(0, 1), rt$rw_steps[-1], rule = 2)$y
   
-  ## Random walk design matrix
-  if(!is.null(rw_dk))
-    rt$rw_knots <- seq(min(rt$rw_steps), max(rt$rw_steps)+rw_dk, by=rw_dk)
-  else 
-    rt$rw_knots <- seq(min(rt$rw_steps), max(rt$rw_steps), length.out=n_rw+1)
-  rt$rwX <- pmin(pmax(outer(rt$rw_steps, rt$rw_knots[1:n_rw], "-"), 0), 1)  # piecewise linear interpolation
+  rt$dt <- 1 / fp$ss$hiv_steps_per_year
 
   rt$eppmod <- "rhybrid"
   fp$rt <- rt
@@ -93,21 +94,21 @@ prepare_rhybrid <- function(fp,
   return(fp)
 }
 
-
 create_rvec <- function(theta, rt){
   if(rt$eppmod == "rhybrid"){
+
     par <- theta[1:4]
     par[3] <- exp(par[3])
-    rvec <- rlogistic(rt$rlogistic_steps, par)
+    rvec_rlog <- rlogistic(rt$rlogistic_steps, par)
 
     th_rw <- theta[4+1:rt$n_rw]
 
-    if(rt$rw_nstep_trans > 0){
-      xx <- seq_len(rt$rw_nstep_trans)
-      th_rw[xx] <- th_rw[xx] * xx / (rt$rw_nstep_trans + 1L)
-    }
-    
-    rvec <- c(rvec, rvec[length(rt$rlogistic_steps)] + rt$rwX %*% th_rw)
+    diff_rlog <- diff(rlogistic(rt$rw_steps, par))
+    diff_rw <- rt$dt * th_rw[rt$rw_idx]
+    diff_rvec <- (1 - rt$rw_transition) * diff_rlog + rt$rw_transition * diff_rw
+    rvec_rw <- cumsum(c(rvec_rlog[length(rvec_rlog)], diff_rvec))
+
+    rvec <- c(rvec_rlog, rvec_rw)
 
     return(exp(rvec))
   }
@@ -139,7 +140,7 @@ extend_projection <- function(fit, proj_years){
   if(fp$eppmod == "rhybrid"){
     idx1 <- 5  # start of random walk parameters
     idx2 <- 4+fp$rt$n_rw
-    fpnew <- prepare_rhybrid(fpnew, rw_dk=diff(fp$rt$rw_knots[1:2]))
+    fpnew <- prepare_rhybrid(fpnew)
   } else if(fp$eppmod == "logrw") {
     idx1 <- 1L
     idx2 <- fp$rt$n_rw

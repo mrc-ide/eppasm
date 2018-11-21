@@ -239,9 +239,17 @@ simmod.specfp <- function(fp, VERSION="C"){
       ## disease progression and mortality
       grad[-hDS,,] <- grad[-hDS,,] - fp$cd4_prog * hivpop[-hDS,,,i]  # remove cd4 stage progression (untreated)
       grad[-1,,] <- grad[-1,,] + fp$cd4_prog * hivpop[-hDS,,,i]      # add cd4 stage progression (untreated)
-      
-      grad <- grad - fp$cd4_mort * hivpop[,,,i]              # HIV mortality, untreated
-      hivdeaths.ts <- fp$cd4_mort * hivpop[,,,i]
+
+
+      if(fp$scale_cd4_mort == 1){
+        cd4mx_scale <- hivpop[,,,i] / (hivpop[,,,i] + colSums(artpop[,,,,i]))
+        cd4mx_scale[!is.finite(cd4mx_scale)] <- 1.0
+        cd4_mort_ts <- fp$cd4_mort * cd4mx_scale
+      } else
+        cd4_mort_ts <- fp$cd4_mort
+
+      grad <- grad - cd4_mort_ts * hivpop[,,,i]              # HIV mortality, untreated
+      hivdeaths.ts <- cd4_mort_ts * hivpop[,,,i]
       hivdeaths_hAG.ts <- colSums(hivdeaths.ts)
 
 
@@ -328,7 +336,7 @@ simmod.specfp <- function(fp, VERSION="C"){
           births.dist <- sweep(fp$frr_cd4[,,i] * hivpop[,h.fert.idx,f.idx,i], 2,
                                births.by.h.age / (ctapply(pop[p.fert.idx, f.idx, hivn.idx, i], ag.idx[p.fert.idx], sum) + colSums(fp$frr_cd4[,,i] * hivpop[,h.fert.idx,f.idx,i]) + colSums(fp$frr_art[,,,i] * artpop[ ,,h.fert.idx,f.idx,i],,2)), "*")
           if(fp$artcd4elig_idx[i] > 1)
-            art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] <- art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] + DT*births.dist[1:(fp$artcd4elig_idx[i]-1),] # multiply by DT to account for proportion of annual births occurring during this time step
+            art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] <- art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] + births.dist[1:(fp$artcd4elig_idx[i]-1),] # multiply by DT to account for proportion of annual births occurring during this time step
         }
 
 
@@ -368,20 +376,36 @@ simmod.specfp <- function(fp, VERSION="C"){
         ## calculate ART initiation distribution
         if(!fp$med_cd4init_input[i]){
 
-          expect.mort.weight <- sweep(fp$cd4_mort[, h.age15plus.idx,], 3,
-                                      colSums(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,],,2), "/")          
-          artinit.weight <- sweep(expect.mort.weight, 3, 1/colSums(art15plus.elig,,2), "+")/2
-          artinit <- pmin(sweep(artinit.weight * art15plus.elig, 3, art15plus.inits, "*"),
-                          art15plus.elig)
+          if(fp$art_alloc_method == 4L){ ## by lowest CD4
+            
+            ## Calculate proportion to be initiated in each CD4 category
+            artinit <- array(0, dim(art15plus.elig))
+            remain_artalloc <- art15plus.inits
+            for(m in hDS:1){
+              elig_hm <- colSums(art15plus.elig[m,,])
+              init_prop <- ifelse(elig_hm == 0, elig_hm, pmin(1.0, remain_artalloc / elig_hm, na.rm=TRUE))
+              ## if(any(elig_hm < art15plus.inits))
+              ##   browser()
+              artinit[m , , ] <- sweep(art15plus.elig[m,,], 2, init_prop, "*")
+              remain_artalloc <- remain_artalloc - init_prop * elig_hm
+            }
 
-          ## ## Allocation by average mortality across CD4, trying to match Spectrum
-          ## artelig_by_cd4 <- apply(art15plus.elig, c(1, 3), sum)
-          ## expectmort_by_cd4 <- apply(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,], c(1, 3), sum)
-
-          ## artinit_dist <- (sweep(artelig_by_cd4, 2, colSums(artelig_by_cd4), "/") +
-          ##                  sweep(expectmort_by_cd4, 2, colSums(expectmort_by_cd4), "/")) / 2
-          ## artinit <- sweep(art15plus.elig, c(1, 3), sweep(artinit_dist / artelig_by_cd4, 2, art15plus.inits, "*"), "*")
-          ## artinit <- pmin(artinit, art15plus.elig, na.rm=TRUE)
+          } else {
+            expect.mort.weight <- sweep(fp$cd4_mort[, h.age15plus.idx,], 3,
+                                        colSums(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,],,2), "/")          
+            artinit.weight <- sweep(fp$art_alloc_mxweight * expect.mort.weight, 3, (1 - fp$art_alloc_mxweight)/colSums(art15plus.elig,,2), "+")
+            artinit <- pmin(sweep(artinit.weight * art15plus.elig, 3, art15plus.inits, "*"),
+                            art15plus.elig)
+            
+            ## ## Allocation by average mortality across CD4, trying to match Spectrum
+            ## artelig_by_cd4 <- apply(art15plus.elig, c(1, 3), sum)
+            ## expectmort_by_cd4 <- apply(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,], c(1, 3), sum)
+            
+            ## artinit_dist <- (sweep(artelig_by_cd4, 2, colSums(artelig_by_cd4), "/") +
+            ##                  sweep(expectmort_by_cd4, 2, colSums(expectmort_by_cd4), "/")) / 2
+            ## artinit <- sweep(art15plus.elig, c(1, 3), sweep(artinit_dist / artelig_by_cd4, 2, art15plus.inits, "*"), "*")
+            ## artinit <- pmin(artinit, art15plus.elig, na.rm=TRUE)
+          }
 
         } else {
 

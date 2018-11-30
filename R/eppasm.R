@@ -265,10 +265,13 @@ simmod.specfp <- function(fp, VERSION="C"){
         ## Do new diagnoses
         
         ## Remove HIV deaths among tested negative pop
-        grad_tn[ , , hivp.idx] <- grad_tn[ , , hivp.idx] - hivdeaths_hAG.ts * testnegpop[,,hivp.idx,i] / colSums(hivpop[,,,i])
+        prop_tn_hivp <- testnegpop[,,hivp.idx,i] / colSums(hivpop[,,,i])
+        prop_tn_hivp[!is.finite(prop_tn_hivp)] <- 0.0
+        grad_tn[ , , hivp.idx] <- grad_tn[ , , hivp.idx] - hivdeaths_hAG.ts * prop_tn_hivp
 
         undiagnosed_i <- (hivpop[,,,i] - diagnpop[,,,i])
         prop_testneg <- testnegpop[ , , hivp.idx, i] / colSums(undiagnosed_i)
+        prop_testneg[is.na(prop_testneg) | prop_testneg > 1 | prop_testneg < 0] <- 0
 
         ## Annualized new diagnoses among never tested population
         diagn_naive <- fp$diagn_rate[,,,1,i] * sweep(undiagnosed_i, 2:3, 1 - prop_testneg, "*")
@@ -280,7 +283,7 @@ simmod.specfp <- function(fp, VERSION="C"){
         hivtests[,,4,i] <- hivtests[,,4,i] + DT * colSums(diagn_testneg)
         hivtests[,,5,i] <- hivtests[,,5,i] + DT * colSums(fp$diagn_rate[,,,3,i] * diagnpop[,,,i])
         hivtests[,,6,i] <- hivtests[,,6,i] + DT * colSums(fp$diagn_rate[,,,4,i] * colSums(artpop[,,,,i]))
-          
+        
         grad_tn[,,hivp.idx] <- grad_tn[,,hivp.idx] - colSums(diagn_testneg)
         grad_diagn <- grad_diagn + diagn_naive + diagn_testneg
 
@@ -439,15 +442,16 @@ simmod.specfp <- function(fp, VERSION="C"){
           frac_exc[frac_exc > 1] <- 1 
           to_put_back <- sweep(diagn_surplus, 2:3, frac_exc, "*")
           
+          ## 'prop_testneg' calculates the proportion of the undiagnosed HIV+
+          ## population who have previously tested negateive
+          prop_testneg <- testnegpop[ , , hivp.idx, i] / colSums(hivpop[,,,i] - diagnpop[,,,i])
+          prop_testneg[is.na(prop_testneg) | prop_testneg > 1 | prop_testneg < 0] <- 0
+
           late_diagnoses[,,,i] <- late_diagnoses[,,,i] + newdiagn - to_put_back
           diagnoses[,,,i] <- diagnoses[,,,i] + newdiagn - to_put_back
           
           # Here, we remove from the diagnpop the artinitiation (minus the late diagnoses)
           diagnpop[,,,i] <- diagnpop[,,,i] - (artinit - newdiagn + to_put_back)
-          
-          ## 'prop_testneg' calculates the proportion of the undiagnosed HIV+
-          ## population who have previously tested negateive
-          prop_testneg <- testnegpop[ , , hivp.idx, i] / colSums(hivpop[,,,i] - diagnpop[,,,i])
 
           ## here, the 'testnegpop' now becomes aware according to their relative proportion.
           newdiagn_ha <- colSums(newdiagn) - colSums(to_put_back)

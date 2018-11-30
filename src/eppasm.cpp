@@ -717,9 +717,9 @@ extern "C" {
 	      }
 
 	      // Remove share of HIV deaths among testneg population
-	      grad_testneg_hivp -= hivdeaths_ha[g][ha] / DT * testnegpop[t][HIVP][g][ha] / hivpop_ha;
+	      grad_testneg_hivp -= hivdeaths_ha[g][ha] / DT * (hivpop_ha > 0 ? testnegpop[t][HIVP][g][ha] / hivpop_ha : 0.0);
 	      
-	      double prop_testneg = testnegpop[t][HIVP][g][ha] / undiagnosed_ha;
+	      double prop_testneg = undiagnosed_ha > 0 ? testnegpop[t][HIVP][g][ha] / undiagnosed_ha : 0.0;
 
 	      for(int hm = 0; hm < hDS; hm++){
 		double diagn_naive = diagn_rate[t][0][g][ha][hm] * (1.0 - prop_testneg) * (hivpop[t][g][ha][hm] - diagnpop[t][g][ha][hm]);
@@ -982,7 +982,7 @@ extern "C" {
 		  if(new_diagn_ha > diagn_surplus_ha){
 		    new_diagn_ha -= diagn_surplus_ha;
 
-		    double new_among_testneg = new_diagn_ha * testnegpop[t][HIVP][g][ha] / undiagnosed_ha;
+		    double new_among_testneg = new_diagn_ha * (undiagnosed_ha > 0 ? testnegpop[t][HIVP][g][ha] / undiagnosed_ha : 0.0);
 		    hivtests[t][2][g][ha] += new_diagn_ha - new_among_testneg; // new diagnoses among never tested
 		    hivtests[t][3][g][ha] += new_among_testneg;
 		    testnegpop[t][HIVP][g][ha] -= new_among_testneg;
@@ -1039,7 +1039,7 @@ extern "C" {
 		  if(new_diagn_ha > diagn_surplus_ha){
 		    new_diagn_ha -= diagn_surplus_ha;
 
-		    double new_among_testneg = new_diagn_ha * testnegpop[t][HIVP][g][ha] / undiagnosed_ha;
+		    double new_among_testneg = new_diagn_ha * (undiagnosed_ha > 0 ? testnegpop[t][HIVP][g][ha] / undiagnosed_ha : 0.0);
 		    hivtests[t][2][g][ha] += new_diagn_ha - new_among_testneg; // new diagnoses among never tested
 		    hivtests[t][3][g][ha] += new_among_testneg;
 		    testnegpop[t][HIVP][g][ha] -= new_among_testneg;

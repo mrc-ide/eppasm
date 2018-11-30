@@ -51,6 +51,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   hivpopdeaths <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
   artpopdeaths <- array(0, c(hTS, hDS, hAG, NG, PROJ_YEARS))
 
+  hivtests <- array(0, c(hAG, NG, 6, PROJ_YEARS))
   diagnoses <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
   late_diagnoses <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
   artinits <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
@@ -253,7 +254,11 @@ simmod.specfp <- function(fp, VERSION="C"){
         
         ## Number of tests among never tested HIV negative persons
         hivn_pop_ha <- apply(pop[,,hivn.idx,i], 2, ctapply, ag.idx, sum)
-        grad_tn[ , , hivn.idx] <- grad_tn[ , , hivn.idx] + fp$hts_rate[ , , 1 , i] * (hivn_pop_ha - testnegpop[ , , hivn.idx , i])
+
+
+        hivtests[,,1,i] <- hivtests[,,1,i] + DT * (fp$hts_rate[ , , 1, i] * (hivn_pop_ha - testnegpop[ , , hivn.idx , i]))
+        hivtests[,,2,i] <- hivtests[,,2,i] + DT * fp$hts_rate[ , , 2, i] * testnegpop[ , , hivn.idx , i]
+        grad_tn[ , , hivn.idx] <- grad_tn[ , , hivn.idx] + fp$hts_rate[ , , 1, i] * (hivn_pop_ha - testnegpop[ , , hivn.idx , i])
         
         ## !!! TRANSFER INFECTIONS IF USING EPP INCIDENCE
         
@@ -271,6 +276,11 @@ simmod.specfp <- function(fp, VERSION="C"){
         ## Annualized new diagnoses among previously tested negative population
         diagn_testneg <- fp$diagn_rate[,,,2,i] * sweep(undiagnosed_i, 2:3, prop_testneg, "*")
 
+        hivtests[,,3,i] <- hivtests[,,3,i] + DT * colSums(diagn_naive)
+        hivtests[,,4,i] <- hivtests[,,4,i] + DT * colSums(diagn_testneg)
+        hivtests[,,5,i] <- hivtests[,,5,i] + DT * colSums(fp$diagn_rate[,,,3,i] * diagnpop[,,,i])
+        hivtests[,,6,i] <- hivtests[,,6,i] + DT * colSums(fp$diagn_rate[,,,4,i] * colSums(artpop[,,,,i]))
+          
         grad_tn[,,hivp.idx] <- grad_tn[,,hivp.idx] - colSums(diagn_testneg)
         grad_diagn <- grad_diagn + diagn_naive + diagn_testneg
 
@@ -428,20 +438,23 @@ simmod.specfp <- function(fp, VERSION="C"){
           frac_exc[!is.finite(frac_exc)] <- 0
           frac_exc[frac_exc > 1] <- 1 
           to_put_back <- sweep(diagn_surplus, 2:3, frac_exc, "*")
-
-          ## 'prop_testneg' calculates the proportion of the undiagnosed HIV+
-          ## population who have previously tested negateive
-          prop_testneg <- testnegpop[ , , hivp.idx, i] / colSums(hivpop[,,,i] - diagnpop[,,,i])
-
-          ## here, the 'testnegpop' now becomes aware according to their relative proportion.
-          testnegpop[ , , hivp.idx, i] <- testnegpop[ , , hivp.idx, i] - 
-            prop_testneg * (colSums(newdiagn) - colSums(to_put_back))
           
           late_diagnoses[,,,i] <- late_diagnoses[,,,i] + newdiagn - to_put_back
           diagnoses[,,,i] <- diagnoses[,,,i] + newdiagn - to_put_back
           
           # Here, we remove from the diagnpop the artinitiation (minus the late diagnoses)
           diagnpop[,,,i] <- diagnpop[,,,i] - (artinit - newdiagn + to_put_back)
+          
+          ## 'prop_testneg' calculates the proportion of the undiagnosed HIV+
+          ## population who have previously tested negateive
+          prop_testneg <- testnegpop[ , , hivp.idx, i] / colSums(hivpop[,,,i] - diagnpop[,,,i])
+
+          ## here, the 'testnegpop' now becomes aware according to their relative proportion.
+          newdiagn_ha <- colSums(newdiagn) - colSums(to_put_back)
+
+          hivtests[ , , 3, i] <- hivtests[ , , 3, i] + (1 - prop_testneg) * newdiagn_ha
+          hivtests[ , , 4, i] <- hivtests[ , , 4, i] + prop_testneg * newdiagn_ha
+          testnegpop[ , , hivp.idx, i] <- testnegpop[ , , hivp.idx, i] - prop_testneg * newdiagn_ha
         }
 
         hivpop[, h.age15plus.idx,, i] <- hivpop[, h.age15plus.idx,, i] - artinit
@@ -546,6 +559,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "hivpopdeaths") <- hivpopdeaths
   attr(pop, "artpopdeaths") <- artpopdeaths
 
+  attr(pop, "hivtests") <- hivtests
   attr(pop, "diagnoses") <- diagnoses
   attr(pop, "late_diagnoses") <- late_diagnoses
   attr(pop, "artinits") <- artinits

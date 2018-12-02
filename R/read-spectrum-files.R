@@ -459,13 +459,19 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     }
   }
 
-  if(exists_dptag("<MortalityRates MV>"))
-    artmx_timerr <- setNames(as.numeric(dpsub("<MortalityRates MV>", 2, timedat.idx)), proj.years)
-  else
-    artmx_timerr <- setNames(rep(1.0, length(proj.years)), proj.years)
+  artmx_timerr <- array(1.0, c(3, length(proj.years)), list(artdur=c("ART0MOS", "ART6MOS", "ART1YR"), year = proj.years))
+  if(exists_dptag("<MortalityRates MV>")){
+    val <- as.numeric(dpsub("<MortalityRates MV>", 2, timedat.idx))
+    artmx_timerr["ART0MOS", ] <- val
+    artmx_timerr["ART6MOS", ] <- val
+    artmx_timerr["ART1YR", ] <- val
+  } else if(exists_dptag("<MortalityRates MV2>")) {
+    val <- array(as.numeric(unlist(dpsub("<MortalityRates MV2>", 2:3, timedat.idx))), c(2, length(proj.years)))
+    artmx_timerr["ART0MOS", ] <- val[1, ]
+    artmx_timerr["ART6MOS", ] <- val[1, ]
+    artmx_timerr["ART1YR", ] <- val[2, ]
+  }
 
-  
-  
   ## program parameters
   if(dp.vers %in% c("<General 3>", "<General5>")){
     art15plus_numperc <- sapply(dp[adult.artnumperc.tidx+3:4, timedat.idx], as.numeric)

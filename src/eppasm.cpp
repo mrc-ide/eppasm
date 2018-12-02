@@ -137,7 +137,7 @@ extern "C" {
     multi_array_ref<double, 3> cd4_prog(REAL(getListElement(s_fp, "cd4_prog")), extents[NG][hAG][hDS-1]);
     multi_array_ref<double, 3> cd4_mort(REAL(getListElement(s_fp, "cd4_mort")), extents[NG][hAG][hDS]);
     multi_array_ref<double, 4> art_mort(REAL(getListElement(s_fp, "art_mort")), extents[NG][hAG][hDS][hTS]);
-    double *artmx_timerr = REAL(getListElement(s_fp, "artmx_timerr"));
+    multi_array_ref<double, 2> artmx_timerr(REAL(getListElement(s_fp, "artmx_timerr")), extents[PROJ_YEARS][hTS]);
 
     // sub-fertility
     multi_array_ref<double, 3> frr_cd4(REAL(getListElement(s_fp, "frr_cd4")), extents[PROJ_YEARS][hAG_FERT][hDS]);
@@ -635,7 +635,7 @@ extern "C" {
                 double gradART[hTS];
 
                 for(int hu = 0; hu < hTS; hu++){
-                  double deaths = art_mort[g][ha][hm][hu] * artmx_timerr[t] * artpop[t][g][ha][hm][hu];
+                  double deaths = art_mort[g][ha][hm][hu] * artmx_timerr[t][hu] * artpop[t][g][ha][hm][hu];
                   hivdeaths_ha[g][ha] += DT*deaths;
                   gradART[hu] = -deaths;
                 }

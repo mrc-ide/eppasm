@@ -122,3 +122,4 @@
 - Re-implement r-hybrid model and incorporate smooth transition from logistic function to random walk.
 - Implement Spectrum options for new ART patient allocation.
 - Implement option to scale mortality among untreated population by ART coverage (`fp$scale_cd4_mort = 1`)
+- Separate time time varying ART mortality trends for ART duration <12 months and > 12 months.

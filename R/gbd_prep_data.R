@@ -1,12 +1,33 @@
+find_pjnz <- function(loc){
+   ## TODO: Rename and organize PJNZ files
+  if(grepl("KEN", loc) & loc.table[ihme_loc_id == loc, level] == 5) {
+      if(loc.table[ihme_loc_id == loc, parent_id] == 44797) {
+          temp.loc <- "KEN_44795" # This is because the North Eastern province doesn't have an XML file
+      } else {
+          temp.loc <- loc.table[location_id == loc.table[ihme_loc_id == loc, parent_id], ihme_loc_id]
+      }
+  } else {
+      temp.loc <- loc
+  }
+  ##TODO: Add unaids 2018 to loc table
+  unaids.year <- loc.table[ihme_loc_id == loc, unaids_recent]
+  if(unaids.year == 2017) {
+      dir <- paste0("/home/j/WORK/04_epi/01_database/02_data/hiv/04_models/gbd2015/02_inputs/UNAIDS_country_data/", unaids.year, "/")
+  } else {
+      dir <- paste0("/home/j/WORK/04_epi/01_database/02_data/hiv/04_models/gbd2015/02_inputs/UNAIDS_country_data/", unaids.year, "/", temp.loc, "/")        
+  }
+  pjnz <- paste0(dir, temp.loc, ".PJNZ") 
+  return(pjnz)
+}
+
 collapse_epp <- function(loc){
   
-  # unaids.year <- loc.table[ihme_loc_id == loc, unaids_recent]
-  # if(unaids.year == 2017) {
-  #   dir <- paste0(root, "WORK/04_epi/01_database/02_data/hiv/04_models/gbd2015/02_inputs/UNAIDS_country_data/", unaids.year, "/")
-  # } else {
-  #   dir <- paste0(root, "WORK/04_epi/01_database/02_data/hiv/04_models/gbd2015/02_inputs/UNAIDS_country_data/", unaids.year, "/", loc, "/")     
-  # }
-  dir <- system.file('inst/extdata/testpjnz/', package="eppasm")
+  unaids.year <- loc.table[ihme_loc_id == loc, unaids_recent]
+  if(unaids.year == 2017) {
+    dir <- paste0(root, "WORK/04_epi/01_database/02_data/hiv/04_models/gbd2015/02_inputs/UNAIDS_country_data/", unaids.year, "/")
+  } else {
+    dir <- paste0(root, "WORK/04_epi/01_database/02_data/hiv/04_models/gbd2015/02_inputs/UNAIDS_country_data/", unaids.year, "/", loc, "/")     
+  }
   if(file.exists(dir)) {
     pjnz.list <- list.files(dir, pattern = "PJNZ", full.names = T)
     file.list <- grep(loc, pjnz.list, value = T)

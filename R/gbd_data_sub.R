@@ -12,9 +12,11 @@ extend.years <- function(dt, years){
 }
 
 sub.pop.params.demp <- function(demp, loc, k){
+  dir <- paste0('/share/hiv/epp_output/gbd19/', run.name, '/')
+
   ## Population
   years <- dimnames(demp$basepop)[[3]]
-  pop <- fread(paste0('/Users/tahvif/Documents/code/eppasm/gbd-data/', loc, '_single_age_pop.csv'))
+  pop <- fread(paste0(dir, '/population_single_age/', loc, '.csv'))
   pop <- extend.years(pop, years)
   pop[,age := ifelse(age_group_id == 28, 0, age_group_id - 48)]
   pop <- pop[age %in% 0:80]
@@ -27,7 +29,7 @@ sub.pop.params.demp <- function(demp, loc, k){
   }
   
   ## Survival
-  surv <- fread(paste0('/Users/tahvif/Documents/code/eppasm/gbd-data/', loc, '_life_tables.csv'))[,V1 := NULL]
+  surv <- fread(paste0('/share/gbd/WORK/02_mortality/03_models/5_lifetables/results/hivfree_sx/locs/', loc, '_life_tables.csv'))[,V1 := NULL]
   surv <- melt(surv, id.vars = c('sex', 'year', 'age'))
   surv[, variable := as.integer(gsub('px', '', variable))]
   surv <- surv[variable == k]
@@ -54,7 +56,7 @@ sub.pop.params.demp <- function(demp, loc, k){
   }
   
   ## ASFR
-  asfr <- fread('/Users/tahvif/Documents/code/eppasm/gbd-data/MWI_ASFR.csv')
+  asfr <- fread(paste0(dir,'/ASFR/', loc, '.csv'))
   asfr <- extend.years(asfr, years)
   ## Copy 5-year asfr
   for(c.age in 15:49){
@@ -70,7 +72,7 @@ sub.pop.params.demp <- function(demp, loc, k){
   demp$asfr <- asfr
   
   ## TFR
-  tfr <- fread(paste0('/Users/tahvif/Documents/code/eppasm/gbd-data/', loc, '_TFR.csv'))
+  tfr <- fread(paste0(dir, '/TFR/', loc, '.csv'))
   tfr <- extend.years(tfr, years)
   tfr.list <- tfr[,value]
   names(tfr.list) <- tfr$year
@@ -80,7 +82,7 @@ sub.pop.params.demp <- function(demp, loc, k){
   ## SRB
   
   ## Migration
-  mig <- fread(paste0('/Users/tahvif/Documents/code/eppasm/gbd-data/', loc, '_migration.csv'))
+  mig <- fread(paste0(dir, '/migration/', loc, '.csv'))
   setnames(mig, 'sex', 'sex_id')
   mig[, sex := ifelse(sex_id == 1, 'Male', 'Female')]
   mig <- dcast.data.table(mig[,.(year, age, value, sex)], year + age ~ sex)
@@ -95,20 +97,10 @@ sub.pop.params.demp <- function(demp, loc, k){
 
 sub.pop.params.epp <- function(epp.subp, epp.input, loc) {
   ## Load central functions
-  # loc.id <- loc.table[ihme_loc_id==loc, location_id]
   years <- epp.subp[[1]]$year
-  path <- paste0("/Users/tahvif/Documents/code/eppasm/gbd-data/", loc, "_pop_all_age.csv")
-  if(file.exists(path)) {
-    in.pop <- fread(path)
-    in.pop <- in.pop[year_id %in% years]
-  } else {
-    if(!"get_population" %in% ls()) {
-      source(paste0(root, "temp/central_comp/libraries/current/r/get_population.R"))
-    }	
-    in.pop <- get_population(age_group_id = 8:14, location_id = loc.id, year_id = years, sex_id = 1:2, location_set_id = 21)
-  }
-  
+  dir <- paste0('/share/hiv/epp_output/gbd19/', run.name, '/')
   # add in missing years in the future
+  in.pop <- fread(paste0(dir, '/population/', loc, '.csv'))
   max.pop <- copy(in.pop[year_id == max(year_id)])
   missing.dt <- rbindlist(lapply(setdiff(years, unique(in.pop$year_id)), function(year) {
     dt <- copy(max.pop)
@@ -122,7 +114,13 @@ sub.pop.params.epp <- function(epp.subp, epp.input, loc) {
   pop15to49 <- both.pop[, .(population = sum(population)), by = .(year_id)]$population
   
   ## TODO: Is migration 15-49 sum?
-  mig.data <- fread('/Users/tahvif/Documents/code/eppasm/gbd-data/MWI_migration.csv')
+  mig.data <- fread(paste0(dir, '/migration/', loc, '.csv'))
+  max.mig <- copy(mig.data[year == max(year)])
+  missing.dt <- rbindlist(lapply(setdiff(years, unique(mig.data$year)), function(c.year) {
+    dt <- copy(max.mig)
+    dt[, year := c.year]
+  }))
+  mig.data <- rbind(mig.data, missing.dt)
   mig.data <- mig.data[age %in% 15:49 & year %in% both.pop$year_id]
   mig.data <- mig.data[,.(value = sum(value)), by = .(year)]$value
   
@@ -156,7 +154,8 @@ sub.prev <- function(loc, dt){
   } else {
     gen.pop.i <- which(names(dt) %in% gen.pop.dict)
   }
-  surv.path <- paste0("/Users/tahvif/Documents/code/eppasm/gbd-data/prev_surveys.csv")
+  ## TODO: Where are prev surveys compiled?
+  surv.path <- paste0("/ihme/hiv/epp_output/gbd19/", run.name, "/prev_surveys.csv")
   data4 <- fread(surv.path)[iso3 == loc]
   data4[,c("iso3", "int_year", "nid") := NULL]
   
@@ -191,6 +190,7 @@ sub.prev <- function(loc, dt){
   return(dt)
 }
 
+## TODO
 sub.off.art <- function(dt, loc, k) {
   # Off-ART Mortality
   mortnoart <- fread(paste0(aim.dir, "transition_parameters/HIVmort_noART/current_draws_combined/",loc,"_mortality_par_draws.csv"))

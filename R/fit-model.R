@@ -288,7 +288,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   ## Prepare likelihood data
   eppd <- attr(obj, "eppd")
 
-  has_ancrtsite <- exists("ancsitedat", eppd) && any(eppd$ancsitedat$type == "ancss")
+  has_ancrtsite <- exists("ancsitedat", eppd) && any(eppd$ancsitedat$type == "ancrt")
   has_ancrtcens <- !is.null(eppd$ancrtcens) && nrow(eppd$ancrtcens)
   
   if(!has_ancrtsite)
@@ -333,6 +333,8 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
     fp <- prepare_logrw(fp)
   else if(fp$eppmod == "rhybrid")
     fp <- prepare_rhybrid(fp)
+  else if(fp$eppmod == "rlogistic")
+    fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - fp$ss$time_epi_start+0.5))]
 
   fp$logitiota = TRUE
 

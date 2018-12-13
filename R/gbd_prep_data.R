@@ -1,5 +1,4 @@
 find_pjnz <- function(loc){
-   ## TODO: Rename and organize PJNZ files
   if(grepl("KEN", loc) & loc.table[ihme_loc_id == loc, level] == 5) {
       if(loc.table[ihme_loc_id == loc, parent_id] == 44797) {
           temp.loc <- "KEN_44795" # This is because the North Eastern province doesn't have an XML file
@@ -9,21 +8,35 @@ find_pjnz <- function(loc){
   } else {
       temp.loc <- loc
   }
-  ##TODO: Add unaids 2018 to loc table
   unaids.year <- loc.table[ihme_loc_id == loc, unaids_recent]
-  if(unaids.year == 2017) {
+  if(unaids.year %in% 2017:2018) {
       dir <- paste0("/home/j/WORK/04_epi/01_database/02_data/hiv/04_models/gbd2015/02_inputs/UNAIDS_country_data/", unaids.year, "/")
   } else {
       dir <- paste0("/home/j/WORK/04_epi/01_database/02_data/hiv/04_models/gbd2015/02_inputs/UNAIDS_country_data/", unaids.year, "/", temp.loc, "/")        
   }
-  pjnz <- paste0(dir, temp.loc, ".PJNZ") 
-  return(pjnz)
+  if(file.exists(dir)) {
+    pjnz.list <- list.files(dir, pattern = "PJNZ", full.names = T)
+    file.list <- grep(loc, pjnz.list, value = T)
+    if(loc == "NGA") file.list <- c()
+  } else {
+    one.up <- paste(head(unlist(tstrsplit(dir, "/")), -1), collapse = "/")
+    dir.list <- list.files(one.up, pattern = loc, full.names = T)
+    file.list <- unlist(lapply(dir.list, function(dir) {
+      list.files(dir, pattern = "PJNZ", full.names = T)
+    }))
+  }
+  if(length(file.list) == 0) {
+    loc.name <- loc.table[ihme_loc_id == loc, location_name]
+    loc.name <- gsub(" ", "", gsub("[^[:alnum:] ]", "", loc.name))
+    file.list <- grep(loc.name, pjnz.list, value = T)
+  }
+  return(file.list[[1]])
 }
 
 collapse_epp <- function(loc){
-  
   unaids.year <- loc.table[ihme_loc_id == loc, unaids_recent]
-  if(unaids.year == 2017) {
+  print(unaids.year)
+  if(unaids.year %in% 2017:2018) {
     dir <- paste0(root, "WORK/04_epi/01_database/02_data/hiv/04_models/gbd2015/02_inputs/UNAIDS_country_data/", unaids.year, "/")
   } else {
     dir <- paste0(root, "WORK/04_epi/01_database/02_data/hiv/04_models/gbd2015/02_inputs/UNAIDS_country_data/", unaids.year, "/", loc, "/")     

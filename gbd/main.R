@@ -28,7 +28,7 @@ stop.year <- 2019
 trans.params <- TRUE
 gbd.pop <- TRUE
 art.sub <- FALSE
-prev.sub <- FALSE
+prev.sub <- TRUE
 collapse <- TRUE
 anc.prior <- TRUE
 no.anc <- FALSE
@@ -80,12 +80,12 @@ if(prev.sub) {
 # }
 
 # # Transition parameters
-# if(trans.params) {
-# 	dt <- extend.trans.params(dt, start.year, stop.year)
-# 	dt <- sub.off.art(dt, loc, i)
-# 	dt <- sub.on.art(dt, loc, i)
-# 	dt <- sub.cd4.prog(dt, loc, i)
-# }
+if(trans.params) {
+  print('Substituting transition parameters')
+	dt <- sub.off.art(dt, loc, i)
+	dt <- sub.on.art(dt, loc, i)
+	dt <- sub.cd4.prog(dt, loc, i)
+}
 
 ## Fit model
 fit <- list() 

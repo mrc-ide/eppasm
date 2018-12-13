@@ -1,4 +1,6 @@
 #' @import data.table
+
+aim.dir <- paste0(root,"/WORK/04_epi/01_database/02_data/hiv/04_models/gbd2015/02_inputs/AIM_assumptions/")
 extend.years <- function(dt, years){
   dt <- as.data.table(dt)
   if('year_id' %in% names(dt)){setnames(dt, 'year_id', 'year')}
@@ -190,18 +192,16 @@ sub.prev <- function(loc, dt){
   return(dt)
 }
 
-## TODO
 sub.off.art <- function(dt, loc, k) {
   # Off-ART Mortality
   mortnoart <- fread(paste0(aim.dir, "transition_parameters/HIVmort_noART/current_draws_combined/",loc,"_mortality_par_draws.csv"))
-  mortnoart[,draw:=rank(-mort,ties.method="first"),by=c("age","cd4")]
-  mortnoart <- mortnoart[order(age,cd4,draw)]
-  mortnoart_read <- mortnoart[,c("age","cd4","draw","mort"), with=F]
-  mortnoart <- mortnoart_read[draw==k,]
-  mortnoart[,age:= as.integer(sapply(strsplit(mortnoart[,age],'-'), function(x) {x[1]}))]
+  mortnoart <- mortnoart[draw==k,]
+  mortnoart[age == '45-100', age := '45+']
+  mortnoart[age == '15-25', age := '15-24']
+  mortnoart[age == '25-35', age := '25-34']
+  mortnoart[age == '35-45', age := '35-44']
   mortnoart[,risk:=-1*log(1-mort)/0.1]
   mortnoart[,prob:=1-exp(-1*risk)]
-  
   cd4_cats <- unique(mortnoart[,cd4])
   cd4_vars <- data.table(cd4=cd4_cats)
   
@@ -214,33 +214,45 @@ sub.off.art <- function(dt, loc, k) {
   mortnoart <- mortnoart[cd4=="LT50CD4", cat := 7] 
   mortnoart[,risk:=-1*log(1-prob)]
   mortnoart <- mortnoart[,.(age,risk,cat)]
-  ## TODO: Why do these seem so high compared to pjnz?
-  mortnoart <- dcast.data.table(mortnoart, cat~age, value.var = 'risk')
-  mortnoart <- data.frame(mortnoart)
-  names(mortnoart) <- NULL
-  mugbd <- as.matrix(mortnoart)[,2:5]
+  ## ???
+  age.index <- list(a = '15-24', b = '15-24', c = '15-24', d = '25-34', e = '25-34', f = '35-44', g = '35-44', h = '45+', i = '45+')
+  replace <- array(0, c(7, length(dimnames(attr(dt[[1]], 'specfp')$cd4_mort)$agecat), 2))
+  dimnames(replace) <- list(cd4stage = paste0(1:7), agecat = dimnames(attr(dt[[1]], 'specfp')$cd4_mort)$agecat, sex = c('Male', 'Female'))
+  for(c.sex in c('Male', 'Female')){
+    for(c.ageindex in 1:length(dimnames(attr(dt[[1]], 'specfp')$cd4_mort)$agecat)){
+        for(c.cd4 in paste0(1:7)){
+          replace[c.cd4, c.ageindex, c.sex] = as.numeric(mortnoart[age == age.index[[c.ageindex]] & cat == c.cd4, risk])
+      }
+    }
+  }  
   
   for (n in names(dt)) {
     for(i in 1:7){
-      attr(dt[[n]], 'eppfp')$cd4artmort[i,1:4] <- mugbd[i, 1:4]
+      attr(dt[[n]], 'specfp')$cd4_mort <- replace
     }
   }
   return(dt)
 }
 
-## TODO
 sub.on.art <- function(dt, loc, k) {
-  mortart <- fread(paste0("/Users/tahvif/Documents/code/eppasm/gbd-data/MWI_HIVonART.csv"))
+  mortart <- fread(paste0(aim.dir,"transition_parameters/HIVmort_onART_regions/DisMod/", loc,"_HIVonART.csv"))
   mortart <- melt(mortart, 
                   id = c("durationart", "cd4_category", "age", "sex","cd4_lower",
                          "cd4_upper"))
 
   setnames(mortart, c("variable","value","cd4_category"),c("draw","mort","cd4"))
-  mortart <- mortart[age!="55-100",]
+  # mortart <- mortart[age!="55-100",]
 
-  mortart <- mortart_read[draw==k,]
-  mortart[,age:= as.integer(sapply(strsplit(mortart[,age],'-'), function(x) {x[1]}))]
-  mortart[,sex:=as.integer(sex)]
+  mortart <- mortart[draw==paste0('mort',k),]
+  mortart[,sex := as.character(sex)]
+  mortart[, sex := ifelse(sex == 1, 'Male', 'Female')]
+  ## TODO: Find a better way to align 45-55 and 55+
+  mortart[age == '45-55', age := '45+']
+  mortart[age == '15-25', age := '15-24']
+  mortart[age == '25-35', age := '25-34']
+  mortart[age == '35-45', age := '35-44']
+  mortart <- mortart[age != '55-100']
+  # mortart[,age:= as.integer(sapply(strsplit(mortart[,age],'-'), function(x) {x[1]}))]
   cd4_cats <- unique(mortart[,cd4])
   durat_cats <- unique(mortart[,durationart])
   cd4_vars <- expand.grid(durationart=durat_cats, cd4=cd4_cats)
@@ -251,27 +263,69 @@ sub.on.art <- function(dt, loc, k) {
   mortart <- mortart[cd4=="ART100to199CD4", cat := 5]
   mortart <- mortart[cd4=="ART50to99CD4", cat := 6] 
   mortart <- mortart[cd4=="ARTLT50CD4", cat := 7]
+  mortart <- mortart[,.(durationart, age, sex, mort, cat)]
   mortart[,risk:=-1*log(1-mort)]
-  mortart <- mortart[, setattr(as.list(risk), 'names', cat), by=c("year","durationart")]
-  mortart <- mortart[order(year, durationart)]
-  # mortart <- mortart[age!="55-100",]
+  mortart[, mort := NULL]
+  mortart[durationart == '6to12Mo', artdur := 'ART6MOS']
+  mortart[durationart == 'GT12Mo', artdur := 'ART1YR']
+  mortart[durationart == 'LT6Mo', artdur := 'ART0MOS']
+  mortart[, durationart := NULL]
+  setnames(mortart, c('age', 'cat'), c('agecat', 'cd4stage'))
   
-  mortart1 <- mortart[durationart=="LT6Mo",]
-  mortart2 <- mortart[durationart=="6to12Mo",]
-  mortart3 <- mortart[durationart=="GT12Mo",]
+  age.index <- list(a = '15-24', b = '15-24', c = '15-24', d = '25-34', e = '25-34', f = '35-44', g = '35-44', h = '45+', i = '45+')
+  replace <- array(0, c(3, 7, length(dimnames(attr(dt[[1]], 'specfp')$art_mort)$agecat), 2))
+  dimnames(replace) <- list(artdur = c('ART0MOS', 'ART6MOS', 'ART1YR'), cd4stage = paste0(1:7), agecat = dimnames(attr(dt[[1]], 'specfp')$art_mort)$agecat, sex = c('Male', 'Female'))
   
-  alpha1gbd <- as.matrix(data.frame(mortart1[,c("1","2","3","4","5","6", "7"), with=F]))
-  alpha2gbd <- as.matrix(data.frame(mortart2[,c("1","2","3","4","5","6", "7"), with=F]))
-  alpha3gbd <- as.matrix(data.frame(mortart3[,c("1","2","3","4","5","6", "7"), with=F]))
-  
-  alpha1 <- as.vector(t(alpha1gbd))
-  alpha2 <- as.vector(t(alpha2gbd))
-  alpha3 <- as.vector(t(alpha3gbd))
-  for (n in names(dt)) {
-    attr(dt[[n]], 'eppfp')$cd4artmort[,1] <- alpha1
-    attr(dt[[n]], 'eppfp')$cd4artmort[,2] <- alpha2
-    attr(dt[[n]], 'eppfp')$cd4artmort[,3] <- alpha3
-    
+  for(c.sex in c('Male', 'Female')){
+    for(c.ageindex in 1:length(dimnames(attr(dt[[1]], 'specfp')$art_mort)$agecat)){
+      for(c.dur in c('ART0MOS', 'ART6MOS', 'ART1YR')){
+        for(c.cd4 in paste0(1:7)){
+            replace[c.dur, c.cd4, c.ageindex, c.sex] = as.numeric(mortart[sex == c.sex & artdur == c.dur & agecat == age.index[[c.ageindex]] & cd4stage == c.cd4, risk])
+        }
+      }
+    }
   }
+  for(n in names(dt)){
+    attr(dt[[n]], 'specfp')$art_mort <- replace
+  }
+  
+  return(dt)
+}
+
+sub.cd4.prog <- function(dt, loc, k){
+  progdata <- fread(paste0(aim.dir, "transition_parameters/DurationCD4cats/current_draws_combined/", loc, "_progression_par_draws.csv"))
+  progdata <- progdata[order(age,cd4,draw)]
+  progdata_read <- progdata[,c("age","cd4","draw","prog"), with=F]
+  progdata_read <- progdata_read[,lambda:=1/prog]
+  
+  progdata <- progdata_read[draw==k,]
+  progdata[,risk:=-1*log(1-prog)/0.1]
+  progdata[,prob:=1-exp(-1*risk)]
+  
+  progdata[age == '45-100', age := '45+']
+  progdata[age == '15-25', age := '15-24']
+  progdata[age == '25-35', age := '25-34']
+  progdata[age == '35-45', age := '35-44']
+  progdata <- progdata[cd4=="GT500CD4", cat := 1]
+  progdata <- progdata[cd4=="350to500CD4", cat := 2]
+  progdata <- progdata[cd4=="250to349CD4", cat := 3]
+  progdata <- progdata[cd4=="200to249CD4", cat := 4]
+  progdata <- progdata[cd4=="100to199CD4", cat := 5]
+  progdata <- progdata[cd4=="50to99CD4", cat := 6] 
+  progdata[,risk:=-1*log(1-prob)]
+  
+  age.index <- list(a = '15-24', b = '15-24', c = '15-24', d = '25-34', e = '25-34', f = '35-44', g = '35-44', h = '45+', i = '45+')
+  replace <- array(0, c(6, length(dimnames(attr(dt[[1]], 'specfp')$cd4_prog)$agecat), 2))
+  dimnames(replace) <- list(cd4stage = paste0(1:6), agecat = dimnames(attr(dt[[1]], 'specfp')$cd4_prog)$agecat, sex = c('Male', 'Female'))
+  for(c.sex in c('Male', 'Female')){
+    for(c.ageindex in 1:length(dimnames(attr(dt[[1]], 'specfp')$cd4_prog)$agecat)){
+      for(c.cd4 in paste0(1:6)){
+        replace[c.cd4, c.ageindex, c.sex] = as.numeric(progdata[age == age.index[[c.ageindex]] & cat == c.cd4, risk])
+      }
+    }
+  }  
+  for (n in names(dt)) {
+    attr(dt[[n]], 'specfp')$cd4_prog <- replace
+  }	
   return(dt)
 }

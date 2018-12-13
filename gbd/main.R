@@ -107,27 +107,55 @@ for(subpop in names(dt)) {
 	fit[[subpop]] <- fitmod(dt[[subpop]], eppmod = 'rhybrid', rw_start = 2010,  B0=1e3, B=1e2, opt_iter=1:2*5, number_k = 50)
 }
 
+# fit <- lapply(fit, extend_projection, proj_years = stop.year - start.year)
+# 
+# ## TODO: Why 3000 simulations? Why did it extend 50 yrs? How to sample just one draw? Difference between this, tidy-outputs, and gbd.simfit?
+# result <- aggr_specfit(fit)
+# 
+# ran.draw <- 1
+# indicator.list <- c('hivdeaths', 'natdeaths', 'popadjust', 'infections')
+# spec.dt <- rbindlist(lapply(indicator.list, function(c.indicator){
+#   spec.data <- attr(result[[ran.draw]], c.indicator)
+#   spec.data <- array(data = spec.data, dim = c(66, 2, 50),
+#                      dimnames = list(age = 15:80, sex = c('Male', 'Female'), year = start.year:stop.year))
+#   spec.data <- as.data.table(as.data.frame.table(spec.data))
+#   setnames(spec.data, 'Freq', 'value')
+#   spec.data[, variable := c.indicator]
+# }))
+# spec.pop <- spec.dt[variable == 'popadjust']
+# spec.dt <- spec.dt[variable != 'popadjust']
+# setnames(spec.pop, 'value', 'population')
+# spec.dt <- merge(spec.dt, spec.pop[,.(age, sex, year, population)], by = c('age', 'sex', 'year'))
+# spec.dt[,rate := ifelse(population == 0, 0, value/population)]
 
-## Prepare output
-result <- lapply(fit, simfit.gbd)
-# result <- prep_epp_output(fit)
-dir.create(out.dir, showWarnings = F, recursive = T)
-save(result, file = out.path)
-
-## Aggregate subpopulations to national and write prevalence and incidence draws
-years <- unique(floor(result[[1]]$fp$proj.steps))
-nat.data <- nat.draws(result)
-var_names <- sapply(1:ncol(nat.data$prev), function(a) {paste0('draw',a)})
-out_data <- lapply(nat.data, data.frame)
-for (n in c('prev', 'incid', 'art', 'art_num', 'pop')) {  
-  names(out_data[[n]]) <- var_names
-  out_data[[n]]$year <- years
-  col_idx <- grep("year", names(out_data[[n]]))
-  out_data[[n]] <- out_data[[n]][, c(col_idx, (1:ncol(out_data[[n]]))[-col_idx])]
-  write.csv(out_data[[n]], paste0(out.dir, "/results_", n , i, ".csv"), row.names=F)
-}
-
-## Plot results
-plot.fit(result, pdf.path, nat.data)
+## TODO: Don't understand age dimension. Why is it 9
+# spec.data <- attr(result[[ran.draw]], 'hivpop')
+# spec.data <- array(data = spec.data, dim = c(7, 9, 2, 50),
+#                    dimnames = list(cd4 = 1:7, age = seq(15, 80, 5), sex = c('Male', 'Female'), year = start.year:stop.year))
+# spec.data <- as.data.table(as.data.frame.table(spec.data))
+# setnames(spec.data, 'Freq', 'value')
+# 
+# 
+# ## Prepare output
+# result <- lapply(fit, simfit.gbd)
+# # result <- prep_epp_output(fit)
+# dir.create(out.dir, showWarnings = F, recursive = T)
+# save(result, file = out.path)
+# 
+# ## Aggregate subpopulations to national and write prevalence and incidence draws
+# years <- unique(floor(result[[1]]$fp$proj.steps))
+# nat.data <- nat.draws(result)
+# var_names <- sapply(1:ncol(nat.data$prev), function(a) {paste0('draw',a)})
+# out_data <- lapply(nat.data, data.frame)
+# for (n in c('prev', 'incid', 'art', 'art_num', 'pop')) {  
+#   names(out_data[[n]]) <- var_names
+#   out_data[[n]]$year <- years
+#   col_idx <- grep("year", names(out_data[[n]]))
+#   out_data[[n]] <- out_data[[n]][, c(col_idx, (1:ncol(out_data[[n]]))[-col_idx])]
+#   write.csv(out_data[[n]], paste0(out.dir, "/results_", n , i, ".csv"), row.names=F)
+# }
+# 
+# ## Plot results
+# plot.fit(result, pdf.path, nat.data)
 
 ### END

@@ -1,7 +1,7 @@
 
 #' @import data.table
 #' 
-tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
+tidy_output <- function(fit, modlab, country=NA, eppregion=NA, ancsite = TRUE){
 
   idvars <- data.frame(country = country,
                        eppregion = eppregion,
@@ -159,7 +159,7 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
                            estci2(ageprevpred))
 
   ## Site-level ANC outputs
-  if(nrow(fit$likdat$ancsite.dat$df)) {
+  if(ancsite && nrow(fit$likdat$ancsite.dat$df)) {
     b_site <- Map(sample_b_site, mod_list, fp_list,
                   list(fit$likdat$ancsite.dat), resid = FALSE)
 

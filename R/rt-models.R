@@ -169,10 +169,11 @@ extend_projection <- function(fit, proj_years){
       fit$resample <- cbind(fit$resample[,1:(idx1-1), drop=FALSE], thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
     else
       fit$resample <- cbind(thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
-    fit$fp <- fpnew
   } else {
     warning("already specified length, added rw_sigma only")
   }
+
+  fit$fp <- fpnew
 
   return(fit)
 }

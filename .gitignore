@@ -6,6 +6,7 @@
 *.so
 *.out
 *.dll
+README.html
 dev/*
 inst/doc
 vignettes_src/eppasm-spectrum-workflow_cache/

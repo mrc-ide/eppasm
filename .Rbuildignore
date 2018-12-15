@@ -1,3 +1,4 @@
+^codecov\.yml$
 dev/*
 ^data-raw$
 ^vignettes_src$

@@ -1,6 +1,5 @@
 context("test r(t) calculation")
 
-devtools::load_all()
 
 fp <- list(proj.steps = seq(1970.5, 2017.5, 0.1),
            ss = list(hiv_steps_per_year = 10L))
@@ -79,7 +78,7 @@ rvec_out <- c(0.611043, 0.610771, 0.610492, 0.610208, 0.609917, 0.609621,
               0.105954, 0.105952, 0.105951, 0.10595)
 
 ## Prepare r-hybrid model
-fp <- prepare_rhybrid(fp, tsEpidemicStart = 1975.5, rw_start = 2003, rw_trans = 5)
+fp <- prepare_rhybrid(fp, tsEpidemicStart = 1975.5, rw_start = 2003, rw_trans = 5, rw_dk = 1.0)
 
 ## Create r(t) vector for theta inputs
 rvec <- create_rvec(theta, fp$rt)

@@ -1,30 +1,33 @@
 context("test model simulation")
 
-devtools::load_all()
 load("ll-test-data.rda")
 
-## pjnz <- system.file("extdata/testpjnz", "Botswana2017.PJNZ", package="eppasm")
-## bw <- prepare_spec_fit(pjnz, proj.end=2021.5)
+pjnz <- system.file("extdata/testpjnz", "Botswana2018.PJNZ", package="eppasm")
+bw <- prepare_spec_fit(pjnz, proj.end=2022.5)
 
-## ## r-spline model: fixed parameter values
-## theta.rspline <- c(2.16003605, -0.76713859, 0.21682066, 0.03286402, 0.21494412,
-##                    0.40138627, -0.08235464, -16.32721684, -2.97511957, 0.21625028, -3.5)
+fp <- attr(bw$Urban, "specfp")
 
+fp <- prepare_rhybrid(fp)
+fp$ancsitedata <- TRUE
+fp$ancrt <- "census"
+fp$ancrtsite.beta <- 0
+fp$logitiota <- TRUE
 
-## fp <- attr(bw$Urban, "specfp")
-## fp$ancsitedata <- FALSE
-
+theta <- c(-0.407503322169364, -2.76794181367538, -1.26018073624346, 1995.96447776502, 
+           -0.00307437171215574, 0.0114118307148102, 0.00760958379603691, 0.02,
+           2.24103194827232, -0.0792123921862689, -5.01917961803606, 0.359444135205712, 
+           -6.10051517060137)
 
 param <- fnCreateParam(theta, fp)
 fp <- update(fp, list=param)
 mod <- simmod(fp)
 
-prev_mod <- c(0.00252, 0.00429, 0.00716, 0.01169, 0.0186, 0.0287, 0.04262, 
-              0.06079, 0.083, 0.10831, 0.13514, 0.16156, 0.18569, 0.20613, 
-              0.22201, 0.23315, 0.23966, 0.24192, 0.24045, 0.23593, 0.22903, 
-              0.22037, 0.21035, 0.1997, 0.18862, 0.17764, 0.16703, 0.1577, 
-              0.14932, 0.14174, 0.13507, 0.12919, 0.12348, 0.11802, 0.11287, 
-              0.10786, 0.10301)
+prev_mod <- c(0.00045, 0.00080, 0.0014, 0.00245, 0.00424, 0.00725, 0.01214, 
+              0.01985, 0.03147, 0.04804, 0.07013, 0.0975, 0.12857, 0.16083, 
+              0.19142, 0.21797, 0.23908, 0.25419, 0.26363, 0.26816, 0.26869, 
+              0.26616, 0.26124, 0.25502, 0.24876, 0.24349, 0.23902, 0.23506, 
+              0.23127, 0.2278, 0.22451, 0.22121, 0.21735, 0.21318, 0.20867, 
+              0.20366, 0.19787)
 
 test_that("model simulation returns correct prevalence", {
   expect_equal(round(prev(simmod(fp))[11:47], 5), prev_mod)

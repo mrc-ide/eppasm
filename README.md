@@ -6,7 +6,7 @@
 [![Travis build
 status](https://travis-ci.org/mrc-ide/eppasm.svg?branch=new-master)](https://travis-ci.org/mrc-ide/eppasm)
 [![Coverage
-status](https://codecov.io/gh/mrc-ide/eppasm/branch/master/graph/badge.svg)](https://codecov.io/github/mrc-ide/eppasm?branch=master)
+status](https://codecov.io/gh/mrc-ide/eppasm/branch/new-master/graph/badge.svg)](https://codecov.io/github/mrc-ide/eppasm?branch=new-master)
 
 The goal of eppasm is to …
 

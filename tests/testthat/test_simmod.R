@@ -1,7 +1,5 @@
 context("test model simulation")
 
-load("ll-test-data.rda")
-
 pjnz <- system.file("extdata/testpjnz", "Botswana2018.PJNZ", package="eppasm")
 bw <- prepare_spec_fit(pjnz, proj.end=2022.5)
 

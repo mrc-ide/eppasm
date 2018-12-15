@@ -54,13 +54,13 @@ prepare_rhybrid <- function(fp,
                             rw_dk = fp$rw_dk){
 
   if(is.null(rw_start))
-    rw_start <- max(fp$proj.steps)
+    rw_start <- 2003
 
   if(is.null(rw_trans))
     rw_trans <- 5
 
   if(is.null(rw_dk))
-    rw_dk <- 1.0
+    rw_dk <- 5
 
   fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - tsEpidemicStart))]
 

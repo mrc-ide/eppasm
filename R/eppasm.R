@@ -221,11 +221,12 @@ simmod.specfp <- function(fp, VERSION="C"){
           births.dist <- sweep(fp$frr_cd4[,,i] * hivpop[,h.fert.idx,f.idx,i], 2,
                                births.by.h.age / (ctapply(pop[p.fert.idx, f.idx, hivn.idx, i], ag.idx[p.fert.idx], sum) + colSums(fp$frr_cd4[,,i] * hivpop[,h.fert.idx,f.idx,i]) + colSums(fp$frr_art[,,,i] * artpop[ ,,h.fert.idx,f.idx,i],,2)), "*")
           if(fp$artcd4elig_idx[i] > 1)
-            art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] <- art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] + births.dist[1:(fp$artcd4elig_idx[i]-1),] # multiply by DT to account for proportion of annual births occurring during this time step
+            art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] <- art15plus.elig[1:(fp$artcd4elig_idx[i]-1),h.fert.idx-min(h.age15plus.idx)+1,f.idx] + births.dist[1:(fp$artcd4elig_idx[i]-1),]
         }
 
         ## calculate number to initiate ART based on number or percentage
 
+        artpop_curr_g <- colSums(artpop[,,h.age15plus.idx,,i],,3) + DT*colSums(gradART[,,h.age15plus.idx,],,3)
         artnum.ii <- c(0,0) # number on ART this ts
         if(DT*ii < 0.5){
           for(g in 1:2){
@@ -233,11 +234,11 @@ simmod.specfp <- function(fp, VERSION="C"){
               artnum.ii[g] <- c(fp$art15plus_num[g,i-2:1] %*% c(1-(DT*ii+0.5), DT*ii+0.5))
             } else if(all(fp$art15plus_isperc[g,i-2:1])){  # both percentage
               artcov.ii <- c(fp$art15plus_num[g,i-2:1] %*% c(1-(DT*ii+0.5), DT*ii+0.5))
-              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + sum(artpop[,,h.age15plus.idx,g,i]))
+              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + artpop_curr_g[g])
             } else if(!fp$art15plus_isperc[g,i-2] & fp$art15plus_isperc[g,i-1]){ # transition number to percentage
-              curr_coverage <- sum(artpop[,,h.age15plus.idx,g,i]) / (sum(art15plus.elig[,,g]) + sum(artpop[,,h.age15plus.idx,g,i]))
+              curr_coverage <- artpop_curr_g[g] / (sum(art15plus.elig[,,g]) + artpop_curr_g[g])
               artcov.ii <- curr_coverage + (fp$art15plus_num[g,i-1] - curr_coverage) * DT/(0.5-DT*(ii-1))
-              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + sum(artpop[,,h.age15plus.idx,g,i]))
+              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + artpop_curr_g[g])
             }
           }
         } else {
@@ -246,11 +247,11 @@ simmod.specfp <- function(fp, VERSION="C"){
               artnum.ii[g] <- c(fp$art15plus_num[g,i-1:0] %*% c(1-(DT*ii-0.5), DT*ii-0.5))
             } else if(all(fp$art15plus_isperc[g,i-1:0])) {  # both percentage
               artcov.ii <- c(fp$art15plus_num[g,i-1:0] %*% c(1-(DT*ii-0.5), DT*ii-0.5))
-              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + sum(artpop[,,h.age15plus.idx,g,i]))
+              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + artpop_curr_g[g])
             } else if(!fp$art15plus_isperc[g,i-1] & fp$art15plus_isperc[g,i]){  # transition number to percentage
-              curr_coverage <- sum(artpop[,,h.age15plus.idx,g,i]) / (sum(art15plus.elig[,,g]) + sum(artpop[,,h.age15plus.idx,g,i]))
+              curr_coverage <- artpop_curr_g[g] / (sum(art15plus.elig[,,g]) + artpop_curr_g[g])
               artcov.ii <- curr_coverage + (fp$art15plus_num[g,i] - curr_coverage) * DT/(1.5-DT*(ii-1))
-              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + sum(artpop[,,h.age15plus.idx,g,i]))
+              artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + artpop_curr_g[g])
             }
           }
         }
@@ -274,19 +275,22 @@ simmod.specfp <- function(fp, VERSION="C"){
             }
 
           } else {
+            
             expect.mort.weight <- sweep(fp$cd4_mort[, h.age15plus.idx,], 3,
                                         colSums(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,],,2), "/")          
             artinit.weight <- sweep(fp$art_alloc_mxweight * expect.mort.weight, 3, (1 - fp$art_alloc_mxweight)/colSums(art15plus.elig,,2), "+")
             artinit <- pmin(sweep(artinit.weight * art15plus.elig, 3, art15plus.inits, "*"),
                             art15plus.elig)
-
-            ## ## Allocation by average mortality across CD4, trying to match Spectrum
+            
+            ## Allocation by average mortality across CD4, trying to match Spectrum
             ## artelig_by_cd4 <- apply(art15plus.elig, c(1, 3), sum)
             ## expectmort_by_cd4 <- apply(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,], c(1, 3), sum)
             
-            ## artinit_dist <- (sweep(artelig_by_cd4, 2, colSums(artelig_by_cd4), "/") +
-            ##                  sweep(expectmort_by_cd4, 2, colSums(expectmortp_by_cd4), "/")) / 2
-            ## artinit <- sweep(art15plus.elig, c(1, 3), sweep(artinit_dist / artelig_by_cd4, 2, art15plus.inits, "*"), "*")
+            ## artinit_dist <- fp$art_alloc_mxweight * sweep(artelig_by_cd4, 2, colSums(artelig_by_cd4), "/") +
+            ##   (1 - fp$art_alloc_mxweight) * sweep(expectmort_by_cd4, 2, colSums(expectmort_by_cd4), "/")
+            
+            ## artinit_prob <- sweep(artinit_dist, 2, art15plus.inits, "*") / artelig_by_cd4
+            ## artinit <- sweep(art15plus.elig, c(1, 3), artinit_prob, "*")
             ## artinit <- pmin(artinit, art15plus.elig, na.rm=TRUE)
           }
 
@@ -320,14 +324,14 @@ simmod.specfp <- function(fp, VERSION="C"){
             artinit[1:(medcd4_idx-1),,] <- sweep(art15plus.elig[1:(medcd4_idx-1),,,drop=FALSE], 3, initprob_above, "*")
         }
 
+        artinit <- pmin(artinit, hivpop[ , , , i] + DT * grad)
+      
         grad[ , h.age15plus.idx, ] <- grad[ , h.age15plus.idx, ] - artinit / DT
         gradART[1, , h.age15plus.idx, ] <- gradART[1, , h.age15plus.idx, ] + artinit / DT
         artpop[,,,, i] <- artpop[,,,, i] + DT * gradART
       }
 
       hivpop[,,,i] <- hivpop[,,,i] + DT * grad
-
-      
     }    
 
     ## ## Code for calculating new infections once per year to match prevalence (like Spectrum)

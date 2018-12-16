@@ -746,7 +746,8 @@ extern "C" {
                     artinit_hahm = artelig_hahm[ha-hIDX_15PLUS][hm] * initprob_medcat;
                   if(hm > medcd4_idx)
                     artinit_hahm = artelig_hahm[ha-hIDX_15PLUS][hm] * initprob_below;
-                  if(artinit_hahm > hivpop[t][g][ha][hm]) artinit_hahm = hivpop[t][g][ha][hm];
+                  if(artinit_hahm > hivpop[t][g][ha][hm] + DT * grad[g][ha][hm])
+		    artinit_hahm = hivpop[t][g][ha][hm] + DT * grad[g][ha][hm];
 		  grad[g][ha][hm] -= artinit_hahm / DT;
                   gradART[g][ha][hm][ART0MOS] += artinit_hahm / DT;
                 }
@@ -761,6 +762,10 @@ extern "C" {
 
 		for(int ha = hIDX_15PLUS; ha < hAG; ha++){
 		  double artinit_hahm = init_prop * artelig_hahm[ha-hIDX_15PLUS][hm];
+
+		  if(artinit_hahm > hivpop[t][g][ha][hm] + DT * grad[g][ha][hm])
+		    artinit_hahm = hivpop[t][g][ha][hm] + DT * grad[g][ha][hm];
+
                   grad[g][ha][hm] -= artinit_hahm / DT;
                   gradART[g][ha][hm][ART0MOS] += artinit_hahm / DT;
 		}
@@ -776,6 +781,8 @@ extern "C" {
                   double artinit_hahm = artinit_hts * artelig_hahm[ha-hIDX_15PLUS][hm] * ((1.0 - art_alloc_mxweight)/Xartelig_15plus + art_alloc_mxweight * cd4_mort[g][ha][hm] / expect_mort_artelig15plus);
                   if(artinit_hahm > artelig_hahm[ha-hIDX_15PLUS][hm])
 		    artinit_hahm = artelig_hahm[ha-hIDX_15PLUS][hm];
+		  if(artinit_hahm > hivpop[t][g][ha][hm] + DT * grad[g][ha][hm])
+		    artinit_hahm = hivpop[t][g][ha][hm] + DT * grad[g][ha][hm];
                   grad[g][ha][hm] -= artinit_hahm / DT;
                   gradART[g][ha][hm][ART0MOS] += artinit_hahm / DT;
                 }
@@ -794,6 +801,7 @@ extern "C" {
           for(int ha = 0; ha < hAG; ha++)
             for(int hm = 0; hm < hDS; hm++)
               hivpop[t][g][ha][hm] += DT*grad[g][ha][hm];
+
 
 	// remove hivdeaths from pop
 	for(int g = 0; g < NG; g++){

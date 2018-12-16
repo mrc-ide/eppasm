@@ -17,5 +17,5 @@ theta <- c(-0.407503322169364, -2.76794181367538, -1.26018073624346, 1995.964477
            -6.10051517060137)
 
 test_that("ll returns expected value", {
-  expect_equal(round(sum(ll(theta, fp, likdat)), 4), 95.5531)
+  expect_equal(round(sum(ll(theta, fp, likdat)), 4), 95.5968)
 })

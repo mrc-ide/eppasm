@@ -24,3 +24,11 @@ devtools::install_github("mrc-ide/eppasm")
 ## Test files
 
 ### Botswana2018.PJNZ
+
+  - Urban/Rural epidemic configuratio
+  - ANC-RT census data, no site-level ANC-RT data
+
+### Mozambique\_Maputo\_Cidade.PJNZ
+
+  - Subnational, single EPP region configuration
+  - Uses median CD4 count input

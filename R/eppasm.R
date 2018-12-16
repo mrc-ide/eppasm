@@ -73,10 +73,7 @@ simmod.specfp <- function(fp, VERSION="C"){
     pop[pAG,,,i] <- pop[pAG,,,i-1] + pop[pAG-1,,,i-1] # open age group
 
     ## Add lagged births into youngest age group
-    if(exists("entrantprev", where=fp))
-      entrant_prev <- fp$entrantprev[,i]
-    else
-      entrant_prev <- rep(pregprevlag[i-1]*fp$verttrans_lag[i-1]*fp$paedsurv_lag[i-1], 2)
+    entrant_prev <- fp$entrantprev[,i]
 
     if(exists("popadjust", where=fp) & fp$popadjust){
       hivn_entrants <- fp$entrantpop[,i-1]*(1-entrant_prev)
@@ -143,7 +140,7 @@ simmod.specfp <- function(fp, VERSION="C"){
 
     ## events at dt timestep
     for(ii in seq_len(hiv_steps_per_year)){
-
+      
       ts <- (i-2)/DT + ii
 
       grad <- array(0, c(hDS, hAG, NG))
@@ -195,8 +192,6 @@ simmod.specfp <- function(fp, VERSION="C"){
       pop[,,2,i] <- pop[,,2,i] - hivdeaths_p.ts
       hivdeaths[,,i] <- hivdeaths[,,i] + hivdeaths_p.ts
 
-      hivpop[,,,i] <- hivpop[,,,i] + DT*grad
-
       ## ART initiation
       if(i >= fp$tARTstart) {
 
@@ -206,15 +201,13 @@ simmod.specfp <- function(fp, VERSION="C"){
         gradART[1:2,,,] <- gradART[1:2,,,] - 2.0 * artpop[1:2,,,, i]      # remove ART duration progression (HARD CODED 6 months duration)
         gradART[2:3,,,] <- gradART[2:3,,,] + 2.0 * artpop[1:2,,,, i]      # add ART duration progression (HARD CODED 6 months duration)
 
-        gradART <- gradART - fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i]                  # ART mortality
-
-        artpop[,,,, i] <- artpop[,,,, i] + DT * gradART
+        gradART <- gradART - fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i]   # ART mortality
 
 
         ## ART dropout
         ## remove proportion from all adult ART groups back to untreated pop
-        hivpop[,,,i] <- hivpop[,,,i] + DT*fp$art_dropout[i]*colSums(artpop[,,,,i])
-        artpop[,,,,i] <- artpop[,,,,i] - DT*fp$art_dropout[i]*artpop[,,,,i]
+        grad <- grad + fp$art_dropout[i]*colSums(artpop[,,,,i])
+        gradART <- gradART - fp$art_dropout[i]*artpop[,,,,i]
 
         ## calculate number eligible for ART
         artcd4_percelig <- 1 - (1-rep(0:1, times=c(fp$artcd4elig_idx[i]-1, hDS - fp$artcd4elig_idx[i]+1))) *
@@ -262,7 +255,8 @@ simmod.specfp <- function(fp, VERSION="C"){
           }
         }
 
-        art15plus.inits <- pmax(artnum.ii - colSums(artpop[,,h.age15plus.idx,,i],,3), 0)
+        artpop_curr_g <- colSums(artpop[,,h.age15plus.idx,,i],,3) + DT*colSums(gradART[,,h.age15plus.idx,],,3)
+        art15plus.inits <- pmax(artnum.ii - artpop_curr_g, 0)
 
         ## calculate ART initiation distribution
         if(!fp$med_cd4init_input[i]){
@@ -285,13 +279,13 @@ simmod.specfp <- function(fp, VERSION="C"){
             artinit.weight <- sweep(fp$art_alloc_mxweight * expect.mort.weight, 3, (1 - fp$art_alloc_mxweight)/colSums(art15plus.elig,,2), "+")
             artinit <- pmin(sweep(artinit.weight * art15plus.elig, 3, art15plus.inits, "*"),
                             art15plus.elig)
-            
+
             ## ## Allocation by average mortality across CD4, trying to match Spectrum
             ## artelig_by_cd4 <- apply(art15plus.elig, c(1, 3), sum)
             ## expectmort_by_cd4 <- apply(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,], c(1, 3), sum)
             
             ## artinit_dist <- (sweep(artelig_by_cd4, 2, colSums(artelig_by_cd4), "/") +
-            ##                  sweep(expectmort_by_cd4, 2, colSums(expectmort_by_cd4), "/")) / 2
+            ##                  sweep(expectmort_by_cd4, 2, colSums(expectmortp_by_cd4), "/")) / 2
             ## artinit <- sweep(art15plus.elig, c(1, 3), sweep(artinit_dist / artelig_by_cd4, 2, art15plus.inits, "*"), "*")
             ## artinit <- pmin(artinit, art15plus.elig, na.rm=TRUE)
           }
@@ -326,11 +320,15 @@ simmod.specfp <- function(fp, VERSION="C"){
             artinit[1:(medcd4_idx-1),,] <- sweep(art15plus.elig[1:(medcd4_idx-1),,,drop=FALSE], 3, initprob_above, "*")
         }
 
-        hivpop[, h.age15plus.idx,, i] <- hivpop[, h.age15plus.idx,, i] - artinit
-        artpop[1,, h.age15plus.idx,, i] <- artpop[1,, h.age15plus.idx,, i] + artinit
+        grad[ , h.age15plus.idx, ] <- grad[ , h.age15plus.idx, ] - artinit / DT
+        gradART[1, , h.age15plus.idx, ] <- gradART[1, , h.age15plus.idx, ] + artinit / DT
+        artpop[,,,, i] <- artpop[,,,, i] + DT * gradART
       }
-    }
 
+      hivpop[,,,i] <- hivpop[,,,i] + DT * grad
+
+      
+    }    
 
     ## ## Code for calculating new infections once per year to match prevalence (like Spectrum)
     ## ## incidence

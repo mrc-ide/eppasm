@@ -83,9 +83,9 @@ void calc_infections_simpletransm(const multi_array_ref<double, 4> pop, const mu
 extern "C" {
 
   SEXP checkBoostAsserts(){
-#ifndef BOOST_DISABLE_ASSERTS
+  #ifndef BOOST_DISABLE_ASSERTS
     Rprintf("BOOST ASSERTS ENABLED\n");
-#endif
+  #endif
     return R_NilValue;
   }
 
@@ -397,6 +397,8 @@ extern "C" {
 
     double prevcurr = 0.0, prevlast; // store prevalence at last time step for r-trend model
 
+    int everARTelig_idx = hDS;
+
     ////////////////////////////////////
     ////  do population projection  ////
     ////////////////////////////////////
@@ -534,7 +536,8 @@ extern "C" {
 
       int cd4elig_idx = artcd4elig_idx[t] - 1; // -1 for 0-based indexing vs. 1-based in R
       int anyelig_idx = (specpop_percelig[t] > 0 | pw_artelig[t] > 0) ? 0 : (who34percelig > 0) ? hIDX_CD4_350 : cd4elig_idx;
-
+      int everARTelig_idx = anyelig_idx < everARTelig_idx ? anyelig_idx : everARTelig_idx;
+      
       for(int hts = 0; hts < HIVSTEPS_PER_YEAR; hts++){
 
         int ts = (t-1)*HIVSTEPS_PER_YEAR + hts;
@@ -551,7 +554,7 @@ extern "C" {
             for(int hm = 0; hm < hDS; hm++){
 
 	      double cd4mx_scale = 1.0;
-	      if(scale_cd4_mort & t >= t_ART_start & hm >= anyelig_idx){
+	      if(scale_cd4_mort & t >= t_ART_start & hm >= everARTelig_idx){
 		double artpop_hahm = 0.0;
 		for(int hu = 0; hu < hTS; hu++)
 		  artpop_hahm += artpop[t][g][ha][hm][hu];
@@ -631,7 +634,7 @@ extern "C" {
           // progression and mortality
           for(int g = 0; g < NG; g++)
             for(int ha = 0; ha < hAG; ha++)
-              for(int hm = anyelig_idx; hm < hDS; hm++){
+              for(int hm = everARTelig_idx; hm < hDS; hm++){
                 double gradART[hTS];
 
                 for(int hu = 0; hu < hTS; hu++){
@@ -652,7 +655,7 @@ extern "C" {
           if(art_dropout[t] > 0){
             for(int g = 0; g < NG; g++)
               for(int ha = 0; ha < hAG; ha++)
-                for(int hm = anyelig_idx; hm < hDS; hm++)
+                for(int hm = everARTelig_idx; hm < hDS; hm++)
                   for(int hu = 0; hu < hTS; hu++){
                     hivpop[t][g][ha][hm] += DT * art_dropout[t] * artpop[t][g][ha][hm][hu];
                     artpop[t][g][ha][hm][hu] -= DT * art_dropout[t] * artpop[t][g][ha][hm][hu];
@@ -664,10 +667,12 @@ extern "C" {
 
             double artelig_hahm[hAG_15PLUS][hDS], Xart_15plus = 0.0, Xartelig_15plus = 0.0, expect_mort_artelig15plus = 0.0;
             for(int ha = hIDX_15PLUS; ha < hAG; ha++){
-              for(int hm = anyelig_idx; hm < hDS; hm++){
-                double prop_elig = (hm >= cd4elig_idx) ? 1.0 : (hm >= hIDX_CD4_350) ? 1.0 - (1.0-specpop_percelig[t])*(1.0-who34percelig) : specpop_percelig[t];
-                Xartelig_15plus += artelig_hahm[ha-hIDX_15PLUS][hm] = prop_elig * hivpop[t][g][ha][hm] ;
-                expect_mort_artelig15plus += cd4_mort[g][ha][hm] * artelig_hahm[ha-hIDX_15PLUS][hm];
+              for(int hm = everARTelig_idx; hm < hDS; hm++){
+		if(hm >= anyelig_idx){
+		  double prop_elig = (hm >= cd4elig_idx) ? 1.0 : (hm >= hIDX_CD4_350) ? 1.0 - (1.0-specpop_percelig[t])*(1.0-who34percelig) : specpop_percelig[t];
+		  Xartelig_15plus += artelig_hahm[ha-hIDX_15PLUS][hm] = prop_elig * hivpop[t][g][ha][hm] ;
+		  expect_mort_artelig15plus += cd4_mort[g][ha][hm] * artelig_hahm[ha-hIDX_15PLUS][hm];
+		}
                 for(int hu = 0; hu < hTS; hu++)
                   Xart_15plus += artpop[t][g][ha][hm][hu];
               }
@@ -738,8 +743,8 @@ extern "C" {
                   elig_below += artelig_hahm[ha-hIDX_15PLUS][hm];
               }
 
-              double initprob_below = elig_below > 0 ? artinit_hts * 0.5 / elig_below : 1.0;
-              double initprob_above = elig_below > 0 ? artinit_hts * 0.5 / elig_above : 1.0;
+              double initprob_below = (elig_below > artinit_hts * 0.5) ? artinit_hts * 0.5 / elig_below : 1.0;
+              double initprob_above = (elig_above > artinit_hts * 0.5) ? artinit_hts * 0.5 / elig_above : 1.0;
               double initprob_medcat = initprob_below * medcat_propbelow + initprob_above * (1.0-medcat_propbelow);
 
               for(int ha = hIDX_15PLUS; ha < hAG; ha++)
@@ -779,14 +784,15 @@ extern "C" {
               for(int ha = hIDX_15PLUS; ha < hAG; ha++)
                 for(int hm = anyelig_idx; hm < hDS; hm++){
                   double artinit_hahm = artinit_hts * artelig_hahm[ha-hIDX_15PLUS][hm] * ((1.0 - art_alloc_mxweight)/Xartelig_15plus + art_alloc_mxweight * cd4_mort[g][ha][hm] / expect_mort_artelig15plus);
-                  if(artinit_hahm > artelig_hahm[ha-hIDX_15PLUS][hm]) artinit_hahm = artelig_hahm[ha-hIDX_15PLUS][hm];
+                  if(artinit_hahm > artelig_hahm[ha-hIDX_15PLUS][hm])
+		    artinit_hahm = artelig_hahm[ha-hIDX_15PLUS][hm];
                   hivpop[t][g][ha][hm] -= artinit_hahm;
                   artpop[t][g][ha][hm][ART0MOS] += artinit_hahm;
                 }
             }
 
           }
-        }
+	} // if(t >= t_ART_start)
 
 	// remove hivdeaths from pop
 	for(int g = 0; g < NG; g++){
@@ -817,6 +823,8 @@ extern "C" {
 	    }  // end if(pop_ha[ha] > 0)
 	  }
 	}
+
+
 
       } // loop HIVSTEPS_PER_YEAR
 
@@ -1190,9 +1198,6 @@ void calc_infections_simpletransm(const multi_array_ref<double, 4> pop, const mu
   double incrate15to49_g[NG];
   incrate15to49_g[MALE] = r_ts * pow(mf_transm_rr[t], -0.5) * (Chivp_noart[FEMALE] + relinfectART * Cart[FEMALE]) / Ctot[FEMALE] + pow(mf_transm_rr[t], -0.25) * iota;
   incrate15to49_g[FEMALE] = r_ts * pow(mf_transm_rr[t], 0.5) * (Chivp_noart[MALE] + relinfectART * Cart[MALE]) / Ctot[MALE] + pow(mf_transm_rr[t], 0.25) * iota;
-
-  // incrate15to49_g[MALE] = r_ts * pow(mf_transm_rr, -0.5) * (Xhivp_noart[FEMALE] + relinfectART * Xart[FEMALE]) / Xtot[FEMALE] + pow(mf_transm_rr, -0.25) * iota;
-  // incrate15to49_g[FEMALE] = r_ts * pow(mf_transm_rr, 0.5) * (Xhivp_noart[MALE] + relinfectART * Xart[MALE]) / Xtot[MALE] + pow(mf_transm_rr, 0.25) * iota;
 
   // annualized infections by age and sex
   for(int g = 0; g < NG; g++)

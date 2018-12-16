@@ -275,8 +275,6 @@ simmod.specfp <- function(fp, VERSION="C"){
             for(m in hDS:1){
               elig_hm <- colSums(art15plus.elig[m,,])
               init_prop <- ifelse(elig_hm == 0, elig_hm, pmin(1.0, remain_artalloc / elig_hm, na.rm=TRUE))
-              ## if(any(elig_hm < art15plus.inits))
-              ##   browser()
               artinit[m , , ] <- sweep(art15plus.elig[m,,], 2, init_prop, "*")
               remain_artalloc <- remain_artalloc - init_prop * elig_hm
             }

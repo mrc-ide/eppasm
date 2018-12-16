@@ -8,7 +8,7 @@ simmod.specfp <- function(fp, VERSION="C"){
 
   if(VERSION != "R"){
     fp$eppmodInt <- match(fp$eppmod, c("rtrend", "directincid"), nomatch=0) # 0: r-spline;
-    fp$incidmodInt <- match(fp$incidmod, c("eppspectrum", "transm"))-1L  # -1 for 0-based indexing
+    fp$incidmodInt <- match(fp$incidmod, c("eppspectrum"))-1L  # -1 for 0-based indexing
     mod <- .Call(eppasmC, fp)
     class(mod) <- "spec"
     return(mod)
@@ -155,10 +155,7 @@ simmod.specfp <- function(fp, VERSION="C"){
           rvec[ts] <- fp$rvec[ts]
 
         ## number of infections by age / sex
-        if(exists("incidmod", where=fp) && fp$incidmod == "transm")
-          infections.ts <- calc_infections_simpletransm(fp, pop, hivpop, artpop, i, ii, rvec[ts])
-        else
-          infections.ts <- calc_infections_eppspectrum(fp, pop, hivpop, artpop, i, ii, rvec[ts])
+        infections.ts <- calc_infections_eppspectrum(fp, pop, hivpop, artpop, i, ii, rvec[ts])
 
         incrate15to49.ts.out[ts] <- attr(infections.ts, "incrate15to49.ts")
         prev15to49.ts.out[ts] <- attr(infections.ts, "prevcurr")

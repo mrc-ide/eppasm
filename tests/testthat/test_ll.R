@@ -34,14 +34,12 @@ theta_rtrend <- c(1977.68776203971, 16.2122044236609, 0.196472777334891, 0.45554
 test_that("ll returns expected value", {
   expect_equal(round(sum(ll(theta_rhybrid, fp_rhybrid, likdat)), 4), 95.5968)
   expect_equal(round(ll(theta_rspline, fp_rspline, likdat), 4),
-               c(anc = 53.0482, ancrt = 1.6649, hhs = 4.4887,
-                 incid = 0, sibmx = 0, rprior = 0, incpen = 0))
+               c(anc = 53.0482, ancrt = 1.6649, hhs = 4.4887, incid = 0, rprior = 0))
   expect_equal(round(ll(theta_rspline, fp_rspline_eq, likdat), 4),
-               c(anc = 53.0482, ancrt = 1.6649, hhs = 4.4887, incid = 0, 
-                 sibmx = 0, rprior = -15.0062, incpen = 0))
+               c(anc = 53.0482, ancrt = 1.6649, hhs = 4.4887, incid = 0, rprior = -15.0062))
   expect_equal(round(ll(theta_rtrend, fp_rtrend, likdat), 4),
-               c(anc = 79.2002, ancrt = 8.6026, hhs = 6.8623, incid = 0,
-                 sibmx = 0, rprior = 0, incpen = 0))
+               c(anc = 79.2002, ancrt = 8.6026, hhs = 6.8623, incid = 0, rprior = 0))
+})
 
 
 test_that("lprior returns expected value", {

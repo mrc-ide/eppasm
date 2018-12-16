@@ -305,34 +305,27 @@ prepare_rspline_model <- function(fp, numKnots=NULL, tsEpidemicStart=fp$ss$time_
   return(fp)
 }
 
-prepare_ospline_model <- function(fp, numKnots=NULL, tsEpidemicStart=fp$ss$time_epi_start+0.5){
 
-  if(!exists("numKnots", fp))
-    fp$numKnots <- 7
-
-  if(!exists("rtpenord", fp))
-    fp$rtpenord <- 2L
-
-  if(exists("knots", fp))
-    fp$numKnots <- length(fp$knots) - 4
-
-  fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - tsEpidemicStart))]
-  epi_steps <- fp$proj.steps[fp$proj.steps >= fp$tsEpidemicStart]
-
-  ## Use mgcv to setup cubic B-spline basis and design matrix with penalty absorbed
-  sm <- mgcv::smoothCon(mgcv::s(epi_steps, bs="bs", k=fp$numKnots, m=c(3, fp$rtpenord)),
-                        data.frame(epi_steps=epi_steps), knots=list(epi_steps=fp$knots), absorb.cons=TRUE, diagonal.penalty=TRUE)[[1]]
-  fp$rvec.spldes <- rbind(matrix(0, length(fp$proj.steps) - length(epi_steps), fp$numKnots),
-                          cbind(1, sm$X[,c(ncol(sm$X), 1:(ncol(sm$X)-1))]))
-
-  if(!exists("eppmod", fp))
-    fp$eppmod <- "ospline"
-  fp$iota <- NULL
-
+update.specfp <- function (fp, ..., keep.attr = TRUE, list = vector("list")){
+  dots <- substitute(list(...))[-1]
+  newnames <- names(dots)
+  for (j in seq_along(dots)) {
+    if (keep.attr) 
+      attr <- attributes(fp[[newnames[j]]])
+    fp[[newnames[j]]] <- eval(dots[[j]], fp, parent.frame())
+    if (keep.attr) 
+      attributes(fp[[newnames[j]]]) <- c(attr, attributes(fp[[newnames[j]]]))
+  }
+  listnames <- names(list)
+  for (j in seq_along(list)) {
+        if (keep.attr) 
+          attr <- attributes(fp[[listnames[j]]])
+        fp[[listnames[j]]] <- eval(list[[j]], fp, parent.frame())
+        if (keep.attr) 
+          attributes(fp[[listnames[j]]]) <- c(attr, attributes(fp[[listnames[j]]]))
+  }
   return(fp)
 }
-
-update.specfp <- epp::update.eppfp
 
 
 #########################

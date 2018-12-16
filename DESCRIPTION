@@ -1,10 +1,16 @@
 Package: eppasm
 Title: Age-structured EPP Model for HIV Epidemic Estimates
-Version: 0.5.6-8
+Version: 0.5.7-2
 Authors@R: person("Jeff", "Eaton", email = "jeffrey.eaton@imperial.ac.uk", role = c("aut", "cre"))
 Description: What the package does (one paragraph).
 Depends: R (>= 3.1.0),
-Imports: epp (>= 0.4.1), fastmatch (>= 1.1), abind (>= 1.4), mgcv (>= 1.8), mvtnorm, reshape2
+Imports: epp (>= 0.4.1),
+    fastmatch (>= 1.1),
+    abind (>= 1.4),
+    mgcv (>= 1.8),
+    mvtnorm,
+    reshape2,
+    xml2
 LinkingTo: BH
 Remotes:
     jeffeaton/epp
@@ -14,5 +20,8 @@ LazyData: true
 Suggests: 
     testthat,
     knitr,
-    rmarkdown
+    rmarkdown,
+    covr
 VignetteBuilder: knitr
+URL: https://github.com/mrc-ide/eppasm
+BugReports: https://github.com/mrc-ide/eppasm/issues

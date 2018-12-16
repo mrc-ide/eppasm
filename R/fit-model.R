@@ -303,9 +303,6 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   else
     fp$ancrt <- "none"
 
-  if(epp)
-    eppd$hhsage <- eppd$sibmx <- NULL
-
   likdat <- prepare_likdat(eppd, fp)
   fp$ancsitedata <- as.logical(nrow(likdat$ancsite.dat$df))
 
@@ -314,8 +311,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
     fp$SIM_YEARS <- as.integer(max(likdat$ancsite.dat$df$yidx,
                                    likdat$hhs.dat$yidx,
                                    likdat$ancrtcens.dat$yidx,
-                                   likdat$hhsincid.dat$idx,
-                                   likdat$sibmx.dat$idx))
+                                   likdat$hhsincid.dat$idx))
       
     fp$proj.steps <- seq(fp$ss$proj_start+0.5, fp$ss$proj_start-1+fp$SIM_YEARS+0.5, by=1/fp$ss$hiv_steps_per_year)
   } else
@@ -403,14 +399,12 @@ get_likdat_range <- function(likdat) {
   firstdata.idx <- as.integer(min(likdat$ancsite.dat$df$yidx,
                                   likdat$hhs.dat$yidx,
                                   likdat$ancrtcens.dat$yidx,
-                                  likdat$hhsincid.dat$idx,
-                                  likdat$sibmx.dat$idx))
+                                  likdat$hhsincid.dat$idx))
 
   lastdata.idx <- as.integer(max(likdat$ancsite.dat$df$yidx,
                                  likdat$hhs.dat$yidx,
                                  likdat$ancrtcens.dat$yidx,
-                                 likdat$hhsincid.dat$idx,
-                                 likdat$sibmx.dat$idx))
+                                 likdat$hhsincid.dat$idx))
 
   c(firstdata.idx, lastdata.idx)
 }
@@ -592,8 +586,7 @@ simfit.eppfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", pregprev=TRUE)
     lastdata.idx <- as.integer(max(fit$likdat$ancsite.dat$df$yidx,
                                    fit$likdat$hhs.dat$yidx,
                                    fit$likdat$ancrtcens.dat$yidx,
-                                   fit$likdat$hhsincid.dat$idx,
-                                   fit$likdat$sibmx.dat$idx))
+                                   fit$likdat$hhsincid.dat$idx))
 
     fit$rvec.spline <- sapply(fit$param, "[[", "rvec")
     firstidx <- which(fit$fp$proj.steps == fit$fp$tsEpidemicStart)
@@ -631,8 +624,7 @@ sim_mod_list <- function(fit, rwproj=fit$fp$eppmod == "rspline"){
     lastdata.idx <- as.integer(max(fit$likdat$ancsite.dat$df$yidx,
                                    fit$likdat$hhs.dat$yidx,
                                    fit$likdat$ancrtcens.dat$yidx,
-                                   fit$likdat$hhsincid.dat$idx,
-                                   fit$likdat$sibmx.dat$idx))
+                                   fit$likdat$hhsincid.dat$idx))
     
     fit$rvec.spline <- sapply(fit$param, "[[", "rvec")
     firstidx <- which(fit$fp$proj.steps == fit$fp$tsEpidemicStart)

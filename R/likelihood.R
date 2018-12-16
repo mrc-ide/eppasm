@@ -370,68 +370,6 @@ ll_hhsage_binom <- function(mod, dat, pointwise = FALSE){
 
 
 
-##########################################
-####  Mortality likelihood functions  ####
-##########################################
-
-#' Prepare sibling history mortality likelihood data
-#'
-prepare_sibmx_likdat <- function(sibmxdat, fp){
-  anchor.year <- floor(min(fp$proj.steps))
-  nyears <- fp$ss$PROJ_YEARS
-  NG <- fp$ss$NG
-  AG <- fp$ss$pAG
-
-  sibmxdat$sidx <- as.integer(sibmxdat$sex)
-  sibmxdat$aidx <- sibmxdat$agegr - (fp$ss$AGE_START-1)
-  sibmxdat$yidx <- sibmxdat$period - (anchor.year - 1)
-  sibmxdat$tipsidx <- sibmxdat$tips+1L
-
-  sibmxdat <- subset(sibmxdat, aidx > 0)
-
-  sibmxdat$arridx <- sibmxdat$aidx + (sibmxdat$sidx-1)*AG + (sibmxdat$yidx-1)*NG*AG
-
-  return(sibmxdat)
-}
-
-#' Log negative binomial density
-#'
-#' Log negative binomial density, mu parameterization
-#'
-#' Log-density of negative binomial distribution. Parameter names and
-#' parameterization matches the 'mu' parameterization of \code{\link{dnbinom}}.
-#'
-#' @param x vector of number of events.
-#' @param size dispersion parameter.
-#' @param mu mean expected number of events.
-ldnbinom <- function(x, size, mu){
-  prob <- size/(size+mu)
-  lgamma(x+size) - lgamma(size) - lgamma(x+1) + size*log(prob) + x*log(1-prob)
-}
-
-
-
-#' Log-likelihood for sibling history mortality data
-#'
-#' Calculate the log-likelihood for sibling history mortality data
-#'
-#' !!! NOTE: does not account for complex survey design
-#'
-#' @param mx Array of age/sex-specific mortality rates for each year, output
-#'   from function \code{\link{agemx}}.
-#' @param tipscoef Vector of TIPS (time preceding survey) coefficients for
-#'   relative risk of underreporting deceased siblings.
-#' @param theta Overdispersion of negative binomial distribution.
-#' @param sibmx.dat Data frame consisting of sibling history mortality data.
-ll_sibmx <- function(mx, tipscoef, theta, sibmx.dat){
-
-  ## predicted deaths: product of predicted mortality, tips coefficient, and person-years
-  mu.pred <- mx[sibmx.dat$arridx] * tipscoef[sibmx.dat$tipsidx] * sibmx.dat$pys
-
-  return(sum(ldnbinom(sibmx.dat$deaths, theta, mu.pred)))
-}
-
-
 #########################################
 ####  Incidence likelihood function  ####
 #########################################
@@ -492,8 +430,6 @@ prepare_likdat <- function(eppd, fp){
 
   if(exists("hhsincid", where=eppd))
     likdat$hhsincid.dat <- prepare_hhsincid_likdat(eppd$hhsincid, fp)
-  if(exists("sibmx", where=eppd))
-    likdat$sibmx.dat <- prepare_sibmx_likdat(eppd$sibmx, fp)
 
   return(likdat)
 }
@@ -606,13 +542,6 @@ ll <- function(theta, fp, likdat){
   else
     ll.incid <- 0
 
-
-  if(exists("sibmx", where=fp) && fp$sibmx){
-    M.agemx <- agemx(mod)
-    ll.sibmx <- ll_sibmx(M.agemx, fp$tipscoef, fp$sibmx.theta, likdat$sibmx.dat)
-  } else
-    ll.sibmx <- 0
-
   if(exists("equil.rprior", where=fp) && fp$equil.rprior){
     if(fp$eppmod != "rspline")
       stop("error in ll(): equil.rprior is only for use with r-spline model")
@@ -620,8 +549,7 @@ ll <- function(theta, fp, likdat){
     lastdata.idx <- max(likdat$ancsite.dat$df$yidx,
                         likdat$hhs.dat$yidx,
                         likdat$ancrtcens.dat$yidx,
-                        likdat$hhsincid.dat$idx,
-                        likdat$sibmx.dat$idx)
+                        likdat$hhsincid.dat$idx)
     
     qM.all <- suppressWarnings(qnorm(prev(mod)))
 

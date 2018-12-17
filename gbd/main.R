@@ -17,7 +17,7 @@ if(length(args) > 0) {
 	i <- as.integer(Sys.getenv("SGE_TASK_ID"))
 } else {
 	run.name <- "181126_test"
-	loc <- "MWI"
+	loc <- "ZAF_482"
 	proj.end <- 2019
 	i <- 1
 }
@@ -104,24 +104,42 @@ for(subpop in names(dt)) {
 	# if(anc.prior) {
 	# 	set.anc.prior(loc, subpop)
 	# }
-	fit[[subpop]] <- fitmod(dt[[subpop]], eppmod = 'rhybrid', rw_start = 2010,  B0=1e3, B=1e2, opt_iter=1:2*5, number_k = 50)
+	fit[[subpop]] <- fitmod(dt[[subpop]], eppmod = 'rhybrid', rw_start = 2010,  B0=1e3, B=1e2, opt_iter=1:2*5, number_k = 5)
 }
 
-# fit <- lapply(fit, extend_projection, proj_years = stop.year - start.year)
-# 
-# ## TODO: Why 3000 simulations? Why did it extend 50 yrs? How to sample just one draw? Difference between this, tidy-outputs, and gbd.simfit?
-# result <- aggr_specfit(fit)
-# 
-# ran.draw <- 1
-# indicator.list <- c('hivdeaths', 'natdeaths', 'popadjust', 'infections')
-# spec.dt <- rbindlist(lapply(indicator.list, function(c.indicator){
-#   spec.data <- attr(result[[ran.draw]], c.indicator)
-#   spec.data <- array(data = spec.data, dim = c(66, 2, 50),
-#                      dimnames = list(age = 15:80, sex = c('Male', 'Female'), year = start.year:stop.year))
-#   spec.data <- as.data.table(as.data.frame.table(spec.data))
-#   setnames(spec.data, 'Freq', 'value')
-#   spec.data[, variable := c.indicator]
-# }))
+
+## When fitting, the random-walk based models only simulate through the end of the
+## data period. The `extend_projection()` function extends the random walk for r(t)
+## through the end of the projection period.
+## Jeff ? - random walk in data period vs post data?
+fit <- lapply(fit, extend_projection, proj_years = stop.year - start.year)
+
+## The function aggr_specfit() involves simulating the model for all resamples in each 
+## subregion and summing the following `pop`, `hivpop`, and `artpop` arrays for each of 
+## the 3000 resamples to generate 3000 national outputs.
+## TODO: Why 3000 simulations? Why did it extend 50 yrs? How to sample just one draw? Difference between this, tidy-outputs, and gbd.simfit?
+result <- aggr_specfit(fit)
+output <- tidy_output(fit[[loc]], "rhybrid")
+
+ageprev.dt <- data.table(output$agegr3prev)
+ggplot(ageprev.dt) +
+  geom_line(aes(x = year, y = mean, colour = as.factor(sex))) +
+  geom_ribbon(aes(x = year, ymin = lower, ymax = upper, alpha = 0.2, fill = as.factor(sex))) + 
+  facet_wrap(~ agegr3, scales = 'free') +
+  labs(y="Prevalence (per 1)",x=paste0("Year"),title=paste0(loc.table[ihme_loc_id == loc, plot_name], ' ', ' Prevalence')) +
+  theme_bw()
+
+
+ran.draw <- 1
+indicator.list <- c('hivdeaths', 'natdeaths', 'infections')
+spec.dt <- rbindlist(lapply(indicator.list, function(c.indicator){
+  spec.data <- attr(result[[ran.draw]], c.indicator)
+  spec.data <- array(data = spec.data, dim = c(66, 2, 50),
+                     dimnames = list(age = 15:80, sex = c('Male', 'Female'), year = start.year:stop.year))
+  spec.data <- as.data.table(as.data.frame.table(spec.data))
+  setnames(spec.data, 'Freq', 'value')
+  spec.data[, variable := c.indicator]
+}))
 # spec.pop <- spec.dt[variable == 'popadjust']
 # spec.dt <- spec.dt[variable != 'popadjust']
 # setnames(spec.pop, 'value', 'population')
@@ -138,7 +156,6 @@ for(subpop in names(dt)) {
 # 
 # ## Prepare output
 # result <- lapply(fit, simfit.gbd)
-# # result <- prep_epp_output(fit)
 # dir.create(out.dir, showWarnings = F, recursive = T)
 # save(result, file = out.path)
 # 

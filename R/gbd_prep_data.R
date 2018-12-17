@@ -5,10 +5,14 @@ find_pjnz <- function(loc){
       } else {
           temp.loc <- loc.table[location_id == loc.table[ihme_loc_id == loc, parent_id], ihme_loc_id]
       }
-  } else {
+  } else if(grepl('ZAF', loc)){
+    temp.loc <- 'ZAF'
+    }else {
       temp.loc <- loc
   }
-  unaids.year <- loc.table[ihme_loc_id == loc, unaids_recent]
+  unaids.year <- loc.table[ihme_loc_id == temp.loc, unaids_recent]
+  ## TODO: What is wrong with the 2018 ZAF file?
+  if(grepl('ZAF', loc)){unaids.year = 2017}
   if(unaids.year %in% 2017:2018) {
       dir <- paste0("/home/j/WORK/04_epi/01_database/02_data/hiv/04_models/gbd2015/02_inputs/UNAIDS_country_data/", unaids.year, "/")
   } else {
@@ -16,7 +20,7 @@ find_pjnz <- function(loc){
   }
   if(file.exists(dir)) {
     pjnz.list <- list.files(dir, pattern = "PJNZ", full.names = T)
-    file.list <- grep(loc, pjnz.list, value = T)
+    file.list <- grep(temp.loc, pjnz.list, value = T)
     if(loc == "NGA") file.list <- c()
   } else {
     one.up <- paste(head(unlist(tstrsplit(dir, "/")), -1), collapse = "/")
@@ -26,37 +30,20 @@ find_pjnz <- function(loc){
     }))
   }
   if(length(file.list) == 0) {
-    loc.name <- loc.table[ihme_loc_id == loc, location_name]
-    loc.name <- gsub(" ", "", gsub("[^[:alnum:] ]", "", loc.name))
+    loc.name <- loc.table[ihme_loc_id == temp.loc, location_name]
     file.list <- grep(loc.name, pjnz.list, value = T)
+    if(length(file.list) == 0){
+      loc.name <- loc.table[ihme_loc_id == temp.loc, location_name]
+      loc.name <- gsub(" ", "", gsub("[^[:alnum:] ]", "", loc.name))
+      file.list <- grep(loc.name, pjnz.list, value = T)     
+    }
   }
-  return(file.list[[1]])
+  print(file.list)
+  return(file.list)
 }
 
 collapse_epp <- function(loc){
-  unaids.year <- loc.table[ihme_loc_id == loc, unaids_recent]
-  print(unaids.year)
-  if(unaids.year %in% 2017:2018) {
-    dir <- paste0(root, "WORK/04_epi/01_database/02_data/hiv/04_models/gbd2015/02_inputs/UNAIDS_country_data/", unaids.year, "/")
-  } else {
-    dir <- paste0(root, "WORK/04_epi/01_database/02_data/hiv/04_models/gbd2015/02_inputs/UNAIDS_country_data/", unaids.year, "/", loc, "/")     
-  }
-  if(file.exists(dir)) {
-    pjnz.list <- list.files(dir, pattern = "PJNZ", full.names = T)
-    file.list <- grep(loc, pjnz.list, value = T)
-    if(loc == "NGA") file.list <- c()
-  } else {
-    one.up <- paste(head(unlist(tstrsplit(dir, "/")), -1), collapse = "/")
-    dir.list <- list.files(one.up, pattern = loc, full.names = T)
-    file.list <- unlist(lapply(dir.list, function(dir) {
-      list.files(dir, pattern = "PJNZ", full.names = T)
-    }))
-  }
-  if(length(file.list) == 0) {
-    loc.name <- loc.table[ihme_loc_id == loc, location_name]
-    loc.name <- gsub(" ", "", gsub("[^[:alnum:] ]", "", loc.name))
-    file.list <- grep(loc.name, pjnz.list, value = T)
-  }
+  file.list <- find_pjnz(loc)
   eppd.list <- lapply(file.list, function(file) {
     pjnz <- file
     eppd <- epp::read_epp_data(pjnz)

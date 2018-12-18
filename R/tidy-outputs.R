@@ -12,9 +12,9 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
 
   
   ## agegr3 predictions
-  agegr3 <- merge(expand.grid(year = 1999:2018, sex=c("male", "female"),
-                              age = c(15, 25, 35)),
-                  data.frame(age = c(15, 25, 35), agspan = c(10, 10, 15)))
+  agegr3 <- merge(expand.grid(year = 1980:2019, sex=c("male", "female"),
+                              age = seq(15,75,5)),
+                  data.frame(age = seq(15,75,5), agspan = rep(5, 13)))
   agegr3$agegr3 <- with(agegr3, paste0(age, "-", age+agspan-1))
   agegr3$sidx <- match(agegr3$sex, c("both", "male", "female")) - 1L
   agegr3$aidx <- agegr3$age - ss$AGE_START + 1
@@ -95,10 +95,10 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
                            estci2(agegr3prev))
 
   ## Prevalence among pregnant women
-  pregprev_pred <- rbind(data.frame(year = 1980:2020, age = 15, agspan = 35),
-                         data.frame(year = 1980:2020, age = 15, agspan = 10),
-                         data.frame(year = 1980:2020, age = 25, agspan = 25),
-                         expand.grid(year = 1980:2020, age = 3:9*5, agspan = 5))
+  pregprev_pred <- rbind(data.frame(year = 1980:2019, age = 15, agspan = 35),
+                         data.frame(year = 1980:2019, age = 15, agspan = 10),
+                         data.frame(year = 1980:2019, age = 25, agspan = 25),
+                         expand.grid(year = 1980:2019, age = 3:9*5, agspan = 5))
   pregprev_pred$agegr <- with(pregprev_pred, paste0(age, "-", age+agspan-1))
   pregprev_pred$agegr <- factor(pregprev_pred$agegr, c("15-49", "15-24", "25-49", paste0(3:9*5, "-", 3:9*5+4)))
   pregprev_pred$aidx <- pregprev_pred$age - ss$AGE_START + 1
@@ -164,7 +164,7 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
     ancsite_b <- data.frame(idvars, site = rownames(b_site_df), b_site_df)
     
     newdata <- expand.grid(site = unique(fit$likdat$ancsite.dat$df$site),
-                           year = 1985:2020,
+                           year = 1980:2019,
                            type = "ancss",
                            age = 15,
                          agspan = 35,

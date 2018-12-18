@@ -7,13 +7,24 @@
 #'   
 prepare_spec_fit_gbd <- function(loc, collapse, i, proj.end=2016.5, gbd.pop = TRUE, popadjust = NULL, popupdate=TRUE, use_ep5=FALSE){
   
-  ## TODO: Decide where to store pjnz
-  pjnz <- find_pjnz(loc)
+  pjnz <- find_pjnz(loc)[[1]]
   ## epp
-  if(!collapse){
+  if(!collapse | grepl ('ZAF', loc)){
   eppd <- epp::read_epp_data(pjnz)
   epp.subp <- epp::read_epp_subpops(pjnz)
   epp.input <- epp::read_epp_input(pjnz)
+    if(grepl('ZAF', loc)){
+      zaf.dict <- list("MP" = "ZAF_487", "GP" = "ZAF_484", "KZN" = "ZAF_485", 
+                       "WC" = "ZAF_490", "EC" = "ZAF_482", "LP" = "ZAF_486", 
+                       "FS" = "ZAF_483", "NW" = "ZAF_488", "NC" = "ZAF_489")
+      eppd.new <- list()
+      eppd.new[[loc]] <- eppd[[names(which(zaf.dict == loc))]]  
+      eppd <- eppd.new
+      epp.subp$total <- epp.subp$subpops[[names(which(zaf.dict == loc))]] 
+      epp.subp$subpops <- NULL
+      epp.subp$subpops[[loc]] <- epp.subp$total
+      ## TODO: What to do with epp.input? (especially ART values)
+    }
   } else{
     epp.totals <- collapse_epp(loc)
     eppd <- epp.totals$eppd
@@ -63,7 +74,7 @@ prepare_spec_fit_gbd <- function(loc, collapse, i, proj.end=2016.5, gbd.pop = TR
   specfp.subp <- create_subpop_specfp(projp, demp, eppd, proj_end=proj.end, epp_t0=epp_t0,
                                       popadjust = popadjust, popupdate = popupdate, perc_urban = perc_urban)
   
-  if(is.na(specfp.subp[[loc]]$ss$time_epi_start)) {specfp.subp[['MWI']]$ss$time_epi_start <- epp_t0}
+  if(is.na(specfp.subp[[loc]]$ss$time_epi_start)) {specfp.subp[[loc]]$ss$time_epi_start <- epp_t0}
   ## output
   val <- setNames(vector("list", length(eppd)), names(eppd))
 

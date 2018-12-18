@@ -192,6 +192,24 @@ sub.prev <- function(loc, dt){
   return(dt)
 }
 
+sub.prev.granular <- function(dt, loc){
+  age.prev.dt <- fread('/homes/tahvif/age_prev_surveys.csv')
+  age.prev.dt <- age.prev.dt[iso3 == loc]
+  age.prev.dt[, agegr := paste0(age_year, '-', age_year+4)]
+  age.prev.dt[,sex := ifelse(sex_id == 1, 'male', 'female')]
+  ## TODO: What do these mean
+  age.prev.dt[,c('used', 'deff', 'deff_approx') := c(TRUE, 2, 2)]
+  age.prev.dt <- age.prev.dt[,.(year, sex, agegr, n, prev, se, used, deff, deff_approx)]
+  gen.pop.dict <- c("General Population", "General population", "GP", "GENERAL POPULATION", "GEN. POPL.", "General population(Low Risk)", "Remaining Pop")
+  if(length(dt) == 1) {
+    gen.pop.i <- 1
+  } else {
+    gen.pop.i <- which(names(dt) %in% gen.pop.dict)
+  }
+  attr(dt[[gen.pop.i]], 'eppd')$hhs <- as.data.frame(age.prev.dt)
+  return(dt)
+}
+
 sub.off.art <- function(dt, loc, k) {
   # Off-ART Mortality
   mortnoart <- fread(paste0(aim.dir, "transition_parameters/HIVmort_noART/current_draws_combined/",loc,"_mortality_par_draws.csv"))

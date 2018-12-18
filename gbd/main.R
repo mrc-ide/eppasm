@@ -17,7 +17,7 @@ if(length(args) > 0) {
 	i <- as.integer(Sys.getenv("SGE_TASK_ID"))
 } else {
 	run.name <- "181126_test"
-	loc <- "ZAF_482"
+	loc <- "MWI"
 	proj.end <- 2019
 	i <- 1
 }
@@ -56,7 +56,12 @@ loc.table <- data.table(get_locations(hiv_metadata = T))
 
 ### Code
 ## Prep data and collapse location subpopulations
-dt <- prepare_spec_fit_gbd(loc, collapse, i, proj.end, gbd.pop, popadjust, popupdate, use_ep5)
+if(grepl('IND', loc)){
+  dt <- prepare_spec_fit_ind(loc)
+}else{
+  dt <- prepare_spec_fit_gbd(loc, collapse, i, proj.end, gbd.pop, popadjust, popupdate, use_ep5)
+}
+
 
 ## Substitute IHME data
 # Prevalence surveys
@@ -64,6 +69,7 @@ if(prev.sub) {
 	if((collapse & length(dt) == 1) | grepl("IND_", loc)) {
 		print("Substituting prevalence surveys")
 		dt <- sub.prev(loc, dt)	
+		dt <- sub.prev.granular(dt, loc)
 	}
 }
 
@@ -104,7 +110,7 @@ for(subpop in names(dt)) {
 	# if(anc.prior) {
 	# 	set.anc.prior(loc, subpop)
 	# }
-	fit[[subpop]] <- fitmod(dt[[subpop]], eppmod = 'rhybrid', rw_start = 2010,  B0=1e3, B=1e2, opt_iter=1:2*5, number_k = 5)
+	fit[[subpop]] <- fitmod(dt[[subpop]],fitincrr = "linincrr", eppmod = 'rhybrid', rw_start = 2010,  B0=1e3, B=1e2, opt_iter=1:2*5, number_k = 50)
 }
 
 
@@ -121,14 +127,38 @@ fit <- lapply(fit, extend_projection, proj_years = stop.year - start.year)
 result <- aggr_specfit(fit)
 output <- tidy_output(fit[[loc]], "rhybrid")
 
+prevdata <- data.table(output$ageprevdat)
+prevdata <- prevdata[,.(type = 'point', mean = prev, upper = prev + (1.96 * se), lower = prev - (1.96 * se), year, agegr3 = agegr, sex)]
 ageprev.dt <- data.table(output$agegr3prev)
-ggplot(ageprev.dt) +
-  geom_line(aes(x = year, y = mean, colour = as.factor(sex))) +
-  geom_ribbon(aes(x = year, ymin = lower, ymax = upper, alpha = 0.2, fill = as.factor(sex))) + 
+ageprev.dt <- ageprev.dt[,.(type = 'line', mean, upper, lower, year, sex, agegr3)]
+if(!'15-49' %in% prevdata$agegr3){
+  ageprev.dt <- rbind(ageprev.dt, prevdata, use.names = T)
+}
+pdf('/homes/tahvif/eppasm_MWI_fitincrr_granulardata_age_prev.pdf', height = 10, width = 12)
+ggplot() +
+  geom_line(data = ageprev.dt[type == 'line'], aes(x = year, y = mean, colour = as.factor(sex))) +
+  geom_point(data = ageprev.dt[type == 'point'], aes(y = mean, x = year, colour = as.factor(sex))) +
+  geom_ribbon(data = ageprev.dt[type == 'line'], aes(x = year, ymin = lower, ymax = upper, alpha = 0.1, fill = as.factor(sex))) + 
   facet_wrap(~ agegr3, scales = 'free') +
   labs(y="Prevalence (per 1)",x=paste0("Year"),title=paste0(loc.table[ihme_loc_id == loc, plot_name], ' ', ' Prevalence')) +
   theme_bw()
+dev.off()
 
+prev.dt <- data.table(output$core)
+prev.dt <- prev.dt[indicator == 'prev', .(type = 'line', mean, upper, lower, year,  agegr3 = '15-49')]
+prev.dt <- prev.dt[mean < 1000000 & mean > 0]
+if('15-49' %in% prevdata$agegr3){
+  prevdata[, sex := NULL]
+  prev.dt <- rbind(prev.dt, prevdata)
+}
+pdf('/homes/tahvif/eppasm_MWI_fitincrr_granulardata_1549_prev.pdf', height = 10, width = 12)
+ggplot() +
+  geom_line(data = prev.dt[type == 'line'], aes(x = year, y = mean)) +
+  geom_point(data = prev.dt[type == 'point'], aes(y = mean, x = year)) +
+  geom_ribbon(data = prev.dt[type == 'line'], aes(x = year, ymin = lower, ymax = upper, alpha = 0.1)) + 
+  labs(y="Prevalence (per 1)",x=paste0("Year"),title=paste0(loc.table[ihme_loc_id == loc, plot_name], ' ', ' Prevalence')) +
+  theme_bw()
+dev.off()
 
 ran.draw <- 1
 indicator.list <- c('hivdeaths', 'natdeaths', 'infections')

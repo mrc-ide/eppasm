@@ -261,15 +261,12 @@ fnCreateParam <- function(theta, fp){
     for(i in seq_along(fp$prior_args))
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
-
-  if(!exists("eppmod", where = fp))  # backward compatibility
-    fp$eppmod <- "rspline"
   
-  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "logrw")){
+  if(fp$eppmod %in% c("rspline", "logrw")){
 
     epp_nparam <- fp$numKnots+1
 
-    if(fp$eppmod %in% c("rspline", "logrspline")){
+    if(fp$eppmod == "rspline"){
       u <- theta[1:fp$numKnots]
       if(fp$rtpenord == 2){
         beta <- numeric(fp$numKnots)
@@ -279,14 +276,13 @@ fnCreateParam <- function(theta, fp){
           beta[i] <- -beta[i-2] + 2*beta[i-1] + u[i]
       } else # first order penalty
         beta <- cumsum(u)
-    } else if(fp$eppmod %in% c("ospline", "logospline", "logrw"))
+    } else if(fp$eppmod %in% "logrw")
       beta <- theta[1:fp$numKnots]
 
     param <- list(beta = beta,
                   rvec = as.vector(fp$rvec.spldes %*% beta))
     
-    if(fp$eppmod %in% c("logrspline", "logospline", "logrw"))
-
+    if(fp$eppmod %in% "logrw")
       param$rvec <- exp(param$rvec)
 
     if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
@@ -298,10 +294,8 @@ fnCreateParam <- function(theta, fp){
     epp_nparam <- 5
     par <- theta[1:4]
     par[3] <- exp(theta[3])
-    ## par[1:3] <- exp(par[1:3])
     param <- list()
     param$rvec <- exp(rlogistic(fp$proj.steps, par))
-    ## param$rvec <- rlogistic(fp$proj.steps, par)
     param$iota <- transf_iota(theta[5], fp)
   } else if(fp$eppmod == "rtrend"){ # rtrend
     epp_nparam <- 7
@@ -315,7 +309,7 @@ fnCreateParam <- function(theta, fp){
     param$rvec <- create_rvec(theta[1:fp$rt$n_param], fp$rt)
     param$iota <- transf_iota(theta[fp$rt$n_param+1], fp)
   }
-
+  
   if(fp$ancsitedata){
     param$ancbias <- theta[epp_nparam+1]
     if(!exists("v.infl", where=fp)){
@@ -326,15 +320,14 @@ fnCreateParam <- function(theta, fp){
   }
   else
     anclik_nparam <- 0
-
-
+  
+  
   paramcurr <- epp_nparam+anclik_nparam
   if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
     param$log_frr_adjust <- theta[paramcurr+1]
     param$frr_cd4 <- fp$frr_cd4 * exp(param$log_frr_adjust)
     param$frr_art <- fp$frr_art * exp(param$log_frr_adjust)
-    ## param$frr_art[1:2,,,] <- param$frr_art[1:2,,,] * exp(param$log_frr_adjust)
-
+    
     if(!exists("ancrtcens.vinfl", fp)){
       param$ancrtcens.vinfl <- exp(theta[paramcurr+2])
       paramcurr <- paramcurr+2
@@ -344,7 +337,6 @@ fnCreateParam <- function(theta, fp){
   if(exists("ancrt", fp) && fp$ancrt %in% c("site", "both")){
     param$ancrtsite.beta <- theta[paramcurr+1]
     paramcurr <- paramcurr+1
-    ## param$ancrtsite.vinfl <- exp(theta[length(theta)])
   }
 
   if(inherits(fp, "specfp")){
@@ -389,8 +381,10 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
 
   if(exists("deff_approx", hhsage))
     hhsage$n_eff <- hhsage$n/hhsage$deff_approx
-  else
+  else if(exists("deff_approx", hhsage))
     hhsage$n_eff <- hhsage$n/hhsage$deff
+  else
+    hhsage$n_eff <- hhsage$prev * (1 - hhsage$prev) / hhsage$se ^ 2
   hhsage$x_eff <- hhsage$n_eff * hhsage$prev
 
   if(is.null(hhsage$sex))
@@ -578,15 +572,12 @@ prepare_likdat <- function(eppd, fp){
 
 lprior <- function(theta, fp){
 
-  if(!exists("eppmod", where = fp))  # backward compatibility
-    fp$eppmod <- "rspline"
-
   if(exists("prior_args", where = fp)){
     for(i in seq_along(fp$prior_args))
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
 
-  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "logrw")){
+  if(fp$eppmod %in% c("rspline", "logrw")){
     epp_nparam <- fp$numKnots+1
 
     nk <- fp$numKnots
@@ -610,9 +601,7 @@ lprior <- function(theta, fp){
     epp_nparam <- 7
     
     lpr <- dunif(round(theta[1]), t0.unif.prior[1], t0.unif.prior[2], log=TRUE) +
-      ## dunif(theta[2], t1.unif.prior[1], t1.unif.prior[2], log=TRUE) +
       dnorm(round(theta[2]), t1.pr.mean, t1.pr.sd, log=TRUE) +
-      ## dunif(theta[3], logr0.unif.prior[1], logr0.unif.prior[2], log=TRUE) +
       dnorm(theta[3], logr0.pr.mean, logr0.pr.sd, log=TRUE) +
       sum(dnorm(theta[4:7], rtrend.beta.pr.mean, rtrend.beta.pr.sd, log=TRUE))
   } else if(fp$eppmod == "rhybrid"){
@@ -642,8 +631,7 @@ lprior <- function(theta, fp){
       paramcurr <- paramcurr+1
   }
   if(exists("ancrt", fp) && fp$ancrt %in% c("site", "both")){
-    lpr <- lpr + dnorm(theta[paramcurr+1], ancrtsite.beta.pr.mean, ancrtsite.beta.pr.sd, log=TRUE) ## +
-    ## dexp(exp(theta[np]), ancrtsite.vinfl.pr.rate, TRUE) + theta[np]
+    lpr <- lpr + dnorm(theta[paramcurr+1], ancrtsite.beta.pr.mean, ancrtsite.beta.pr.sd, log=TRUE)
     paramcurr <- paramcurr+1
   }
 
@@ -668,9 +656,9 @@ ll <- function(theta, fp, likdat){
   } else
     ll.incpen <- 0
 
-  if (!exists("eppmod", where = fp) || fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline"))
+  if (fp$eppmod == "rspline")
     if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) 
-        return(-Inf)
+      return(-Inf)
 
   mod <- simmod(fp)
 
@@ -750,16 +738,13 @@ ll <- function(theta, fp, likdat){
 
 sample.prior <- function(n, fp){
 
-  if(!exists("eppmod", where = fp))  # backward compatibility
-    fp$eppmod <- "rspline"
-
   if(exists("prior_args", where = fp)){
     for(i in seq_along(fp$prior_args))
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
 
   ## Calculate number of parameters
-  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "logrw"))
+  if(fp$eppmod %in% c("rspline", "logrw"))
     epp_nparam <- fp$numKnots+1L
   else if(fp$eppmod == "rlogistic")
     epp_nparam <- 5
@@ -796,14 +781,12 @@ sample.prior <- function(n, fp){
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
 
-  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "logrw")){
+  if(fp$eppmod %in% c("rspline", "logrw")){
     epp_nparam <- fp$numKnots+1
 
     if(fp$eppmod == "rspline")
       mat[,1] <- rnorm(n, 1.5, 1)                                                   # u[1]
-    if(fp$eppmod == "ospline")
-      mat[,1] <- rnorm(n, 0.5, 1)
-    else # logrspline, logospline, logrw
+    else # logrw
       mat[,1] <- rnorm(n, 0.2, 1)                                                   # u[1]
     if(fp$eppmod == "logrw"){
       mat[,2:fp$rt$n_rw] <- bayes_rmvt(n, fp$rt$n_rw-1, rw_prior_shape, rw_prior_rate)  # u[2:numKnots]
@@ -821,9 +804,7 @@ sample.prior <- function(n, fp){
   } else if(fp$eppmod == "rtrend"){ # r-trend
 
     mat[,1] <- runif(n, t0.unif.prior[1], t0.unif.prior[2])           # t0
-    ## mat[,2] <- runif(n, t1.unif.prior[1], t1.unif.prior[2])        # t1
     mat[,2] <- rnorm(n, t1.pr.mean, t1.pr.sd)
-    ## mat[,3] <- runif(n, logr0.unif.prior[1], logr0.unif.prior[2])  # r0
     mat[,3] <- rnorm(n, logr0.pr.mean, logr0.pr.sd)  # r0
     mat[,4:7] <- t(matrix(rnorm(4*n, rtrend.beta.pr.mean, rtrend.beta.pr.sd), 4, n))  # beta
   } else if(fp$eppmod == "rhybrid") {
@@ -851,7 +832,6 @@ sample.prior <- function(n, fp){
   }
   if(exists("ancrt", where=fp) && fp$ancrt %in% c("site", "both")){
     mat[,paramcurr+1] <- rnorm(n, ancrtsite.beta.pr.mean, ancrtsite.beta.pr.sd)
-    ## mat[,nparam] <- log(rexp(n, ancrtsite.vinfl.pr.rate))
     paramcurr <- paramcurr+1
   }
 
@@ -867,24 +847,19 @@ sample.prior <- function(n, fp){
 
 ldsamp <- function(theta, fp){
 
-  if(!exists("eppmod", where = fp))  # backward compatibility
-    fp$eppmod <- "rspline"
-
   if(exists("prior_args", where = fp)){
     for(i in seq_along(fp$prior_args))
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
 
-  if(fp$eppmod %in% c("rspline", "logrspline", "ospline", "logospline", "logrw")){
+  if(fp$eppmod %in% c("rspline", "logrw")){
     epp_nparam <- fp$numKnots+1
 
     nk <- fp$numKnots
 
     if(fp$eppmod == "rspline")  # u[1]
       lpr <- dnorm(theta[1], 1.5, 1, log=TRUE)
-    if(fp$eppmod == "ospline")
-      lpr <- dnorm(theta[1], 0.5, 1, log=TRUE)
-    else # logrspline, logospline, logrw
+    else # logrw
       lpr <- dnorm(theta[1], 0.2, 1, log=TRUE)
 
     if(fp$eppmod == "logrw")
@@ -907,9 +882,7 @@ ldsamp <- function(theta, fp){
     epp_nparam <- 7
 
     lpr <- dunif(round(theta[1]), t0.unif.prior[1], t0.unif.prior[2], log=TRUE) +
-      ## dunif(theta[2], t1.unif.prior[1], t1.unif.prior[2], log=TRUE) +
       dnorm(round(theta[2]), t1.pr.mean, t1.pr.sd, log=TRUE) +
-      ## dunif(theta[3], logr0.unif.prior[1], logr0.unif.prior[2], log=TRUE) +
       dnorm(theta[3], logr0.pr.mean, logr0.pr.sd, log=TRUE) +
       sum(dnorm(theta[4:7], rtrend.beta.pr.mean, rtrend.beta.pr.sd, log=TRUE))
   } else if(fp$eppmod == "rhybrid"){
@@ -940,7 +913,6 @@ ldsamp <- function(theta, fp){
   }
   if(exists("ancrt", fp) && fp$ancrt %in% c("site", "both")){
     lpr <- lpr + dnorm(theta[paramcurr+1], ancrtsite.beta.pr.mean, ancrtsite.beta.pr.sd, log=TRUE) ## +
-    ## dexp(exp(theta[np]), ancrtsite.vinfl.pr.rate, TRUE) + theta[np]
     paramcurr <- paramcurr+1
   }
 

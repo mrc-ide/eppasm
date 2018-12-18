@@ -66,3 +66,18 @@ zip(fp, grep("bm2$", unzip(fp, list=TRUE)$Name, value=TRUE), flags="-d")
 zip(fp, grep("SPU$", unzip(fp, list=TRUE)$Name, value=TRUE), flags="-d")
 zip(fp, grep("UAC$", unzip(fp, list=TRUE)$Name, value=TRUE), flags="-d")
 zip(fp, grep("DPUAD_AUA$", unzip(fp, list=TRUE)$Name, value=TRUE), flags="-d")
+
+
+## Mozambique Maputo Cidade 2018 file
+file.copy("~/Documents/Data/Spectrum files/2018 final/SSA/11_MZ_Maputo Cidade_v5_63_updated census_22_01_2018.PJNZ",
+          here::here("inst/extdata/testpjnz/Mozambique_Maputo_Cidade2018.PJNZ"))
+
+fp <- here::here("inst/extdata/testpjnz/Mozambique_Maputo_Cidade2018.PJNZ")
+unzip(fp, list=TRUE)
+
+## Remove files to reduce size
+zip(fp, grep("bm2$", unzip(fp, list=TRUE)$Name, value=TRUE), flags="-d")
+zip(fp, grep("SPU$", unzip(fp, list=TRUE)$Name, value=TRUE), flags="-d")
+zip(fp, grep("UAC$", unzip(fp, list=TRUE)$Name, value=TRUE), flags="-d")
+zip(fp, grep("DPUAD_AUA$", unzip(fp, list=TRUE)$Name, value=TRUE), flags="-d")
+zip(fp, grep("ep5.bak$", unzip(fp, list=TRUE)$Name, value=TRUE), flags="-d")

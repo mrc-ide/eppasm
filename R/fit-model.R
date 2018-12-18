@@ -288,7 +288,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   ## Prepare likelihood data
   eppd <- attr(obj, "eppd")
 
-  has_ancrtsite <- exists("ancsitedat", eppd) && any(eppd$ancsitedat$type == "ancss")
+  has_ancrtsite <- exists("ancsitedat", eppd) && any(eppd$ancsitedat$type == "ancrt")
   has_ancrtcens <- !is.null(eppd$ancrtcens) && nrow(eppd$ancrtcens)
   
   if(!has_ancrtsite)
@@ -323,18 +323,18 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
   ## Prepare the EPP model
   tsEpidemicStart <- if(epp) fp$tsEpidemicStart else fp$ss$time_epi_start+0.5
-  if(!exists("eppmod", fp) || fp$eppmod %in% c("rspline", "logrspline"))
+  if(fp$eppmod == "rspline")
     fp <- prepare_rspline_model(fp, tsEpidemicStart=tsEpidemicStart)
-  else if(fp$eppmod %in% c("ospline", "logospline"))
-    fp <- prepare_ospline_model(fp, tsEpidemicStart=tsEpidemicStart)
   else if(fp$eppmod == "rtrend")
     fp <- prepare_rtrend_model(fp)
   else if(fp$eppmod == "logrw")
     fp <- prepare_logrw(fp)
   else if(fp$eppmod == "rhybrid")
     fp <- prepare_rhybrid(fp)
+  else if(fp$eppmod == "rlogistic")
+    fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - fp$ss$time_epi_start+0.5))]
 
-  fp$logitiota = TRUE
+  fp$logitiota <- TRUE
 
   ## Prepare the incidence model
   if(exists("incidmod", where=fp) && fp$incidmod == "transm"){
@@ -681,37 +681,3 @@ aggr_specfit <- function(fitlist, rwproj=sapply(fitlist, function(x) x$fp$eppmod
   modaggr <- lapply(modaggr, "class<-", c("specaggr", "spec"))
   return(modaggr)
 }
-
-
-####  Parameters  ####
-
-frr_cd4_stage <- rbind(c(2.2092601, 1.0498458, 0.7909242, 0.7457322, 0.6370297, 0.5784465, 0.5784465, 0.5784465),
-c(1.9957325, 0.9476719, 0.7137200, 0.6728340, 0.5747181, 0.5218241, 0.5218241, 0.5218241),
-c(1.6978419, 0.8060810, 0.6068454, 0.5719130, 0.4884228, 0.4435285, 0.4435285, 0.4435285),
-c(1.2546568, 0.5960523, 0.4484867, 0.4226725, 0.3609799, 0.3276454, 0.3276454, 0.3276454),
-c(0.8321120, 0.3955791, 0.2974010, 0.2802773, 0.2391743, 0.2170073, 0.2170073, 0.2170073),
-c(0.6498167, 0.3092457, 0.2323928, 0.2188925, 0.1869424, 0.1695819, 0.1695819, 0.1695819),
-c(0.6196790, 0.2947683, 0.2214894, 0.2086464, 0.1781029, 0.1616417, 0.1616417, 0.1616417))
-
-frr_art_stage <- array(0, c(3,7,8))
-frr_art_stage[1,,] <- frr_cd4_stage
-frr_art_stage[2,,] <- frr_cd4_stage
-frr_art_stage[3,,] <- 0.8
-
-
-frr_cd4_stage1 <- frr_cd4_stage
-frr_art_stage1 <- frr_art_stage
-frr_art_stage1[3,,] <- 1.0
-
-frr_cd4_default <- rbind(c(1.2, 1.2, 0.76, 0.71, 0.65, 0.59, 0.53, 0.47),
-                         c(1.2, 1.2, 0.76, 0.71, 0.65, 0.59, 0.53, 0.47),
-                         c(1.2, 1.2, 0.76, 0.71, 0.65, 0.59, 0.53, 0.47),
-                         c(1.2, 1.2, 0.76, 0.71, 0.65, 0.59, 0.53, 0.47),
-                         c(1.2, 1.2, 0.76, 0.71, 0.65, 0.59, 0.53, 0.47),
-                         c(1.2, 1.2, 0.76, 0.71, 0.65, 0.59, 0.53, 0.47),
-                         c(1.2, 1.2, 0.76, 0.71, 0.65, 0.59, 0.53, 0.47))
-
-frr_art_default <- array(0, c(3,7,8))
-frr_art_default[1,,] <- frr_cd4_default
-frr_art_default[2,,] <- frr_cd4_default
-frr_art_default[3,,] <- 1.0

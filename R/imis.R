@@ -108,7 +108,7 @@ imis <- function(B0, B, B_re, number_k, opt_k=NULL, fp, likdat,
       nlposterior <- function(theta){-prior(theta, fp, log=TRUE)-likelihood(theta, fp, likdat, log=TRUE)}
 
       ## opt <- optimization_step(theta_init, nlposterior, cov_prior)  # Version by Bao uses prior covariance to parscale optimizer
-      opt <- optimization_step(theta_init, nlposterior, cov(X_all))
+      opt <- optimization_step(theta_init, nlposterior, cov(X_all[1:n_all, ]))
       center_all[[k]] <- opt$mu
       sigma_all[[k]] <- opt$sigma
       
@@ -121,7 +121,7 @@ imis <- function(B0, B, B_re, number_k, opt_k=NULL, fp, likdat,
       ## choose mixture component centered at input with current maximum weight
       center_all[[k]] <- X_all[which.max(weights),]
       distance_all <- mahalanobis(X_all[1:n_all,], center_all[[k]], diag(diag(cov_prior)))   # Raftery & Bao version
-      ## distance_all <- mahalanobis(X_all[1:n_all,], center_all[[k]], cov(X_all))           # Suggested by Fasiolo et al.
+      ## distance_all <- mahalanobis(X_all[1:n_all,], center_all[[k]], cov(X_all[1:n_all, ]))           # Suggested by Fasiolo et al.
       which_close <- order(distance_all)[seq_len(min(n_all, B))]  # Choose B nearest inputs (use n_all if n_all < B)
       sigma_all[[k]] <- cov.wt(X_all[which_close, , drop=FALSE], wt = weights[which_close]+1/n_all, center = center_all[[k]])$cov   # Raftery & Bao version
       if(any(is.na(sigma_all[[k]])))

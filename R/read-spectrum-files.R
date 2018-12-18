@@ -459,13 +459,19 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     }
   }
 
-  if(exists_dptag("<MortalityRates MV>"))
-    artmx_timerr <- setNames(as.numeric(dpsub("<MortalityRates MV>", 2, timedat.idx)), proj.years)
-  else
-    artmx_timerr <- setNames(rep(1.0, length(proj.years)), proj.years)
+  artmx_timerr <- array(1.0, c(3, length(proj.years)), list(artdur=c("ART0MOS", "ART6MOS", "ART1YR"), year = proj.years))
+  if(exists_dptag("<MortalityRates MV>")){
+    val <- as.numeric(dpsub("<MortalityRates MV>", 2, timedat.idx))
+    artmx_timerr["ART0MOS", ] <- val
+    artmx_timerr["ART6MOS", ] <- val
+    artmx_timerr["ART1YR", ] <- val
+  } else if(exists_dptag("<MortalityRates MV2>")) {
+    val <- array(as.numeric(unlist(dpsub("<MortalityRates MV2>", 2:3, timedat.idx))), c(2, length(proj.years)))
+    artmx_timerr["ART0MOS", ] <- val[1, ]
+    artmx_timerr["ART6MOS", ] <- val[1, ]
+    artmx_timerr["ART1YR", ] <- val[2, ]
+  }
 
-  
-  
   ## program parameters
   if(dp.vers %in% c("<General 3>", "<General5>")){
     art15plus_numperc <- sapply(dp[adult.artnumperc.tidx+3:4, timedat.idx], as.numeric)
@@ -877,23 +883,18 @@ read_epp_perc_urban <- function(pjnz){
 
   xmlfile <- grep(".xml", unzip(pjnz, list=TRUE)$Name, value=TRUE)
   con <- unz(pjnz, xmlfile)
-  epp.xml <- scan(con, "character", sep="\n")
-  close(con)
+  epp.xml <- xml2::read_xml(con)
   
-  if (!require("XML", quietly = TRUE))
-    stop("read_epp_perc_urban() requires the package 'XML'. Please install it.", call. = FALSE)
+  r <- xml2::xml_children(xml2::xml_child(epp.xml))
+  names(r) <- xml2::xml_attr(r, "property")
   
-  obj <- xmlTreeParse(epp.xml)
-  r <- xmlRoot(obj)[[1]]
-
-  yr_start <- as.integer(xmlToList(r[[which(xmlSApply(r, xmlAttrs) == "worksetStartYear")]][[1]]))
-  yr_end <- as.integer(xmlToList(r[[which(xmlSApply(r, xmlAttrs) == "worksetEndYear")]][[1]]))
-  perc_urban.idx <- which(xmlSApply(r, xmlAttrs) == "currentUrbanPercent")
-  if(length(perc_urban.idx) == 0){
+  if(!exists("currentUrbanPercent", r)){
     warning(paste0("EPP file does not contain Urban/Rural stratification:\n", pjnz))
     return(NULL)
   }
-  perc_urban <- as.numeric(xmlSApply(r[[perc_urban.idx]][[1]], xmlSApply, xmlToList))
+  perc_urban <- epp:::.parse_array(xml2::xml_child(r[["currentUrbanPercent"]]))
+  yr_start <- xml2::xml_integer(r[["worksetStartYear"]])
+  yr_end <- xml2::xml_integer(r[["worksetEndYear"]])
 
   return(setNames(perc_urban, yr_start:yr_end))
 }
@@ -902,26 +903,22 @@ read_epp_perc_urban <- function(pjnz){
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
 #' @return vector of epidemic start year for each EPP subregion with region names
+#'
 read_epp_t0 <- function(pjnz){
-  
+
   xmlfile <- grep(".xml", unzip(pjnz, list=TRUE)$Name, value=TRUE)
   con <- unz(pjnz, xmlfile)
-  epp.xml <- scan(con, "character", sep="\n", quiet=TRUE)
-  on.exit(close(con), TRUE)
+  epp.xml <- xml2::read_xml(con)
 
-  if (!require("XML", quietly = TRUE))
-    stop("read_epp_t0() requires the package 'XML'. Please install it.", call. = FALSE)
-      
-  obj <- xmlTreeParse(epp.xml)
-  r <- xmlRoot(obj)[[1]]
-  eppSetChildren.idx <- which(xmlSApply(r, xmlAttrs) == "eppSetChildren")
+  r <- xml2::xml_children(xml2::xml_child(epp.xml))
+  names(r) <- xml2::xml_attr(r, "property")
 
   t0 <- list()
-  for(eppSet.idx in 1:xmlSize(r[[eppSetChildren.idx]])){
-
-    eppSet <- r[[eppSetChildren.idx]][[eppSet.idx]][[1]]
-    eppName <- xmlToList(eppSet[[which(xmlSApply(eppSet, xmlAttrs) == "name")]][["string"]])
-    t0[[eppName]] <- as.integer(xmlToList(eppSet[[which(xmlSApply(eppSet, xmlAttrs) == "priorT0vr")]][[1]]))
+  for(nd in xml2::xml_children(r[["eppSetChildren"]])) {
+    ns <- xml2::xml_children(xml2::xml_child(nd))
+    names(ns) <- xml2::xml_attr(ns, "property")
+    nm <- xml2::xml_text(ns[["name"]])
+    t0[[nm]] <- xml2::xml_double(ns[["priorT0vr"]])
   }
 
   return(unlist(t0))

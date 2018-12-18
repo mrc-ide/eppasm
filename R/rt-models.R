@@ -50,13 +50,17 @@ rlogistic <- function(t, p){
 prepare_rhybrid <- function(fp,
                             tsEpidemicStart = fp$ss$time_epi_start+0.5,
                             rw_start = fp$rw_start,
-                            rw_trans = fp$rw_trans){
+                            rw_trans = fp$rw_trans,
+                            rw_dk = fp$rw_dk){
 
   if(is.null(rw_start))
-    rw_start <- max(fp$proj.steps)
+    rw_start <- 2003
 
   if(is.null(rw_trans))
     rw_trans <- 5
+
+  if(is.null(rw_dk))
+    rw_dk <- 5
 
   fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - tsEpidemicStart))]
 
@@ -71,8 +75,8 @@ prepare_rhybrid <- function(fp,
   rt$rlogistic_steps <- fp$proj.steps[1:switch_idx]
   rt$rw_steps <- fp$proj.steps[switch_idx:length(fp$proj.steps)]
   
-  rt$n_rw <- ceiling(max(rt$proj.steps) - rw_start)  # annual steps
-  rt$rw_dk <- 1
+  rt$n_rw <- ceiling((max(rt$proj.steps) - rw_start) / rw_dk)
+  rt$rw_dk <- rw_dk
   rt$rw_knots <- seq(rw_start, rw_start + rt$rw_dk * rt$n_rw, by = rt$rw_dk)
   rt$rw_idx <- findInterval(rt$rw_steps[-1], rt$rw_knots)
   
@@ -104,7 +108,7 @@ create_rvec <- function(theta, rt){
     th_rw <- theta[4+1:rt$n_rw]
 
     diff_rlog <- diff(rlogistic(rt$rw_steps, par))
-    diff_rw <- rt$dt * th_rw[rt$rw_idx]
+    diff_rw <- rt$dt * th_rw[rt$rw_idx] / sqrt(rt$rw_dk)
     diff_rvec <- (1 - rt$rw_transition) * diff_rlog + rt$rw_transition * diff_rw
     rvec_rw <- cumsum(c(rvec_rlog[length(rvec_rlog)], diff_rvec))
 
@@ -165,10 +169,11 @@ extend_projection <- function(fit, proj_years){
       fit$resample <- cbind(fit$resample[,1:(idx1-1), drop=FALSE], thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
     else
       fit$resample <- cbind(thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
-    fit$fp <- fpnew
   } else {
     warning("already specified length, added rw_sigma only")
   }
+
+  fit$fp <- fpnew
 
   return(fit)
 }

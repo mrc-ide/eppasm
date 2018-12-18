@@ -1,7 +1,7 @@
 
 #' @import data.table
 #' 
-tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
+tidy_output <- function(fit, modlab, country=NA, eppregion=NA, ancsite = TRUE){
 
   idvars <- data.frame(country = country,
                        eppregion = eppregion,
@@ -45,6 +45,8 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
   prev <- sapply(mod_list, prev)
   incid <- mapply(incid, mod = mod_list, fp = fp_list)
   popsize <- sapply(mod_list, colSums, dims=3)
+  plhiv <- sapply(lapply(mod_list, function(x) x[,,2,]), colSums, dims = 2)
+  infections <- sapply(lapply(mod_list, attr, "infections"), colSums, dims=2)
   
   aidsdeaths <- sapply(lapply(mod_list, attr, "hivdeaths"), colSums, dims=2)
   artcov <- sapply(mod_list, artcov15plus)
@@ -60,6 +62,9 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
                aidsdeaths15pl = aidsdeaths,
                artcov15pl = artcov,
                pregartcov = ancartcov,
+               popsize15pl = popsize,
+               plhiv15pl = plhiv,
+               infections15pl = infections,
                "r(t)" = rvec,
                "log r(t)" = log(rvec))
   core <- lapply(core, estci2)
@@ -154,7 +159,7 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA){
                            estci2(ageprevpred))
 
   ## Site-level ANC outputs
-  if(nrow(fit$likdat$ancsite.dat$df)) {
+  if(ancsite && nrow(fit$likdat$ancsite.dat$df)) {
     b_site <- Map(sample_b_site, mod_list, fp_list,
                   list(fit$likdat$ancsite.dat), resid = FALSE)
 

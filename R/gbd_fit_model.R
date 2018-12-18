@@ -21,6 +21,8 @@ prepare_spec_fit_gbd <- function(loc, collapse, i, proj.end=2016.5, gbd.pop = TR
       eppd.new[[loc]] <- eppd[[names(which(zaf.dict == loc))]]  
       eppd <- eppd.new
       epp.subp$total <- epp.subp$subpops[[names(which(zaf.dict == loc))]] 
+      eppd[[1]]$ancrtcens <- data.frame(year=integer(), prev=integer(), n=integer())
+        # eppd.tot[[subpop.tot]]$ancrtcens <- NULL
       epp.subp$subpops <- NULL
       epp.subp$subpops[[loc]] <- epp.subp$total
       ## TODO: What to do with epp.input? (especially ART values)

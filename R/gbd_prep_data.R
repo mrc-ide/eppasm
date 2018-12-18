@@ -133,7 +133,6 @@ collapse_epp <- function(loc){
   ## epp.subp
   epp.subp.list <- lapply(file.list, function(file) {
     pjnz <- file
-    debug(epp::read_epp_subpops)
     epp.subp <- epp::read_epp_subpops(pjnz)
   })
   

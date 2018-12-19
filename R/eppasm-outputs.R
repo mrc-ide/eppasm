@@ -18,6 +18,8 @@ get_proj_years <- function(ss){
 #' fp <- prepare_directincid(pjnz)
 #' mod <- simmod(fp)
 #'
+#' mod <- mod_dimnames(mod, fp$ss)
+#'
 #' @export
 mod_dimnames <- function(mod, ss){
 
@@ -36,9 +38,9 @@ mod_dimnames <- function(mod, ss){
   dimnames(attr(mod, "infections")) <- dimnames(mod)[-3]
   dimnames(attr(mod, "hivdeaths")) <- dimnames(mod)[-3]
   dimnames(attr(mod, "natdeaths")) <- dimnames(mod)[-3]
-  dimnames(attr(mod, "prev15to49")) <- yrlbl
-  dimnames(attr(mod, "pregprev")) <- yrlbl
-  dimnames(attr(mod, "incid15to49")) <- yrlbl
+  names(attr(mod, "prev15to49")) <- yrlbl
+  names(attr(mod, "pregprev")) <- yrlbl
+  names(attr(mod, "incid15to49")) <- yrlbl
 
   mod
 }

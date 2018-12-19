@@ -33,9 +33,9 @@ mod_dimnames <- function(mod, ss){
   dimnames(attr(mod, "hivpop")) <- list(cd4stage = hDSlbl, agegr = hAGlbl, sex = sexlbl, year = yrlbl)
   dimnames(attr(mod, "artpop")) <- list(artdur = hTSlbl, cd4stage = hDSlbl, agegr = hAGlbl, sex = sexlbl, year = yrlbl)
 
-  dimnames(attr(mod, "infections")) <- dimnames(mod)
-  dimnames(attr(mod, "hivdeaths")) <- dimnames(mod)
-  dimnames(attr(mod, "natdeaths")) <- dimnames(mod)
+  dimnames(attr(mod, "infections")) <- dimnames(mod)[-3]
+  dimnames(attr(mod, "hivdeaths")) <- dimnames(mod)[-3]
+  dimnames(attr(mod, "natdeaths")) <- dimnames(mod)[-3]
   dimnames(attr(mod, "prev15to49")) <- yrlbl
   dimnames(attr(mod, "pregprev")) <- yrlbl
   dimnames(attr(mod, "incid15to49")) <- yrlbl

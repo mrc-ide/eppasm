@@ -333,7 +333,11 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   fp$logitiota <- TRUE
 
   ## Prepare the incidence model
-  fp$incidmod <- "eppspectrum"
+  if(exists("incidmod", where=fp) && fp$incidmod == "transm"){
+    if(!exists("relsexact_cd4cat", where=fp))
+      fp$relsexact_cd4cat <- c(1.0, 0.92, 0.76, 0.76, 0.55, 0.55, 0.55)
+  } else
+    fp$incidmod <- "eppspectrum"
 
   fp <- prepare_irr_model(fp)
 

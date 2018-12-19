@@ -120,12 +120,6 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   if(popadjust & is.null(fp$targetpop))
     stop("targetpop does not span proj_start:proj_end")
 
-
-  ## calculate births during calendar year
-  ## Spectrum births output represents births midyear previous year to midyear
-  ## current year. Adjust births for half year offset
-  fp$births <- demp$births[as.character(proj_start:proj_end)]
-  fp$births[-1] <- (fp$births[-1] + fp$births[-PROJ_YEARS]) / 2
   
   ## ###################### ##
   ##  HIV model parameters  ##

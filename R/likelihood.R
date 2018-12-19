@@ -208,53 +208,6 @@ ll_ancrtcens <- function(mod, dat, fp, pointwise = FALSE){
 ####  Age/sex incidence model  ####
 ###################################
 
-## log-normal age incrr prior parameters
-lognorm.a0.pr.mean <- 10
-lognorm.a0.pr.sd <- 5
-
-lognorm.meanlog.pr.mean <- 3
-lognorm.meanlog.pr.sd <- 2
-
-lognorm.logsdlog.pr.mean <- 0
-lognorm.logsdlog.pr.sd <- 1
-
-relbehav_adjust_sd <- 0.25
-NPAR_RELBEHAV <- 9
-
-calc_lognorm_logagerr <- function(par, a=2.5+5*3:16, b=27.5){
-  dlnorm(a-par[1], par[2], exp(par[3]), log=TRUE) - dlnorm(b-par[1], par[2], exp(par[3]), log=TRUE)
-}
-
-
-
-fnCreateLogAgeSexIncrr <- function(logrr, fp){
-
-
-  logincrr.theta.idx <- c(7:10, 12:20)
-  logincrr.fixed.idx <- 11
-
-  lastidx <- length(fp$proj.steps)
-  fixed.age50p.logincrr <- log(fp$agesex.incrr.ts[,age50plus.idx,lastidx]) - log(fp$agesex.incrr.ts[,age45.idx,lastidx])
-
-  logincrr.theta <- tail(theta, length(logincrr.theta.idx))
-  logincrr.agesex <- array(-Inf, c(NG, AG))
-  logincrr.agesex[logincrr.fixed.idx] <- 0
-  logincrr.agesex[logincrr.theta.idx] <- logincrr.theta
-  logincrr.agesex[,age50plus.idx] <- logincrr.agesex[,age45.idx] + fixed.age50p.logincrr
-
-  return(logincrr.agesex)
-}
-
-create_natmx_param <- function(theta_natmx, fp){
-
-  ## linear trend in logmx
-  par <- list(natmx_b0 = theta_natmx[1],
-              natmx_b1 = theta_natmx[2])
-  par$Sx <- with(fp$natmx, exp(-exp(outer(logmx0, par$natmx_b0 + natmx_b1*x, "+"))))
-  return(par)
-}
-
-
 fnCreateParam <- function(theta, fp){
 
   if(exists("prior_args", where = fp)){
@@ -338,28 +291,6 @@ fnCreateParam <- function(theta, fp){
     param$ancrtsite.beta <- theta[paramcurr+1]
     paramcurr <- paramcurr+1
   }
-
-  if(inherits(fp, "specfp")){
-    if(exists("fitincrr", where=fp)){
-      incrr_nparam <- getnparam_incrr(fp)
-      if(incrr_nparam)
-        param <- transf_incrr(theta[paramcurr+1:incrr_nparam], param, fp)
-      paramcurr <- paramcurr+incrr_nparam
-    }
-  }
-
-  if(exists("natmx", where=fp) && fp$fitmx==TRUE){
-    natmx_nparam <- 3
-    theta_natmx <- theta[paramcurr+1:natmx_nparam]
-    paramcurr <- paramcurr+natmx_nparam
-    
-    b0 <- theta_natmx[1]
-    b1 <- theta_natmx[2]/10
-    mx_lsexrat <- theta_natmx[3]
-    
-      param$natmx_par <- list(b0=b0, b1=b1, mx_lsexrat=mx_lsexrat)
-    param$Sx <- with(fp$natmx, exp(-exp(outer(sweep(logmx0, 2, c(0, mx_lsexrat), "+"), b0 + b1*x, "+"))))
-  }
   
   return(param)
 }
@@ -439,68 +370,6 @@ ll_hhsage_binom <- function(mod, dat, pointwise = FALSE){
 
 
 
-##########################################
-####  Mortality likelihood functions  ####
-##########################################
-
-#' Prepare sibling history mortality likelihood data
-#'
-prepare_sibmx_likdat <- function(sibmxdat, fp){
-  anchor.year <- floor(min(fp$proj.steps))
-  nyears <- fp$ss$PROJ_YEARS
-  NG <- fp$ss$NG
-  AG <- fp$ss$pAG
-
-  sibmxdat$sidx <- as.integer(sibmxdat$sex)
-  sibmxdat$aidx <- sibmxdat$agegr - (fp$ss$AGE_START-1)
-  sibmxdat$yidx <- sibmxdat$period - (anchor.year - 1)
-  sibmxdat$tipsidx <- sibmxdat$tips+1L
-
-  sibmxdat <- subset(sibmxdat, aidx > 0)
-
-  sibmxdat$arridx <- sibmxdat$aidx + (sibmxdat$sidx-1)*AG + (sibmxdat$yidx-1)*NG*AG
-
-  return(sibmxdat)
-}
-
-#' Log negative binomial density
-#'
-#' Log negative binomial density, mu parameterization
-#'
-#' Log-density of negative binomial distribution. Parameter names and
-#' parameterization matches the 'mu' parameterization of \code{\link{dnbinom}}.
-#'
-#' @param x vector of number of events.
-#' @param size dispersion parameter.
-#' @param mu mean expected number of events.
-ldnbinom <- function(x, size, mu){
-  prob <- size/(size+mu)
-  lgamma(x+size) - lgamma(size) - lgamma(x+1) + size*log(prob) + x*log(1-prob)
-}
-
-
-
-#' Log-likelihood for sibling history mortality data
-#'
-#' Calculate the log-likelihood for sibling history mortality data
-#'
-#' !!! NOTE: does not account for complex survey design
-#'
-#' @param mx Array of age/sex-specific mortality rates for each year, output
-#'   from function \code{\link{agemx}}.
-#' @param tipscoef Vector of TIPS (time preceding survey) coefficients for
-#'   relative risk of underreporting deceased siblings.
-#' @param theta Overdispersion of negative binomial distribution.
-#' @param sibmx.dat Data frame consisting of sibling history mortality data.
-ll_sibmx <- function(mx, tipscoef, theta, sibmx.dat){
-
-  ## predicted deaths: product of predicted mortality, tips coefficient, and person-years
-  mu.pred <- mx[sibmx.dat$arridx] * tipscoef[sibmx.dat$tipsidx] * sibmx.dat$pys
-
-  return(sum(ldnbinom(sibmx.dat$deaths, theta, mu.pred)))
-}
-
-
 #########################################
 ####  Incidence likelihood function  ####
 #########################################
@@ -561,8 +430,6 @@ prepare_likdat <- function(eppd, fp){
 
   if(exists("hhsincid", where=eppd))
     likdat$hhsincid.dat <- prepare_hhsincid_likdat(eppd$hhsincid, fp)
-  if(exists("sibmx", where=eppd))
-    likdat$sibmx.dat <- prepare_sibmx_likdat(eppd$sibmx, fp)
 
   return(likdat)
 }
@@ -635,14 +502,6 @@ lprior <- function(theta, fp){
     paramcurr <- paramcurr+1
   }
 
-  if(exists("fitincrr", where=fp)){
-    incrr_nparam <- getnparam_incrr(fp)
-    if(incrr_nparam){
-      lpr <- lpr + lprior_incrr(theta[paramcurr+1:incrr_nparam], fp)
-      paramcurr <- paramcurr+incrr_nparam
-    }
-  }
-  
   return(lpr)
 }
 
@@ -650,11 +509,6 @@ lprior <- function(theta, fp){
 ll <- function(theta, fp, likdat){
   theta.last <<- theta
   fp <- update(fp, list=fnCreateParam(theta, fp))
-
-  if(exists("fitincrr", where=fp) && fp$fitincrr==TRUE){
-    ll.incpen <- sum(dnorm(diff(fp$logincrr_age, differences=2), sd=fp$sigma_agepen, log=TRUE))
-  } else
-    ll.incpen <- 0
 
   if (fp$eppmod == "rspline")
     if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) 
@@ -688,13 +542,6 @@ ll <- function(theta, fp, likdat){
   else
     ll.incid <- 0
 
-
-  if(exists("sibmx", where=fp) && fp$sibmx){
-    M.agemx <- agemx(mod)
-    ll.sibmx <- ll_sibmx(M.agemx, fp$tipscoef, fp$sibmx.theta, likdat$sibmx.dat)
-  } else
-    ll.sibmx <- 0
-
   if(exists("equil.rprior", where=fp) && fp$equil.rprior){
     if(fp$eppmod != "rspline")
       stop("error in ll(): equil.rprior is only for use with r-spline model")
@@ -702,8 +549,7 @@ ll <- function(theta, fp, likdat){
     lastdata.idx <- max(likdat$ancsite.dat$df$yidx,
                         likdat$hhs.dat$yidx,
                         likdat$ancrtcens.dat$yidx,
-                        likdat$hhsincid.dat$idx,
-                        likdat$sibmx.dat$idx)
+                        likdat$hhsincid.dat$idx)
     
     qM.all <- suppressWarnings(qnorm(prev(mod)))
 
@@ -726,9 +572,7 @@ ll <- function(theta, fp, likdat){
     ancrt  = ll.ancrt,
     hhs    = ll.hhs,
     incid  = ll.incid,
-    sibmx  = ll.sibmx,
-    rprior = ll.rprior,
-    incpen = ll.incpen)
+    rprior = ll.rprior)
 }
 
 
@@ -774,9 +618,6 @@ sample.prior <- function(n, fp){
     ancrt_nparam <- ancrt_nparam+1
 
   nparam <- epp_nparam+anclik_nparam+ancrt_nparam
-
-  if(exists("fitincrr", where=fp)) nparam <- nparam+getnparam_incrr(fp)
-
   
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
@@ -833,13 +674,6 @@ sample.prior <- function(n, fp){
   if(exists("ancrt", where=fp) && fp$ancrt %in% c("site", "both")){
     mat[,paramcurr+1] <- rnorm(n, ancrtsite.beta.pr.mean, ancrtsite.beta.pr.sd)
     paramcurr <- paramcurr+1
-  }
-
-  if(exists("fitincrr", where=fp)){
-    incrr_nparam <- getnparam_incrr(fp)
-    if(incrr_nparam)
-      mat[,paramcurr+1:incrr_nparam] <- sample_incrr(n, fp)
-    paramcurr <- paramcurr+incrr_nparam
   }
 
   return(mat)
@@ -916,14 +750,6 @@ ldsamp <- function(theta, fp){
     paramcurr <- paramcurr+1
   }
 
-  if(exists("fitincrr", where=fp)){
-    incrr_nparam <- getnparam_incrr(fp)
-    if(incrr_nparam){
-      lpr <- lpr + ldsamp_incrr(theta[paramcurr+1:incrr_nparam], fp)
-      paramcurr <- paramcurr+incrr_nparam
-    }
-  }
-  
   return(lpr)
 }
 

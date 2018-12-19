@@ -53,7 +53,7 @@ theta_ur <- c(-0.63758, -2.76655, -1.26204, 1996.65945, 0.00778, 0.05195,
               -0.03548, 3.65223, -0.02515, -4.74563, 0.26259, -6.90124, 0.01583)
 
 fp <- attr(bw$Urban, "specfp")
-fp <- prepare_rlogistic_rw(fp, rw_start = 2005)
+fp <- prepare_rhybrid(fp, rw_start = 2003, rw_trans = 5, rw_dk = 5)
 
 ## Set some flags that are set in fitmod(), (later improve this code...)
 fp$ancsitedata <- TRUE
@@ -111,9 +111,11 @@ ll_ancrtcens(mod, likdat$ancrtcens.dat, fp_par)
 ```{r, fit_eppasm, cache=TRUE}
 bwfit <- list()
 
-bwfit$Urban <- fitmod(bw$Urban, eppmod = "rlogistic_rw", rw_start = 2005,
+bwfit$Urban <- fitmod(bw$Urban, eppmod = "rhybrid",
+                      rw_start = 2003, rw_trans = 5, rw_dk = 5,
                       B0=1e3, B=1e2, opt_iter = 1:2*5, number_k=50)
-bwfit$Rural <- fitmod(bw$Rural, eppmod = "rlogistic_rw", rw_start = 2005,
+bwfit$Rural <- fitmod(bw$Rural, eppmod = "rhybrid",
+                      rw_start = 2005, rw_trans = 5, rw_dk = 5,
                       B0=1e3, B=1e2, opt_iter = 1:2*5, number_k=50)
 ```
 

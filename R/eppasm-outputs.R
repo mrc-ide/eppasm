@@ -83,6 +83,9 @@ hivpop_singleage <- function(mod, ss){
 
   dimnames(hivpop1)[2:4] <- dimnames(hivp)
   dimnames(artpop1)[3:5] <- dimnames(hivp)
+  
+  names(dimnames(hivpop1)[2:4]) <- names(dimnames(hivp))
+  names(dimnames(artpop1)[3:5]) <- names(dimnames(hivp))
 
   list(hivpop1 = hivpop1, artpop1 = artpop1)
 }

@@ -42,4 +42,11 @@ test_that("ll returns expected value", {
   expect_equal(round(ll(theta_rtrend, fp_rtrend, likdat), 4),
                c(anc = 79.2002, ancrt = 8.6026, hhs = 6.8623, incid = 0,
                  sibmx = 0, rprior = 0, incpen = 0))
+
+
+test_that("lprior returns expected value", {
+  expect_equal(round(lprior(theta_rhybrid, fp_rhybrid), 5), -4.84719)
+  expect_equal(round(lprior(theta_rspline, fp_rspline), 5), -19.90811)
+  expect_equal(round(lprior(theta_rspline, fp_rspline_eq), 5), -19.90811)
+  expect_equal(round(lprior(theta_rtrend, fp_rtrend), 5), -9.35207)
 })

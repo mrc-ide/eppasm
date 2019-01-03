@@ -583,14 +583,43 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   else
     hivpop <- NULL
 
-  ## distribution of age 14 population
-  PAED_DS <- 6 # number of paediatric stages of infection
-  if(exists_dptag("<ChAged14ByCD4Cat MV>")){
+  ## distribution of entering age 15 HIV population
+  age15hivpop <- array(0, c(1+TS, DS, NG, length(proj.years)),
+                       list(artdur = c("noart", "art0mos", "art6mos", "art1yr"),
+                            cd4state = c(">500", "350-499", "250-349", "200-249", "100-199", "50-99", "<50"),
+                            sex = c("male", "female"), year=proj.years))
+  
+  if(exists_dptag("<ChAged15ByCD4Cat MV>")){
+
+    age15hivpop_raw <- sapply(dpsub("<ChAged15ByCD4Cat MV>", 1+1:(NG*DS*2), timedat.idx), as.numeric)
+    age15hivpop_raw <- array(age15hivpop_raw, c(DS, 2, NG, length(proj.years)))
+    
+    age15hivpop[1,,,] <- age15hivpop_raw[,1,,]
+    age15hivpop[4,,,] <- age15hivpop_raw[,2,,]
+
+  } else if(exists_dptag("<ChAged14ByCD4Cat MV>")){
+
+    PAED_DS <- 6 # number of paediatric stages of infection
     age14hivpop <- sapply(dpsub("<ChAged14ByCD4Cat MV>", 1+1:(NG*PAED_DS*(4+TS)), timedat.idx), as.numeric)
     age14hivpop <- array(age14hivpop, c(4+TS, PAED_DS, NG, length(proj.years)),
                          list(ARTstage=c("PERINAT", "BF0MOS", "BF6MOS", "BF1YR", "ART0MOS", "ART6MOS", "ART1YR"),
                               CD4cat=c("CD4_1000", "CD4_750", "CD4_500", "CD4_350", "CD4_200", "CD4_0"),
-                              Sex=c("Male", "Female"), Year=proj.years))
+                              sex=c("male", "female"), year=proj.years))
+
+    ## collapse transmission route categories into single untreated compartment
+    age14hivpop <- apply(age14hivpop, 2:4, fastmatch::ctapply, c(1, 1, 1, 1, 2:4), sum)
+
+    ## convert from paediatric model CD4 categories to adult model
+    cd4convert <- rbind(c(1, 0, 0, 0, 0, 0, 0),
+                        c(1, 0, 0, 0, 0, 0, 0),
+                        c(1, 0, 0, 0, 0, 0, 0),
+                        c(0, 1, 0, 0, 0, 0, 0),
+                        c(0, 0, 0.67, 0.33, 0, 0, 0),
+                        c(0, 0, 0, 0, 0.35, 0.21, 0.44))
+
+    for(u in 1:4)
+      age15hivpop[u,,,] <- apply(age14hivpop[u,,,], 2:3, "%*%", cd4convert)
+    
   } else {
 
     ## Approximate for versions of Spectrum < 5.63
@@ -598,19 +627,19 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     hivpop14 <- specres$hivpop["14",,]
 
     ## Assume ART coverage for age 10-14 age group
-    artcov14 <- rbind(Male = specres$artnum.m["10-14",]/specres$hivnum.m["10-14",],
-                      Female = specres$artnum.f["10-14",]/specres$hivnum.f["10-14",])
+    artcov14 <- rbind(male = specres$artnum.m["10-14",]/specres$hivnum.m["10-14",],
+                      female = specres$artnum.f["10-14",]/specres$hivnum.f["10-14",])
     artcov14[is.na(artcov14)] <- 0
                       
-    noart_cd4dist <- c(0.01, 0.04, 0.12, 0.22, 0.26, 0.35) # approximation for pre-ART period
+    noart_cd4dist <- c(0.17, 0.22, 0.1742, 0.0858, 0.1225, 0.0735, 0.154) # approximation for pre-ART period
 
     age14hivpop <- array(0, c(4+TS, PAED_DS, NG, length(proj.years)),
                          list(ARTstage=c("PERINAT", "BF0MOS", "BF6MOS", "BF1YR", "ART0MOS", "ART6MOS", "ART1YR"),
                               CD4cat=c("CD4_1000", "CD4_750", "CD4_500", "CD4_350", "CD4_200", "CD4_0"),
                               Sex=c("Male", "Female"), Year=proj.years))
 
-    age14hivpop["PERINAT",,,] <- noart_cd4dist %o% (hivpop14 * (1 - artcov14))
-    age14hivpop["ART1YR", "CD4_0",,] <- hivpop14 * artcov14
+    age15hivpop["noart",,,] <- noart_cd4dist %o% (hivpop14 * (1 - artcov14))
+    age15hivpop["art1yr",,,] <- noart_cd4dist %o% (hivpop14 * artcov14)
   }
 
   if(exists_dptag("<BigPop3>"))
@@ -656,7 +685,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
                 "verttrans" = verttrans,
                 "hivpop" = hivpop,
                 "hivdeaths" = hivdeaths,
-                "age14hivpop" = age14hivpop,
+                "age15hivpop" = age15hivpop,
                 "age14totpop" = age14totpop)
   class(projp) <- "projp"
   attr(projp, "version") <- version

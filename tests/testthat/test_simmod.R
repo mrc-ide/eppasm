@@ -89,3 +89,13 @@ test_that("hivpop1 and artpop1 align with hivpop and artpop", {
   expect_equal(colSums(hp1$hivpop1,,2), colSums(attr(mod, "hivpop"),,2))
   expect_equal(colSums(hp1$artpop1,,3), colSums(attr(mod, "artpop"),,3))
 })
+
+
+test_that("pop and hivpop+artpop are synchronised", {
+  mod <- simmod(bw_fp)
+  modR <- simmod(bw_fp, "R")
+  expect_equal(colSums(mod[,,2,],,2),
+               colSums(attr(mod, "hivpop"),,3) + colSums(attr(mod, "artpop"),,4))
+  expect_equal(colSums(modR[,,2,],,2),
+               colSums(attr(modR, "hivpop"),,3) + colSums(attr(modR, "artpop"),,4))
+})

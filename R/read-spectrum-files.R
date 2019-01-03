@@ -42,7 +42,7 @@ read_iso3 <- function(pjnz){
   pjn <- read_pjn(pjnz)
   cc <- as.integer(pjn[which(pjn[,1] == "<Projection Parameters>")+2, 4])
   return(with(spectrum5_countrylist, iso3[Code == cc]))
-}  
+}
 
 ###################################################
 ####  function to read HIV projection outputs  ####
@@ -143,7 +143,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
   }
   dimnames(totpop.m) <- dimnames(totpop.f) <- list(agegr.lab, proj.years)
 
-  
+
 
   ## ART need
   if(dp.vers %in% c("<General 3>", "<General5>")){
@@ -164,7 +164,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
     artnum.f <- sapply(dpsub("<OnART MV>", 7+0:16*3, timedat.idx), as.numeric)
   }
   dimnames(artnum.m) <- dimnames(artnum.f) <- list(agegr.lab, proj.years)
-  
+
   ## number non-aids deaths
   if(dp.vers %in% c("<General 3>", "<General5>")){
     natdeaths.m <- sapply(dpsub("Deaths - Male", 2:18, timedat.idx, 2), as.numeric)
@@ -201,13 +201,13 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
     aidsdeaths5 <- NA
 
   aidsdeaths5 <- array(sapply(aidsdeaths5, as.numeric), lengths(dn5), dn5)
-    
+
   aidsdeaths_art <- array(sapply(dpsub("<AIDSDeathsART MV2>", c(4:20, 22:38), timedat.idx), as.numeric),
                           lengths(dn5), dn5)
   aidsdeaths_noart <- array(sapply(dpsub("<AIDSDeathsNoART MV2>", c(4:20, 22:38), timedat.idx), as.numeric),
-                          lengths(dn5), dn5)
+                            lengths(dn5), dn5)
 
-      
+
   specres <- list("totpop.m" = totpop.m,
                   "totpop.f" = totpop.f,
                   "hivnum.m" = hivnum.m,
@@ -268,7 +268,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
       infections <- sapply(dpsub("<NewInfectionsBySingleAge MV>", 2 + c(0:80*3 + 1, 0:80*3 + 2), timedat.idx), as.numeric)
     else
       infections <- NA
-    
+
     specres$totpop <- array(totpop, lengths(dn1), dn1)
     specres$hivpop <- array(hivpop, lengths(dn1), dn1)
     specres$artpop <- array(artpop, lengths(dn1), dn1)
@@ -281,7 +281,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
   specres$hivpregwomen <- setNames(as.numeric(dpsub("<ChildNeedPMTCT MV>", 2, timedat.idx)), proj.years)
   specres$hivpregwomen <- setNames(as.numeric(dpsub("<ChildNeedPMTCT MV>", 2, timedat.idx)), proj.years)
   specres$receivepmtct <- setNames(as.numeric(dpsub("<ChildOnPMTCT MV>", 2, timedat.idx)), proj.years)
-  
+
   class(specres) <- "specres"
   attr(specres, "country") <- read_country(pjnz)
   attr(specres, "iso3") <- read_iso3(pjnz)
@@ -303,7 +303,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     dpfile <- grep(".ep5$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
   else
     dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-  
+
   dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
 
   if(use_ep5)
@@ -356,7 +356,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   AG <- 17
   DS <- 7
   TS <- 3
-  
+
   ## projection parameters
   if(dp.vers %in% c("<General 3>", "<General5>")){
     yr_start <- as.integer(dp[which(dp[,2] == "First year")+1,4])
@@ -370,10 +370,10 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   }
   proj.years <- yr_start:yr_end
   timedat.idx <- 4+1:length(proj.years)-1
-  
+
   ## scalar paramters
   if(dp.vers %in% c("<General 3>", "<General5>")){
-     relinfectART <- 1.0 - as.numeric(dp[infectreduc.tidx+1, 4])
+    relinfectART <- 1.0 - as.numeric(dp[infectreduc.tidx+1, 4])
   } else if(dp.vers %in% c("Spectrum2016", "Spectrum2017")){
     relinfectART <- 1.0 - as.numeric(dpsub("<AdultInfectReduc MV>",2,4))
   }
@@ -461,7 +461,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     art_mort[2,,,"Female"] <- array(as.numeric(dp[nathist.tidx+14, 4:31]), c(DS, 4))
     art_mort[3,,,"Male"] <- array(as.numeric(dp[nathist.tidx+16, 4:31]), c(DS, 4))
     art_mort[3,,,"Female"] <- array(as.numeric(dp[nathist.tidx+17, 4:31]), c(DS, 4))
-    
+
   } else if(dp.vers %in% c("Spectrum2016", "Spectrum2017")) {
     cd4_initdist[,,"Male"] <- array(as.numeric(dpsub("<AdultDistNewInfectionsCD4 MV>", 3, 4:31))/100, c(DS, 4))
     cd4_initdist[,,"Female"] <- array(as.numeric(dpsub("<AdultDistNewInfectionsCD4 MV>", 4, 4:31))/100, c(DS, 4))
@@ -472,7 +472,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 
     cd4_mort[,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4NoART MV>", 3, 4:31)), c(DS, 4))
     cd4_mort[,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4NoART MV>", 4, 4:31)), c(DS, 4))
-    
+
     if(dp.vers == "Spectrum2016"){
       art_mort[1,,,"Male"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART0to6 MV>", 3, 4:31)), c(DS, 4))
       art_mort[1,,,"Female"] <- array(as.numeric(dpsub("<AdultMortByCD4WithART0to6 MV>", 4, 4:31)), c(DS, 4))
@@ -537,7 +537,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     scale_cd4_mort <- 1L
   else
     scale_cd4_mort <- 0L
-    
+
   dimnames(art15plus_numperc) <- list(sex=c("Male", "Female"), year=proj.years)
   dimnames(art15plus_num) <- list(sex=c("Male", "Female"), year=proj.years)
 
@@ -553,7 +553,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   else
     median_cd4init <- rep(0, length(timedat.idx))
   names(median_cd4init) <- proj.years
-  
+
   if(dp.vers %in% c("Spectrum2016", "Spectrum2017"))
     art_dropout <- sapply(dpsub("<PercLostFollowup MV>", 2, timedat.idx), as.numeric)
   else
@@ -583,14 +583,40 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   else
     hivpop <- NULL
 
-  ## distribution of age 14 population
-  PAED_DS <- 6 # number of paediatric stages of infection
-  if(exists_dptag("<ChAged14ByCD4Cat MV>")){
+  ## distribution of entering age 15 HIV population
+  age15hivpop <- array(0, c(1+TS, DS, NG, length(proj.years)),
+                       list(artdur = c("noart", "art0mos", "art6mos", "art1yr"),
+                            cd4state = c(">500", "350-499", "250-349", "200-249", "100-199", "50-99", "<50"),
+                            sex = c("male", "female"), year=proj.years))
+
+  if(exists_dptag("<ChAged15ByCD4Cat MV>")){
+
+    age15hivpop_raw <- sapply(dpsub("<ChAged15ByCD4Cat MV>", 1+1:(NG*DS*2), timedat.idx), as.numeric)
+    age15hivpop[c(1, 4),,,] <- array(age15hivpop_raw, c(2, DS, NG, length(proj.years)))
+
+  } else if(exists_dptag("<ChAged14ByCD4Cat MV>")){
+
+    PAED_DS <- 6 # number of paediatric stages of infection
     age14hivpop <- sapply(dpsub("<ChAged14ByCD4Cat MV>", 1+1:(NG*PAED_DS*(4+TS)), timedat.idx), as.numeric)
     age14hivpop <- array(age14hivpop, c(4+TS, PAED_DS, NG, length(proj.years)),
                          list(ARTstage=c("PERINAT", "BF0MOS", "BF6MOS", "BF1YR", "ART0MOS", "ART6MOS", "ART1YR"),
                               CD4cat=c("CD4_1000", "CD4_750", "CD4_500", "CD4_350", "CD4_200", "CD4_0"),
-                              Sex=c("Male", "Female"), Year=proj.years))
+                              sex=c("male", "female"), year=proj.years))
+
+    ## collapse transmission route categories into single untreated compartment
+    age14hivpop <- apply(age14hivpop, 2:4, fastmatch::ctapply, c(1, 1, 1, 1, 2:4), sum)
+
+    ## convert from paediatric model CD4 categories to adult model
+    cd4convert <- rbind(c(1, 0, 0, 0, 0, 0, 0),
+                        c(1, 0, 0, 0, 0, 0, 0),
+                        c(1, 0, 0, 0, 0, 0, 0),
+                        c(0, 1, 0, 0, 0, 0, 0),
+                        c(0, 0, 0.67, 0.33, 0, 0, 0),
+                        c(0, 0, 0, 0, 0.35, 0.21, 0.44))
+
+    for(u in 1:4)
+      age15hivpop[u,,,] <- apply(age14hivpop[u,,,], 2:3, "%*%", cd4convert)
+
   } else {
 
     ## Approximate for versions of Spectrum < 5.63
@@ -598,19 +624,14 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     hivpop14 <- specres$hivpop["14",,]
 
     ## Assume ART coverage for age 10-14 age group
-    artcov14 <- rbind(Male = specres$artnum.m["10-14",]/specres$hivnum.m["10-14",],
-                      Female = specres$artnum.f["10-14",]/specres$hivnum.f["10-14",])
+    artcov14 <- rbind(male = specres$artnum.m["10-14",]/specres$hivnum.m["10-14",],
+                      female = specres$artnum.f["10-14",]/specres$hivnum.f["10-14",])
     artcov14[is.na(artcov14)] <- 0
-                      
-    noart_cd4dist <- c(0.01, 0.04, 0.12, 0.22, 0.26, 0.35) # approximation for pre-ART period
 
-    age14hivpop <- array(0, c(4+TS, PAED_DS, NG, length(proj.years)),
-                         list(ARTstage=c("PERINAT", "BF0MOS", "BF6MOS", "BF1YR", "ART0MOS", "ART6MOS", "ART1YR"),
-                              CD4cat=c("CD4_1000", "CD4_750", "CD4_500", "CD4_350", "CD4_200", "CD4_0"),
-                              Sex=c("Male", "Female"), Year=proj.years))
+    noart_cd4dist <- c(0.17, 0.22, 0.1742, 0.0858, 0.1225, 0.0735, 0.154) # approximation for pre-ART period
 
-    age14hivpop["PERINAT",,,] <- noart_cd4dist %o% (hivpop14 * (1 - artcov14))
-    age14hivpop["ART1YR", "CD4_0",,] <- hivpop14 * artcov14
+    age15hivpop["noart",,,] <- noart_cd4dist %o% (hivpop14 * (1 - artcov14))
+    age15hivpop["art1yr",,,] <- noart_cd4dist %o% (hivpop14 * artcov14)
   }
 
   if(exists_dptag("<BigPop3>"))
@@ -629,7 +650,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     age14totpop <- totpop["14",,]
   } else
     age14totpop <- NULL
-  
+
   projp <- list("yr_start" = yr_start,
                 "yr_end" = yr_end,
                 "relinfectART" = relinfectART,
@@ -656,13 +677,13 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
                 "verttrans" = verttrans,
                 "hivpop" = hivpop,
                 "hivdeaths" = hivdeaths,
-                "age14hivpop" = age14hivpop,
+                "age15hivpop" = age15hivpop,
                 "age14totpop" = age14totpop)
   class(projp) <- "projp"
   attr(projp, "version") <- version
   attr(projp, "validdate") <- validdate
   attr(projp, "validversion") <- validversion
-  
+
   return(projp)
 }
 
@@ -768,7 +789,7 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
     dpfile <- grep(".ep5$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
   else
     dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-  
+
   dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
 
   if(use_ep5)
@@ -777,7 +798,7 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
     dp.vers <- get_dp_version(dp)
 
   exists_dptag <- function(tag, tagcol=1){tag %in% dp[,tagcol]}
-  
+
   dpsub <- function(tag, rows, cols, tagcol=1){
     dp[which(dp[,tagcol]==tag)+rows, cols]
   }
@@ -800,7 +821,7 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   ## population size
   if(exists_dptag("<BigPop MV>"))
     basepop <- array(sapply(dpsub("<BigPop MV>", 3:164, timedat.idx), as.numeric),
-                    c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
+                     c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
   else if(exists_dptag("<BigPop MV2>"))
     basepop <- array(sapply(dpsub("<BigPop MV2>", c(3+0:80, 246+0:80), timedat.idx), as.numeric),
                      c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
@@ -809,8 +830,8 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
                      c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
   else
     stop("No recognized <BigPop MV[X]> tag, basepop not found.")
-    
-  
+
+
   ## mx
   if(dp.vers == "Spectrum2016"){
     sx.tidx <- which(dp[,1] == "<SurvRate MV>")
@@ -853,7 +874,7 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   } else if(dp.vers == "Spectrum2017")
     netmigagedist <- sapply(dpsub("<MigrAgeDist MV2>", 2+1:34, timedat.idx), as.numeric) / 100
   netmigagedist <- array(c(netmigagedist), c(17, 2, length(proj.years)))
-    
+
   netmigr <- sweep(netmigagedist, 2:3, totnetmig, "*")
 
 
@@ -915,10 +936,10 @@ read_epp_perc_urban <- function(pjnz){
   xmlfile <- grep(".xml", unzip(pjnz, list=TRUE)$Name, value=TRUE)
   con <- unz(pjnz, xmlfile)
   epp.xml <- xml2::read_xml(con)
-  
+
   r <- xml2::xml_children(xml2::xml_child(epp.xml))
   names(r) <- xml2::xml_attr(r, "property")
-  
+
   if(!exists("currentUrbanPercent", r)){
     warning(paste0("EPP file does not contain Urban/Rural stratification:\n", pjnz))
     return(NULL)
@@ -929,7 +950,7 @@ read_epp_perc_urban <- function(pjnz){
 
   return(setNames(perc_urban, yr_start:yr_end))
 }
-    
+
 ## Read epidemic start year from EPP XML file
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
@@ -1005,12 +1026,12 @@ read_csavr_data <- function(pjnz){
 
 
   if(exists_dptag("<FitIncidenceEditorValues MV2>")){
-    val <- data.frame(year = proj_years, 
+    val <- data.frame(year = proj_years,
                       t(sapply(dpsub("<FitIncidenceEditorValues MV2>", 2:10, 3+seq_along(proj_years)), as.numeric)),
                       row.names=proj_years)
     names(val) <- c("year", "plhiv", "plhiv_undercount", "new_cases", "new_cases_undercount", "new_cases_lag",
                     "aids_deaths", "aids_deaths_undercount", "deaths_hivp", "deaths_hivp_undercount")
-    
+
     attr(val, "agegroup") <-  c("All ages", "Adults 15-49", "Adults 15+")[as.integer(dpsub("<IncidenceAgeGroupIndex MV>", 2, 4))+1L]
   } else
     val <- NULL

@@ -21,7 +21,7 @@ This vignette develops the workflow for fitting the EPP-ASM model and generating
 
 ```{r, load}
 ## eppasm version >= 0.5.2
-## devtool::install_github("mrc-ide/eppasm@dev")
+## devtool::install_github("mrc-ide/eppasm@new-master")
 ## library(eppasm)
 devtools::load_all()
 ```
@@ -53,7 +53,7 @@ theta_ur <- c(-0.63758, -2.76655, -1.26204, 1996.65945, 0.00778, 0.05195,
               -0.03548, 3.65223, -0.02515, -4.74563, 0.26259, -6.90124, 0.01583)
 
 fp <- attr(bw$Urban, "specfp")
-fp <- prepare_rlogistic_rw(fp, rw_start = 2005)
+fp <- prepare_rhybrid(fp, rw_start = 2005, rw_dk = 1)
 
 ## Set some flags that are set in fitmod(), (later improve this code...)
 fp$ancsitedata <- TRUE
@@ -111,10 +111,10 @@ ll_ancrtcens(mod, likdat$ancrtcens.dat, fp_par)
 ```{r, fit_eppasm, cache=TRUE}
 bwfit <- list()
 
-bwfit$Urban <- fitmod(bw$Urban, eppmod = "rlogistic_rw", rw_start = 2005,
-                      B0=1e3, B=1e2, opt_iter = 1:2*5, number_k=50)
-bwfit$Rural <- fitmod(bw$Rural, eppmod = "rlogistic_rw", rw_start = 2005,
-                      B0=1e3, B=1e2, opt_iter = 1:2*5, number_k=50)
+bwfit$Urban <- fitmod(bw$Urban, eppmod = "rhybrid", rw_start = 2005,
+                      B0=1e3, B=1e2, opt_iter = 1, number_k=50)
+bwfit$Rural <- fitmod(bw$Rural, eppmod = "rhybrid", rw_start = 2005,
+                      B0=1e3, B=1e2, opt_iter = 1, number_k=50)
 ```
 
 When fitting, the random-walk based models only simulate through the end of the
@@ -125,6 +125,12 @@ through the end of the projection period.
 bwfit <- lapply(bwfit, extend_projection, proj_years = 52)
 ```
 
+## Simulating model outptus
+
+```{r, tidy_output}
+bwout <- Map(tidy_output, bwfit, "r-hybrid", "Botswana", names(bwfit))
+```
+
 ## Pooling EPP subpopulation results
 
 The function `aggr_specfit()` 
@@ -132,5 +138,4 @@ This involves simulating the model for all resamples in each subregion and summi
 
 ```{r, aggr_specfit}
 bwaggr <- aggr_specfit(bwfit)
-
 ```

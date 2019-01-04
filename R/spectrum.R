@@ -224,24 +224,25 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
 
   hiv_noart14 <- hivpop15[1,,,]
   artpop14 <- hivpop15[2:4,,,]
-
+  
   fp$paedsurv_cd4dist <- array(0, c(hDS, NG, PROJ_YEARS))
   fp$paedsurv_artcd4dist <- array(0, c(hTS, hDS, NG, PROJ_YEARS))
 
-  fp$paedsurv_cd4dist[,,1:(PROJ_YEARS-1)] <- sweep(hiv_noart14, 2:3, colSums(hiv_noart14), "/")
-  fp$paedsurv_artcd4dist[,,,1:(PROJ_YEARS-1)] <- sweep(artpop14, 2:4, colSums(artpop14), "/")
+  fp$paedsurv_cd4dist[,,2:PROJ_YEARS] <- sweep(hiv_noart14, 2:3, colSums(hiv_noart14), "/")
+  fp$paedsurv_artcd4dist[,,,2:PROJ_YEARS] <- sweep(artpop14, 3:4, colSums(artpop14,,2), "/")
 
   fp$paedsurv_cd4dist[is.na(fp$paedsurv_cd4dist)] <- 0
   fp$paedsurv_artcd4dist[is.na(fp$paedsurv_artcd4dist)] <- 0
-  
+
   ## if age 14 has ART population in CD4 above adult eligibilty, assign to highest adult
   ## ART eligibility category.
   for(i in 2:PROJ_YEARS){
     idx <- fp$artcd4elig_idx[i]
     if(idx > 1){
-      fp$paedsurv_artcd4dist[,idx,,i] <- fp$paedsurv_artcd4dist[,idx,,i] + rowSums(fp$paedsurv_artcd4dist[,1:(idx-1),,i, drop=FALSE])
+      fp$paedsurv_artcd4dist[ , idx, , i] <- fp$paedsurv_artcd4dist[ , idx, , i] +
+        c(apply(fp$paedsurv_artcd4dist[ , 1:(idx-1), , i, drop=FALSE], c(1,3,4), sum))
       fp$paedsurv_artcd4dist[,1:(idx-1),,i] <- 0
-    }
+    } 
   }
   
   fp$netmig_hivprob <- 0.4*0.22

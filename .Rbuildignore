@@ -7,3 +7,4 @@ dev/*
 ^\.travis\.yml$
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^scripts$

@@ -1,0 +1,5 @@
+devtools::load_all()
+pjnz <- system.file("extdata/testpjnz", "Botswana2018.PJNZ", package="eppasm")
+bw <- prepare_spec_fit(pjnz, proj.end=2021.5)
+dir.create("tests/testthat/reference", FALSE, TRUE)
+saveRDS(bw, "tests/testthat/reference/Botswana2018.rds")

@@ -3,11 +3,10 @@ devtools::load_all()
 test_cases = c(
   "Botswana2017",
   "Botswana2018",
-  "DominicanRepublic2017",
-  "Mozambique_Maputo_Cidade2018",
-  "Netherlands2017"
+  "Mozambique_Maputo_Cidade2018"
 )
 for (test_case in test_cases) {
+  test_case <-"Mozambique_Maputo_Cidade2018"
   print(test_case)
   pjnz <- system.file("extdata/testpjnz",
                       paste(test_case, ".PJNZ", sep = ""),

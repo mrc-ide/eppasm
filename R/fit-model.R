@@ -211,7 +211,7 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
   ## Apportion age 14 HIV population
   ## Allocate relative to HIV prevalence and population size, same as ART population
   for(subpop in names(eppd)){
-    projp.subpop[[subpop]]$age14hivpop <- projp.subpop[[subpop]]$age14hivpop * art.dist[subpop]
+    projp.subpop[[subpop]]$age15hivpop <- projp.subpop[[subpop]]$age15hivpop * art.dist[subpop]
   }
   
   specfp.subpop <- list()

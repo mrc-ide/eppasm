@@ -20,6 +20,11 @@ ldbinom <- function(x, size, prob){
   lgamma(size+1) - lgamma(x+1) - lgamma(size-x+1) + x*log(prob) + (size-x)*log(1-prob)
 }
 
+## Poisson distribution for computing likelihood using non-integer counts
+ldpois <- function(x, lambda){
+  x * log(lambda) - lambda - lgamma(x+1)
+}
+
 ## r-spline prior parameters
 
 ## tau2.prior.rate <- 0.5  # initial sampling distribution for tau2 parameter
@@ -539,8 +544,10 @@ ll_hhsincid <- function(mod, hhsincid.dat){
 prepare_likdat <- function(eppd, fp){
 
   likdat <- list()
-  
-  likdat$hhs.dat <- prepare_hhsageprev_likdat(eppd$hhs, fp)
+  ## TF
+  if(exists('hhs', where = eppd)){
+    likdat$hhs.dat <- prepare_hhsageprev_likdat(eppd$hhs, fp)
+  }
 
   if(exists("ancsitedat", where=eppd)){
 
@@ -563,6 +570,10 @@ prepare_likdat <- function(eppd, fp){
     likdat$hhsincid.dat <- prepare_hhsincid_likdat(eppd$hhsincid, fp)
   if(exists("sibmx", where=eppd))
     likdat$sibmx.dat <- prepare_sibmx_likdat(eppd$sibmx, fp)
+  ##TF deaths
+  if(exists('vr', where = eppd)){
+    likdat$vr <- eppd$vr
+  }
 
   return(likdat)
 }
@@ -646,6 +657,12 @@ lprior <- function(theta, fp){
   return(lpr)
 }
 
+ll_deaths <- function(fp, mod, likdat){
+  expected_deaths <- colSums(sweep(attr(mod, "artpop"), 1:4, fp$art_mort, "*"),,3) + 
+    colSums(sweep(attr(mod, "hivpop"), 1:3, fp$cd4_mort, "*"),,2)
+  if(any(expected_deaths < 0)){return(-Inf)}
+  return(sum(ldpois(likdat$vr, expected_deaths[ , 1:dim(likdat$vr)[2]]), na.rm = T))
+}
 
 ll <- function(theta, fp, likdat){
   theta.last <<- theta
@@ -659,8 +676,17 @@ ll <- function(theta, fp, likdat){
   if (fp$eppmod == "rspline")
     if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) 
       return(-Inf)
-
-  mod <- simmod(fp)
+  ##TF
+  if(!exists('deaths_dt', where = fp)){
+    mod <- simmod(fp)
+  }else{
+    mod <- simmod(fp, VERSION = 'R')
+  }
+  
+  ## VR likelihood
+  if(exists('deaths_dt', where = fp)){
+    ll.deaths <- ll_deaths(fp, mod, likdat)
+  } else{ll.deaths <- 0}
 
   ## ANC likelihood
   if(exists("ancsite.dat", likdat))
@@ -728,7 +754,8 @@ ll <- function(theta, fp, likdat){
     incid  = ll.incid,
     sibmx  = ll.sibmx,
     rprior = ll.rprior,
-    incpen = ll.incpen)
+    incpen = ll.incpen,
+    deaths = ll.deaths)
 }
 
 

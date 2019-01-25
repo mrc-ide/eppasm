@@ -307,7 +307,10 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
     eppd$hhsage <- eppd$sibmx <- NULL
 
   likdat <- prepare_likdat(eppd, fp)
-  fp$ancsitedata <- as.logical(nrow(likdat$ancsite.dat$df))
+  #TF
+  if(exists('ancsite.dat', where = likdat)){
+    fp$ancsitedata <- as.logical(nrow(likdat$ancsite.dat$df))
+  }else{fp$ancsitedata <- FALSE}
 
   if(fp$eppmod %in% c("logrw", "rhybrid")) { # THIS IS REALLY MESSY, NEED TO REFACTOR CODE
     
@@ -315,7 +318,8 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
                                    likdat$hhs.dat$yidx,
                                    likdat$ancrtcens.dat$yidx,
                                    likdat$hhsincid.dat$idx,
-                                   likdat$sibmx.dat$idx))
+                                   likdat$sibmx.dat$idx,
+                                   max(as.integer(colnames(likdat$vr))) - min(as.integer(colnames(likdat$vr))) + 1))
       
     fp$proj.steps <- seq(fp$ss$proj_start+0.5, fp$ss$proj_start-1+fp$SIM_YEARS+0.5, by=1/fp$ss$hiv_steps_per_year)
   } else

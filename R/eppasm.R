@@ -6,7 +6,7 @@ simmod.specfp <- function(fp, mx, isMixing = FALSE, VERSION="C"){
   if(!exists("incidmod", where=fp))
     fp$incidmod <- "eppspectrum"
 
-  if(VERSION != "R" && isMixing = FALSE){
+  if(VERSION != "R" && isMixing == FALSE){
     fp$eppmodInt <- match(fp$eppmod, c("rtrend", "directincid"), nomatch=0) # 0: r-spline;
     fp$incidmodInt <- match(fp$incidmod, c("eppspectrum"))-1L  # -1 for 0-based indexing
     mod <- .Call(eppasmC, fp)

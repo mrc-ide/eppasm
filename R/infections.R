@@ -1,38 +1,55 @@
 #' Annualized number of new infections
 #'
-calc_infections_eppspectrum <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
+calc_infections_eppspectrum <- function(fp, mx, pop, hivpop, artpop,
+                                        i, ii, r_ts, isMixing, FOI){
 
   ## Attach state space variables
   invisible(list2env(fp$ss, environment())) # put ss variables in environment for convenience
 
+  if (!isMixing) {
   ## HIV population size at ts
-  ts <- (i-2)/DT + ii
+    ts <- (i-2)/DT + ii
+    wDT <- 1-DT*(ii-1)
 
-  hivn.ii <- sum(pop[p.age15to49.idx,,hivn.idx,i])
-  hivn.ii <- hivn.ii - sum(pop[p.age15to49.idx[1],,hivn.idx,i])*(1-DT*(ii-1))
-  hivn.ii <- hivn.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivn.idx,i])*(1-DT*(ii-1))
+    nHts <- function(y, p)
+      sum(pop[p,,y,i]) - sum(pop[p[1],,y,i]) * wDT + sum(pop[tail(p,1)+1,,y,i]) * wDT
 
-  hivp.ii <- sum(pop[p.age15to49.idx,,hivp.idx,i])
-  hivp.ii <- hivp.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i])*(1-DT*(ii-1))
-  hivp.ii <- hivp.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i])*(1-DT*(ii-1))
+    nARTa <- function(p, h) {
+      num <- colSums(artpop[,,h,,i],,2)
+      den <- num + colSums(hivpop[,h,,i],,1)
+      sum(pop[p,,hivp.idx,i] * num / den)
+    }
 
-  art.ii <- sum(artpop[,,h.age15to49.idx,,i])
-  if(sum(hivpop[,h.age15to49.idx[1],,i]) + sum(artpop[,,h.age15to49.idx[1],,i])  > 0)
-    art.ii <- art.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i] * colSums(artpop[,,h.age15to49.idx[1],,i],,2) / (colSums(hivpop[,h.age15to49.idx[1],,i],,1) + colSums(artpop[,,h.age15to49.idx[1],,i],,2))) * (1-DT*(ii-1))
-  if(sum(hivpop[,tail(h.age15to49.idx, 1)+1,,i]) + sum(artpop[,,tail(h.age15to49.idx, 1)+1,,i]) > 0)
-    art.ii <- art.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i] * colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2) / (colSums(hivpop[,tail(h.age15to49.idx, 1)+1,,i],,1) + colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2))) * (1-DT*(ii-1))
-  
-  transm_prev <- (hivp.ii - art.ii + fp$relinfectART*art.ii) / (hivn.ii+hivp.ii)
+    nARTts <- function(p, h) {
+      art.ii <- sum(artpop[,,h,,i])
+      if (sum(hivpop[,h[1],,i]) + sum(artpop[,,h[1],,i])  > 0)
+        art.ii <- art.ii - nARTa(p[1], h[1]) *  wDT
+      if (sum(hivpop[,tail(h, 1)+1,,i]) + sum(artpop[,,tail(h, 1)+1,,i]) > 0)
+        art.ii <- art.ii + nARTa(tail(p,1)+1, tail(h, 1)+1) *  wDT
+      return(art.ii)
+    }
 
-  incrate15to49.ts <- r_ts * transm_prev + fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
-  sexinc15to49.ts <- incrate15to49.ts*c(1, fp$incrr_sex[i])*sum(pop[p.age15to49.idx,,hivn.idx,i])/(sum(pop[p.age15to49.idx,m.idx,hivn.idx,i]) + fp$incrr_sex[i]*sum(pop[p.age15to49.idx, f.idx,hivn.idx,i]))
-  agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc15to49.ts/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$incrr_age[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
-  
-  infections.ts <- agesex.inc * pop[,,hivn.idx,i]
+    hivn.ii <- nHts(hivn.idx, p.age15to49.idx)
+    hivp.ii <- nHts(hivp.idx, p.age15to49.idx)
+    art.ii  <- nARTts(p.age15to49.idx, h.age15to49.idx)
+
+    # TODO: not fixing for number of risk groups
+    transm_prev <- (hivp.ii - art.ii + fp$relinfectART*art.ii) / (hivn.ii+hivp.ii)
+    incrate15to49.ts <- r_ts * transm_prev + fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
+    tmp1_ <- function(p, y) sum(pop[p,,y,i]) / (sum(pop[p,m.idx,y,i]) + fp$incrr_sex[i]*sum(pop[p, f.idx,y,i]))
+    sexinc15to49.ts <- incrate15to49.ts * c(1, fp$incrr_sex[i]) * tmp1_(p.age15to49.idx, hivn.idx)
+    tmp2_ <- function(p, y) colSums(sweep(pop[p,,y,,i], 1:2, fp$incrr_age[p,,i], '*')) / colSums(pop[p,,y,,i])
+    agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc15to49.ts / rowSums(tmp2_(p.age15to49.idx, hivn.idx)), "*")
+    infections.ts <- sweep(pop[,,hivn.idx,,i], 1:2, agesex.inc, '*')
+  } else {
+    FOI[,,i] <- FOIs(pop, i, mx, fp)
+    infections.ts <- pop[,,hivn.idx,i] * FOI[,,i]
+    if(any(infections.ts < 0) | any(infections.ts > 1000)) browser()
+    incrate15to49.ts <- NA # TODO: ?
+  }
 
   attr(infections.ts, "incrate15to49.ts") <- incrate15to49.ts
-  attr(infections.ts, "prevcurr") <- hivp.ii / (hivn.ii+hivp.ii)
-
+  attr(infections.ts, "prevcurr") <- NA
   return(infections.ts)
 }
 

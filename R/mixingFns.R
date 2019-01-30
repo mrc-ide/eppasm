@@ -1,14 +1,20 @@
 # Natural age to index
 a2i <- function(x, min=15, max=80) which(min:max %in% x) 
 
+# Non number to value
+na2num <- function(x, y) {x[is.na(x)] <- y; return(x)}
+
+# new sex id for old, new, and risk groups
+sid  <- function(x, fp) if (x==2) (length(fp$pi)+1):(length(fp$pi)*2) else 1:length(fp$pi)
+
 # Make conformable arrays if there > 1 risk group
 updateRiskGroup <- function(fp, mx) {
-  fp$basepop <- f_sa(fp$basepop,,fp,mx)
+  fp$basepop <- f_sa(fp$basepop,,fp)
   if ( any(fp$cd4_mort > 1) ) fp$cd4_mort <- fp$cd4_mort/max(fp$cd4_mort)
-  fp$cd4_mort <- f_sa(fp$cd4_mort,,fp,mx)
-  fp$cd4_prog <- f_sa(fp$cd4_prog,,fp,mx)
-  fp$cd4_initdist <- f_sa(fp$cd4_initdist,,fp,mx)
-  fp$art_mort <- f_sa(fp$art_mort,,fp,mx)
+  fp$cd4_mort <- f_sa(fp$cd4_mort,TRUE,fp)
+  fp$cd4_prog <- f_sa(fp$cd4_prog,TRUE,fp)
+  fp$cd4_initdist <- f_sa(fp$cd4_initdist,TRUE,fp)
+  fp$art_mort <- f_sa(fp$art_mort,TRUE,fp)
   return(fp)
 }
 
@@ -51,15 +57,15 @@ Csag <- function(s, a, g, mx) with(mx,
 # Csag(f.idx, a = 15, 1, mx)
 
 # Pop wrt sex, age, and risk group
-Nsag <- function(s, a, g, pop, i) sum(pop[a2i(a), sid(s)[g],,i])
+Nsag <- function(s, a, g, pop, i, fp) sum(pop[a2i(a), sid(s, fp)[g],,i])
 # Nsag(f.idx, 15, 1, pop, i)
 
 # Mixing rate
-Cmix <- function(s, a, a., g, g., pop, i, mx) {
+Cmix <- function(s, a, a., g, g., pop, i, mx, fp) {
   opp <- ifelse(s == 1, 2, 1)
-  num <- Csag(opp, a., g., mx) * Nsag(opp, a., g., pop, i)
+  num <- Csag(opp, a., g., mx) * Nsag(opp, a., g., pop, i, fp)
   den <- sum(sapply(seq_along(mx$gamma),
-                    function(x) Csag(opp, a., x, mx) * Nsag(opp, a., x, pop, i)))
+                    function(x) Csag(opp, a., x, mx) * Nsag(opp, a., x, pop, i, fp)))
   assort <- (1-mx$epsilon) * krono(a, a.) + mx$epsilon * num / den 
   return( Csag(s, a, g, mx) * assort * mx$D[a2i(a), a2i(a.), s] )
 }
@@ -68,9 +74,9 @@ Cmix <- function(s, a, a., g, g., pop, i, mx) {
 # ART treatment have the same  transmission potential; so just the prev in s,
 # a, m TODO: check with the code for ts time step
 # -----------------------------------------------------------------------------
-Psag <- function(s, a, g, pop, i) {
-  num <- pop[a2i(a), sid(s)[g], fp$ss$hivp.idx, i]
-  den <- pop[a2i(a), sid(s)[g], fp$ss$hivn.idx, i] + num
+Psag <- function(s, a, g, pop, i, fp) {
+  num <- pop[a2i(a), sid(s, fp)[g], fp$ss$hivp.idx, i]
+  den <- pop[a2i(a), sid(s, fp)[g], fp$ss$hivn.idx, i] + num
   return(num/den)
 }
 
@@ -89,9 +95,9 @@ ConAge <- function(s, a, a., mx) {
 # Distributing base pop., hiv in, art in, base number of risk groups and %
 # TODO: allow differences for female and male
 # -----------------------------------------------------------------------------
-f_sa <- function(inPop, mutateOnly = FALSE, fp, mx) {
+f_sa <- function(inPop, mutateOnly = FALSE, fp) {
   # mutateOnly: whether to multiply with prop or just mutate the matrix
-  prop <- mx$gamma
+  prop <- fp$pi
   nRg <- length(prop)
   if (nRg == 1) { 
     return(inPop)
@@ -174,7 +180,7 @@ f_artcd4_percelig <- function(fp, i) with(fp,
 
 # pregnant women
 f_birthdist <- function(births.by.h.age, sid, fp, i, pop, hivpop, artpop) {
-  s = sid(fp$ss$f.idx)
+  s = sid(fp$ss$f.idx, fp)
   newBornH <- sweep(hivpop[,,,i][,fp$ss$h.fert.idx, s, drop=F], 1:2, fp$frr_cd4[,,i], "*")
   nFfertileHn <- sumByAGs(pop[,,,i][fp$ss$p.fert.idx,s,fp$ss$hivn.idx,drop=F], T)
   newBornA <- colSums(sweep(artpop[,,,,i][,,fp$ss$h.fert.idx,s,drop=F], 1:3, fp$frr_art[,,,i], "*"))
@@ -185,7 +191,7 @@ updatePreg <- function(art15plus.elig, births.by.h.age, sid, fp, i, pop, hivpop,
   elGrp <- 1:(fp$artcd4elig_idx[i]-1)
   elAg <- fp$ss$h.fert.idx - min(fp$ss$h.age15plus.idx) + 1 # ???
   birthdist <- f_birthdist(births.by.h.age, sid, fp, i, pop, hivpop, artpop)
-  art15plus.elig[elGrp, elAg, sid(fp$ss$f.idx)] %<>% +(birthdist[elGrp,,])
+  art15plus.elig[elGrp, elAg, sid(fp$ss$f.idx, fp)] %<>% +(birthdist[elGrp,,])
   return(art15plus.elig)
 }
 
@@ -199,15 +205,15 @@ f_artInit <- function(artpop_curr_g, art15plus.elig, fp, i, ii, sid) {
   trans <- c(1-(DT*ii+0.5-w.), DT*ii+0.5-w.)
   for(g in 1:2) {
     if(! any( fp$art15plus_isperc[g, years] ) ) {  # both number
-      out[sid(g)] <- sum(fp$art15plus_num[g, years] * trans)
+      out[sid(g, fp)] <- sum(fp$art15plus_num[g, years] * trans)
     } else if(all(fp$art15plus_isperc[g, years])){  # both percentage
       artcov.ii <- sum(fp$art15plus_num[g, years] * trans)
-      out[sid(g)] <- artcov.ii * (sum(art15plus.elig[,,sid(g)]) + 
-        artpop_curr_g[sid(g)])
+      out[sid(g, fp)] <- artcov.ii * (sum(art15plus.elig[,,sid(g, fp)]) + 
+        artpop_curr_g[sid(g, fp)])
     } else if(!fp$art15plus_isperc[g,i-2-w.] & fp$art15plus_isperc[g,i-1-w.]){ # transition number to percentage
-      curr_coverage <- sum(artpop_curr_g[sid(g)]) / (sum(art15plus.elig[,,sid(g)]) + sum(artpop_curr_g[sid(g)]) )
+      curr_coverage <- sum(artpop_curr_g[sid(g, fp)]) / (sum(art15plus.elig[,,sid(g, fp)]) + sum(artpop_curr_g[sid(g, fp)]) )
       artcov.ii <- curr_coverage + (fp$art15plus_num[g, i-1-w.] - curr_coverage) * DT/(0.5 + w. -DT*(ii-1))
-      out[sid(g)] <- artcov.ii * (sum(art15plus.elig[,,sid(g)]) + artpop_curr_g[sid(g)])
+      out[sid(g, fp)] <- artcov.ii * (sum(art15plus.elig[,,sid(g, fp)]) + artpop_curr_g[sid(g, fp)])
     }
   }
   return(out)

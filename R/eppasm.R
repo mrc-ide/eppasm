@@ -1,4 +1,6 @@
 simmod.specfp <- function(fp, mx, isMixing = FALSE, VERSION="C"){
+  
+  library(magrittr)
 
   if(!exists("popadjust", where=fp))
     fp$popadjust <- FALSE
@@ -22,7 +24,9 @@ simmod.specfp <- function(fp, mx, isMixing = FALSE, VERSION="C"){
     ctapply <- tapply
 
   fp$ss$DT <- 1/fp$ss$hiv_steps_per_year
-  fp$ss$NG <- fp$ss$NG * length(mx$gamma) # depend on n of risk groups
+  
+  if (isMixing) fp$ss$NG <- fp$ss$NG * length(mx$gamma) # depend on n of risk groups
+  if (!isMixing) mx$gamma <- 1
 
   ## Attach state space variables
   invisible(list2env(fp$ss, environment())) # put ss variables in environment for convenience
@@ -32,15 +36,20 @@ simmod.specfp <- function(fp, mx, isMixing = FALSE, VERSION="C"){
 
   # initialize projection
   # -----------------------------------------------------------------------------
-  mx$D   <- Dmix(fp, mx) # age-mix, prob. pns formed between i and i'
-  fp     <- updateRiskGroup(fp, mx)
-  FOI    <- array(0, c(pAG, NG, PROJ_YEARS)) # saving force of infection
+  sid  <- function(x) x
+  if (isMixing) {
+    # new sex id(s)
+    mx$D <- Dmix(fp, mx) # age-mix, prob. pns formed between i and i'
+    fp   <- updateRiskGroup(fp, mx)
+    FOI  <- array(0, c(pAG, NG, PROJ_YEARS)) # saving force of infection
+    sid  <- function(x) if (x==2) (length(mx$gamma)+1):(length(mx$gamma)*2) else 1:length(mx$gamma)
+  }
 
   pop    <- array(0, c(pAG, NG, pDS, PROJ_YEARS))
   hivpop <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
   artpop <- array(0, c(hTS, hDS, hAG, NG, PROJ_YEARS))
   
-  pop[,,hivn.idx,1] <- fp$basepop # split pop by risk groups
+  pop[,,hivn.idx,1] <- fp$basepop # splitted pop by risk groups if isMixing
 
   # initialize output
   # -----------------------------------------------------------------------------
@@ -64,6 +73,8 @@ simmod.specfp <- function(fp, mx, isMixing = FALSE, VERSION="C"){
     ##  Single-year population projection  ##
     ## ################################### ##
 
+    # browser()
+
     ## age the population
     pop[-c(1,pAG),,,i] <- pop[-(pAG-1:0),,,i-1]
     pop[pAG,,,i] <- pop[pAG,,,i-1] + pop[pAG-1,,,i-1] # open age group
@@ -81,23 +92,23 @@ simmod.specfp <- function(fp, mx, isMixing = FALSE, VERSION="C"){
     hivp_entrants_out[,i] <- sum(hivp_entrants)
 
     # distribute entrants by risk groups: assuming same for sexes and H± 
-    pop[1,,hivn.idx,i] <- f_sa(hivn_entrants)
-    pop[1,,hivp.idx,i] <- f_sa(hivp_entrants)
+
+    pop[1,,hivn.idx,i] <- f_sa(hivn_entrants,,fp,mx)
+    pop[1,,hivp.idx,i] <- f_sa(hivp_entrants,,fp,mx)
 
     # TODO: assummed entrantartcov the same for all risk groups: 
     noART <- hivp_entrants * (1-fp$entrantartcov[,i])
     isART <- hivp_entrants * fp$entrantartcov[,i]
 
     ## age the hiv group
-    hivpop[,,,i] <- hivpop[,,,i-1]
-
     hiv.ag.prob <- pop[aglast.idx,,hivp.idx,i-1] / sumByAGs(pop[,,hivp.idx,i-1])
     hiv.ag.prob[is.nan(hiv.ag.prob)] <- 0
-
+    
+    hivpop[,,,i] <- hivpop[,,,i-1]
     nHup <- sweep(hivpop[,-hAG,,i-1], 2:3, hiv.ag.prob[-hAG,], "*")
     hivpop[,-hAG,,i] %<>% -(nHup)
     hivpop[,-1,,i]   %<>% +(nHup)
-    hivpop[,1,,i]    %<>% +(f_sa(sweep(fp$paedsurv_cd4dist[,,i], 2, noART, "*")))
+    hivpop[,1,,i]    %<>% +(f_sa(sweep(fp$paedsurv_cd4dist[,,i], 2, noART, "*"),,fp,mx))
 
     ## age the on ART group
     if(i > fp$tARTstart){
@@ -105,14 +116,13 @@ simmod.specfp <- function(fp, mx, isMixing = FALSE, VERSION="C"){
       nARTup            <- sweep(artpop[,,-hAG,,i-1], 3:4, hiv.ag.prob[-hAG,], "*")
       artpop[,,-hAG,,i] %<>% -(nARTup)
       artpop[,,-1,,i]   %<>% +(nARTup)
-      artpop[,,1,,i]    %<>% +(sweep(f_sa(fp$paedsurv_artcd4dist[,,,i],,TRUE), 3, 
-                                          f_sa(isART), "*"))
+      artpop[,,1,,i]    %<>% +(sweep(f_sa(fp$paedsurv_artcd4dist[,,,i],TRUE,fp,mx), 3, f_sa(isART,,fp,mx), "*"))
     }
     ## survive the population
-    deaths <- sweep(pop[,,,i], 1:2, 1 - f_sa(fp$Sx[,,i],,TRUE), "*")
+    deaths <- sweep(pop[,,,i], 1:2, 1 - f_sa(fp$Sx[,,i],TRUE,fp,mx), "*")
     hiv.sx.prob <- 1 - sumByAGs(deaths[,,hivp.idx]) / sumByAGs(pop[,,hivp.idx,i])
     hiv.sx.prob[is.nan(hiv.sx.prob)] <- 0
-    pop[,,,i] %<>% -deaths
+    pop[,,,i] %<>% -(deaths)
     natdeaths[,,i] <- rowSums(deaths,,2)
 
     hivpop[,,,i]   <- sweep(hivpop[,,,i], 2:3, hiv.sx.prob, "*")
@@ -121,17 +131,18 @@ simmod.specfp <- function(fp, mx, isMixing = FALSE, VERSION="C"){
 
     ## net migration
     netmigsurv  <- fp$netmigr[,,i] * (1 + fp$Sx[,,i]) / 2
-    mr.prob     <- 1 + f_sa(netmigsurv,,TRUE) / rowSums(pop[,,,i],,2)
-    pop[,,,i]   <- sweep(pop[,,,i], 1:2, mr.prob, "*")
-    hiv.mr.prob <- sumByAGs(mr.prob * pop[,,2,i]) / sumByAGs(pop[,,2,i])
+    mr.prob     <- 1 + f_sa(netmigsurv,,fp,mx) / rowSums(pop[,,,i],,2)
+    hiv.mr.prob <- sumByAGs(mr.prob * pop[,,hivp.idx,i]) / sumByAGs(pop[,,hivp.idx,i])
     hiv.mr.prob[is.nan(hiv.mr.prob)] <- 0
+    pop[,,,i]   <- sweep(pop[,,,i], 1:2, mr.prob, "*")
+    
     hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")
     if(i > fp$tARTstart)
       artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.mr.prob, "*")
 
-    ## fertility 
-    births.by.age   <- rowSums(pop[p.fert.idx, sid(f.idx),,i-1:0], dims=2)/2 * fp$asfr[,i]
-    births.by.h.age <- sumByAGs(births.by.age, fertile = TRUE)
+    ## fertility
+    births.by.age   <- rowSums(pop[p.fert.idx, sid(f.idx),,i-1:0, drop=F],,2)/2 * fp$asfr[,i]
+    births.by.h.age <- sumByAGs(births.by.age, TRUE)
     births          <- fp$srb[,i] * sum(births.by.h.age) # group is not defined at birth
                                                          # only sex is.
     if(i+AGE_START <= PROJ_YEARS)
@@ -145,12 +156,14 @@ simmod.specfp <- function(fp, mx, isMixing = FALSE, VERSION="C"){
     ## events at dt timestep
     message('Year: ', i, "\r", appendLF=FALSE); flush.console()
 
-    for(ii in seq_len(hiv_steps_per_year)){
+    for(ii in seq_len(hiv_steps_per_year)){ 
       ts <- (i-2)/DT + ii
 
       grad <- array(0, c(hDS, hAG, NG))
 
       if(fp$eppmod != "directincid"){
+        ## incidence
+
         ## calculate r(t)
         if(fp$eppmod %in% c("rtrend", "rtrend_rw"))
           rvec[ts] <- calc_rtrend_rt(fp$proj.steps[ts], fp, rvec[ts-1], prevlast, pop, i, ii)
@@ -166,7 +179,7 @@ simmod.specfp <- function(fp, mx, isMixing = FALSE, VERSION="C"){
         pop[,,hivn.idx,i] %<>% -(DT*infections.ts)
         pop[,,hivp.idx,i] %<>% +(DT*infections.ts)
         infections[,,i]   %<>% +(DT*infections.ts)
-        grad              %<>% +(sweep(fp$cd4_initdist, 2:3, sumByAGs(infections.ts)))
+        grad              %<>% +(sweep(fp$cd4_initdist, 2:3, sumByAGs(infections.ts), '*'))
         incid15to49[i]    %<>% +(sum(DT*infections.ts[p.age15to49.idx,]))
       }
 
@@ -175,12 +188,13 @@ simmod.specfp <- function(fp, mx, isMixing = FALSE, VERSION="C"){
       grad[-hDS,,] %<>% -(fp$cd4_prog * hivpop[-hDS,,,i])
       grad[-1,,]   %<>% +(fp$cd4_prog * hivpop[-hDS,,,i])
 
-      cd4_mort_ts <- f_cd4_mort_ts(fp, hivpop, artpop, i)
+      cd4_mort_ts <- scale_cd4_mort_ts(fp, hivpop, artpop, i)
       grad %<>% -(cd4_mort_ts * hivpop[,,,i]) # HIV mortality, untreated
+
       ## Remove hivdeaths from pop
       hivdeaths_p.ts <- f_hdeaths_p.ts(cd4_mort_ts, fp, pop, hivpop, artpop, i)
-      pop[,,2,i]     <- pop[,,2,i] - hivdeaths_p.ts
-      hivdeaths[,,i] <- hivdeaths[,,i] + hivdeaths_p.ts
+      pop[,,hivp.idx,i] %<>% -(hivdeaths_p.ts)
+      hivdeaths[,,i]    %<>% +(hivdeaths_p.ts)
 
       ## ART initiation
       if(i >= fp$tARTstart) {
@@ -188,10 +202,10 @@ simmod.specfp <- function(fp, mx, isMixing = FALSE, VERSION="C"){
         gradART <- array(0, c(hTS, hDS, hAG, NG))
 
         ## progression and mortality (HARD CODED 6 months duration)
-        gradART[1:2,,,] <- gradART[1:2,,,] - 2.0 * artpop[1:2,,,, i]      # remove and
-        gradART[2:3,,,] <- gradART[2:3,,,] + 2.0 * artpop[1:2,,,, i]      # add ART duration 
+        gradART[1:2,,,] %<>% -(2.0 * artpop[1:2,,,, i])
+        gradART[2:3,,,] %<>% +(2.0 * artpop[1:2,,,, i])
 
-        gradART %<>% -(fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i])   # ART mortality
+        gradART %<>% -(fp$art_mort * fp$artmx_timerr[, i] * artpop[,,,,i])  # ART mortality
 
         ## ART dropout
         ## remove proportion from all adult ART groups back to untreated pop
@@ -204,12 +218,13 @@ simmod.specfp <- function(fp, mx, isMixing = FALSE, VERSION="C"){
 
         ## calculate pregnant women
         if(fp$pw_artelig[i] && fp$artcd4elig_idx[i] > 1) 
-          art15plus.elig <- updatePreg(art15plus.elig, births.by.h.age,
+          art15plus.elig <- updatePreg(art15plus.elig, births.by.h.age, sid,
                                        fp, i, pop, hivpop, artpop)
 
         ## calculate number to initiate ART based on number or percentage
         artpop_curr_g <- colSums(artpop[,,,,i],,3) + DT * colSums(gradART,,3)
-        artnum.ii <- f_artInit(artpop_curr_g, art15plus.elig, fp, i, ii)
+        artnum.ii <- f_artInit(artpop_curr_g, art15plus.elig, fp, i, ii, sid)
+        artpop_curr_g <- colSums(artpop[,,,,i],,3) + DT * colSums(gradART,,3) #?
         art15plus.inits <- pmax(artnum.ii - artpop_curr_g, 0)
 
         ## calculate ART initiation distribution
@@ -221,12 +236,7 @@ simmod.specfp <- function(fp, mx, isMixing = FALSE, VERSION="C"){
         artpop[,,,, i] <- artpop[,,,,i] + DT * gradART
       }
       hivpop[,,,i] <- hivpop[,,,i] + DT * grad
-    }    
-
-    ## ## Code for calculating new infections once per year to match prevalence (like Spectrum)
-    ## ## incidence
-    ## prev.i <- sum(pop[p.age15to49.idx,,2,i]) / sum(pop[p.age15to49.idx,,,i]) # prevalence age 15 to 49
-    ## incrate15to49.i <- (fp$prev15to49[i] - prev.i)/(1-prev.i)
+    } # end time steps within a year
 
     ## Direct incidence input
     if(fp$eppmod == "directincid"){
@@ -248,22 +258,21 @@ simmod.specfp <- function(fp, mx, isMixing = FALSE, VERSION="C"){
     }
 
     ## adjust population to match target population size
-    ## TODO: How to adjust pop. when there are risk groups
-    # if(exists("popadjust", where=fp) & fp$popadjust) {
-    #   popadj.prob[,,i] <- fp$targetpop[,,i] / rowSums(pop[,,,i],,2)
-    #   hiv.popadj.prob <- apply(popadj.prob[,,i] * pop[,,2,i], 2, sumByAG) /  apply(pop[,,2,i], 2, sumByAG)
-    #   hiv.popadj.prob[is.nan(hiv.popadj.prob)] <- 0
-
-    #   pop[,,,i] <- sweep(pop[,,,i], 1:2, popadj.prob[,,i], "*")
-    #   hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.popadj.prob, "*")
-    #   if(i >= fp$tARTstart)
-    #     artpop[,,,i] <- sweep(artpop[,,,i], 3:4, hiv.popadj.prob, "*")
-    # }
+    if(exists("popadjust", where=fp) & fp$popadjust) {
+      popadj.prob[,,i] <- f_sa(fp$targetpop[,,i],,fp,mx) / rowSums(pop[,,,i],,2)
+      popadj.prob[,,i][popadj.prob[,,i] < 0] <- 1 # DP's target <0 sometime 🤨
+      hiv.popadj.prob <- sumByAGs(popadj.prob[,,i] * pop[,,hivp.idx,i]) / sumByAGs(pop[,,hivp.idx,i])
+      hiv.popadj.prob[is.nan(hiv.popadj.prob)] <- 0
+      pop[,,,i] <- sweep(pop[,,,i], 1:2, popadj.prob[,,i], "*")
+      hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.popadj.prob, "*")
+      if(i >= fp$tARTstart)
+        artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.popadj.prob, "*")
+    }
 
     ## prevalence among pregnant women
-    hivn.byage <- sumByAGs(rowMeans(pop[p.fert.idx, sid(f.idx), hivn.idx, i-1:0],,2), TRUE)
-    hivp.byage <- rowMeans(hivpop[,h.fert.idx, sid(f.idx),i-1:0],,3)
-    artp.byage <- rowMeans(artpop[,,h.fert.idx, sid(f.idx),i-1:0],,4)
+    hivn.byage <- sumByAGs(rowMeans(pop[p.fert.idx, sid(f.idx), hivn.idx, i-1:0, drop=FALSE],,2), TRUE)
+    hivp.byage <- rowMeans(hivpop[,h.fert.idx, sid(f.idx),i-1:0, drop=FALSE],,3)
+    artp.byage <- rowMeans(artpop[,,h.fert.idx, sid(f.idx),i-1:0, drop=FALSE],,4)
     pregprev <- sum(births.by.h.age * (1 - hivn.byage / (hivn.byage + 
       colSums(sweep(hivp.byage, 1:2, fp$frr_cd4[,,i], '*')) + 
       colSums(sweep(artp.byage, 1:3, fp$frr_art[,,,i], '*'),,2)
@@ -276,7 +285,7 @@ simmod.specfp <- function(fp, mx, isMixing = FALSE, VERSION="C"){
     incid15to49[i] <- sum(incid15to49[i]) / sum(pop[p.age15to49.idx,,hivn.idx,i-1])
   }
 
-
+  if (isMixing) attr(pop, "FOI") <- FOI
   attr(pop, "prev15to49") <- prev15to49
   attr(pop, "incid15to49") <- incid15to49
   attr(pop, "sexinc") <- sexinc15to49out

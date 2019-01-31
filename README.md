@@ -23,55 +23,114 @@ are:
 
 The force of infection (FOI) is defined as in [Hallett, T. B., Gregson,
 S., et al. (2007)](http://doi.org/10.1136/sti.2006.023606). Briefly, the
-FOI (\(\lambda\)) of a population of sex \(S=\{1,2\}\), age
-\(A=1,\dots\), and risk group \(G = 1\dots\) is calculated at each time
-steps as
-\[\lambda_{SAG} = C_{SAG}\sum_g\sum_a C_{SAGsag} P_{sag} (1-K_{Aa}),\]
-where \(s,a,g\) denote the sex, age, and risk group of the opposite sex,
-respectively. \(C_{SAG}\) is the total number of contacts,
-\(C_{SAGsag}\) is the mixing pattern with other age and group,
-\(P_{sag}\) is the tranmission risk, and \(K_{Aa}\) is the probability
-of correct and consistent condom usage given the pair. All the model’s
-terms are time-dependent but \(K_{Aa}\) might not, depending on the
-availability of data.
+FOI (![\\lambda](https://latex.codecogs.com/png.latex?%5Clambda
+"\\lambda")) of a population of sex
+![S=\\{1,2\\}](https://latex.codecogs.com/png.latex?S%3D%5C%7B1%2C2%5C%7D
+"S=\\{1,2\\}"), age
+![A=1,\\dots](https://latex.codecogs.com/png.latex?A%3D1%2C%5Cdots
+"A=1,\\dots"), and risk group ![G
+= 1\\dots](https://latex.codecogs.com/png.latex?G%20%3D%201%5Cdots
+"G = 1\\dots") is calculated at each time steps as   
+![\\lambda\_{SAG} = C\_{SAG}\\sum\_g\\sum\_a C\_{SAGsag} P\_{sag}
+(1-K\_{Aa}),](https://latex.codecogs.com/png.latex?%5Clambda_%7BSAG%7D%20%3D%20C_%7BSAG%7D%5Csum_g%5Csum_a%20C_%7BSAGsag%7D%20P_%7Bsag%7D%20%281-K_%7BAa%7D%29%2C
+"\\lambda_{SAG} = C_{SAG}\\sum_g\\sum_a C_{SAGsag} P_{sag} (1-K_{Aa}),")  
+where ![s,a,g](https://latex.codecogs.com/png.latex?s%2Ca%2Cg "s,a,g")
+denote the sex, age, and risk group of the opposite sex, respectively.
+![C\_{SAG}](https://latex.codecogs.com/png.latex?C_%7BSAG%7D "C_{SAG}")
+is the total number of contacts,
+![C\_{SAGsag}](https://latex.codecogs.com/png.latex?C_%7BSAGsag%7D
+"C_{SAGsag}") is the mixing pattern with other age and group,
+![P\_{sag}](https://latex.codecogs.com/png.latex?P_%7Bsag%7D "P_{sag}")
+is the tranmission risk, and
+![K\_{Aa}](https://latex.codecogs.com/png.latex?K_%7BAa%7D "K_{Aa}") is
+the probability of correct and consistent condom usage given the pair.
+All the model’s terms are time-dependent but
+![K\_{Aa}](https://latex.codecogs.com/png.latex?K_%7BAa%7D "K_{Aa}")
+might not, depending on the availability of data.
 
-\(C_{sag}\) is calculated as
-\[C_{SAG} = \dfrac{M}{\tau^{\sum m\gamma_m}}\tau^m, \qquad m=G-1, \]
-where \(M\) is the geometric mean of the total number of contacts,
-\(\tau\) is common ratio between risk groups and \(\gamma_m\) is the
-proportion of population in the group \(G\).
+![C\_{sag}](https://latex.codecogs.com/png.latex?C_%7Bsag%7D "C_{sag}")
+is calculated as   
+![C\_{SAG} = \\dfrac{M}{\\tau^{\\sum m\\gamma\_m}}\\tau^m, \\qquad
+m=G-1,
+](https://latex.codecogs.com/png.latex?C_%7BSAG%7D%20%3D%20%5Cdfrac%7BM%7D%7B%5Ctau%5E%7B%5Csum%20m%5Cgamma_m%7D%7D%5Ctau%5Em%2C%20%5Cqquad%20m%3DG-1%2C%20
+"C_{SAG} = \\dfrac{M}{\\tau^{\\sum m\\gamma_m}}\\tau^m, \\qquad m=G-1, ")  
+where ![M](https://latex.codecogs.com/png.latex?M "M") is the geometric
+mean of the total number of contacts,
+![\\tau](https://latex.codecogs.com/png.latex?%5Ctau "\\tau") is common
+ratio between risk groups and
+![\\gamma\_m](https://latex.codecogs.com/png.latex?%5Cgamma_m
+"\\gamma_m") is the proportion of population in the group
+![G](https://latex.codecogs.com/png.latex?G "G").
 
-\(C_{SAGsag}\) is calculated as
-\[C_{SAGsag} = \left[ (1-\epsilon)\delta_{Gg} + \epsilon\left(\dfrac{C_{sag}N_{sag}}{\sum_g N_{sag} C_{sag}}\right)\right]\Delta_{SAsa},\]
-where \(\epsilon \in [0,1]\) defines whether contacts are assortative or
-random with \(\delta_{Gg}\) is the Koronecker delta. \(N_{sag}\) is the
-size of the corresponding population. \(\Delta_{SAsa}\) is the
-age-mixing pattern of the pair, defining the probability that a
-partnership is formed between an aged \(A\) subject and aged \(a\)
-subject.
+![C\_{SAGsag}](https://latex.codecogs.com/png.latex?C_%7BSAGsag%7D
+"C_{SAGsag}") is calculated as   
+![C\_{SAGsag} = \\left\[ (1-\\epsilon)\\delta\_{Gg} +
+\\epsilon\\left(\\dfrac{C\_{sag}N\_{sag}}{\\sum\_g N\_{sag}
+C\_{sag}}\\right)\\right\]\\Delta\_{SAsa},](https://latex.codecogs.com/png.latex?C_%7BSAGsag%7D%20%3D%20%5Cleft%5B%20%281-%5Cepsilon%29%5Cdelta_%7BGg%7D%20%2B%20%5Cepsilon%5Cleft%28%5Cdfrac%7BC_%7Bsag%7DN_%7Bsag%7D%7D%7B%5Csum_g%20N_%7Bsag%7D%20C_%7Bsag%7D%7D%5Cright%29%5Cright%5D%5CDelta_%7BSAsa%7D%2C
+"C_{SAGsag} = \\left[ (1-\\epsilon)\\delta_{Gg} + \\epsilon\\left(\\dfrac{C_{sag}N_{sag}}{\\sum_g N_{sag} C_{sag}}\\right)\\right]\\Delta_{SAsa},")  
+where ![\\epsilon \\in
+\[0,1\]](https://latex.codecogs.com/png.latex?%5Cepsilon%20%5Cin%20%5B0%2C1%5D
+"\\epsilon \\in [0,1]") defines whether contacts are assortative or
+random with
+![\\delta\_{Gg}](https://latex.codecogs.com/png.latex?%5Cdelta_%7BGg%7D
+"\\delta_{Gg}") is the Koronecker delta.
+![N\_{sag}](https://latex.codecogs.com/png.latex?N_%7Bsag%7D "N_{sag}")
+is the size of the corresponding population.
+![\\Delta\_{SAsa}](https://latex.codecogs.com/png.latex?%5CDelta_%7BSAsa%7D
+"\\Delta_{SAsa}") is the age-mixing pattern of the pair, defining the
+probability that a partnership is formed between an aged
+![A](https://latex.codecogs.com/png.latex?A "A") subject and aged
+![a](https://latex.codecogs.com/png.latex?a "a") subject.
 
-\(\Delta_{Aa}\) can be defined similarly to the group mixing term with
-another \(\varepsilon\) defining the age-mixing pattern. Here
-\(\Delta_{Aa}\) is defined by fitting a log-logistic model (\(f\)) to
-the sexual partner age difference data. For female aged \(A\) and male
-aged \(a\)
+![\\Delta\_{Aa}](https://latex.codecogs.com/png.latex?%5CDelta_%7BAa%7D
+"\\Delta_{Aa}") can be defined similarly to the group mixing term with
+another
+![\\varepsilon](https://latex.codecogs.com/png.latex?%5Cvarepsilon
+"\\varepsilon") defining the age-mixing pattern. Here
+![\\Delta\_{Aa}](https://latex.codecogs.com/png.latex?%5CDelta_%7BAa%7D
+"\\Delta_{Aa}") is defined by fitting a log-logistic model
+(![f](https://latex.codecogs.com/png.latex?f "f")) to the sexual partner
+age difference data. For female aged
+![A](https://latex.codecogs.com/png.latex?A "A") and male aged
+![a](https://latex.codecogs.com/png.latex?a "a")
 
-\[\Delta_{Aa} = 
-\begin{cases}
-  f(a -A),& \qquad a \geq A\\
-  0,& \text{otherwise},
-\end{cases}
-\] and for male \(\Delta_{Aa} = \Delta_{aA}\). This is adjusted such
-that \(\sum_{a=a_L}^{a=a_U}\Delta_{Aa} = 1,\) where \(a_L, a_U\) denote
-the age at first sex and age at last sex, respectively.
+  
+![\\Delta\_{Aa} = 
+\\begin{cases}
+f(a -A),& \\qquad a \\geq A\\\\
+0,& \\text{otherwise},
+\\end{cases}
+](https://latex.codecogs.com/png.latex?%5CDelta_%7BAa%7D%20%3D%20%0A%5Cbegin%7Bcases%7D%0A%20%20f%28a%20-A%29%2C%26%20%5Cqquad%20a%20%5Cgeq%20A%5C%5C%0A%20%200%2C%26%20%5Ctext%7Botherwise%7D%2C%0A%5Cend%7Bcases%7D%0A
+"\\Delta_{Aa} = 
+\\begin{cases}
+  f(a -A),& \\qquad a \\geq A\\\\
+  0,& \\text{otherwise},
+\\end{cases}
+")  
+and for male ![\\Delta\_{Aa} =
+\\Delta\_{aA}](https://latex.codecogs.com/png.latex?%5CDelta_%7BAa%7D%20%3D%20%5CDelta_%7BaA%7D
+"\\Delta_{Aa} = \\Delta_{aA}"). This is adjusted such that
+![\\sum\_{a=a\_L}^{a=a\_U}\\Delta\_{Aa}
+= 1,](https://latex.codecogs.com/png.latex?%5Csum_%7Ba%3Da_L%7D%5E%7Ba%3Da_U%7D%5CDelta_%7BAa%7D%20%3D%201%2C
+"\\sum_{a=a_L}^{a=a_U}\\Delta_{Aa} = 1,") where ![a\_L,
+a\_U](https://latex.codecogs.com/png.latex?a_L%2C%20a_U "a_L, a_U")
+denote the age at first sex and age at last sex, respectively.
 
-Lastly, \(C_{SAGsag}\) needs to be adjusted to ensure the balance of the
-number of partnership calculated from female and male, i.e.,
+Lastly,
+![C\_{SAGsag}](https://latex.codecogs.com/png.latex?C_%7BSAGsag%7D
+"C_{SAGsag}") needs to be adjusted to ensure the balance of the number
+of partnership calculated from female and male, i.e.,
 
-\[N_{SAG} C_{SAGsag} = N_{sag} C_{sagSAG}.\]
+  
+![N\_{SAG} C\_{SAGsag} = N\_{sag}
+C\_{sagSAG}.](https://latex.codecogs.com/png.latex?N_%7BSAG%7D%20C_%7BSAGsag%7D%20%3D%20N_%7Bsag%7D%20C_%7BsagSAG%7D.
+"N_{SAG} C_{SAGsag} = N_{sag} C_{sagSAG}.")  
 
-In particular, we calculate
-\[W = \dfrac{N_{SAG} C_{SAGsag}}{N_{sag} C_{sagSAG}}\] and adjust 
+In particular, we calculate   
+![W = \\dfrac{N\_{SAG} C\_{SAGsag}}{N\_{sag}
+C\_{sagSAG}}](https://latex.codecogs.com/png.latex?W%20%3D%20%5Cdfrac%7BN_%7BSAG%7D%20C_%7BSAGsag%7D%7D%7BN_%7Bsag%7D%20C_%7BsagSAG%7D%7D
+"W = \\dfrac{N_{SAG} C_{SAGsag}}{N_{sag} C_{sagSAG}}")  
+and adjust 
 
 ## Assumptions and parameters
 
@@ -80,10 +139,13 @@ model.
 
 ### Age mixing
 
-Age- and sex-specific mixing matrix (\(\Delta_{Aa}\)) follows a three
-parameters log-logistic distribution (\(\kappa, \rho, r\)) in which the
-scale parameter `r` is shifted by the age difference between male and
-female.
+Age- and sex-specific mixing matrix
+(![\\Delta\_{Aa}](https://latex.codecogs.com/png.latex?%5CDelta_%7BAa%7D
+"\\Delta_{Aa}")) follows a three parameters log-logistic distribution
+(![\\kappa, \\rho,
+r](https://latex.codecogs.com/png.latex?%5Ckappa%2C%20%5Crho%2C%20r
+"\\kappa, \\rho, r")) in which the scale parameter `r` is shifted by the
+age difference between male and female.
 
 ``` r
 mx <- list(kappa = 3.04, # log-logistic shape

@@ -3,12 +3,7 @@ title: "EPP-ASM"
 subtitle: "sexual debut, age-mixing, and risk group mixing"
 author: ""
 date: "`r Sys.Date()`"
-output: 
-  html_document:
-    toc: false
-    toc_float: true
-    theme: "cerulean"
-    keep_md: true
+output: github_document
 ---
 
 ```{r setup, include = FALSE}
@@ -191,31 +186,3 @@ Population under the age of first sex and above the age of last sex would not ha
 mx$A1 = 16 # age at first sex
 mx$A2 = 55 # age at last sex
 ```
-
-## EPP model with single set of parameter inputs
-
-Prepare model parameters from parameter vector input
-```{r}
-# devtool::install_github("kklot/eppasm@mixing")
-library(eppasm)
-devtools::load_all()
-theta_ur <- c(-0.63758, -2.76655, -1.26204, 1996.65945, 0.00778, 0.05195,
-              0.05103, 0.032, 0.01765, 0.01154, -0.00028, 0.01627, -0.00051,
-              0.01439, -0.00937, -0.01135, 0.03692, 0.14959, 0.00803, 0.02424,
-              -0.03548, 3.65223, -0.02515, -4.74563, 0.26259, -6.90124, 0.01583)
-
-# fp <- attr(bw$Urban, "specfp")
-# fp <- prepare_rhybrid(fp, rw_start = 2005, rw_dk = 1)
-
-## Set some flags that are set in fitmod(), (later improve this code...)
-# fp$ancsitedata <- TRUE
-# fp$ancrt <- "both"
-# fp$logitiota <- TRUE
-# fp$rw_start <- 2005
-# fp$incidmod <- "eppspectrum"
-
-# param <- fnCreateParam(theta_ur, fp)
-# fp_par <- update(fp, list = param)
-```
-
-Simulate the model.

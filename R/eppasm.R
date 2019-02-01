@@ -26,7 +26,6 @@ simmod.specfp <- function(fp, VERSION="C", isMixing = FALSE, mx){
   fp$ss$DT <- 1/fp$ss$hiv_steps_per_year
 
   # write more proper validation steps here
-  if (isMixing) fp$ss$NG <- fp$ss$NG * length(mx$gamma) # depend on n of risk groups
   if (!isMixing) fp$pi <- 1
 
   ## Attach state space variables
@@ -39,10 +38,18 @@ simmod.specfp <- function(fp, VERSION="C", isMixing = FALSE, mx){
   # initialize projection
   # -----------------------------------------------------------------------------
   if (isMixing) { # cleaning up later
+    if (isMixing) NG <- fp$ss$NG <- fp$ss$NG * length(mx$gamma) # depend on n of risk groups
+    invisible(list2env(fp$ss, environment())) # put ss variables in environment for convenience
     mx$D    <- Dmix(fp, mx) # age-mix, prob. pns formed between i and i'
-    mx$Fcon <- sapply(AGE_START:AGE_END, function(y) sapply(AGE_START:AGE_END, function(x) ConAge(f.idx, x, y, mx)))
-    mx$Mcon <- sapply(AGE_START:AGE_END, function(y) sapply(AGE_START:AGE_END, function(x) ConAge(m.idx, x, y, mx)))
+    mx$condom <- array(0, c(pAG, pAG, 2))
+    mx$condom[,,f.idx] <- sapply(AGE_START:AGE_END, function(y) 
+                            sapply(AGE_START:AGE_END, function(x) 
+                              ConAge(f.idx, x, y, mx)))
+    mx$condom[,,m.idx] <- sapply(AGE_START:AGE_END, function(y) 
+                            sapply(AGE_START:AGE_END, function(x) 
+                              ConAge(m.idx, x, y, mx)))
     fp$pi   <- mx$gamma
+    if (length(mx$gamma)==1) mx$epsilon <- 0
     fp      <- updateRiskGroup(fp, mx)
     FOI     <- array(0, c(pAG, NG, PROJ_YEARS)) # saving force of infection
   }
@@ -70,7 +77,7 @@ simmod.specfp <- function(fp, VERSION="C", isMixing = FALSE, mx){
   }
   
   for(i in 2:fp$SIM_YEARS){
-
+    cat("Year: ", i, '\r'); flush.console()
     ## ################################### ##
     ##  Single-year population projection  ##
     ## ################################### ##
@@ -95,7 +102,7 @@ simmod.specfp <- function(fp, VERSION="C", isMixing = FALSE, mx){
     pop[1,,hivn.idx,i] <- f_sa(hivn_entrants,,fp)
     pop[1,,hivp.idx,i] <- f_sa(hivp_entrants,,fp)
 
-    # TODO: assummed entrantartcov the same for all risk groups: 
+    # assummed entrantartcov the same for all risk groups: 
     noART <- hivp_entrants * (1-fp$entrantartcov[,i])
     isART <- hivp_entrants * fp$entrantartcov[,i]
 
@@ -171,7 +178,7 @@ simmod.specfp <- function(fp, VERSION="C", isMixing = FALSE, mx){
         infections.ts <- calc_infections_eppspectrum(fp, mx, pop, hivpop, artpop,
                                                      i, ii, rvec[ts], isMixing)
         if (isMixing) FOI[,,i] <- attr(infections.ts, "FOI")
-        incrate15to49.ts.out[ts] <- attr(infections.ts, "incrate15to49.ts")
+        if (!isMixing) incrate15to49.ts.out[ts] <- attr(infections.ts, "incrate15to49.ts")
         prev15to49.ts.out[ts] <- prevlast <- attr(infections.ts, "prevcurr")
 
         pop[,,hivn.idx,i] %<>% -(DT*infections.ts)
@@ -294,7 +301,7 @@ simmod.specfp <- function(fp, VERSION="C", isMixing = FALSE, mx){
 
   attr(pop, "entrantprev") <- entrant_prev_out
   attr(pop, "hivp_entrants") <- hivp_entrants_out
-  class(pop) <- c("spec", "eppmix")
+  class(pop) <- c("spec")
   if (isMixing) class(pop) <- c("eppmix", "spec")
   return(pop)
 }

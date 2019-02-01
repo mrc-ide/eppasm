@@ -3,8 +3,11 @@ title: "EPP-ASM"
 subtitle: "sexual debut, age-mixing, and risk group mixing"
 author: ""
 date: "`r Sys.Date()`"
-output: github_document
+output:
+  github_document:
+    pandoc_args: --webtex
 ---
+
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
@@ -12,27 +15,24 @@ knitr::opts_chunk$set(
   warning = FALSE,
   comment = "#>"
 )
-# devtool::install_github("kklot/eppasm@mixing")
 library(eppasm)
-# devtools::load_all()
+devtools::load_all()
 ```
 
 This vignette documents the implementation of age- and risk-group-mixing
 (mixing for short) model (Tim's) into current EPP-ASM code. The code lives at
 `mixing` branch. The differences compare to the old version are:
 
-<!-- and generating outputs to provide as Spectrum inputs. -->
-
 - We need a new list named `mx` (perhaps put into `fp` later) containing all
-  mixing parameters; `mx` enters `simmod` as the function's argument.
-- Call `simmod(fp, isMixing=TRUE, mx)` to specify whether to run mixing model,
-  otherwise the old model does.
+  mixing parameters.
 - Adjustments are made to allow more risk groups (e.g., sex indexing,
   distributing of population into groups)
 - The calculation of the force of infection (FOI), consequently the number of
   new infection in each time step.
 
-## The model
+The following assumptions and parameters are used for prototyping the model.
+
+## Force of infection
 
 The force of infection (FOI) is defined as in [Hallett, T. B., Gregson, S., et
 al. (2007)](http://doi.org/10.1136/sti.2006.023606). Briefly, the FOI
@@ -40,11 +40,13 @@ al. (2007)](http://doi.org/10.1136/sti.2006.023606). Briefly, the FOI
 group $G = 1\dots$ is calculated at each time steps as
 \[\lambda_{SAG} = C_{SAG}\sum_g\sum_a C_{SAGsag} P_{sag} (1-K_{Aa}),\]
 where $s,a,g$ denote the sex, age, and risk group of the opposite sex,
-respectively. $C_{SAG}$ is the total number of contacts, $C_{SAGsag}$ is the
-mixing pattern with other age and group, $P_{sag}$ is the tranmission risk,
-and $K_{Aa}$ is the probability of correct and consistent condom usage given
-the pair. All the model's terms are time-dependent but $K_{Aa}$ might not,
-depending on the availability of data.
+respectively. $C_{SAG}$ is the total number of
+contacts, $C_{SAGsag}$ is the mixing pattern with other age and group,
+$P_{sag}$ is the tranmission probability, and $K_{Aa}$ is the probability of correct
+and consistent condom usage given the pair. All the model's terms are
+time-dependent but $K_{Aa}$ might not, depending on the availability of data.
+
+### Risk groups mixing
 
 $C_{sag}$ is calculated as
 \[C_{SAG} = \dfrac{M}{\tau^{\sum m\gamma_m}}\tau^m, \qquad m=G-1, \]
@@ -52,96 +54,19 @@ where $M$ is the geometric mean of the total number of contacts, $\tau$ is
 common ratio between risk groups and $\gamma_m$ is the proportion of
 population in the group $G$.
 
-$C_{SAGsag}$ is calculated as
-\[C_{SAGsag} = \left[ (1-\epsilon)\delta_{Gg} + \epsilon\left(\dfrac{C_{sag}N_{sag}}{\sum_g N_{sag} C_{sag}}\right)\right]\Delta_{SAsa},\]
-where $\epsilon \in [0,1]$ defines whether contacts are assortative or random
-with $\delta_{Gg}$ is the Koronecker delta. $N_{sag}$ is the size of the
-corresponding population. $\Delta_{SAsa}$ is the age-mixing pattern of the
-pair, defining the probability that a partnership is formed between an aged
-$A$ subject and aged $a$ subject.
-
-$\Delta_{Aa}$ can be defined similarly to the group mixing term with another
-$\varepsilon$ defining the age-mixing pattern. Here $\Delta_{Aa}$ is defined
-by fitting a log-logistic model ($f$) to the sexual partner age difference
-data. For female aged $A$ and male aged $a$
-
-\[\Delta_{Aa} = 
-\begin{cases}
-  f(a -A),& \qquad a \geq A\\
-  0,& \text{otherwise},
-\end{cases}
-\]
-and for male $\Delta_{Aa} = \Delta_{aA}$. This is adjusted such that
-$\sum_{a=a_L}^{a=a_U}\Delta_{Aa} = 1,$ where $a_L, a_U$ denote the age at
-first sex and age at last sex, respectively.
-
-Lastly, $C_{SAGsag}$ needs to be adjusted to ensure the balance of the number
-of partnership calculated from female and male, i.e.,
-
-\[N_{SAG} C_{SAGsag} = N_{sag} C_{sagSAG}.\]
-
-In particular, we calculate 
-\[W = \dfrac{N_{SAG} C_{SAGsag}}{N_{sag} C_{sagSAG}}\]
-and adjust
-\begin{align}
-  C_{SAGsag} &= C_{SAGsag} \sqrt{W} \newline
-  C_{sagSAG} &= C_{sagSAG} / \sqrt{W}
-\end{align}
-
-## Assumptions and parameters
-
-The following assumptions and parameters are used for prototyping the model.
-
-### Age mixing
-
-Age- and sex-specific mixing matrix ($\Delta_{Aa}$) follows a three parameters
-log-logistic distribution ($\kappa, \rho, r$) in which the scale parameter `r`
-is shifted by the age difference between male and female. 
-
-
-```{r}
-mx <- list(kappa = 3.04, # log-logistic shape
-           rho = 2.85, # log-logistic scale
-           r = 0.11) # log-logistic support
-```
-
-This distribution seems too strict. Considering options that allows female
-with younger male and higher probability for the same age.
-
-```{r echo=FALSE, fig.cap = "Fig: Age mixing"} 
-log.logistic <- function(dis, ka = mx$kappa, rho = mx$rho, r = mx$r)  (ka*rho^ka)*((dis+r)^(ka-1)) / (1 + ((dis+r)^ka)^2)
-out <- sapply(seq(-10, 10, .1), function(x) log.logistic(x, 3.04, 2.85, .11))
-par(mar=c(5,4,1,1))
-plot(out/max(out, na.rm=TRUE), type='l', ylab = "Prob.", xlab = "Age difference", xaxt='n')
-lines(rev(out)/max(out, na.rm=TRUE), lty=3)
-axis(1, at = seq(0, 200, by=10), label=-10:10)
-legend('topleft', lty=c(1,3), legend = c("Female", "Male"))
-```
-
-It might be easier to work with the normal age-mixing formula with only one
-parameter, but need data to fit.
-
-### Risk groups mixing
-
-The proportion in low and high risk group are assumed 80% and 20%. This is
-used to distribute:
+The proportion in low and high risk group are assumed similar for both male and female. This is used to distribute:
 
 - the initial population
 - the entrants, healthy and H+
 - immigrants
 
+> TODO: allow different for male and female
 ```{r}
-mx$gamma <- c(.8, .2) # Default order: Low High, sum to 1
+mx <- list()
+mx$gamma <- c(.8, .2) # order Low -> High Risk, sum to 1
 ```
 
-If `mx$gamma` is of length one, then it is set to 1 and one risk group model
-is run.
-
-The following transition rates are the same among groups:
-
-- Natural survival rate
-- cd4_mort, cd4_initdist, cd4_prog, paedsurv_cd4dist, 
-- art_mort, paedsurv_artcd4dist
+If `mx$gamma` input is of length one, then it is set to 1 and one risk group model is run.
 
 Higher risk group have tripple the frequency of contacts of the immediate lower risk group.
 
@@ -165,14 +90,105 @@ mx$Mx <- mx$M.(mx$M)
 knitr::kable(mx$M, caption="Table: Risk group mixing")
 ```
 
+$C_{SAGsag}$ is calculated as
+\[C_{SAGsag} = \left[ (1-\epsilon)\delta_{Gg} + \epsilon\left(\dfrac{C_{sag}N_{sag}}{\sum_g N_{sag} C_{sag}}\right)\right]\Delta_{SAsa},\]
+where $\epsilon \in [0,1]$ defines whether contacts are assortative or random
+with $\delta_{Gg}$ is the Koronecker delta. $N_{sag}$ is the size of the
+corresponding population. $\Delta_{SAsa}$ is the age-mixing pattern of the
+pair, defining the probability that a partnership is formed between an aged
+$A$ subject and aged $a$ subject.
+
+```{r}
+mx$epsilon <- .3
+```
+
+If there is only one group, $\epsilon$ will be set to zero by checking the length of $\gamma$ provided.
+
+The following rates are the same among risk groups, including `Sx, cd4_mort, cd4_initdist, cd4_prog, paedsurv_cd4dist, art_mort, paedsurv_artcd4dist`.
+
+$C_{SAGsag}$ is adjusted to ensure the balance of the number
+of partnership calculated from each group, i.e.,
+
+\[N_{SAG} C_{SAGsag} = N_{sag} C_{sagSAG}.\]
+
+In particular, we calculate 
+\[W_{SAGsag} = \dfrac{N_{SAG} C_{SAGsag}}{N_{sag} C_{sagSAG}}\]
+and adjust
+\begin{align}
+  C_{SAGsag} &= C_{SAGsag} \sqrt{W_{SAGsag}} \newline
+  C_{sagSAG} &= C_{sagSAG} / \sqrt{W_{SAGsag}}
+\end{align}
+
+In total, we calculate $2\times2\times G^2$ matrices for this weighting process.
+
+The risk group membership is fixed, i.e. no moving from one risk group to another.
+
+> TODO: add relavtive transmission rate for pair of risk group. This should go to transmission rate section.
+
+```{r}
+# Template data (Thembisa)
+mx$betaPair <- array(1, c(2,2,2))
+# Susceptible male
+mx$betaPair[,,1] <- matrix(c(1, 1.25, 1.08, 1.23), 2, 2,
+                      dimnames=list(c("M-Low", "M-High"), c("F-Low", "F-High")))
+# Susceptible female
+mx$betaPair[,,2] <- matrix(c(1, 1.14, 1.09, 1.20), 2, 2,
+                      dimnames=list(c("M-Low", "M-High"), c("F-Low", "F-High")))
+```
+
+### Age mixing
+
+$\Delta_{Aa}$ can be defined similarly to the group mixing term with another
+$\varepsilon$ defining the age-mixing pattern. Here $\Delta_{Aa}$ is defined
+by fitting a log-logistic model ($f$) to the sexual partner age difference
+data. For female aged $A$ and male aged $a$
+
+\[\Delta_{Aa} = 
+\begin{cases}
+  f(a -A),& \qquad a \geq A\\
+  0,& \text{otherwise},
+\end{cases}
+\]
+and for male $\Delta_{Aa} = \Delta_{aA}$. This is adjusted such that
+$\sum_{a=a_L}^{a=a_U}\Delta_{Aa} = 1,$ where $a_L, a_U$ denote the age at
+first sex and age at last sex, respectively.
+
+Age- and sex-specific mixing matrix ($\Delta_{Aa}$) follows a three parameters
+log-logistic distribution ($\kappa, \rho, r$) in which the scale parameter `r`
+is shifted by the age difference between male and female. 
+
+```{r}
+mx$kappa <- 2 # log-logistic shape
+mx$rho <- 0.25 # log-logistic scale
+r <- 0.15 # log-logistic support
+```
+
+This distribution seems too strict. Considering options that allows female
+with younger male and higher probability for the same age.
+
+```{r echo=FALSE, fig.cap = "Fig: Age mixing"}
+out <- sapply(seq(-10, 10, .1), function(x) log.logistic(x, 3.04, 2.85, .11))
+par(mar=c(5,4,1,1))
+lineplot(out/max(out, na.rm=TRUE), ylab = "Prob.", xlab = "Age difference", xaxt='n')
+lines(rev(out)/max(out, na.rm=TRUE), lty=3)
+axis(1, at = seq(0, 200, by=10), label=-10:10)
+legend('topleft', lty=c(1,3), legend = c("Female", "Male"))
+```
+
+It might be easier to work with the normal age-mixing formula with only one
+parameter, but need data to fit.
+
 ### Condom usage
-The probability of correct and consistent use of among age-groups and sexes are given as inputs. Below is a condom use data for only ±25 years old. This is age-dependent not risk group dependent which probably should be modified. 
+
+The probability of correct and consistent use of among age-groups and sexes are given as inputs. Below is a condom use data for only ±25 years old. This is age-dependent not risk group dependent which should be modified depend on data availability. It is assumed that condom efficacy in preventing HIV transmission is 90%.
 
 ```{r}
 # prob of correct and consistent condom use by <25 and 25+
 mx$chi <- matrix(c(.32, .1, .39, .07), 2, 2,
                  dimnames=list(c("M<25", "M25+"), c("F<25", "F25+")))
+mx$cEf <- .9
 ```
+
 
 ```{r echo = FALSE, results = 'asis'}
 knitr::kable(mx$chi, caption="Table: Condom usage")
@@ -185,4 +201,95 @@ Population under the age of first sex and above the age of last sex would not ha
 ```{r}
 mx$A1 = 16 # age at first sex
 mx$A2 = 55 # age at last sex
+```
+
+Setting this effectively set FOI of population outside the boundary zero by making $\Delta_{AA} = 0$ for those not having sexual acts.
+
+> TODO: different for risk groups
+
+### Tranmission rate
+
+Transmission rate is assumed different for each CD4+ stages ($d = 1,\dots,7$) and on ART or not ($k = 1, 0$).
+\[
+P_{sag} = r_t \cdot
+\dfrac{\sum_{d} w_{d} \left[H_{sag}^{d,k=0} - H_{sag}^{d,k=1} (1 - \phi) \right] }{N_{sag}} = r_t \cdot \dfrac{H^{*}_{sag}}{N_{sag}}
+\]
+where $H$ denotes the HIV positive population, $w_d$ denotes the relative infectiousness of individuals in the disease stage $d$, $\phi$ is the relative reduction in infectiousness of the individual taking cART.
+```{r}
+mx$wD <- cbind(c( 500, 350, 250, 200, 100,  50,  0), # lower bound CD4+ count
+               c(1000, 500, 350, 250, 200, 100, 50), # upper
+               c(   1,  .1,  .2,  .2,  .7,  .7, .7)) # relative infectiousness
+mx$phi <- .3 # fp$relinfectART
+```
+
+But as the HIV population is grouped, $H^{x}_{sag}$ is calculated by age-group and distributed as
+\[H^{*}_{sag} = \dfrac{N_{sag}}{N_{s\alpha g}} H^{*}_{s\alpha g} \]
+
+where $\alpha$ the age-group contains age $a$.
+
+## Model simulation
+
+Prepare the fix parameters as the vignette example
+
+```{r echo=FALSE}
+pjnz <- system.file("extdata/testpjnz", "Botswana2018.PJNZ", package="eppasm")
+bw <- prepare_spec_fit(pjnz, proj.end=2021.5)
+
+## EPP model with single set of parameter inputs
+theta_ur <- c(-0.63758, -2.76655, -1.26204, 1996.65945, 0.00778, 0.05195, 0.05103, 0.032, 0.01765, 0.01154, -0.00028, 0.01627, -0.00051, 0.01439, -0.00937, -0.01135, 0.03692, 0.14959, 0.00803, 0.02424, -0.03548, 3.65223, -0.02515, -4.74563, 0.26259, -6.90124, 0.01583)
+
+fp <- attr(bw$Urban, "specfp")
+fp <- prepare_rhybrid(fp, rw_start = 2005, rw_dk = 1)
+
+fp$ancsitedata <- TRUE
+fp$ancrt       <- "both"
+fp$logitiota   <- TRUE
+fp$rw_start    <- 2005
+fp$incidmod    <- "eppspectrum"
+
+param <- fnCreateParam(theta_ur, fp)
+fp_par <- update(fp, list = param)
+```
+
+### Without mixing
+Simulate the old model, to check if the tidy up process and the added code do break anything.
+
+```{r}
+devtools::load_all()
+modOC <- simmod(fp_par, "C") # old C
+modOR <- simmod(fp_par, "R") # old R
+prev(modOC)
+prev(modOR)
+```
+
+The later years are slightly differrence after seventh digit. This should be the result of correcting the negative target population inputs. But it is important for the mixing model as the sign of population messing with FOI calculation.
+
+### Mixing model
+
+Model with `length(mx$gamma)` risk groups,
+
+```{r}
+devtools::load_all() # 2b remove
+modN2    <- simmod(fp_par, "R", isMixing = TRUE, mx)
+# profvis::profvis(simmod(fp_par, "R", isMixing = TRUE, mx))
+```
+Plot FOI
+
+```{r echo=FALSE, fig.cap = "Figure: FOI two risk groups"}
+plot(modN2)
+```
+
+Change $\gamma$ to run 1 risk group
+
+```{r}
+mx$gamma <- 1
+```
+
+Model with `length(mx$gamma)` risk groups,
+
+```{r}
+modN1 <- simmod(fp_par, "R", isMixing = TRUE, mx)
+lineplot(prev(modOR))
+lines(prev(modN2))
+lines(prev(modN1))
 ```

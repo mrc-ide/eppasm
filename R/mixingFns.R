@@ -24,6 +24,9 @@ krono <- function(x, y) ifelse(x==y, 1, 0)
 # Scale to 1 by row or column
 scale2one <- function(x, dim=1) sweep(x, dim, apply(x, dim, sum), '/')
 
+# sweep with multiply function by default
+sweepX <- function(...) sweep(..., FUN="*")
+
 # Age-mixing, fraction of pns formed between indivdiual i and i'
 # -----------------------------------------------------------------------------
 # Log logistic 
@@ -69,19 +72,8 @@ Cmix <- function(s, a, a., g, g., pop, i, mx, fp) {
   assort <- (1-mx$epsilon) * krono(a, a.) + mx$epsilon * num / den 
   return( Csag(s, a, g, mx) * assort * mx$D[a2i(a), a2i(a.), s] )
 }
-
-# Probability of getting infected. TODO: this is assuming all stages of HIV,
-# ART treatment have the same  transmission potential; so just the prev in s,
-# a, m TODO: check with the code for ts time step
-# -----------------------------------------------------------------------------
-Psag <- function(s, a, g, pop, i, fp) {
-  num <- pop[a2i(a), sid(s, fp)[g], fp$ss$hivp.idx, i]
-  den <- pop[a2i(a), sid(s, fp)[g], fp$ss$hivn.idx, i] + num
-  return(num/den)
-}
-
+                    
 # Condom use, only have ±25 and age-dependent not risk group dependent
-# TODO: if there is data, adjust condom level use for each level of sexual act.
 # -----------------------------------------------------------------------------
 ConAge <- function(s, a, a., mx) {
   #  more ifs to avoid big matrix

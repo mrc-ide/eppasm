@@ -2,12 +2,11 @@
 #'
 calc_infections_eppspectrum <- function(fp, mx, pop, hivpop, artpop,
                                         i, ii, r_ts, isMixing){
+  invisible(list2env(fp$ss, environment())) # put ss variables in environment for convenience
+  ts  <- (i-2)/DT + ii
   if (!isMixing) {
     ## Attach state space variables
-    invisible(list2env(fp$ss, environment())) # put ss variables in environment for convenience
-
     ## HIV population size at ts
-    ts  <- (i-2)/DT + ii
     hivn.ii <- f_hiv.ii(p.age15to49.idx, hivn.idx, DT, i, ii, pop)
     hivp.ii <- f_hiv.ii(p.age15to49.idx, hivp.idx, DT, i, ii, pop)
     art.ii  <- f_art.ii(h.age15to49.idx, p.age15to49.idx, DT, i, ii,
@@ -20,11 +19,10 @@ calc_infections_eppspectrum <- function(fp, mx, pop, hivpop, artpop,
     attr(infections.ts, "incrate15to49.ts") <- incrate15to49.ts
     attr(infections.ts, "prevcurr") <- hivp.ii / (hivn.ii+hivp.ii)
   } else {
-    FOIi          <- FOIs(pop, i, mx, fp)
-    infections.ts <- pop[,,hivn.idx,i] * FOIi
+    FOIi          <- FOIs(pop, hivpop, artpop, i, r_ts, mx, fp)
+    infections.ts <- pop[,,hivn.idx,i] * FOIi + fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
     attr(infections.ts, "FOI")      <- FOIi
     attr(infections.ts, "prevcurr") <- NA # fix this for rt model
-    # cat(round(apply(infections.ts, 2, max), 4), '\t', round(apply(FOIi, 2, max), 2), '\n'); Sys.sleep(.5) 
   }
   return(infections.ts)
 }

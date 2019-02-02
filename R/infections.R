@@ -23,8 +23,6 @@ calc_infections_eppspectrum <- function(fp, mx, pop, hivpop, artpop,
     infections.ts <- pop[,,hivn.idx,i] * FOIi + fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
     attr(infections.ts, "FOI")      <- FOIi
     attr(infections.ts, "prevcurr") <- NA # fix this for rt model
-    # cat(round(apply(infections.ts, 2, max), 4), '\t', round(apply(FOIi, 2, max), 4), '\n')
-    # Sys.sleep(.1) 
   }
   return(infections.ts)
 }

@@ -124,7 +124,6 @@ simmod.specfp <- function(fp, VERSION="C", isMixing = FALSE, mx){
       artpop[,,-1,,i]   %<>% +(nARTup)
       artpop[,, 1,,i]   %<>% +(f_sa(sweepX(fp$paedsurv_artcd4dist[,,,i], 3, isART),,fp))
     }
-
     ## survive the population
     deaths <- sweepX(pop[,,,i], 1:2, 1 - f_sa(fp$Sx[,,i],TRUE,fp))
     hiv.sx.prob <- 1 - sumByAGs(deaths[,,hivp.idx]) / sumByAGs(pop[,,hivp.idx,i])
@@ -142,7 +141,6 @@ simmod.specfp <- function(fp, VERSION="C", isMixing = FALSE, mx){
     hiv.mr.prob <- sumByAGs(mr.prob * pop[,,hivp.idx,i]) / sumByAGs(pop[,,hivp.idx,i])
     hiv.mr.prob[is.nan(hiv.mr.prob)] <- 0
     pop[,,,i]   <- sweepX(pop[,,,i], 1:2, mr.prob)
-    
     hivpop[,,,i] <- sweepX(hivpop[,,,i], 2:3, hiv.mr.prob)
     if(i > fp$tARTstart)
       artpop[,,,,i] <- sweepX(artpop[,,,,i], 3:4, hiv.mr.prob)
@@ -190,7 +188,7 @@ simmod.specfp <- function(fp, VERSION="C", isMixing = FALSE, mx){
 
       # disease progression and mortality
       # cd4 stage progression (untreated)
-      grad[-hDS,,] %<>% -(fp$cd4_prog * hivpop[-hDS,,,i]) # this one is negative
+      grad[-hDS,,] %<>% -(fp$cd4_prog * hivpop[-hDS,,,i])
       grad[-1,,]   %<>% +(fp$cd4_prog * hivpop[-hDS,,,i])
 
       cd4_mort_ts <- scale_cd4_mort_ts(fp, hivpop, artpop, i)

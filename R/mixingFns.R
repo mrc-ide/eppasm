@@ -23,6 +23,7 @@ krono <- function(x, y) ifelse(x==y, 1, 0)
 
 # Scale to 1 by row or column
 scale2one <- function(x, dim=1) sweep(x, dim, apply(x, dim, sum), '/')
+
 # sweep with multiply function by default
 sweepX <- function(...) sweep(..., FUN="*")
 
@@ -71,7 +72,7 @@ Cmix <- function(s, a, a., g, g., pop, i, mx, fp) {
   assort <- (1-mx$epsilon) * krono(a, a.) + mx$epsilon * num / den 
   return( Csag(s, a, g, mx) * assort * mx$D[a2i(a), a2i(a.), s] )
 }
-
+                    
 # Condom use, only have ±25 and age-dependent not risk group dependent
 # -----------------------------------------------------------------------------
 ConAge <- function(s, a, a., mx) {

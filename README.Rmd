@@ -6,6 +6,7 @@ date: "`r Sys.Date()`"
 output:
   github_document:
     pandoc_args: --webtex
+    toc: true
 ---
 
 
@@ -15,7 +16,7 @@ knitr::opts_chunk$set(
   warning = FALSE,
   comment = "#>"
 )
-library(eppasm)
+library(eppasm) # new-master
 devtools::load_all()
 ```
 
@@ -61,9 +62,10 @@ The proportion in low and high risk group are assumed similar for both male and 
 - immigrants
 
 > TODO: allow different for male and female
+
 ```{r}
 mx <- list()
-mx$gamma <- c(.8, .2) # order Low -> High Risk, sum to 1
+mx$gamma <- c(.9, .1) # order Low -> High Risk, sum to 1
 ```
 
 If `mx$gamma` input is of length one, then it is set to 1 and one risk group model is run.
@@ -99,7 +101,7 @@ pair, defining the probability that a partnership is formed between an aged
 $A$ subject and aged $a$ subject.
 
 ```{r}
-mx$epsilon <- .3
+mx$epsilon <- .2
 ```
 
 If there is only one group, $\epsilon$ will be set to zero by checking the length of $\gamma$ provided.
@@ -114,27 +116,18 @@ of partnership calculated from each group, i.e.,
 In particular, we calculate 
 \[W_{SAGsag} = \dfrac{N_{SAG} C_{SAGsag}}{N_{sag} C_{sagSAG}}\]
 and adjust
-\begin{align}
-  C_{SAGsag} &= C_{SAGsag} \sqrt{W_{SAGsag}} \newline
+
+\[
+  C_{SAGsag} = C_{SAGsag} \sqrt{W_{SAGsag}}
+\]
+
+\[
   C_{sagSAG} &= C_{sagSAG} / \sqrt{W_{SAGsag}}
-\end{align}
+\]
 
 In total, we calculate $2\times2\times G^2$ matrices for this weighting process.
 
 The risk group membership is fixed, i.e. no moving from one risk group to another.
-
-> TODO: add relavtive transmission rate for pair of risk group. This should go to transmission rate section.
-
-```{r}
-# Template data (Thembisa)
-mx$betaPair <- array(1, c(2,2,2))
-# Susceptible male
-mx$betaPair[,,1] <- matrix(c(1, 1.25, 1.08, 1.23), 2, 2,
-                      dimnames=list(c("M-Low", "M-High"), c("F-Low", "F-High")))
-# Susceptible female
-mx$betaPair[,,2] <- matrix(c(1, 1.14, 1.09, 1.20), 2, 2,
-                      dimnames=list(c("M-Low", "M-High"), c("F-Low", "F-High")))
-```
 
 ### Age mixing
 
@@ -210,19 +203,23 @@ Setting this effectively set FOI of population outside the boundary zero by maki
 ### Tranmission rate
 
 Transmission rate is assumed different for each CD4+ stages ($d = 1,\dots,7$) and on ART or not ($k = 1, 0$).
+
 \[
 P_{sag} = r_t \cdot
-\dfrac{\sum_{d} w_{d} \left[H_{sag}^{d,k=0} - H_{sag}^{d,k=1} (1 - \phi) \right] }{N_{sag}} = r_t \cdot \dfrac{H^{*}_{sag}}{N_{sag}}
+\dfrac{\sum_{d} w_{d} [H_{sag}^{d,k=0} - H_{sag}^{d,k=1} (1 - \phi)]}{N_{sag}} 
+= r_t \cdot \dfrac{H^{*}_{sag}}{N_{sag}}
 \]
+
 where $H$ denotes the HIV positive population, $w_d$ denotes the relative infectiousness of individuals in the disease stage $d$, $\phi$ is the relative reduction in infectiousness of the individual taking cART.
+
 ```{r}
 mx$wD <- cbind(c( 500, 350, 250, 200, 100,  50,  0), # lower bound CD4+ count
                c(1000, 500, 350, 250, 200, 100, 50), # upper
                c(   1,  .1,  .2,  .2,  .7,  .7, .7)) # relative infectiousness
-mx$phi <- .3 # fp$relinfectART
+mx$phi <- .3 # ~fp$relinfectART
 ```
 
-But as the HIV population is grouped, $H^{x}_{sag}$ is calculated by age-group and distributed as
+But as the HIV population is grouped, $H^{*}_{sag}$ is calculated by age-group and distributed as
 \[H^{*}_{sag} = \dfrac{N_{sag}}{N_{s\alpha g}} H^{*}_{s\alpha g} \]
 
 where $\alpha$ the age-group contains age $a$.
@@ -262,34 +259,57 @@ prev(modOC)
 prev(modOR)
 ```
 
-The later years are slightly differrence after seventh digit. This should be the result of correcting the negative target population inputs. But it is important for the mixing model as the sign of population messing with FOI calculation.
+The later years are slightly differrence after the third digit. This results from correcting the negative target population inputs and remove one line on `grad` update (?). These are important for the mixing model as the sign of population trouble FOI calculation.
 
 ### Mixing model
 
-Model with `length(mx$gamma)` risk groups,
+Model with one and two risk groups per sex.
 
 ```{r}
 devtools::load_all() # 2b remove
-modN2    <- simmod(fp_par, "R", isMixing = TRUE, mx)
+mx$gamma <- c(.9,.1)
+modN2 <- simmod(fp_par, "R", isMixing = TRUE, mx)
+mx$gamma <- 1
+modN1 <- simmod(fp_par, "R", isMixing = TRUE, mx)
 # profvis::profvis(simmod(fp_par, "R", isMixing = TRUE, mx))
+# Vectorize outer make thing worse
 ```
-Plot FOI
 
-```{r echo=FALSE, fig.cap = "Figure: FOI two risk groups"}
+FOI
+
+```{r fig.cap = "Figure: FOI two risk groups"}
 plot(modN2)
 ```
 
-Change $\gamma$ to run 1 risk group
-
-```{r}
-mx$gamma <- 1
+```{r fig.cap = "Figure: FOI two risk groups"}
+plot(modN1)
 ```
 
-Model with `length(mx$gamma)` risk groups,
+Prevalence
 
-```{r}
-modN1 <- simmod(fp_par, "R", isMixing = TRUE, mx)
+```{r echo=FALSE, fig.cap = "Figure: FOI two risk groups"}
 lineplot(prev(modOR))
-lines(prev(modN2))
-lines(prev(modN1))
+lines(prev(modN1), col=1)
+lines(prev(modN2), col=2)
 ```
+
+> TODO: add relavtive transmission rate for pair of risk group. This should go to transmission rate section.
+
+```{r}
+# Template data (Thembisa)
+mx$betaPair <- array(1, c(2,2,2))
+# Susceptible male
+mx$betaPair[,,1] <- matrix(c(1, 1.25, 1.08, 1.23), 2, 2,
+                      dimnames=list(c("M-Low", "M-High"), c("F-Low", "F-High")))
+# Susceptible female
+mx$betaPair[,,2] <- matrix(c(1, 1.14, 1.09, 1.20), 2, 2,
+                      dimnames=list(c("M-Low", "M-High"), c("F-Low", "F-High")))
+```
+
+```{r echo = FALSE, results = 'asis'}
+knitr::kable(mx$betaPair[,,1], caption="Table: Relative transmission rate for susceptible male")
+knitr::kable(mx$betaPair[,,2], caption="Table: Relative transmission rate for susceptible female")
+```
+
+> TODO: which data, fitting which parameteres?
+> TODO: Projection?

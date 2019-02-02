@@ -19,9 +19,8 @@ calc_infections_eppspectrum <- function(fp, mx, pop, hivpop, artpop,
     attr(infections.ts, "incrate15to49.ts") <- incrate15to49.ts
     attr(infections.ts, "prevcurr") <- hivp.ii / (hivn.ii+hivp.ii)
   } else {
-    FOIi          <- FOIs(pop, hivpop, artpop, i, mx, fp)
-    infections.ts <- pop[,,hivn.idx,i] * FOIi * r_ts/(max(fp_par$rvec)) + fp$iota * 
-    (fp$proj.steps[ts] == fp$tsEpidemicStart)
+    FOIi          <- FOIs(pop, hivpop, artpop, i, r_ts, mx, fp)
+    infections.ts <- pop[,,hivn.idx,i] * FOIi + fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
     attr(infections.ts, "FOI")      <- FOIi
     attr(infections.ts, "prevcurr") <- NA # fix this for rt model
     # cat(round(apply(infections.ts, 2, max), 4), '\t', round(apply(FOIi, 2, max), 4), '\n')

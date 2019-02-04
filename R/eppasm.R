@@ -63,11 +63,9 @@ simmod.specfp <- function(fp, VERSION="C"){
 
 
   for(i in 2:fp$SIM_YEARS){
-
     ## ################################### ##
     ##  Single-year population projection  ##
     ## ################################### ##
-
     ## age the population
     pop[-c(1,pAG),,,i] <- pop[-(pAG-1:0),,,i-1]
     pop[pAG,,,i] <- pop[pAG,,,i-1] + pop[pAG-1,,,i-1] # open age group
@@ -153,7 +151,7 @@ simmod.specfp <- function(fp, VERSION="C"){
           rvec[ts] <- calc_rtrend_rt(fp$proj.steps[ts], fp, rvec[ts-1], prevlast, pop, i, ii)
         else
           rvec[ts] <- fp$rvec[ts]
-
+        
         ## number of infections by age / sex
         if(exists("incidmod", where=fp) && fp$incidmod == "transm")
           infections.ts <- calc_infections_simpletransm(fp, pop, hivpop, artpop, i, ii, rvec[ts])
@@ -190,11 +188,11 @@ simmod.specfp <- function(fp, VERSION="C"){
       delta_ts[!is.finite(delta_ts)] <- 0
       grad <- grad - sweep(cd4_mort_ts * hivpop[,,,i], 3, delta_ts, "*")            # HIV mortality, untreated
 
-      
       calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
       hivdeaths_p.ts <- apply(hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
       hivdeaths_p.ts <- sweep(hivdeaths_p.ts, 2, delta_ts, "*")
       pop[,,2,i] <- pop[,,2,i] - hivdeaths_p.ts
+      # pop[,,2,i][pop[,,2,i] < 0] <- 0.01
       hivdeaths[,,i] <- hivdeaths[,,i] + hivdeaths_p.ts
 
       ## ART initiation
@@ -207,7 +205,6 @@ simmod.specfp <- function(fp, VERSION="C"){
         gradART[2:3,,,] <- gradART[2:3,,,] + 2.0 * artpop[1:2,,,, i]      # add ART duration progression (HARD CODED 6 months duration)
 
         gradART <- gradART - sweep(fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i], 4, delta_ts, "*")   # ART mortality
-
 
         ## ART dropout
         ## remove proportion from all adult ART groups back to untreated pop

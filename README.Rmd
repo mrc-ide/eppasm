@@ -21,7 +21,8 @@ devtools::load_all()
 ```
 
 This vignette documents the implementation of age- and risk-group-mixing
-(mixing for short) model (Tim's) into current EPP-ASM code. The code lives at
+(mixing for short) models (Tim' and Thembisa') into current EPP-ASM code. The
+code lives at
 `mixing` branch. The differences compare to the old version are:
 
 - We need a new list named `mx` (perhaps put into `fp` later) containing all
@@ -36,16 +37,36 @@ The following assumptions and parameters are used for prototyping the model.
 ## Force of infection
 
 The force of infection (FOI) is defined as in [Hallett, T. B., Gregson, S., et
-al. (2007)](http://doi.org/10.1136/sti.2006.023606). Briefly, the FOI
-($\lambda$) of a population of sex $S=\{1,2\}$, age $A=1,\dots$, and risk
-group $G = 1\dots$ is calculated at each time steps as
-\[\lambda_{SAG} = C_{SAG}\sum_g\sum_a C_{SAGsag} P_{sag} (1-K_{Aa}),\]
+al. (2007)](http://doi.org/10.1136/sti.2006.023606) with additional modifications towards Thembisa model's data. 
+
+The FOI ($\lambda$) of a population of sex $S=1,2$, age $A=15\dots80^+$, and risk
+group $G = 1, 2$ is calculated at each time steps as
+\[
+\lambda_{SAG} = \beta_{SGsg} C_{SAG}\sum_g\sum_a C_{SAGsag} P_{sag} (1-K_{Aa}),
+\]
 where $s,a,g$ denote the sex, age, and risk group of the opposite sex,
 respectively. $C_{SAG}$ is the total number of
 contacts, $C_{SAGsag}$ is the mixing pattern with other age and group,
-$P_{sag}$ is the tranmission probability, and $K_{Aa}$ is the probability of correct
-and consistent condom usage given the pair. All the model's terms are
-time-dependent but $K_{Aa}$ might not, depending on the availability of data.
+$P_{sag}$ is the transmission probability, and $K_{Aa}$ is the probability of correct
+and consistent condom usage given the pair. All the model's terms are time-dependent but $K_{Aa}$ might not, depending on the availability of data. 
+
+$\beta_{SGsg}$ denotes the relative transmission rate for pair of risk group such that pairs having one or two in the high risk group will have a higher risk of transmission than pairs with both in low risk group. This parameter is different depending on whether the susceptible is male or female.
+
+```{r}
+# Thembisa data
+mx$betaPair <- array(1, c(2,2,2))
+# Susceptible male
+mx$betaPair[,,1] <- matrix(c(1, 1.25, 1.08, 1.23), 2, 2,
+                      dimnames=list(c("M-Low", "M-High"), c("F-Low", "F-High")))
+# Susceptible female
+mx$betaPair[,,2] <- matrix(c(1, 1.14, 1.09, 1.20), 2, 2,
+                      dimnames=list(c("M-Low", "M-High"), c("F-Low", "F-High")))
+```
+
+```{r echo = FALSE, results = 'asis'}
+knitr::kable(mx$betaPair[,,1], caption="Table: Relative transmission rate for susceptible male")
+knitr::kable(mx$betaPair[,,2], caption="Table: Relative transmission rate for susceptible female")
+```
 
 ### Risk groups mixing
 
@@ -70,7 +91,7 @@ mx$gamma <- c(.9, .1) # order Low -> High Risk, sum to 1
 
 If `mx$gamma` input is of length one, then it is set to 1 and one risk group model is run.
 
-Higher risk group have tripple the frequency of contacts of the immediate lower risk group.
+Higher risk group have triple the frequency of contacts of the immediate lower risk group.
 
 ```{r}
 mx$tau <- 3 # common ratio between risk groups
@@ -122,7 +143,7 @@ and adjust
 \]
 
 \[
-  C_{sagSAG} &= C_{sagSAG} / \sqrt{W_{SAGsag}}
+  C_{sagSAG} = C_{sagSAG} / \sqrt{W_{SAGsag}}
 \]
 
 In total, we calculate $2\times2\times G^2$ matrices for this weighting process.
@@ -153,7 +174,7 @@ is shifted by the age difference between male and female.
 ```{r}
 mx$kappa <- 2 # log-logistic shape
 mx$rho <- 0.25 # log-logistic scale
-r <- 0.15 # log-logistic support
+mx$r <- 0.15 # log-logistic support
 ```
 
 This distribution seems too strict. Considering options that allows female
@@ -259,7 +280,7 @@ prev(modOC)
 prev(modOR)
 ```
 
-The later years are slightly differrence after the third digit. This results from correcting the negative target population inputs and remove one line on `grad` update (?). These are important for the mixing model as the sign of population trouble FOI calculation.
+Prevalence in the later years are slightly difference after the third digit. This results from correcting the negative target population inputs and remove one line on `grad` update (?). These are important for the mixing model as the sign of population trouble FOI calculation.
 
 ### Mixing model
 
@@ -291,24 +312,6 @@ Prevalence
 lineplot(prev(modOR))
 lines(prev(modN1), col=1)
 lines(prev(modN2), col=2)
-```
-
-> TODO: add relavtive transmission rate for pair of risk group. This should go to transmission rate section.
-
-```{r}
-# Template data (Thembisa)
-mx$betaPair <- array(1, c(2,2,2))
-# Susceptible male
-mx$betaPair[,,1] <- matrix(c(1, 1.25, 1.08, 1.23), 2, 2,
-                      dimnames=list(c("M-Low", "M-High"), c("F-Low", "F-High")))
-# Susceptible female
-mx$betaPair[,,2] <- matrix(c(1, 1.14, 1.09, 1.20), 2, 2,
-                      dimnames=list(c("M-Low", "M-High"), c("F-Low", "F-High")))
-```
-
-```{r echo = FALSE, results = 'asis'}
-knitr::kable(mx$betaPair[,,1], caption="Table: Relative transmission rate for susceptible male")
-knitr::kable(mx$betaPair[,,2], caption="Table: Relative transmission rate for susceptible female")
 ```
 
 > TODO: which data, fitting which parameteres?

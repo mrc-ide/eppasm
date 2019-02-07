@@ -14,8 +14,6 @@ gruvlt <- c("#928374", "#ED4631", "#B8BB26", "#F8BD32", "#83A598", "#D3869B", "#
 gruvGrey <- c("#1D2021", "#282828", "#3C3836", "#504945", "#665C54", "#7C6F64", "#928374", "#D65D2A")
 gruvGrey2 <- c("#FFFFFF", "#32302F", "#A89984", "#BDAE93", "#D5C4A1", "#EBDBB2", "#FBF1C7", "#F17E30")
 
-palette(solarized)
-
 Kgrid <- function(bg = "white", cols = "gray93" ) {
     rect(par("usr")[1], par("usr")[3], par("usr")[2], par("usr")[4], col = bg,
          border = NA)
@@ -53,6 +51,7 @@ Kaxis <- function(side = 1, col='gray93', colticks='dimgray', ...) {
 }
 # Line plot of FOI, infections, death
 plot.eppmix <- function(mod, which="FOI",...){
+  palette(solarized)
   out <- attr(mod, which)
   if (length(dim(out)) !=3 ) stop("not implemented yet")
   put(dim(out)[2]/2, 2)

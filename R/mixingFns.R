@@ -9,12 +9,12 @@ sid  <- function(x, fp) if (x==2) (length(fp$pi)+1):(length(fp$pi)*2) else 1:len
 
 # Make conformable arrays if there > 1 risk group
 updateRiskGroup <- function(fp, mx) {
-  fp$basepop <- f_sa(fp$basepop,,fp)
+  fp$basepop <- f_sa(fp$basepop,,mx)
   if ( any(fp$cd4_mort > 1) ) fp$cd4_mort <- fp$cd4_mort/max(fp$cd4_mort)
-  fp$cd4_mort <- f_sa(fp$cd4_mort,TRUE,fp)
-  fp$cd4_prog <- f_sa(fp$cd4_prog,TRUE,fp)
-  fp$cd4_initdist <- f_sa(fp$cd4_initdist,TRUE,fp)
-  fp$art_mort <- f_sa(fp$art_mort,TRUE,fp)
+  fp$cd4_mort <- f_sa(fp$cd4_mort,TRUE,mx)
+  fp$cd4_prog <- f_sa(fp$cd4_prog,TRUE,mx)
+  fp$cd4_initdist <- f_sa(fp$cd4_initdist,TRUE,mx)
+  fp$art_mort <- f_sa(fp$art_mort,TRUE,mx)
   return(fp)
 }
 
@@ -87,41 +87,23 @@ ConAge <- function(s, a, a., mx) {
 # Distributing base pop., hiv in, art in, base number of risk groups and %
 # TODO: allow differences for female and male
 # -----------------------------------------------------------------------------
-f_sa <- function(inPop, mutateOnly = FALSE, fp) {
+f_sa <- function(inPop, mutateOnly = FALSE, mx) {
   # mutateOnly: whether to multiply with prop or just mutate the matrix
-  prop <- fp$pi
-  nRg <- length(prop)
-  if (nRg == 1) { 
-    return(inPop)
-  } else {
-    if (sum(prop)!=1)
-      stop('Prop of risk groups do not sum to 1.')
-  }
+  if (mx$n == 1) return(inPop)
+  prop <- mx$gamma
+  if (mutateOnly) prop <- rep(1, length(prop)*2) 
+    else prop <- c(rbind(1 - mx$gamma, mx$gamma))
   if ( length(dim(inPop)) == 2 ) { # for basepop
-    if (mutateOnly) prop <- rep(1, length(prop))
-    out <- array(0, c(dim(inPop)[1], nRg*2))
-    out[, 1:nRg]           <- inPop[, fp$ss$m.idx, drop=FALSE] %o% prop
-    out[, (nRg+1):(nRg*2)] <- inPop[, fp$ss$f.idx, drop=FALSE] %o% prop
-    return(out)
+    out <- matrix(apply(inPop, 2, rep, 2), ncol=mx$n*dim(inPop)[2])
+    return(sweepX(out, 2, prop))
   } else if ( length(dim(inPop)) == 3 ) { # for hiv pops
-    if (mutateOnly) prop <- rep(1, length(prop))
-    out <- array(0, c(dim(inPop)[1:2], nRg*2))
-    mal <- sapply(prop, function(x) inPop[,,fp$ss$m.idx, drop=FALSE]*x, simplify='array')
-    fem <- sapply(prop, function(x) inPop[,,fp$ss$f.idx, drop=FALSE]*x, simplify='array')
-    out[,,1:nRg]           <- mal
-    out[,,(nRg+1):(nRg*2)] <- fem
-    return(out)  
-  } else if ( length(dim(inPop)) == 4 ) { # for hiv pops
-    if (mutateOnly) prop <- rep(1, length(prop))
-    out <- array(0, c(dim(inPop)[1:3], nRg*2))
-    mal <- sapply(prop, function(x) inPop[,,,fp$ss$m.idx, drop=FALSE]*x, simplify='array')
-    fem <- sapply(prop, function(x) inPop[,,,fp$ss$f.idx, drop=FALSE]*x, simplify='array')
-    out[,,,1:nRg]           <- mal
-    out[,,,(nRg+1):(nRg*2)] <- fem
-    return(out)
+    out <- array(apply(inPop, 3, rep, 2), c(dim(inPop)[1:2], mx$n*2))
+    return(sweepX(out, 3, prop))
+  } else if ( length(dim(inPop)) == 4 ) { # for art pops
+    out <- array(apply(inPop, 3, rep, 2), c(dim(inPop)[1:3], mx$n*2))
+    return(sweepX(out, 4, prop))
   } else if ( length(inPop) == 2 ) { # for entry pop
-    if (mutateOnly) prop <- rep(1, length(prop))
-    out <- c(sapply(inPop, function(x) x*prop))
-    return(out)
+    out <- rep(inPop, each=mx$n)
+    return(out*prop)
   }
 }

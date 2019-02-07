@@ -1,11 +1,11 @@
 # Natural age to index
-a2i <- function(x, min=15, max=80) which(min:max %in% x) 
+a2i <- function(x, min=15, max=80) which(min:max %in% x)
 
 # Non number to value
 na2num <- function(x, y) {x[is.na(x)] <- y; return(x)}
 
 # new sex id for old, new, and risk groups
-sid  <- function(x, fp) if (x==2) (length(fp$pi)+1):(length(fp$pi)*2) else 1:length(fp$pi)
+sid  <- function(x, fp) if (x==1) 1:fp$n else (fp$n+1):(fp$n*2)
 
 # Make conformable arrays if there > 1 risk group
 updateRiskGroup <- function(fp, mx) {
@@ -55,8 +55,10 @@ Dmix <- function(fp, mx) {
 # Risk group-mixing 
 # -----------------------------------------------------------------------------
 # Number of contacts for sex, age and risk group level (given as geometric mean)
-Csag <- function(s, a, g, mx) with(mx,
-          Mx[a2i(a), s] / tau^(sum(gamma * (seq_along(gamma)-1))) * tau^(g-1))
+Csag <- function(s, a, g, mx)  {
+  prop <- c(1-mx$gamma[s], mx$gamma[s]) # low to high risk
+  mx$Mx[a2i(a), s] / mx$tau^(sum( prop * (seq_along(prop)-1) )) * mx$tau^(g-1)
+}
 # Csag(f.idx, a = 15, 1, mx)
 
 # Pop wrt sex, age, and risk group
@@ -67,8 +69,8 @@ Nsag <- function(s, a, g, pop, i, fp) sum(pop[a2i(a), sid(s, fp)[g],,i])
 Cmix <- function(s, a, a., g, g., pop, i, mx, fp) {
   opp <- ifelse(s == 1, 2, 1)
   num <- Csag(opp, a., g., mx) * Nsag(opp, a., g., pop, i, fp)
-  den <- sum(sapply(seq_along(mx$gamma),
-                    function(x) Csag(opp, a., x, mx) * Nsag(opp, a., x, pop, i, fp)))
+  den <- sum(sapply(1:mx$n, function(x) 
+                    Csag(opp, a., x, mx) * Nsag(opp, a., x, pop, i, fp)))
   assort <- (1-mx$epsilon) * krono(a, a.) + mx$epsilon * num / den 
   return( Csag(s, a, g, mx) * assort * mx$D[a2i(a), a2i(a.), s] )
 }
@@ -95,13 +97,13 @@ f_sa <- function(inPop, mutateOnly = FALSE, mx) {
     else prop <- c(rbind(1 - mx$gamma, mx$gamma))
   if ( length(dim(inPop)) == 2 ) { # for basepop
     out <- matrix(apply(inPop, 2, rep, 2), ncol=mx$n*dim(inPop)[2])
-    return(sweepX(out, 2, prop))
+    return(sweep(out, 2, prop, '*'))
   } else if ( length(dim(inPop)) == 3 ) { # for hiv pops
     out <- array(apply(inPop, 3, rep, 2), c(dim(inPop)[1:2], mx$n*2))
-    return(sweepX(out, 3, prop))
+    return(sweep(out, 3, prop, '*'))
   } else if ( length(dim(inPop)) == 4 ) { # for art pops
     out <- array(apply(inPop, 3, rep, 2), c(dim(inPop)[1:3], mx$n*2))
-    return(sweepX(out, 4, prop))
+    return(sweep(out, 4, prop, '*'))
   } else if ( length(inPop) == 2 ) { # for entry pop
     out <- rep(inPop, each=mx$n)
     return(out*prop)

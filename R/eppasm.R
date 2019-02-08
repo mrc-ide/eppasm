@@ -403,12 +403,12 @@ simmod.specfp <- function(fp, VERSION="C"){
     if(i+AGE_START <= PROJ_YEARS)
       pregprevlag[i+AGE_START-1] <- pregprev
 
-    ## calculate vertical transmission
     if(exists('paedbasepop', where = fp)){
       ## stick births in popu5 object
       ## pull from taget pop if popadjust, else use births calculated using input fert
       popu5[1,,1,i] <- ifelse(popadjust, fp$paedtargetpop[1,,i], births)
       
+      ## calculate vertical transmission
       ## MTC transmission is weighted avg of those receing PMTCT and not treated
       ## Calculate percent of women by treatment option
       ## Default is no treatment
@@ -505,7 +505,7 @@ simmod.specfp <- function(fp, VERSION="C"){
       
       
       BFTR <- calcBFtransmissions(4, 6, i)
-      newInfFromBF6TO12 <- as.numeric((pregprev - hiv.births - newInfFromBFLT6) * BFTR / 100
+      newInfFromBF6TO12 <- as.numeric((pregprev - hiv.births - newInfFromBFLT6) * BFTR / 100)
       cumNewInfFromBF <- cumNewInfFromBF + newInfFromBF6TO12
       
       ## perinatal infections
@@ -540,7 +540,75 @@ simmod.specfp <- function(fp, VERSION="C"){
       popu5[3,f.idx,hivn.idx,i] <- popu5[3,f.idx,hivn.idx,i] - sum(hivpopu5[3,,3,f.idx,i])  
       cumNewInfFromBF <- cumNewInfFromBF + sum(hivpopu5[3,,3,,i])        
       
+      #Calculating need for child ART
+      unmetNeed <- 0
+      childEligibilityAge <- unique(fp$paed_arteligibility[,c('year', 'age_below_all_treat_mos')])$age_below_all_treat_mos
+      for (age in 0:4){
+        if((age + 1) * 12 > childEligibilityAge[i]){
+          CD4elig <- as.character(min(fp$paed_arteligibility[fp$paed_arteligibility$year == (proj_start + i - 1) & fp$paed_arteligibility$age_start <= age, 'cd4_pct_thresh']))
+          unmetNeed <- unmetNeed + sum(hivpopu5[,u5.elig.groups[[CD4elig]]:7, age + 1, , i])
+        }else{
+          unmetNeed <- unmetNeed + sum(hivpopu5[,, age + 1, , i])
+        }
+      }
+      for (age in 5:14){
+        if((age + 1) * 12 > childEligibilityAge[i]){
+          CD4elig <- as.character(min(fp$paed_arteligibility[fp$paed_arteligibility$year == (proj_start + i - 1) & fp$paed_arteligibility$age_start <= age, 'cd4_count_thresh']))
+          unmetNeed <- unmetNeed + sum(hivpopu15[,u15.elig.groups[[CD4elig]]:6, age - 4, , i])
+        }else{
+          unmetNeed <- unmetNeed + sum(hivpopu15[,, age - 4, , i])
+        }
+      }
       
+      onFLART <- sum(artpopu5) + sum(artpopu15)
+      needForFLART <- unmetNeed + onFLART   
+      
+      if(fp$artpaed_isperc[i - 1]){
+        ARTlastYear <- needForFLART * fp$artpaed_num[i - 1] / 100
+      }else{
+        ARTlastYear <- fp$artpaed_num[i - 1]
+      }
+      if(fp$artpaed_isperc[i]){
+        ARTthisYear <- needForFLART * fp$artpaed_num[i] / 100
+      }else{
+        ARTthisYear <- fp$artpaed_num[i]
+      }
+      
+      newFLART <-((ARTthisYear + ARTlastYear) / 2 ) - onFLART
+      if(newFLART < 0){
+        newFLART <- 0
+      }
+      #Increase number starting ART to account for those who will die in the first year
+      #They will be exposed to 1/2 year of mortality risk
+      v1 <- sum(artpopu5[,,,,i] * fp$art_mort_u5)
+      v2 <- sum(artpopu15[,,,,i] * fp$art_mort_u15)
+      onARTDeaths <- (v1 + v2) / 2
+      
+      newFLART <- newFLART + onARTDeaths
+      if(needForFLART < (onFLART + newFLART)){
+        needForFLART <- onFLART + newFLART
+      }
+      #Distribute according to IeDEA data
+      temp <- 0
+      for(age in 0:4){
+        if((age + 1) * 12 > childEligibilityAge[i]){
+          CD4elig <- as.character(min(fp$paed_arteligibility[fp$paed_arteligibility$year == (proj_start + i - 1) & fp$paed_arteligibility$age_start <= age, 'cd4_pct_thresh']))
+          temp <- temp + (sum(hivpopu5[,u5.elig.groups[[CD4elig]]:7, age + 1, , i]) * fp$paed_artdist[i, age +1])
+        }else{
+          temp <- temp + (sum(hivpopu5[,, age + 1, , i]) * fp$paed_artdist[i, age +1])
+        }
+      }
+      for(age in 5:14){
+        if((age + 1) * 12 > childEligibilityAge[i]){
+          CD4elig <- as.character(min(fp$paed_arteligibility[fp$paed_arteligibility$year == (proj_start + i - 1) & fp$paed_arteligibility$age_start <= age, 'cd4_count_thresh']))
+          temp <- temp + (sum(hivpopu15[,u15.elig.groups[[CD4elig]]:6, age - 4, , i]) * fp$paed_artdist[i, age +1])
+        }else{
+          temp <- temp + (sum(hivpopu15[,, age - 4, , i]) * fp$paed_artdist[i, age +1])
+        }
+      }
+      adj <- ifelse(temp > 0, newFLART/temp, 1)
+      
+            
       calcBFtransmissions <- function(m1, m2, i){
         BFTR <- 0
         perc.optA <- treat.opt[['postnat_optionA']]

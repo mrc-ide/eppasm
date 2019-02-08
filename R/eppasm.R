@@ -34,7 +34,24 @@ simmod.specfp <- function(fp, VERSION="C"){
   pop[,,1,1] <- fp$basepop
   hivpop <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
   artpop <- array(0, c(hTS, hDS, hAG, NG, PROJ_YEARS))
-
+  
+  ## paediatric
+  popu5 <- array(0, c(pAGu5, NG, pDS, PROJ_YEARS))
+  popu5[,,1,1] <- fp$paedbasepop[1:5,]
+  hivpopu5 <- array(0, c(hMT, hDSu5, pAGu5, NG, PROJ_YEARS))
+  dimnames(hivpopu5) <- list(transmission = c('BF0', 'BF6', 'BF12', 'perinatal'), cat = 1:7, age = 0:4, sex = c('Male', 'Female'), year = 1:PROJ_YEARS)
+  artpopu5 <- array(0, c(hTS, hDSu5, pAGu5, NG, PROJ_YEARS))
+  dimnames(artpopu5) <- list(transmission = c('ART0MOS', 'ART6MOS', 'ART1YR'), cat = 1:7, age = 0:4, sex = c('Male', 'Female'), year = 1:PROJ_YEARS)
+  
+  
+  popu15 <- array(0, c(pAGu15, NG, pDS, PROJ_YEARS))
+  popu15[,,1,1] <- fp$paedbasepop[6:15,]
+  hivpopu15 <- array(0, c(hMT, hDSu15, pAGu15, NG, PROJ_YEARS))
+  dimnames(hivpopu15) <- list(transmission = c('BF0', 'BF6', 'BF12', 'perinatal'), cat = 1:6, age = 5:14, sex = c('Male', 'Female'), year = 1:PROJ_YEARS)
+  artpopu15 <- array(0, c(hTS, hDSu15, pAGu15, NG, PROJ_YEARS))
+  dimnames(artpopu15) <- list(transmission = c('ART0MOS', 'ART6MOS', 'ART1YR'), cat = 1:6, age = 5:14, sex = c('Male', 'Female'), year = 1:PROJ_YEARS)
+  
+  
   ## initialize output
   prev15to49 <- numeric(PROJ_YEARS)
   incid15to49 <- numeric(PROJ_YEARS)
@@ -183,9 +200,13 @@ simmod.specfp <- function(fp, VERSION="C"){
     
       ## Remove hivdeaths from pop
       hivdeaths.ts <- DT*(colSums(cd4_mort_ts * hivpop[,,,i]) + colSums(fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i],,2))
-
-      delta_ts <- fp$deaths_dt[,ts] / colSums(hivdeaths.ts)
-      delta_ts[!is.finite(delta_ts)] <- 0
+      if(exists('deaths_dt', where = fp)){
+        delta_ts <- fp$deaths_dt[,ts] / colSums(hivdeaths.ts)
+        delta_ts[!is.finite(delta_ts)] <- 1
+      }else{
+        delta_ts <- 1
+      }
+      
       grad <- grad - sweep(cd4_mort_ts * hivpop[,,,i], 3, delta_ts, "*")            # HIV mortality, untreated
 
       calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
@@ -377,10 +398,193 @@ simmod.specfp <- function(fp, VERSION="C"){
     hivn.byage <- ctapply(rowMeans(pop[p.fert.idx, f.idx, hivn.idx,i-1:0]), ag.idx[p.fert.idx], sum)
     hivp.byage <- rowMeans(hivpop[,h.fert.idx, f.idx,i-1:0],,2)
     artp.byage <- rowMeans(artpop[,,h.fert.idx, f.idx,i-1:0],,3)
+    
     pregprev <- sum(births.by.h.age * (1 - hivn.byage / (hivn.byage + colSums(fp$frr_cd4[,,i] * hivp.byage) + colSums(fp$frr_art[,,,i] * artp.byage,,2)))) / sum(births.by.age)
     if(i+AGE_START <= PROJ_YEARS)
       pregprevlag[i+AGE_START-1] <- pregprev
 
+    ## calculate vertical transmission
+    if(exists('paedbasepop', where = fp)){
+      ## stick births in popu5 object
+      ## pull from taget pop if popadjust, else use births calculated using input fert
+      popu5[1,,1,i] <- ifelse(popadjust, fp$paedtargetpop[1,,i], births)
+      
+      ## MTC transmission is weighted avg of those receing PMTCT and not treated
+      ## Calculate percent of women by treatment option
+      ## Default is no treatment
+      needPMTCT <- pregprev
+      treat.opt <- list('no_proph' = 1)
+      ##TODO: make sure prenat and postnat options are correct
+      prenat.opt <- c('tripleARTdurPreg', 'tripleARTbefPreg', 'singleDoseNevir', 'prenat_optionB', 'prenat_optionA', 'dualARV')
+      postnat.opt <- c('tripleARTdurPreg', 'tripleARTbefPreg', 'singleDoseNevir', 'postnat_optionB', 'postnat_optionA', 'dualARV')
+      for(n in prenat.opt){
+        treat.opt[[n]] <- 0
+      }
+      sum3 <- rowSums(fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1),prenat.opt])
+      ## if number, set sum3 equal to total need, unless sum3 > need
+      if(!all(as.logical(fp$pmtct_isperc[fp$pmtct_isperc$year == (proj_start + i - 1),c(names(fp$pmtct_isperc)[!names(fp$pmtct_isperc) == 'year'])]))){
+        perc <- FALSE
+        if(sum3 < needPMTCT){sum3 <- needPMTCT}
+      }else{perc <- TRUE}
+      on.treat <- 0
+      for(n in prenat.opt){
+        treat.opt[[n]] <- ifelse(sum3 == 0, 0, fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), n] / sum3)
+        on.treat <- on.treat + treat.opt[[n]]
+      }
+      if(on.treat > 1){on.treat <- 1}
+      treat.opt[['no_proph']] <- 1 - on.treat
+      
+      ## proportion of hiv+ preg women by cd4
+      proplt200 <- (sum(births.by.h.age * (1 - hivn.byage / (hivn.byage + colSums(fp$frr_cd4[5:7,,i] * hivp.byage[5:7,]) + colSums(fp$frr_art[,5:7,,i] * artp.byage[,5:7,],,2)))) / sum(births.by.age)) / pregprev
+      prop200to350 <- (sum(births.by.h.age * (1 - hivn.byage / (hivn.byage + colSums(fp$frr_cd4[3:4,,i] * hivp.byage[3:4,]) + colSums(fp$frr_art[,3:4,,i] * artp.byage[,3:4,],,2)))) / sum(births.by.age)) / pregprev
+      propgt350 <- (sum(births.by.h.age * (1 - hivn.byage / (hivn.byage + colSums(fp$frr_cd4[1:2,,i] * hivp.byage[1:2,]) + colSums(fp$frr_art[,1:2,,i] * artp.byage[,1:2,],,2)))) / sum(births.by.age)) / pregprev
+      
+      tripleARTbefPreg <- fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), 'tripleARTbefPreg']
+      tripleARTdurPreg <- fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), 'tripleARTdurPreg']
+      if(perc){
+        tripleARTbefPreg <- tripleARTbefPreg/100 * needPMTCT
+        tripleARTdurPreg <- tripleARTdurPreg/100 * needPMTCT
+      }
+      ## number of hiv+ preg women in need of treatment
+      ## ??
+      hivp.preg.lt350 <- (proplt200 + prop200to350) * (needPMTCT - tripleARTbefPreg - tripleARTdurPreg) + tripleARTbefPreg + tripleARTdurPreg
+      
+      ## adjust transmission rates for opt a and opt b in cd4 lt 350
+      if(treat.opt[['prenat_optionA']] + treat.opt[['prenat_optionB']] > (propgt350)){
+        if(propgt350 <= 0){
+          excess.ratio <- 0
+        }else{
+            excess.ratio <- (treat.opt[['prenat_optionA']] + treat.opt[['prenat_optionB']]) /propgt350 - 1
+            optA.trans.rate <- (fp$MTCtrans[regimen == 'Option_A', perinatal_trans_pct]/100) * (1 + excess.ratio)
+            optB.trans.rate <- (fp$MTCtrans[regimen == 'Option_B', perinatal_trans_pct]/100) * (1 + excess.ratio)
+          }
+      }else{
+        optA.trans.rate <- fp$MTCtrans[regimen == 'Option_A', perinatal_trans_pct]/100
+        optB.trans.rate <- fp$MTCtrans[regimen == 'Option_B', perinatal_trans_pct]/100
+      }
+      ## on treatment
+      PTR <- treat.opt[['prenat_optionA']] * optA.trans.rate +
+                treat.opt[['prenat_optionB']]* optB.trans.rate +
+                treat.opt[['dualARV']] * (fp$MTCtrans[fp$MTCtrans$regimen == 'WHO_06_dual_ARV', 'perinatal_trans_pct'] / 100) +
+                treat.opt[['singleDoseNevir']] * (fp$MTCtrans[fp$MTCtrans$regimen == 'single_dose_nevriapine', 'perinatal_trans_pct'] / 100) +
+                treat.opt[['tripleARTbefPreg']] * (fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_pre_preg', 'perinatal_trans_pct'] / 100) +
+                treat.opt[['tripleARTdurPreg']] * (fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_dur_preg', 'perinatal_trans_pct'] / 100)
+      ## not on treatment
+      ## TODO add incident infections
+      PTR <- PTR + treat.opt[['no_proph']] * ((proplt200 * (fp$MTCtrans[fp$MTCtrans$regimen == 'no_prophylaxis' & fp$MTCtrans$definition == 'exisiting_LT200CD4', 'perinatal_trans_pct'] / 100)) +    
+              (prop200to350 * (fp$MTCtrans[fp$MTCtrans$regimen == 'no_prophylaxis' & fp$MTCtrans$definition == 'exisiting_200to350CD4', 'perinatal_trans_pct'] / 100)) + 
+              (propgt350 * (fp$MTCtrans[fp$MTCtrans$regimen == 'no_prophylaxis' & fp$MTCtrans$definition == 'exisiting_GT340CD4', 'perinatal_trans_pct'] / 100)))
+      ## HIV births is birth prevalence (perinatal transmission)
+      hiv.births <- max(0, unlist(pregprev * PTR))
+      
+      treat.opt <- list('no_proph' = 1)
+      for(n in postnat.opt){
+        treat.opt[[n]] <- 0
+      }
+      sum3 <- rowSums(fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1),prenat.opt])
+      ## if number, set sum3 equal to total need, unless sum3 > need
+      if(!all(as.logical(fp$pmtct_isperc[fp$pmtct_isperc$year == (proj_start + i - 1),c(names(fp$pmtct_isperc)[!names(fp$pmtct_isperc) == 'year'])]))){
+        perc <- FALSE
+        if(sum3 < needPMTCT){sum3 <- needPMTCT}
+      }else{perc <- TRUE}
+      on.treat <- 0
+      ##TODO: revisit how treatment props are being calculated, add code for opt A and B
+      for(n in postnat.opt){
+        treat.opt[[n]] <- ifelse(sum3 == 0, 0, fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), n] / sum3)
+        on.treat <- on.treat + treat.opt[[n]]
+      }
+      if(on.treat > 1){on.treat <- 1}
+      treat.opt[['no_proph']] <- 1 - on.treat
+      
+      ## breastfeeding transmission
+      BFTR <- calcBFtransmissions(1,3,i)
+      
+      ##TODO should bftr be divided by 100?
+      newInfFromBFLT6 <- as.numeric((pregprev - hiv.births) * BFTR / 100)
+      cumNewInfFromBF <- newInfFromBFLT6
+      
+      
+      BFTR <- calcBFtransmissions(4, 6, i)
+      newInfFromBF6TO12 <- as.numeric((pregprev - hiv.births - newInfFromBFLT6) * BFTR / 100
+      cumNewInfFromBF <- cumNewInfFromBF + newInfFromBF6TO12
+      
+      ## perinatal infections
+      hivpopu5[4,,1,m.idx,i] <- hiv.births * (1 - fp$srb[m.idx,i]) * fp$paed_distnewinf
+      hivpopu5[4,,1,f.idx,i] <- hiv.births * fp$srb[f.idx,i] * fp$paed_distnewinf
+      
+      ## bf infections
+      hivpopu5[1,,1,m.idx,i] <- newInfFromBFLT6 * (1 - fp$srb[m.idx,i]) * fp$paed_distnewinf
+      hivpopu5[1,,1,f.idx,i] <- newInfFromBFLT6 * fp$srb[f.idx,i] * fp$paed_distnewinf
+      
+      ## remove hiv+ from pop
+      popu5[1, m.idx, hivn.idx, i] <- popu5[1, m.idx, hivn.idx, i] - sum(hivpopu5[,,1,m.idx,i])
+      popu5[1, m.idx, hivp.idx, i] <- popu5[1,m.idx,hivp.idx,i] + sum(hivpopu5[,,1,m.idx,i])
+      popu5[1, f.idx, hivn.idx, i] <- popu5[1, f.idx, hivn.idx, i] - sum(hivpopu5[,,1,f.idx,i])
+      popu5[1, f.idx, hivp.idx, i] <- popu5[1,f.idx,hivp.idx,i] + sum(hivpopu5[,,1,f.idx,i])
+      
+      ## age 1, bf12 transmission
+      percentExposed = (pregprev - hiv.births - cumNewInfFromBF) / sum(births)
+      BFTR = calcBFtransmissions(7, 12, i)
+      hivpopu5[3,,2,m.idx,i] <- popu5[2,m.idx,hivn.idx,i] * fp$paed_distnewinf * percentExposed * BFTR
+      popu5[2,m.idx,hivn.idx,i] <- popu5[2,m.idx,hivn.idx,i] - sum(hivpopu5[3,,2,m.idx,i])
+      hivpopu5[3,,2,f.idx,i] <- popu5[2,f.idx,hivn.idx,i] * fp$paed_distnewinf * percentExposed * BFTR
+      popu5[2,f.idx,hivn.idx,i] <- popu5[2,f.idx,hivn.idx,i] - sum(hivpopu5[3,,2,f.idx,i])  
+      cumNewInfFromBF <- cumNewInfFromBF + sum(hivpopu5[3,,2,,i])  
+      
+      ## age 2, bf12 transmission
+      percentExposed <- percentExposed * (1 - BFTR)
+      BFTR = calcBFtransmissions(13, 18, i)
+      hivpopu5[3,,3,m.idx,i] <- popu5[3,m.idx,hivn.idx,i] * fp$paed_distnewinf * percentExposed * BFTR
+      popu5[3,m.idx,hivn.idx,i] <- popu5[3,m.idx,hivn.idx,i] - sum(hivpopu5[3,,3,m.idx,i])
+      hivpopu5[3,,3,f.idx,i] <- popu5[3,f.idx,hivn.idx,i] * fp$paed_distnewinf * percentExposed * BFTR
+      popu5[3,f.idx,hivn.idx,i] <- popu5[3,f.idx,hivn.idx,i] - sum(hivpopu5[3,,3,f.idx,i])  
+      cumNewInfFromBF <- cumNewInfFromBF + sum(hivpopu5[3,,3,,i])        
+      
+      
+      calcBFtransmissions <- function(m1, m2, i){
+        BFTR <- 0
+        perc.optA <- treat.opt[['postnat_optionA']]
+        perc.optB <- treat.opt[['postnat_optionB']]
+        optA.trans.rate <- (fp$MTCtrans[fp$MTCtrans$regimen == 'Option_A', 'breastfeeding_gt350cd4']/100)
+        optB.trans.rate <- (fp$MTCtrans[fp$MTCtrans$regimen == 'Option_B', 'breastfeeding_gt350cd4']/100)
+        dropout.optA <- fp$dropout[fp$dropout$year == (proj_start + i - 1), 'mth_drop_rt_optionA']
+        dropout.optB <- fp$dropout[fp$dropout$year == (proj_start + i - 1), 'mth_drop_rt_optionB']
+        if(propgt350 > 0){
+          if(perc.optA +perc.optB - treat.opt[['tripleARTbefPreg']] -treat.opt[['tripleARTdurPreg']] > propgt350){
+            excess <- perc.optA + perc.optB - treat.opt[['tripleARTbefPreg']] -treat.opt[['tripleARTdurPreg']] - propgt350
+            optA.trans.rate <- (propgt350 * optA.trans.rate + excess * 1.45 / 0.46 * optA.trans.rate) / (propgt350 + excess)
+            optB.trans.rate <- (propgt350 * optB.trans.rate + excess * 1.45 / 0.46 * optB.trans.rate) / (propgt350 + excess)
+          }
+        }
+        for(d in m1:m2){
+          perc.optA <- treat.opt[['postnat_optionA']] / exp(d * 2 * log(1 + dropout.optA / 100))
+          perc.optB <- treat.opt[['postnat_optionB']] / exp(d * 2 * log(1 + dropout.optB / 100))
+          perc.noproph <- 1 - perc.optA - perc.optB - treat.opt[['tripleARTdurPreg']] - treat.opt[['tripleARTbefPreg']]
+          if(perc.noproph < 0){perc.noproph <- 0}
+          percentInProgram <- 1 - treat.opt[['no_proph']]
+          ## no prophylaxis
+          BFTR <- BFTR + (((1 - fp$perc_bf_on_art[d] / 100) * (1 - percentInProgram) + 
+                         (1 - fp$perc_bf_off_art[d]/100) * percentInProgram) * perc.noproph *
+                         ((proplt200 + prop200to350) * (fp$MTCtrans[fp$MTCtrans$regimen == 'no_prophylaxis' & fp$MTCtrans$definition == 'exisiting_LT200CD4','breastfeeding_lt350cd4']/100) +
+                          propgt350 * (fp$MTCtrans[fp$MTCtrans$regimen == 'no_prophylaxis' & fp$MTCtrans$definition == 'exisiting_GT340CD4', 'breastfeeding_gt350cd4']/100)))
+        ## option A
+        BFTR <- BFTR + (1 - (fp$perc_bf_on_art[d]/100)) * perc.optA * optA.trans.rate
+        ## optionB
+        BFTR <- BFTR + (1 - (fp$perc_bf_on_art[d]/100)) * perc.optB * optB.trans.rate
+        ## triple art
+        artp.lastyr.byage <- rowMeans(artpop[,,h.fert.idx, f.idx,i-2:1],,3)
+        prop.new.art <- ifelse(sum(artp.byage) == 0, 0, (sum(artp.byage) - sum(artp.lastyr.byage)) / sum(artp.byage))
+        BFTR <- BFTR + ((1 - fp$perc_bf_on_art[d]/100) * treat.opt[['tripleARTbefPreg']] * ((1-prop.new.art) * fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_pre_preg','breastfeeding_lt350cd4']/100 +
+                          prop.new.art * fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_dur_preg','breastfeeding_lt350cd4']))
+        BFTR <- BFTR + ((1 - fp$perc_bf_on_art[d] / 100) * treat.opt[['tripleARTdurPreg']] *
+                          (prop.new.art * fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_pre_preg','breastfeeding_lt350cd4'] +
+                             (1 - prop.new.art) * fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_dur_preg','breastfeeding_lt350cd4']))
+        }
+        return(BFTR * 2)
+      }
+     }
+      
+    
     ## prevalence and incidence 15 to 49
     prev15to49[i] <- sum(pop[p.age15to49.idx,,hivp.idx,i]) / sum(pop[p.age15to49.idx,,,i])
     incid15to49[i] <- sum(incid15to49[i]) / sum(pop[p.age15to49.idx,,hivn.idx,i-1])

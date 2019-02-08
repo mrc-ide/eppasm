@@ -677,11 +677,11 @@ ll <- function(theta, fp, likdat){
     if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) 
       return(-Inf)
   ##TF
-  if(!exists('deaths_dt', where = fp)){
-    mod <- simmod(fp)
-  }else{
+  # if(!exists('deaths_dt', where = fp)){
+  #   mod <- simmod(fp)
+  # }else{
     mod <- simmod(fp, VERSION = 'R')
-  }
+  # }
   
   ## VR likelihood
   if(exists('deaths_dt', where = fp)){

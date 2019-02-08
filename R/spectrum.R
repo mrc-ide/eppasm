@@ -46,6 +46,13 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ss$h.fert.idx <- which((AGE_START-1 + cumsum(ss$h.ag.span)) %in% 15:49)
   ss$h.age15to49.idx <- which((AGE_START-1 + cumsum(ss$h.ag.span)) %in% 15:49)
   ss$h.age15plus.idx <- which((AGE_START-1 + cumsum(ss$h.ag.span)) >= 15)
+  
+  ## Paediatric state space
+  ss$pAGu5 <- 5 ## under 5 ages
+  ss$hDSu5 <- 7 ## cd4 percent
+  ss$hMT <- 4 ## perinatal, bf0, bf6, bf12
+  ss$pAGu15 <- 10 ## 5-15 ages
+  ss$hDSu15 <- 6 ##under 15 cd4 count categories
 
   invisible(list2env(ss, environment())) # put ss variables in environment for convenience
 

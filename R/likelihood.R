@@ -680,7 +680,7 @@ ll <- function(theta, fp, likdat){
   # if(!exists('deaths_dt', where = fp)){
   #   mod <- simmod(fp)
   # }else{
-    mod <- simmod(fp, VERSION = 'R')
+   mod <- simmod(fp, VERSION = 'R')
   # }
   
   ## VR likelihood

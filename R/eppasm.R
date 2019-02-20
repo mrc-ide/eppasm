@@ -525,18 +525,22 @@ simmod.specfp <- function(fp, VERSION="C"){
       ## age 1, bf12 transmission
       percentExposed = (pregprev - hiv.births - cumNewInfFromBF) / sum(births)
       BFTR = calcBFtransmissions(7, 12, i)
-      hivpopu5[3,,2,m.idx,i] <- popu5[2,m.idx,hivn.idx,i] * fp$paed_distnewinf * percentExposed * BFTR
+      m.bf12 <- popu5[2,m.idx,hivn.idx,i] * percentExposed * BFTR * fp$paed_distnewinf
+      hivpopu5[3,,2,m.idx,i] <- ifelse(length(m.bf12) > 1, m.bf12, rep(0, 7))
       popu5[2,m.idx,hivn.idx,i] <- popu5[2,m.idx,hivn.idx,i] - sum(hivpopu5[3,,2,m.idx,i])
-      hivpopu5[3,,2,f.idx,i] <- popu5[2,f.idx,hivn.idx,i] * fp$paed_distnewinf * percentExposed * BFTR
+      f.bf12 <- popu5[2,f.idx,hivn.idx,i] * fp$paed_distnewinf * percentExposed * BFTR
+      hivpopu5[3,,2,f.idx,i] <- ifelse(length(f.bf12) > 1, f.bf12, rep(0, 7))
       popu5[2,f.idx,hivn.idx,i] <- popu5[2,f.idx,hivn.idx,i] - sum(hivpopu5[3,,2,f.idx,i])  
       cumNewInfFromBF <- cumNewInfFromBF + sum(hivpopu5[3,,2,,i])  
       
       ## age 2, bf12 transmission
       percentExposed <- percentExposed * (1 - BFTR)
       BFTR = calcBFtransmissions(13, 18, i)
-      hivpopu5[3,,3,m.idx,i] <- popu5[3,m.idx,hivn.idx,i] * fp$paed_distnewinf * percentExposed * BFTR
+      m.bf12 <- popu5[3,m.idx,hivn.idx,i] * fp$paed_distnewinf * percentExposed * BFTR
+      hivpopu5[3,,3,m.idx,i] <- ifelse(length(m.bf12) > 1, m.bf12, rep(0, 7))
       popu5[3,m.idx,hivn.idx,i] <- popu5[3,m.idx,hivn.idx,i] - sum(hivpopu5[3,,3,m.idx,i])
-      hivpopu5[3,,3,f.idx,i] <- popu5[3,f.idx,hivn.idx,i] * fp$paed_distnewinf * percentExposed * BFTR
+      f.bf12 <- popu5[3,f.idx,hivn.idx,i] * fp$paed_distnewinf * percentExposed * BFTR
+      hivpopu5[3,,3,f.idx,i] <- ifelse(length(f.bf12) > 1, f.bf12, rep(0, 7))
       popu5[3,f.idx,hivn.idx,i] <- popu5[3,f.idx,hivn.idx,i] - sum(hivpopu5[3,,3,f.idx,i])  
       cumNewInfFromBF <- cumNewInfFromBF + sum(hivpopu5[3,,3,,i])        
       
@@ -607,7 +611,50 @@ simmod.specfp <- function(fp, VERSION="C"){
         }
       }
       adj <- ifelse(temp > 0, newFLART/temp, 1)
+      ## Actually distribute ART
+      newChildARTu5 <- array(0, c(7, 5, 2))
+      newChildARTu15 <- array(0, c(6, 10, 2))
+      for(age in 0:4){
+        if((age + 1) * 12 > childEligibilityAge[i]){
+          CD4elig <- as.character(min(fp$paed_arteligibility[fp$paed_arteligibility$year == (proj_start + i - 1) & fp$paed_arteligibility$age_start <= age, 'cd4_pct_thresh']))
+          dim <- ifelse(u5.elig.groups[[CD4elig]] == 7, 2, 3)
+          newChildARTu5[u5.elig.groups[[CD4elig]]:7,age + 1,] <- adj * apply(hivpopu5[,u5.elig.groups[[CD4elig]]:7, age + 1, , i], 2:dim, sum) * fp$paed_artdist[i, age +1]
+        }else{
+          newChildARTu5[,age + 1,] <- adj * apply(hivpopu5[,, age + 1, , i], 2:3, sum) * fp$paed_artdist[i, age +1]
+        }
+      }
+      for(age in 5:14){
+        if((age + 1) * 12 > childEligibilityAge[i]){
+          CD4elig <- as.character(min(fp$paed_arteligibility[fp$paed_arteligibility$year == (proj_start + i - 1) & fp$paed_arteligibility$age_start <= age, 'cd4_count_thresh']))
+          dim <- ifelse(u15.elig.groups[[CD4elig]] == 6, 2, 3)
+          newChildARTu15[u15.elig.groups[[CD4elig]]:6,age - 4,] <- adj * apply(hivpopu15[,u15.elig.groups[[CD4elig]]:6, age - 4, , i], 2:dim, sum) * fp$paed_artdist[i, age +1]
+        }else{
+          newChildARTu15[,age - 4,] <- adj * apply(hivpopu15[,, age - 4, , i], 2:3, sum) * fp$paed_artdist[i, age +1]
+        }
+      }
       
+      ## Get CTX coverage
+      ## off-ART u5 plus eligible for ART 5-15
+      posu5pop <- sum(hivpopu5[,,,,i])
+      eligible5to15 <- 0
+      for(age in 5:14){
+        if((age + 1) * 12 > childEligibilityAge[i]){
+          CD4elig <- as.character(min(fp$paed_arteligibility[fp$paed_arteligibility$year == (proj_start + i - 1) & fp$paed_arteligibility$age_start <= age, 'cd4_count_thresh']))
+          eligible5to15 <- eligible5to15 + sum(hivpopu15[,u15.elig.groups[[CD4elig]]:6, age - 4, , i]) 
+        }else{
+          eligible5to15 <- eligible5to15 + sum(hivpopu15[,u15.elig.groups[[CD4elig]]:6, age - 4, , i])
+        }
+      }
+      needCTX <- posu5pop + eligible5to15
+      if(needCTX > 0){
+        if(fp$cotrim_isperc[i]){
+          CTXcoverage <- fp$cotrim_num[i]
+        }else{
+          CTXcoverage <- min(1, fp$cotrim_num[i]/needCTX)
+        }
+      }else{
+        CTXcoverage <- 0
+      }
             
       calcBFtransmissions <- function(m1, m2, i){
         BFTR <- 0
@@ -615,8 +662,8 @@ simmod.specfp <- function(fp, VERSION="C"){
         perc.optB <- treat.opt[['postnat_optionB']]
         optA.trans.rate <- (fp$MTCtrans[fp$MTCtrans$regimen == 'Option_A', 'breastfeeding_gt350cd4']/100)
         optB.trans.rate <- (fp$MTCtrans[fp$MTCtrans$regimen == 'Option_B', 'breastfeeding_gt350cd4']/100)
-        dropout.optA <- fp$dropout[fp$dropout$year == (proj_start + i - 1), 'mth_drop_rt_optionA']
-        dropout.optB <- fp$dropout[fp$dropout$year == (proj_start + i - 1), 'mth_drop_rt_optionB']
+        dropout.optA <- fp$pmtct_dropout[fp$pmtct_dropout$year == (proj_start + i - 1), 'mth_drop_rt_optionA']
+        dropout.optB <- fp$pmtct_dropout[fp$pmtct_dropout$year == (proj_start + i - 1), 'mth_drop_rt_optionB']
         if(propgt350 > 0){
           if(perc.optA +perc.optB - treat.opt[['tripleARTbefPreg']] -treat.opt[['tripleARTdurPreg']] > propgt350){
             excess <- perc.optA + perc.optB - treat.opt[['tripleARTbefPreg']] -treat.opt[['tripleARTdurPreg']] - propgt350
@@ -640,7 +687,7 @@ simmod.specfp <- function(fp, VERSION="C"){
         ## optionB
         BFTR <- BFTR + (1 - (fp$perc_bf_on_art[d]/100)) * perc.optB * optB.trans.rate
         ## triple art
-        artp.lastyr.byage <- rowMeans(artpop[,,h.fert.idx, f.idx,i-2:1],,3)
+        artp.lastyr.byage <- ifelse(i > 2, rowMeans(artpop[,,h.fert.idx, f.idx,i-2:1],,3), artp.byage)
         prop.new.art <- ifelse(sum(artp.byage) == 0, 0, (sum(artp.byage) - sum(artp.lastyr.byage)) / sum(artp.byage))
         BFTR <- BFTR + ((1 - fp$perc_bf_on_art[d]/100) * treat.opt[['tripleARTbefPreg']] * ((1-prop.new.art) * fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_pre_preg','breastfeeding_lt350cd4']/100 +
                           prop.new.art * fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_dur_preg','breastfeeding_lt350cd4']))

@@ -86,18 +86,50 @@ simmod.specfp <- function(fp, VERSION="C"){
     ## age the population
     pop[-c(1,pAG),,,i] <- pop[-(pAG-1:0),,,i-1]
     pop[pAG,,,i] <- pop[pAG,,,i-1] + pop[pAG-1,,,i-1] # open age group
-
-    ## Add lagged births into youngest age group
-    entrant_prev <- fp$entrantprev[,i]
-
-    if(exists("popadjust", where=fp) & fp$popadjust){
-      hivn_entrants <- fp$entrantpop[,i-1]*(1-entrant_prev)
-      hivp_entrants <- fp$entrantpop[,i-1]*entrant_prev
-    } else {
-      hivn_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*(1-entrant_prev / fp$paedsurv_lag[i-1]) + fp$cumnetmigr[,i-1]*(1-pregprevlag[i-1]*fp$netmig_hivprob)
-      hivp_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*entrant_prev + fp$cumnetmigr[,i-1]*entrant_prev
+    
+    if(exists('paedbasepop', where = fp)){
+      pop5 <- popu5[pAGu5,,,i-1]
+      popu5[-1,,,i] <- popu5[-(pAGu5),,,i-1]
+      popu15[-1,,,i] <- popu15[-(pAGu15),,,i-1]
+      popu15[1,,,i] <- pop5
+      
+      hivn_entrants <- popu15[pAGu15,,hivn.idx,i-1]
+      hivp_entrants <- popu15[pAGu15,,hivp.idx,i-1]
+      
+      hivpop5 <- hivpopu5[,,pAGu5,,i-1]
+      hivpopu5[,,-1,,i] <- hivpopu5[,,-pAGu5,,i-1]
+      hivpopu15[,,-1,,i] <- hivpopu15[,,-pAGu15,,i-1]
+      ## Splitting HIV + 5 year olds across CD4 count categories
+      hivpopu15[,1,1,,i] <- 0.7143 * hivpop5[,1,]
+      hivpopu15[,2,1,,i] <- (0.2857 * hivpop5[,1,]) + (0.6 * hivpop5[,2,])
+      hivpopu15[,3,1,,i] <- (0.4 * hivpop5[,2,]) + (0.8333 * hivpop5[,3,])
+      hivpopu15[,4,1,,i] <- (0.1667 * hivpop5[,3,]) + (0.7693 * hivpop5[,4,])
+      hivpopu15[,5,1,,i] <- (0.231 * hivpop5[,4,]) + (0.889 * hivpop5[,5,])
+      hivpopu15[,6,1,,i] <- (0.111 * hivpop5[,5,]) + hivpop5[,6,] + hivpop5[,7,]
+      
+      artpop5 <- artpopu5[,,pAGu5,,i-1]
+      artpopu5[,,-1,,i] <- artpopu5[,,-pAGu5,,i-1]
+      artpopu15[,,-1,,i] <- artpopu15[,,-pAGu15,,i-1]
+      ## Splitting HIV + 5 year olds across CD4 count categories
+      artpopu15[,1,1,,i] <- 0.7143 * artpop5[,1,]
+      artpopu15[,2,1,,i] <- (0.2857 * artpop5[,1,]) + (0.6 * artpop5[,2,])
+      artpopu15[,3,1,,i] <- (0.4 * artpop5[,2,]) + (0.8333 * artpop5[,3,])
+      artpopu15[,4,1,,i] <- (0.1667 * artpop5[,3,]) + (0.7693 * artpop5[,4,])
+      artpopu15[,5,1,,i] <- (0.231 * artpop5[,4,]) + (0.889 * artpop5[,5,])
+      artpopu15[,6,1,,i] <- (0.111 * artpop5[,5,]) + artpop5[,6,] + artpop5[,7,]
+      
+    }else{
+      ## Add lagged births into youngest age group
+      entrant_prev <- fp$entrantprev[,i]
+      
+      if(exists("popadjust", where=fp) & fp$popadjust){
+        hivn_entrants <- fp$entrantpop[,i-1]*(1-entrant_prev)
+        hivp_entrants <- fp$entrantpop[,i-1]*entrant_prev
+      } else {
+        hivn_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*(1-entrant_prev / fp$paedsurv_lag[i-1]) + fp$cumnetmigr[,i-1]*(1-pregprevlag[i-1]*fp$netmig_hivprob)
+        hivp_entrants <- birthslag[,i-1]*fp$cumsurv[,i-1]*entrant_prev + fp$cumnetmigr[,i-1]*entrant_prev
+      }
     }
-
     entrant_prev_out[i] <- sum(hivp_entrants) / sum(hivn_entrants+hivp_entrants)
     hivp_entrants_out[,i] <- sum(hivp_entrants)
 
@@ -140,6 +172,52 @@ simmod.specfp <- function(fp, VERSION="C"){
     hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")
     if(i > fp$tARTstart)
       artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.mr.prob, "*")
+    
+    if(exists('paedbasepop', where = fp)){
+      ## paediatric survival
+      u5deaths <- sweep(popu5[,,,i], 1:2, (1 - fp$paed_Sx[1:5,,i]), '*')
+      hiv.sx.prob <- 1 - u5deaths[,,hivp.idx]/popu5[,,hivp.idx,i]
+      hiv.sx.prob[is.nan(hiv.sx.prob)] <- 0
+      popu5[,,,i] <- popu5[,,,i] - u5deaths
+      
+      hivpopu5[,,,,i] <- sweep(hivpopu5[,,,,i], 3:4, hiv.sx.prob, "*")
+      if(i > fp$tARTstart){
+        artpopu5[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.sx.prob, "*")
+      }
+      u15deaths <- sweep(popu15[,,,i], 1:2, (1 - fp$paed_Sx[6:15,,i]), '*')
+      hiv.sx.prob <- 1 - u15deaths[,,hivp.idx]/popu15[,,hivp.idx,i]
+      hiv.sx.prob[is.nan(hiv.sx.prob)] <- 0
+      popu15[,,,i] <- popu15[,,,i] - u15deaths
+      
+      hivpopu15[,,,,i] <- sweep(hivpopu15[,,,,i], 3:4, hiv.sx.prob, "*")
+      if(i > fp$tARTstart){
+        artpopu15[,,,,i] <- sweep(artpopu15[,,,,i], 3:4, hiv.sx.prob, "*")
+      }
+      
+      ## paediatric migration
+      netmigsurv <- fp$paed_mx[,,i]*(1+fp$paed_Sx[,,i])/2
+      mr.prob.u5 <- 1+netmigsurv[1:5] / rowSums(popu5[,,,i],,2)
+      mr.prob.u5[!is.finite(mr.prob.u5)] <- 0
+      hiv.mr.prob <- mr.prob.u5/popu5[,,hivp.idx,i]
+      hiv.mr.prob[is.nan(hiv.mr.prob)] <- 0
+      popu5[,,,i] <- sweep(popu5[,,,i], 1:2, mr.prob.u5, "*")
+      
+      hivpopu5[,,,,i] <- sweep(hivpopu5[,,,,i], 3:4, hiv.mr.prob, "*")
+      if(i > fp$tARTstart){
+        artpopu5[,,,,i] <- sweep(artpopu5[,,,,i], 3:4, hiv.mr.prob, "*")
+      }
+      mr.prob.u15 <- 1+netmigsurv[6:15] / rowSums(popu15[,,,i],,2)
+      mr.prob.u15[!is.finite(mr.prob.u5)] <- 0
+      hiv.mr.prob <- mr.prob.u15/popu15[,,hivp.idx,i]
+      hiv.mr.prob[is.nan(hiv.mr.prob)] <- 0
+      popu15[,,,i] <- sweep(popu15[,,,i], 1:2, mr.prob.u15, "*")
+      
+      hivpopu15[,,,,i] <- sweep(hivpopu15[,,,,i], 3:4, hiv.mr.prob, "*")
+      if(i > fp$tARTstart){
+        artpopu15[,,,,i] <- sweep(artpopu15[,,,,i], 3:4, hiv.mr.prob, "*")
+      }
+      
+    }
 
     ## fertility
     births.by.age <- rowSums(pop[p.fert.idx, f.idx,,i-1:0])/2 * fp$asfr[,i]
@@ -612,24 +690,22 @@ simmod.specfp <- function(fp, VERSION="C"){
       }
       adj <- ifelse(temp > 0, newFLART/temp, 1)
       ## Actually distribute ART
-      newChildARTu5 <- array(0, c(7, 5, 2))
-      newChildARTu15 <- array(0, c(6, 10, 2))
+      newChildARTu5 <- array(0, c(4, 7, 5, 2))
+      newChildARTu15 <- array(0, c(4, 6, 10, 2))
       for(age in 0:4){
         if((age + 1) * 12 > childEligibilityAge[i]){
           CD4elig <- as.character(min(fp$paed_arteligibility[fp$paed_arteligibility$year == (proj_start + i - 1) & fp$paed_arteligibility$age_start <= age, 'cd4_pct_thresh']))
-          dim <- ifelse(u5.elig.groups[[CD4elig]] == 7, 2, 3)
-          newChildARTu5[u5.elig.groups[[CD4elig]]:7,age + 1,] <- adj * apply(hivpopu5[,u5.elig.groups[[CD4elig]]:7, age + 1, , i], 2:dim, sum) * fp$paed_artdist[i, age +1]
+          newChildARTu5[,u5.elig.groups[[CD4elig]]:7,age + 1,] <- adj * hivpopu5[,u5.elig.groups[[CD4elig]]:7, age + 1, , i] * fp$paed_artdist[i, age +1]
         }else{
-          newChildARTu5[,age + 1,] <- adj * apply(hivpopu5[,, age + 1, , i], 2:3, sum) * fp$paed_artdist[i, age +1]
+          newChildARTu5[,,age + 1,] <- adj * apply(hivpopu5[,, age + 1, , i], 2:3, sum) * fp$paed_artdist[i, age +1]
         }
       }
       for(age in 5:14){
         if((age + 1) * 12 > childEligibilityAge[i]){
           CD4elig <- as.character(min(fp$paed_arteligibility[fp$paed_arteligibility$year == (proj_start + i - 1) & fp$paed_arteligibility$age_start <= age, 'cd4_count_thresh']))
-          dim <- ifelse(u15.elig.groups[[CD4elig]] == 6, 2, 3)
-          newChildARTu15[u15.elig.groups[[CD4elig]]:6,age - 4,] <- adj * apply(hivpopu15[,u15.elig.groups[[CD4elig]]:6, age - 4, , i], 2:dim, sum) * fp$paed_artdist[i, age +1]
+          newChildARTu15[,u15.elig.groups[[CD4elig]]:6,age - 4,] <- adj * hivpopu15[,u15.elig.groups[[CD4elig]]:6, age - 4, , i] * fp$paed_artdist[i, age +1]
         }else{
-          newChildARTu15[,age - 4,] <- adj * apply(hivpopu15[,, age - 4, , i], 2:3, sum) * fp$paed_artdist[i, age +1]
+          newChildARTu15[,,age - 4,] <- adj * apply(hivpopu15[,, age - 4, , i], 2:3, sum) * fp$paed_artdist[i, age +1]
         }
       }
       
@@ -655,7 +731,76 @@ simmod.specfp <- function(fp, VERSION="C"){
       }else{
         CTXcoverage <- 0
       }
-            
+      
+      ## Calculate child HIV/AIDS deaths and progression
+      ## U15 deaths, with accounting for cotrim
+      u15hivdeaths <- as.numeric((1 - (fp$childCTXeffect[fp$childCTXeffect$ART_status == 'noART', 'hivmort_reduction'] * CTXcoverage))) * hivpopu15[,,,,i] * fp$cd4_mort_u15
+      ## U15 progression
+      u15prog <- array(0, c(4, 5, 10, 2))
+      for(tt in length(dimnames(hivpopu15)$transmission)){
+        u15prog[tt,,,] <- fp$prog_u15* hivpopu15[tt,1:5,,,i]
+      }
+      
+      ## exits
+      hivpopu15[,,,,i] <- hivpopu15[,,,,i] - newChildARTu15 - u15hivdeaths
+      hivpopu15[,1:5,,,i] <- hivpopu15[,1:5,,,i] - u15prog
+      ## entrants
+      hivpopu15[,2:6,,,i] <- hivpopu15[,2:6,,,i] + u15prog
+      
+      ## U5 deaths, with accounting for cotrim
+      u5hivdeaths <- as.numeric((1 - (fp$childCTXeffect[fp$childCTXeffect$ART_status == 'noART', 'hivmort_reduction'] * CTXcoverage))) * hivpopu5[,,,,i] * fp$cd4_mort_u5
+      ## U5 progression
+      u5prog <- array(0, c(4, 6, 5, 2))
+      for(tt in length(dimnames(hivpopu5)$transmission)){
+        u5prog[tt,,,] <- fp$prog_u5* hivpopu5[tt,1:6,,,i]
+      }
+      
+      ## exits
+      hivpopu5[,,,,i] <- hivpopu5[,,,,i] - newChildARTu5 - u5hivdeaths
+      hivpopu5[,1:6,,,i] <- hivpopu5[,1:6,,,i] - u5prog
+      ## entrants
+      hivpopu5[,2:7,,,i] <- hivpopu5[,2:7,,,i] + u5prog
+      
+      ## just in case
+      hivpopu5[hivpopu5 < 0] <- 0
+      hivpopu15[hivpopu15 < 0] <- 0
+      
+      ## Those on ART, under 5
+      entrants6Mu5 <- apply(newChildARTu5, 2:4, sum)
+      ## Entrants are subject to mortality
+      ## v2 is deaths in those entering LT6M group
+      v2 <- as.numeric((1 - (fp$childCTXeffect[fp$childCTXeffect$ART_status == 'withART', 'hivmort_reduction'] * CTXcoverage))) * entrants6Mu5 * ((fp$art_mort_u5[1,,,] + fp$art_mort_u5[2,,,]) / 2)
+      entrants6Mu5 <- entrants6Mu5 - v2
+      ## v1 is deaths in those entering GT12M group
+      v1 <- as.numeric((1 - (fp$childCTXeffect[fp$childCTXeffect$ART_status == 'withART', 'hivmort_reduction'] * CTXcoverage))) * artpopu5[1,,,,i] * ((fp$art_mort_u5[1,,,] + fp$art_mort_u5[2,,,]) / 2)
+      entrants12M <- artpopu5[1,,,,i] - v1
+      u5hivdeaths <- apply(u5hivdeaths, 2:4, sum)
+      u5hivdeaths <- u5hivdeaths + v1 + v2
+      ## Add new patients to ART LT6M
+      artpopu5[1,,,,i] <- entrants6Mu5
+      ## Those dying on ART in GT12M
+      exits12M <- as.numeric((1 - (fp$childCTXeffect[fp$childCTXeffect$ART_status == 'withART', 'hivmort_reduction'] * CTXcoverage))) * artpopu5[3,,,,i] * fp$art_mort_u5[3,,,]
+      u5hivdeaths <- u5hivdeaths + exits12M
+      artpopu5[3,,,,i] <- artpopu5[3,,,,i] + entrants12M - exits12M
+      
+      ## Those on ART, under 15
+      entrants6Mu15 <- apply(newChildARTu15, 2:4, sum)
+      ## Entrants are subject to mortality
+      ## v2 is deaths in those entering LT6M group
+      v2 <- as.numeric((1 - (fp$childCTXeffect[fp$childCTXeffect$ART_status == 'withART', 'hivmort_reduction'] * CTXcoverage))) * entrants6Mu15 * ((fp$art_mort_u15[1,,,] + fp$art_mort_u15[2,,,]) / 2)
+      entrants6Mu15 <- entrants6Mu15 - v2
+      ## v1 is deaths in those entering GT12M group
+      v1 <- as.numeric((1 - (fp$childCTXeffect[fp$childCTXeffect$ART_status == 'withART', 'hivmort_reduction'] * CTXcoverage))) * artpopu15[1,,,,i] * ((fp$art_mort_u15[1,,,] + fp$art_mort_u15[2,,,]) / 2)
+      entrants12M <- artpopu15[1,,,,i] - v1
+      u15hivdeaths <- apply(u15hivdeaths, 2:4, sum)
+      u15hivdeaths <- u15hivdeaths + v1 + v2
+      ## Add new patients to ART LT6M
+      artpopu15[1,,,,i] <- entrants6Mu15
+      ## Those dying on ART in GT12M
+      exits12M <- as.numeric((1 - (fp$childCTXeffect[fp$childCTXeffect$ART_status == 'withART', 'hivmort_reduction'] * CTXcoverage))) * artpopu15[3,,,,i] * fp$art_mort_u15[3,,,]
+      u15hivdeaths <- u15hivdeaths + exits12M
+      artpopu15[3,,,,i] <- artpopu15[3,,,,i] + entrants12M - exits12M
+      
       calcBFtransmissions <- function(m1, m2, i){
         BFTR <- 0
         perc.optA <- treat.opt[['postnat_optionA']]

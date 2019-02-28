@@ -329,7 +329,10 @@ ldsamp_incrr <- lprior_incrr
 ####  Paediatric model - BF transmission  ####
 ################################################
 
-calcBFtransmissions <- function(m1, m2, i){
+calcBFtransmissions <- function(m1, m2, i, treat.opt, fp, artpop, artp.byage, proplt200, prop200to350, propgt350){
+  ## Attach state space variables
+  invisible(list2env(fp$ss, environment())) # put ss variables in environment for convenience
+  
   BFTR <- 0
   perc.optA <- treat.opt[['postnat_optionA']]
   perc.optB <- treat.opt[['postnat_optionB']]

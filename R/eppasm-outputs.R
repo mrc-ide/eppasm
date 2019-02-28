@@ -21,7 +21,7 @@ get_proj_years <- function(ss){
 #' mod <- mod_dimnames(mod, fp$ss)
 #'
 #' @export
-mod_dimnames <- function(mod, ss){
+mod_dimnames <- function(mod, ss, paediatric = FALSE){
 
   yrlbl <- get_proj_years(ss)
   sexlbl <- c("male", "female")
@@ -41,7 +41,20 @@ mod_dimnames <- function(mod, ss){
   names(attr(mod, "prev15to49")) <- yrlbl
   names(attr(mod, "pregprev")) <- yrlbl
   names(attr(mod, "incid15to49")) <- yrlbl
-
+  
+  if(paediatric){
+    pAGu15 <- 0:14
+    dimnames(attr(mod, 'hivdeathsu15')) <- list(age = pAGu15, sex = sexlbl, year = yrlbl)
+    dimnames(attr(mod, 'deathsu15')) <- list(age = pAGu15, sex = sexlbl, year = yrlbl)
+    dimnames(attr(mod, 'birthprev')) <- list(sex = sexlbl, year = yrlbl)
+    dimnames(attr(mod, 'hivpopu5')) <-  list(cat = 1:7, age = 0:4, sex = sexlbl, year = yrlbl)
+    dimnames(attr(mod, 'hivpopu15')) <-  list(cat = 1:6, age = 5:14, sex = sexlbl, year = yrlbl)
+    dimnames(attr(mod, 'artpopu5')) <-  list(cat = 1:7, age = 0:4, sex = sexlbl, year = yrlbl)
+    dimnames(attr(mod, 'artpopu15')) <-  list(cat = 1:6, age = 5:14, sex = sexlbl, year = yrlbl)
+    dimnames(attr(mod, 'popu5')) <- list(age = 0:4, sex = sexlbl, hiv = pDSlbl, year = yrlbl)
+    dimnames(attr(mod, 'popu15')) <- list(age = 5:14, sex = sexlbl, hiv = pDSlbl, year = yrlbl)
+    dimnames(attr(mod, 'infectionsu15')) <- list(age = pAGu15, sex = sexlbl, year = yrlbl)
+  }
   mod
 }
 

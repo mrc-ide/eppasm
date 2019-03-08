@@ -490,49 +490,39 @@ simmod.specfp <- function(fp, VERSION="C"){
     pregprev <- sum(births.by.h.age * (1 - hivn.byage / (hivn.byage + colSums(fp$frr_cd4[,,i] * hivp.byage) + colSums(fp$frr_art[,,,i] * artp.byage,,2)))) / sum(births.by.age)
     if(i+AGE_START <= PROJ_YEARS & !exists('paedbasepop', where = fp))
       pregprevlag[i+AGE_START-1] <- pregprev
-    
-    if(exists('paedbasepop', where = fp)){
+    if(exists('paedbasepop', where = fp) & pregprev > 0){
       ## calculate vertical transmission
       ## MTC transmission is weighted avg of those receing PMTCT and not treated
       ## Calculate percent of women by treatment option
       ## Default is no treatment
+      ##TODO: if popadjust == true, we want births to align with GBD demographics births
       pregprev.num <- pregprev * sum(births)
       needPMTCT <- pregprev.num
       treat.opt <- list('no_proph' = 1)
       
-      prenat.opt <- c('tripleARTdurPreg', 'tripleARTbefPreg', 'singleDoseNevir', 'prenat_optionB', 'prenat_optionA', 'dualARV')
-      postnat.opt <- c('postnat_optionB', 'postnat_optionA', 'tripleARTdurPreg', 'tripleARTbefPreg')
       for(n in prenat.opt){
         treat.opt[[n]] <- 0
       }
-      sum3 <- as.numeric(rowSums(fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1),prenat.opt]))
-      ## if number, set sum3 equal to total need, unless sum3 > need
-      if(!all(as.logical(fp$pmtct_isperc[fp$pmtct_isperc$year == (proj_start + i - 1),c(names(fp$pmtct_isperc)[!names(fp$pmtct_isperc) == 'year'])]))){
-        perc <- FALSE
-        if(sum3 < needPMTCT){sum3 <- needPMTCT}
-      }else{perc <- TRUE}
+      sum3 <- as.numeric(sum(unlist(ifelse(fp$pmtct_isperc[fp$pmtct_isperc$year == (proj_start + i - 1),prenat.opt], fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1),prenat.opt]/100 * needPMTCT, fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1),prenat.opt]))))
+      ## set sum3 equal to total need, unless sum3 > need
+      sum3 <- max(sum3, needPMTCT)
       on.treat <- 0
       for(n in prenat.opt){
-        treat.opt[[n]] <- ifelse(sum3 == 0, 0, fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), n] / sum3)
+        if(fp$pmtct_isperc[fp$pmtct_isperc$year == (proj_start + i - 1),n]){
+          treat.opt[[n]] <- fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), n] / 100
+        }else{
+          treat.opt[[n]] <- ifelse(sum3 == 0, 0, fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), n] / sum3)
+        }
         on.treat <- on.treat + treat.opt[[n]]
       }
       if(on.treat > 1){on.treat <- 1}
       treat.opt[['no_proph']] <- 1 - on.treat
       
       ## proportion of hiv+ preg women by cd4
+      ##TODO: should this only be among women not on ART?
       proplt200 <- (sum(births.by.h.age * (1 - hivn.byage / (hivn.byage + colSums(fp$frr_cd4[5:7,,i] * hivp.byage[5:7,]) + colSums(fp$frr_art[,5:7,,i] * artp.byage[,5:7,],,2)))) / sum(births.by.age)) / pregprev
       prop200to350 <- (sum(births.by.h.age * (1 - hivn.byage / (hivn.byage + colSums(fp$frr_cd4[3:4,,i] * hivp.byage[3:4,]) + colSums(fp$frr_art[,3:4,,i] * artp.byage[,3:4,],,2)))) / sum(births.by.age)) / pregprev
       propgt350 <- (sum(births.by.h.age * (1 - hivn.byage / (hivn.byage + colSums(fp$frr_cd4[1:2,,i] * hivp.byage[1:2,]) + colSums(fp$frr_art[,1:2,,i] * artp.byage[,1:2,],,2)))) / sum(births.by.age)) / pregprev
-      
-      tripleARTbefPreg <- fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), 'tripleARTbefPreg']
-      tripleARTdurPreg <- fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), 'tripleARTdurPreg']
-      if(perc){
-        tripleARTbefPreg <- tripleARTbefPreg/100 * needPMTCT
-        tripleARTdurPreg <- tripleARTdurPreg/100 * needPMTCT
-      }
-      ## number of hiv+ preg women in need of treatment
-      ## ??
-      hivp.preg.lt350 <- (proplt200 + prop200to350) * (needPMTCT - tripleARTbefPreg - tripleARTdurPreg) + tripleARTbefPreg + tripleARTdurPreg
       
       ## adjust transmission rates for opt a and opt b in cd4 lt 350
       if(treat.opt[['prenat_optionA']] + treat.opt[['prenat_optionB']] > (propgt350)){
@@ -555,42 +545,64 @@ simmod.specfp <- function(fp, VERSION="C"){
                 treat.opt[['tripleARTbefPreg']] * (fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_pre_preg', 'perinatal_trans_pct'] / 100) +
                 treat.opt[['tripleARTdurPreg']] * (fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_dur_preg', 'perinatal_trans_pct'] / 100)
       ## not on treatment
-      ## TODO add incident infections
+      ## incident infections
+      prop.incident.infections <- min(sum(infections[1:35,f.idx,i])/sum(hivpop[,h.fert.idx,f.idx,i]), propgt350)
+      PTR <- PTR + (prop.incident.infections * (fp$MTCtrans[fp$MTCtrans$regimen == 'no_prophylaxis' & fp$MTCtrans$definition == 'incident_infection', 'perinatal_trans_pct']/100) * treat.opt[['no_proph']])
+      propgt350 <- max(propgt350 - prop.incident.infections, 0)
       PTR <- PTR + treat.opt[['no_proph']] * ((proplt200 * (fp$MTCtrans[fp$MTCtrans$regimen == 'no_prophylaxis' & fp$MTCtrans$definition == 'exisiting_LT200CD4', 'perinatal_trans_pct'] / 100)) +    
               (prop200to350 * (fp$MTCtrans[fp$MTCtrans$regimen == 'no_prophylaxis' & fp$MTCtrans$definition == 'exisiting_200to350CD4', 'perinatal_trans_pct'] / 100)) + 
               (propgt350 * (fp$MTCtrans[fp$MTCtrans$regimen == 'no_prophylaxis' & fp$MTCtrans$definition == 'exisiting_GT340CD4', 'perinatal_trans_pct'] / 100)))
       ## HIV births is birth prevalence (perinatal transmission)
       hiv.births <- max(0, pregprev.num * PTR)
       
-      treat.opt <- list('no_proph' = 1)
-      for(n in postnat.opt){
+      ## BF transmission
+      ## corresponds to line 3035 of cohort_spectrum.py
+      treat.opt <- list()
+      for(n in c(prenat.opt, 'postnat_optionA', 'postnat_optionB')){
         treat.opt[[n]] <- 0
       }
-      sum3 <- as.numeric(rowSums(fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1),postnat.opt]))
-      ## if number, set sum3 equal to total need, unless sum3 > need
-      if(!all(as.logical(fp$pmtct_isperc[fp$pmtct_isperc$year == (proj_start + i - 1),c(names(fp$pmtct_isperc)[!names(fp$pmtct_isperc) == 'year'])]))){
-        perc <- FALSE
-        if(sum3 < needPMTCT){sum3 <- needPMTCT}
-      }else{perc <- TRUE}
-      on.treat <- 0
-      ##TODO: revisit how treatment props are being calculated, add code for opt A and B
-      for(n in postnat.opt){
-        treat.opt[[n]] <- ifelse(sum3 == 0, 0, fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), n] / sum3)
+      sum3 <- as.numeric(sum(unlist(ifelse(fp$pmtct_isperc[fp$pmtct_isperc$year == (proj_start + i - 1),prenat.opt], fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1),prenat.opt]/100 * needPMTCT, fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1),prenat.opt]))))
+      ## set sum3 equal to total need, unless sum3 > need
+      sum3 <- max(sum3, needPMTCT)
+      
+      ##triple ART
+      if(fp$pmtct_isperc[fp$pmtct_isperc$year == (proj_start + i - 1), 'tripleARTdurPreg']){
+        tripleARTdurPregNum <- fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), 'tripleARTdurPreg'] * sum3 / 100
+      }else{
+        tripleARTdurPregNum <- fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), 'tripleARTdurPreg']
+      }
+      if(fp$pmtct_isperc[fp$pmtct_isperc$year == (proj_start + i - 1), 'tripleARTbefPreg']){
+        tripleARTbefPregNum <- fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), 'tripleARTbefPreg'] * sum3 / 100
+      }else{
+        tripleARTbefPregNum <- fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), 'tripleARTbefPreg']
+      }
+      if((sum3 - tripleARTbefPregNum - tripleARTdurPregNum) > 0){
+        treat.opt[['postnat_optionA']] <- min(1, fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), 'postnat_optionA'] / (sum3 - tripleARTbefPregNum - tripleARTdurPregNum))
+        treat.opt[['postnat_optionB']] <- min(1, fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), 'postnat_optionB'] / (sum3 - tripleARTbefPregNum - tripleARTdurPregNum))
+      }
+      on.treat <- treat.opt[['postnat_optionA']] + treat.opt[['postnat_optionB']]
+      for(n in prenat.opt){
+        if(fp$pmtct_isperc[fp$pmtct_isperc$year == (proj_start + i - 1),n]){
+          treat.opt[[n]] <- fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), n] / 100
+        }else{
+          treat.opt[[n]] <- ifelse(sum3 == 0, 0, fp$pmtct_num[fp$pmtct_num$year == (proj_start + i - 1), n] / sum3)
+        }
         on.treat <- on.treat + treat.opt[[n]]
       }
-      if(on.treat > 1){on.treat <- 1}
+      
+      if(on.treat > 1){
+        on.treat <- 1
+        }
       treat.opt[['no_proph']] <- 1 - on.treat
       
       ## breastfeeding transmission
-      BFTR <- calcBFtransmissions(1,3,i, treat.opt, fp, artpop, artp.byage, proplt200, prop200to350, propgt350)
+      BFTR <- calcBFtransmissions(1,3,i, treat.opt, fp, artpop, artp.byage, proplt200, prop200to350, propgt350, prop.incident.infections)
       
-      ##TODO should bftr be divided by 100?
-      newInfFromBFLT6 <- as.numeric((pregprev.num - hiv.births) * BFTR / 100)
+      newInfFromBFLT6 <- as.numeric((pregprev.num - hiv.births) * BFTR)
       cumNewInfFromBF <- newInfFromBFLT6
       
-      
-      BFTR <- calcBFtransmissions(4, 6, i,treat.opt, fp, artpop, artp.byage, proplt200, prop200to350, propgt350)
-      newInfFromBF6TO12 <- as.numeric((pregprev.num - hiv.births - newInfFromBFLT6) * BFTR / 100)
+      BFTR <- calcBFtransmissions(4, 6, i,treat.opt, fp, artpop, artp.byage, proplt200, prop200to350, propgt350, prop.incident.infections)
+      newInfFromBF6TO12 <- as.numeric((pregprev.num - hiv.births - newInfFromBFLT6) * BFTR)
       cumNewInfFromBF <- cumNewInfFromBF + newInfFromBF6TO12
       
       ## perinatal infections
@@ -615,7 +627,7 @@ simmod.specfp <- function(fp, VERSION="C"){
       
       ## age 1, bf12 transmission
       percentExposed = (pregprev.num - hiv.births - cumNewInfFromBF) / sum(births)
-      BFTR = calcBFtransmissions(7, 12, i,treat.opt, fp, artpop, artp.byage, proplt200, prop200to350, propgt350)
+      BFTR = calcBFtransmissions(7, 12, i,treat.opt, fp, artpop, artp.byage, proplt200, prop200to350, propgt350, prop.incident.infections)
       m.bf12 <- popu5[2,m.idx,hivn.idx,i] * percentExposed * BFTR * fp$paed_distnewinf
       if(length(m.bf12) > 1){
         hivpopu5[3,,2,m.idx,i] <- m.bf12
@@ -634,7 +646,7 @@ simmod.specfp <- function(fp, VERSION="C"){
       
       ## age 2, bf12 transmission
       percentExposed <- percentExposed * (1 - BFTR)
-      BFTR = calcBFtransmissions(13, 18, i,treat.opt, fp, artpop, artp.byage, proplt200, prop200to350, propgt350)
+      BFTR = calcBFtransmissions(13, 18, i,treat.opt, fp, artpop, artp.byage, proplt200, prop200to350, propgt350, prop.incident.infections)
       m.bf12 <- popu5[3,m.idx,hivn.idx,i] * fp$paed_distnewinf * percentExposed * BFTR
       if(length(m.bf12) > 1){
         hivpopu5[3,,3,m.idx,i] <- m.bf12
@@ -657,7 +669,8 @@ simmod.specfp <- function(fp, VERSION="C"){
       for (age in 0:4){
         if((age + 1) * 12 > childEligibilityAge[i]){
           CD4elig <- as.character(min(fp$paed_arteligibility[fp$paed_arteligibility$year == (proj_start + i - 1) & fp$paed_arteligibility$age_start <= age, 'cd4_pct_thresh']))
-          unmetNeed <- unmetNeed + sum(hivpopu5[,u5.elig.groups[[CD4elig]]:7, age + 1, , i])
+          bin <- get_paed_cd4bin(CD4elig, age, fp$ss)
+          unmetNeed <- unmetNeed + sum(hivpopu5[,bin:7, age + 1, , i])
         }else{
           unmetNeed <- unmetNeed + sum(hivpopu5[,, age + 1, , i])
         }
@@ -665,7 +678,8 @@ simmod.specfp <- function(fp, VERSION="C"){
       for (age in 5:14){
         if((age + 1) * 12 > childEligibilityAge[i]){
           CD4elig <- as.character(min(fp$paed_arteligibility[fp$paed_arteligibility$year == (proj_start + i - 1) & fp$paed_arteligibility$age_start <= age, 'cd4_count_thresh']))
-          unmetNeed <- unmetNeed + sum(hivpopu15[,u15.elig.groups[[CD4elig]]:6, age - 4, , i])
+          bin <- get_paed_cd4bin(CD4elig, age, fp$ss)
+          unmetNeed <- unmetNeed + sum(hivpopu15[,bin:6, age - 4, , i])
         }else{
           unmetNeed <- unmetNeed + sum(hivpopu15[,, age - 4, , i])
         }
@@ -704,7 +718,8 @@ simmod.specfp <- function(fp, VERSION="C"){
       for(age in 0:4){
         if((age + 1) * 12 > childEligibilityAge[i]){
           CD4elig <- as.character(min(fp$paed_arteligibility[fp$paed_arteligibility$year == (proj_start + i - 1) & fp$paed_arteligibility$age_start <= age, 'cd4_pct_thresh']))
-          temp <- temp + (sum(hivpopu5[,u5.elig.groups[[CD4elig]]:7, age + 1, , i]) * fp$paed_artdist[i, age +1])
+          bin <- get_paed_cd4bin(CD4elig, age, fp$ss)
+          temp <- temp + (sum(hivpopu5[,bin:7, age + 1, , i]) * fp$paed_artdist[i, age +1])
         }else{
           temp <- temp + (sum(hivpopu5[,, age + 1, , i]) * fp$paed_artdist[i, age +1])
         }
@@ -712,7 +727,8 @@ simmod.specfp <- function(fp, VERSION="C"){
       for(age in 5:14){
         if((age + 1) * 12 > childEligibilityAge[i]){
           CD4elig <- as.character(min(fp$paed_arteligibility[fp$paed_arteligibility$year == (proj_start + i - 1) & fp$paed_arteligibility$age_start <= age, 'cd4_count_thresh']))
-          temp <- temp + (sum(hivpopu15[,u15.elig.groups[[CD4elig]]:6, age - 4, , i]) * fp$paed_artdist[i, age +1])
+          bin <- get_paed_cd4bin(CD4elig, age, fp$ss)
+          temp <- temp + (sum(hivpopu15[,bin:6, age - 4, , i]) * fp$paed_artdist[i, age +1])
         }else{
           temp <- temp + (sum(hivpopu15[,, age - 4, , i]) * fp$paed_artdist[i, age +1])
         }
@@ -724,7 +740,8 @@ simmod.specfp <- function(fp, VERSION="C"){
       for(age in 0:4){
         if((age + 1) * 12 > childEligibilityAge[i]){
           CD4elig <- as.character(min(fp$paed_arteligibility[fp$paed_arteligibility$year == (proj_start + i - 1) & fp$paed_arteligibility$age_start <= age, 'cd4_pct_thresh']))
-          newChildARTu5[,u5.elig.groups[[CD4elig]]:7,age + 1,] <- min(1, adj *  fp$paed_artdist[i, age +1]) * hivpopu5[,u5.elig.groups[[CD4elig]]:7, age + 1, , i]
+          bin <- get_paed_cd4bin(CD4elig, age, fp$ss)
+          newChildARTu5[,bin:7,age + 1,] <- min(1, adj *  fp$paed_artdist[i, age +1]) * hivpopu5[,bin:7, age + 1, , i]
         }else{
           newChildARTu5[,,age + 1,] <- min(1, adj * fp$paed_artdist[i, age +1]) * hivpopu5[,, age + 1, , i]
         }
@@ -732,7 +749,8 @@ simmod.specfp <- function(fp, VERSION="C"){
       for(age in 5:14){
         if((age + 1) * 12 > childEligibilityAge[i]){
           CD4elig <- as.character(min(fp$paed_arteligibility[fp$paed_arteligibility$year == (proj_start + i - 1) & fp$paed_arteligibility$age_start <= age, 'cd4_count_thresh']))
-          newChildARTu15[,u15.elig.groups[[CD4elig]]:6,age - 4,] <- min(2, adj  * fp$paed_artdist[i, age +1]) *  hivpopu15[,u15.elig.groups[[CD4elig]]:6, age - 4, , i]
+          bin <- get_paed_cd4bin(CD4elig, age, fp$ss)
+          newChildARTu15[,bin:6,age - 4,] <- min(2, adj  * fp$paed_artdist[i, age +1]) *  hivpopu15[,bin:6, age - 4, , i]
         }else{
           newChildARTu15[,,age - 4,] <- min(1, adj * fp$paed_artdist[i, age +1]) * hivpopu15[,, age - 4, , i]
         }
@@ -745,9 +763,11 @@ simmod.specfp <- function(fp, VERSION="C"){
       for(age in 5:14){
         if((age + 1) * 12 > childEligibilityAge[i]){
           CD4elig <- as.character(min(fp$paed_arteligibility[fp$paed_arteligibility$year == (proj_start + i - 1) & fp$paed_arteligibility$age_start <= age, 'cd4_count_thresh']))
-          eligible5to15 <- eligible5to15 + sum(hivpopu15[,u15.elig.groups[[CD4elig]]:6, age - 4, , i]) 
+          bin <- get_paed_cd4bin(CD4elig, age, fp$ss)
+          eligible5to15 <- eligible5to15 + sum(hivpopu15[,bin:6, age - 4, , i]) 
         }else{
-          eligible5to15 <- eligible5to15 + sum(hivpopu15[,u15.elig.groups[[CD4elig]]:6, age - 4, , i])
+          bin <- get_paed_cd4bin(CD4elig, age, fp$ss)
+          eligible5to15 <- eligible5to15 + sum(hivpopu15[,bin:6, age - 4, , i])
         }
       }
       needCTX <- posu5pop + eligible5to15

@@ -17,11 +17,14 @@ calc_infections_eppspectrum <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
   hivp.ii <- hivp.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i])*(1-DT*(ii-1))
 
   art.ii <- sum(artpop[,,h.age15to49.idx,,i])
-  if(sum(hivpop[,h.age15to49.idx[1],,i]) + sum(artpop[,,h.age15to49.idx[1],,i])  > 0)
-    art.ii <- art.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i] * colSums(artpop[,,h.age15to49.idx[1],,i],,2) / (colSums(hivpop[,h.age15to49.idx[1],,i],,1) + colSums(artpop[,,h.age15to49.idx[1],,i],,2))) * (1-DT*(ii-1))
-  if(sum(hivpop[,tail(h.age15to49.idx, 1)+1,,i]) + sum(artpop[,,tail(h.age15to49.idx, 1)+1,,i]) > 0)
-    art.ii <- art.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i] * colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2) / (colSums(hivpop[,tail(h.age15to49.idx, 1)+1,,i],,1) + colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2))) * (1-DT*(ii-1))
-  
+  if(sum(hivpop[,h.age15to49.idx[1],,i]) + sum(artpop[,,h.age15to49.idx[1],,i])  > 0){
+    adj <- sum(pop[p.age15to49.idx[1],,hivp.idx,i] * colSums(artpop[,,h.age15to49.idx[1],,i],,2) / (colSums(hivpop[,h.age15to49.idx[1],,i],,1) + colSums(artpop[,,h.age15to49.idx[1],,i],,2))) * (1-DT*(ii-1))
+    if(!is.na(adj)){art.ii <- art.ii - adj}
+  }
+  if(sum(hivpop[,tail(h.age15to49.idx, 1)+1,,i]) + sum(artpop[,,tail(h.age15to49.idx, 1)+1,,i]) > 0){
+    adj <- sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i] * colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2) / (colSums(hivpop[,tail(h.age15to49.idx, 1)+1,,i],,1) + colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2))) * (1-DT*(ii-1))
+    if(!is.na(adj)){art.ii <- art.ii + adj}
+  }
   transm_prev <- (hivp.ii - art.ii + fp$relinfectART*art.ii) / (hivn.ii+hivp.ii)
 
   incrate15to49.ts <- r_ts * transm_prev + fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
@@ -329,7 +332,7 @@ ldsamp_incrr <- lprior_incrr
 ####  Paediatric model - BF transmission  ####
 ################################################
 
-calcBFtransmissions <- function(m1, m2, i, treat.opt, fp, artpop, artp.byage, proplt200, prop200to350, propgt350){
+calcBFtransmissions <- function(m1, m2, i, treat.opt, fp, artpop, artp.byage, proplt200, prop200to350, propgt350, prop.incident.infections){
   ## Attach state space variables
   invisible(list2env(fp$ss, environment())) # put ss variables in environment for convenience
   
@@ -341,23 +344,24 @@ calcBFtransmissions <- function(m1, m2, i, treat.opt, fp, artpop, artp.byage, pr
   dropout.optA <- fp$pmtct_dropout[fp$pmtct_dropout$year == (proj_start + i - 1), 'mth_drop_rt_optionA']
   dropout.optB <- fp$pmtct_dropout[fp$pmtct_dropout$year == (proj_start + i - 1), 'mth_drop_rt_optionB']
   if(propgt350 > 0){
-    if(perc.optA +perc.optB - treat.opt[['tripleARTbefPreg']] -treat.opt[['tripleARTdurPreg']] > propgt350){
+    if((perc.optA +perc.optB - treat.opt[['tripleARTbefPreg']] -treat.opt[['tripleARTdurPreg']]) > propgt350){
       excess <- perc.optA + perc.optB - treat.opt[['tripleARTbefPreg']] -treat.opt[['tripleARTdurPreg']] - propgt350
       optA.trans.rate <- (propgt350 * optA.trans.rate + excess * 1.45 / 0.46 * optA.trans.rate) / (propgt350 + excess)
       optB.trans.rate <- (propgt350 * optB.trans.rate + excess * 1.45 / 0.46 * optB.trans.rate) / (propgt350 + excess)
     }
   }
   for(d in m1:m2){
-    perc.optA <- treat.opt[['postnat_optionA']] / exp(d * 2 * log(1 + dropout.optA / 100))
-    perc.optB <- treat.opt[['postnat_optionB']] / exp(d * 2 * log(1 + dropout.optB / 100))
+    perc.optA <- treat.opt[['prenat_optionA']] / exp(d * 2 * log(1 + dropout.optA / 100))
+    perc.optB <- treat.opt[['prenat_optionB']] / exp(d * 2 * log(1 + dropout.optB / 100))
     perc.noproph <- 1 - perc.optA - perc.optB - treat.opt[['tripleARTdurPreg']] - treat.opt[['tripleARTbefPreg']]
     if(perc.noproph < 0){perc.noproph <- 0}
     percentInProgram <- 1 - treat.opt[['no_proph']]
     ## no prophylaxis
-    BFTR <- BFTR + (((1 - fp$perc_bf_on_art[d] / 100) * (1 - percentInProgram) + 
-                       (1 - fp$perc_bf_off_art[d]/100) * percentInProgram) * perc.noproph *
+    BFTR <- BFTR + (((1 - fp$perc_bf_off_art[d] / 100) * (1 - percentInProgram) + 
+                       (1 - fp$perc_bf_on_art[d]/100) * percentInProgram) * perc.noproph *
                       ((proplt200 + prop200to350) * (fp$MTCtrans[fp$MTCtrans$regimen == 'no_prophylaxis' & fp$MTCtrans$definition == 'exisiting_LT200CD4','breastfeeding_lt350cd4']/100) +
-                         propgt350 * (fp$MTCtrans[fp$MTCtrans$regimen == 'no_prophylaxis' & fp$MTCtrans$definition == 'exisiting_GT340CD4', 'breastfeeding_gt350cd4']/100)))
+                         propgt350 * (fp$MTCtrans[fp$MTCtrans$regimen == 'no_prophylaxis' & fp$MTCtrans$definition == 'exisiting_GT340CD4', 'breastfeeding_gt350cd4']/100) + 
+                         (prop.incident.infections/12) * (fp$MTCtrans[fp$MTCtrans$regimen == 'no_prophylaxis' & fp$MTCtrans$definition == 'incident_infection', 'breastfeeding_lt350cd4']/100)))
     ## option A
     BFTR <- BFTR + (1 - (fp$perc_bf_on_art[d]/100)) * perc.optA * optA.trans.rate
     ## optionB
@@ -365,11 +369,11 @@ calcBFtransmissions <- function(m1, m2, i, treat.opt, fp, artpop, artp.byage, pr
     ## triple art
     artp.lastyr.byage <- ifelse(i > 2, rowMeans(artpop[,,h.fert.idx, f.idx,i-2:1],,3), artp.byage)
     prop.new.art <- ifelse(sum(artp.byage) == 0, 0, (sum(artp.byage) - sum(artp.lastyr.byage)) / sum(artp.byage))
-    BFTR <- BFTR + ((1 - fp$perc_bf_on_art[d]/100) * treat.opt[['tripleARTbefPreg']] * ((1-prop.new.art) * fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_pre_preg','breastfeeding_lt350cd4']/100 +
-                                                                                          prop.new.art * fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_dur_preg','breastfeeding_lt350cd4']))
+    BFTR <- BFTR + ((1 - fp$perc_bf_on_art[d]/100) * treat.opt[['tripleARTbefPreg']] * ((1-prop.new.art) * (fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_pre_preg','breastfeeding_lt350cd4']/100) +
+                                                                                          prop.new.art * (fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_dur_preg','breastfeeding_lt350cd4']/100)))
     BFTR <- BFTR + ((1 - fp$perc_bf_on_art[d] / 100) * treat.opt[['tripleARTdurPreg']] *
-                      (prop.new.art * fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_pre_preg','breastfeeding_lt350cd4'] +
-                         (1 - prop.new.art) * fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_dur_preg','breastfeeding_lt350cd4']))
+                      (prop.new.art * (fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_pre_preg','breastfeeding_lt350cd4']/100) +
+                         (1 - prop.new.art) * (fp$MTCtrans[fp$MTCtrans$regimen == 'ART' & fp$MTCtrans$definition == 'start_dur_preg','breastfeeding_lt350cd4']/100)))
   }
   return(BFTR * 2)
 }

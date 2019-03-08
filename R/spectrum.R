@@ -53,8 +53,10 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ss$hMT <- 4 ## perinatal, bf0, bf6, bf12
   ss$pAGu15 <- 10 ## 5-15 ages
   ss$hDSu15 <- 6 ##under 15 cd4 count categories
-  ss$u5.elig.groups <- list('30' = 2, '25' = 3, '20' = 4, '15' = 5, '10' = 6, '5' = 7)
-  ss$u15.elig.groups <- list('1500' = 1, '750' = 3, '350' = 5, '500' = 4, '250' = 6)  
+  ss$u5.elig.groups <- list('30' = 1, '25' = 2, '20' = 3, '15' = 4, '10' = 5, '5' = 6, '0' = 7)
+  ss$u15.elig.groups <- list('1000' = 1, '750' = 2, '500' = 3, '350' = 4, '200' = 5, '0' = 6)  
+  ss$prenat.opt <- c('tripleARTdurPreg', 'tripleARTbefPreg', 'singleDoseNevir', 'prenat_optionB', 'prenat_optionA', 'dualARV')
+  
 
   invisible(list2env(ss, environment())) # put ss variables in environment for convenience
 
@@ -711,3 +713,25 @@ artcov15plus.spec <- function(mod, sex=1:2){
 }
 
 age15pop.spec <- function(mod){colSums(mod[1,,,],,2)}
+
+
+## Finding corresponding child cd4 bin from input eligibility
+get_paed_cd4bin <- function(CD4elig, age, ss){
+  invisible(list2env(ss, environment()))
+  if(age < 5){
+    j <- 1
+    while(as.integer(CD4elig) < as.integer(names(u5.elig.groups)[j])){
+      j <- j + 1
+    }
+    out <- min(u5.elig.groups[[j]] + 1, 7)
+  } else{
+    j <- 1
+    while(as.integer(CD4elig) < as.integer(names(u15.elig.groups)[j])){
+      j <- j + 1
+    }
+    out <- min(u5.elig.groups[[j]] + 1, 6)
+  }
+  return(out)
+}
+
+

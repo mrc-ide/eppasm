@@ -1,0 +1,141 @@
+---
+title: "Running EPPASM with paediatric estimates"
+author: "Tahvi Frank"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  warning = FALSE,
+  comment = "#>"
+)
+```
+
+## Pediatric Inputs
+
+There are a lot of inputs necessary to run children through the model - here's the list:
+
+### Demographic - from GBD demographics team:
+* paed_mig: migration
+* paed_Sx: survival
+* paedbasepop: baseline year (1970) under-15 population
+* paedtargetpop: population estimates to align with if popadjust = TRUE
+
+### Treatment - extracted from UNAIDS files:
+* childCTXeffect: cotrim effect
+* paed_arteligibility: eligibility for ART by age/CD4 group
+* paed_artdist: proportion of ART allocated to each u15 age, used in Spectrum's child ART distribution
+* cotrim_num: number or percent of eligible children receiving cotrim
+* cotrim_isperc: corresponding true/false depending on whether value of cotrim_num is percent covered
+* artpaed_num: number or percent of eligible children receiving ART
+* artpaed_isperc:corresponding true/false depending on whether value of artpaed_num is percent covered
+* pmtct_num: number or percent of HIV+ pregnant women on PMTCT
+* pmtct_isperc: corresponding true/false depending on whether value of pmtct_num is percent covered
+* pmtct_dropout: proportion mothers dropping out of options A and B ***
+
+### Transmission - extracted from UNAIDS files?:
+* MTCtrans: mother-to-child transmission rates
+* perc_bf_on_art, perc_bf_off_art: percent breastfeeding by ART status and duration
+* paed_distnewinf: distribution of incident infections across CD4 groups
+
+### Disease progression - extracted from UNAIDS files:
+* cd4_mort_u5, cd4_mort_u15: off-ART annual mortality rates
+* art_mort_u5, art_mort_u15: on-ART annual mortality rates
+* prog_u5, prog_u15: annual probability of progressing to lower CD4 category
+
+## Fitting the model
+
+Load in an object that is ready to be run in `fitmod()`.
+
+This object contains an eppd (data that we're fitting to, including prevalence surveys and ANC site surveillance data) and a specfp (transition parameters, demographic and state space inputs for running Spectrum) object. In this example, the specfp object holds GBD-estimated demographic parameters. All the paediatric inputs listed above have been tacked on to the specfp object. 
+
+
+```{r, load}
+## devtools::install_github("ihmeuw/eppasm@paediatric")
+devtools::load_all()
+dt  <- readRDS('../inst/extdata/paeds/MWI_input.rds')
+```
+
+Run `fitmod()` using the C version, which doesn't contain the paediatric module, but will allow for much faster fitting. Since we're not fitting to child data and the prevalence of HIV+ children surviving to age 15 is relatively low compared to HIV infections acquired after age 15, this shouldn't make a big difference in the model fit. However, building out the paediatric model in the C version of EPPASM could be a future development.
+
+```{r}
+## fit <- fitmod(dt, eppmod = 'rhybrid', B0=1e5, B=1e4)
+```
+
+This takes a while, so we can also read in a previously created model fit.
+
+```{r}
+fit <- readRDS('../inst/extdata/paeds/MWI_fit.rds')
+```
+
+## Paediatric model simulation
+
+Now we're ready to simulate the model in R to generate paediatric estimates.
+
+The default for EPPASM is to resample 3000 sets of parameters (theta) and will then simulate the model for each of them to create estimates with uncertainty. GBD already runs EPPASM 1000 times in order to incorporate uncertainty from input HIV-free survival. This means that, for each run, we only need to simulate the model for 1 resampled theta. The R model takes a few seconds to run, so it's nice to avoid running it 3000 times.
+
+```{r}
+popadjust <- TRUE
+fit$param <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
+fp.list <- lapply(fit$param, function(par) update(fit$fp, list=par))
+## We only need 1 draw, so let's save time and subset to that now
+rand.draw <- round(runif(1, min = 1, max = 3000))
+fp <- fp.list[[rand.draw]]
+mod <- simmod(fp, VERSION = 'R')
+```
+
+Load in gbd_outputs script in order to format outputs in easy-to-use data table and plot age-specific results.
+
+```{r, fig.width = 8, fig.height = 8}
+source('../gbd/gbd_outputs.R')
+library(data.table)
+output.dt <- get_gbd_outputs(mod, attr(dt, 'specfp'), paediatric = TRUE)
+output.dt[, age_5 := age - age%%5]
+plot.dt <- output.dt[,.(hiv_deaths = sum(hiv_deaths), new_hiv = sum(new_hiv), pop_hiv = sum(pop_art + pop_gt350 + pop_200to350 + pop_lt200), pop = sum(pop)), by = c('age_5', 'year')]
+plot.dt <- plot.dt[,.(mort_rate = hiv_deaths/pop, inc_rate = new_hiv/pop, prev_rate = pop_hiv/pop), by = c('age_5', 'year')]
+plot.dt <- melt(plot.dt, id.vars = c('age_5', 'year'))
+plot.dt <- plot.dt[age_5 <= 10]
+library(ggplot2)
+
+gg <- ggplot() + 
+  geom_line(data = plot.dt, aes(x = year, y = value)) + 
+  facet_wrap(~age_5 + variable, scales = 'free') + 
+  theme_bw()
+print(gg)
+```
+
+Plotting perinatal transmission results
+
+```{r, fig.width = 8, fig.height = 6}
+plot.dt <- output.dt[,.(birth_prev = sum(birth_prev), hiv_births = sum(hiv_births), total_births = sum(total_births)), by = 'year']
+plot.dt[, perinatal_transmission_rate := birth_prev/hiv_births]
+plot.dt[,pregprev := hiv_births / total_births]
+plot.dt[,birth_prev_rate := birth_prev/total_births]
+plot.dt <- melt(plot.dt, id.vars = c('year'))
+plot.dt[variable == 'total_births', variable := 'total births']
+plot.dt[variable == 'perinatal_transmission_rate', variable := 'perinatal transmission rate']
+plot.dt[variable == 'hiv_births', variable := 'births to HIV+ women']
+plot.dt[variable == 'birth_prev', variable := 'prevalence at birth (count)']
+plot.dt[variable == 'birth_prev_rate', variable := 'prevalence at birth (rate)']
+plot.dt[variable == 'pregprev', variable := 'pregnant women prevalence (rate)']
+
+plot.dt[, variable_f := factor(variable, levels = c('total births', 'pregnant women prevalence (rate)', 'births to HIV+ women',
+                                                    'perinatal transmission rate', 'prevalence at birth (rate)', 'prevalence at birth (count)'))]
+  
+gg <- ggplot() +
+  geom_line(data = plot.dt, aes(x = year, y = value)) + 
+  facet_wrap(~variable_f, scales = 'free') + 
+  theme_bw()
+print(gg)
+
+```
+
+
+
+

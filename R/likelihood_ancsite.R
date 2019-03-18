@@ -1,6 +1,10 @@
 
 #' Sample from posterior ditribution for ANC site level random effects
 #' 
+#' @param mod Model simulation output
+#' @param fp fix parameter
+#' @param dat ANC data 
+#' @param resid return residuals?
 sample_b_site <- function(mod, fp, dat, resid=TRUE){
 
   coef <- c(fp$ancbias, fp$ancrtsite.beta)
@@ -30,6 +34,10 @@ sample_b_site <- function(mod, fp, dat, resid=TRUE){
 
 #' Sample posterior predictions for site-level ANC observations
 #' 
+#' @param mod model output
+#' @param fp fix parameter
+#' @param newdata newdata
+#' @param b_site  b_site 
 sample_ancsite_pred <- function(mod, fp, newdata, b_site){
 
   coef <- c(fp$ancbias, fp$ancrtsite.beta)
@@ -49,6 +57,10 @@ sample_ancsite_pred <- function(mod, fp, newdata, b_site){
 
 #' Pointwise likelihood for site-level ANC observations given site-level effects
 #' 
+#' @param mod model output
+#' @param fp fix parameter
+#' @param newdata newdata
+#' @param b_site  b_site 
 ll_ancsite_conditional <- function(mod, fp, newdata, b_site){
 
   coef <- c(fp$ancbias, fp$ancrtsite.beta)

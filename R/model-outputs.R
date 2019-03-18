@@ -114,6 +114,9 @@ create_outputs <- function(fit){
   out
 }
 
+
+#' create_aggr_outputs
+#'
 #' @param fitlist list of model fits to aggregate.
 #' @param fitnat single fit to use as the base fit with aggregation.
 #' @param both flag indicating whether to return outputs for both aggregated fit and individual fits (default TRUE).

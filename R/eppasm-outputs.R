@@ -1,4 +1,6 @@
 #' Get vector of years spanned by projections
+#' 
+#' @param ss state space from fix parameters
 get_proj_years <- function(ss){
   ss$proj_start + 1:ss$PROJ_YEARS - 1L
 }
@@ -12,15 +14,6 @@ get_proj_years <- function(ss){
 #' @param ss Model state space inputs
 #'
 #' @return EPP-ASM model output with labelled dimensions
-#'
-#' @examples
-#' pjnz <- system.file("extdata/testpjnz", "Botswana2018.PJNZ", package="eppasm")
-#' fp <- prepare_directincid(pjnz)
-#' mod <- simmod(fp)
-#'
-#' mod <- mod_dimnames(mod, fp$ss)
-#'
-#' @export
 mod_dimnames <- function(mod, ss){
 
   yrlbl <- get_proj_years(ss)
@@ -57,14 +50,6 @@ mod_dimnames <- function(mod, ss){
 #' age groups.
 #'
 #' @inheritParams mod_dimnames
-#'
-#' @examples
-#' pjnz <- system.file("extdata/testpjnz", "Botswana2018.PJNZ", package="eppasm")
-#' fp <- prepare_directincid(pjnz)
-#' mod <- simmod(fp)
-#' hivp1 <- hivpop_singleage(mod, fp$ss)
-#'
-#' @export
 hivpop_singleage <- function(mod, ss){
 
   hivp <- mod[ , , ss$hivp.idx, ]

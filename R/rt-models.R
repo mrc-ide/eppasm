@@ -43,10 +43,13 @@ rlogistic <- function(t, p){
 }
 
 
+#' prepare_rhybrid
+#' 
 #' @param fp model parameters object
 #' @param tsEpidemicStart time step at which epidemic is seeded
 #' @param rw_start time when random walk starts
 #' @param rw_trans number of years to transition from logistic differences to RW differences. If NULL, defaults to 5 steps
+#' @param rw_dk number of...
 prepare_rhybrid <- function(fp,
                             tsEpidemicStart = fp$ss$time_epi_start+0.5,
                             rw_start = fp$rw_start,
@@ -122,6 +125,10 @@ create_rvec <- function(theta, rt){
 
 
 #' Sample from conditional posterior distribution for variance parameter
+#' 
+#' @param x x
+#' @param prior_shape prior_shape
+#' @param prior_rate prior_rate
 sample_invgamma_post <- function(x, prior_shape, prior_rate){
   ## x: n_samples, n_knots
   if(is.vector(x)) x <- matrix(x, 1)

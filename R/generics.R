@@ -7,6 +7,11 @@ incid <- function(mod, ...) UseMethod("incid")
 
 incid_sexratio <- function(mod, ...) UseMethod("incid_sexratio")
 
+#' Null document for package checks
+#' 
+#' because of other function link to this function document 
+#' @param mod model simulation output
+#' @param ... pass
 agemx <- function(mod, ...) UseMethod("agemx")
 natagemx <- function(mod, ...) UseMethod("natagemx")
 calc_nqx <- function(mod, ...) UseMethod("calc_nqx")

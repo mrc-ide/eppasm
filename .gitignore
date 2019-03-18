@@ -6,8 +6,8 @@
 *.so
 *.out
 *.dll
-README.html
+*.html
 dev/*
 inst/doc
-vignettes_src/eppasm-spectrum-workflow_cache/
 vignettes_src/
+man/*

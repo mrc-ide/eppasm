@@ -1,42 +1,69 @@
 #' Annualized number of new infections
 #'
-calc_infections_eppspectrum <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
+#' @param MODEL 0, 1, 2
+#' @param fp fix parameter
+#' @param pop Core population
+#' @param hivpop hiv population
+#' @param artpop art population
+#' @param i year
+#' @param ii time steps in year
+#' @param r_ts values of rvec at time ts
+infect_spec <- function(MODEL, fp, pop, hivpop, artpop, i, ii, r_ts){
 
-  ## Attach state space variables
-  invisible(list2env(fp$ss, environment())) # put ss variables in environment for convenience
+    ## Attach state space variables
+    invisible(list2env(fp$ss, environment()))
 
-  ## HIV population size at ts
-  ts <- (i-2)/DT + ii
+    ## HIV population size at ts
+    ts <- (i-2)/DT + ii
+    dt_ii <- 1 - DT * (ii - 1) # transition of population in one year
+    
+    sus_pop <- pop$data # Susceptible population
+    if (MODEL==2)
+        sus_pop[db_aid,,,] <-  sus_pop[db_aid,,,] - pop$pop_db
+    first_age  <- p.age15to49.idx[1]
+    first_agrp <- h.age15to49.idx[1]
+    last_age   <- tail(p.age15to49.idx, 1) + 1
+    last_agrp  <- tail(h.age15to49.idx, 1) + 1
 
-  hivn.ii <- sum(pop[p.age15to49.idx,,hivn.idx,i])
-  hivn.ii <- hivn.ii - sum(pop[p.age15to49.idx[1],,hivn.idx,i])*(1-DT*(ii-1))
-  hivn.ii <- hivn.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivn.idx,i])*(1-DT*(ii-1))
+    hivn.ii <- sum(sus_pop[p.age15to49.idx,,hivn.idx,i])
+    hivn.ii <- hivn.ii - sum(sus_pop[first_age,,hivn.idx,i]) * dt_ii
+    hivn.ii <- hivn.ii + sum(sus_pop[last_age,,hivn.idx,i]) * dt_ii
 
-  hivp.ii <- sum(pop[p.age15to49.idx,,hivp.idx,i])
-  hivp.ii <- hivp.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i])*(1-DT*(ii-1))
-  hivp.ii <- hivp.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i])*(1-DT*(ii-1))
+    hivp.ii <- sum(sus_pop[p.age15to49.idx,,hivp.idx,i])
+    hivp.ii <- hivp.ii - sum(sus_pop[first_age,,hivp.idx,i]) * dt_ii
+    hivp.ii <- hivp.ii + sum(sus_pop[last_age,,hivp.idx,i]) * dt_ii
 
-  art.ii <- sum(artpop[,,h.age15to49.idx,,i])
-  if(sum(hivpop[,h.age15to49.idx[1],,i]) + sum(artpop[,,h.age15to49.idx[1],,i])  > 0)
-    art.ii <- art.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i] * colSums(artpop[,,h.age15to49.idx[1],,i],,2) / (colSums(hivpop[,h.age15to49.idx[1],,i],,1) + colSums(artpop[,,h.age15to49.idx[1],,i],,2))) * (1-DT*(ii-1))
-  if(sum(hivpop[,tail(h.age15to49.idx, 1)+1,,i]) + sum(artpop[,,tail(h.age15to49.idx, 1)+1,,i]) > 0)
-    art.ii <- art.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i] * colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2) / (colSums(hivpop[,tail(h.age15to49.idx, 1)+1,,i],,1) + colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2))) * (1-DT*(ii-1))
-  
-  transm_prev <- (hivp.ii - art.ii + fp$relinfectART*art.ii) / (hivn.ii+hivp.ii)
+    art.ii <- sum(artpop$get(AG = h.age15to49.idx, YEAR = i))
+    if (sum(hivpop$get(AG = first_agrp, YEAR = i)) + 
+        sum(artpop$get(AG = first_agrp, YEAR = i)) > 0) {
+        art.ii  <- art.ii - sum(sus_pop[first_age,,hivp.idx,i] * 
+            colSums(artpop$data[,,first_agrp,,i],,2) / 
+           (colSums(hivpop$data[,first_agrp,,i],,1) + 
+            colSums(artpop$data[,,first_agrp,,i],,2))) *  dt_ii
+    }
 
-  incrate15to49.ts <- r_ts * transm_prev + fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
-  sexinc15to49.ts <- incrate15to49.ts*c(1, fp$incrr_sex[i])*sum(pop[p.age15to49.idx,,hivn.idx,i])/(sum(pop[p.age15to49.idx,m.idx,hivn.idx,i]) + fp$incrr_sex[i]*sum(pop[p.age15to49.idx, f.idx,hivn.idx,i]))
-  agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc15to49.ts/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$incrr_age[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
+    if (sum(hivpop$data[,last_agrp,,i]) + sum(artpop$data[,,last_agrp,,i]) > 0) {
+        art.ii <- art.ii + sum(sus_pop[last_age,,hivp.idx,i] * colSums(artpop$data[,,last_agrp,,i],,2) / (colSums(hivpop$data[,last_agrp,,i],,1) + colSums(artpop$data[,,last_agrp,,i],,2))) * dt_ii
+    }
 
-  ## Adjust age-specific incidence among men for circumcision coverage
-  agesex.inc[ , m.idx] <- agesex.inc[ , m.idx] * (1 - fp$circ_incid_rr * fp$circ_prop[ , i])
-  
-  infections.ts <- agesex.inc * pop[,,hivn.idx,i]
+    transm_prev <- (hivp.ii - art.ii * (1 - fp$relinfectART)) / (hivn.ii+hivp.ii)
 
-  attr(infections.ts, "incrate15to49.ts") <- incrate15to49.ts
-  attr(infections.ts, "prevcurr") <- hivp.ii / (hivn.ii+hivp.ii)
+    incrate15to49.ts <- r_ts * transm_prev + fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
+    
+    sus_by_age_sex <- sus_pop[p.age15to49.idx,,hivn.idx,i]
+    sexinc15to49.ts <- incrate15to49.ts * c(1, fp$incrr_sex[i]) * sum(sus_by_age_sex) / (sum(sus_pop[p.age15to49.idx,m.idx,hivn.idx,i]) + fp$incrr_sex[i] * sum(sus_pop[p.age15to49.idx,f.idx,hivn.idx,i]))
 
-  return(infections.ts)
+    agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc15to49.ts / (
+        colSums(sus_by_age_sex * fp$incrr_age[p.age15to49.idx,,i]) /colSums(sus_by_age_sex) ), "*")
+
+    ## Adjust age-specific incidence among men for circumcision coverage
+    agesex.inc[, m.idx] <- agesex.inc[, m.idx] * (1 - fp$circ_incid_rr * fp$circ_prop[,i])
+    infections.ts <- agesex.inc * pop$data[,,hivn.idx,i]
+
+    attr(infections.ts, "incrate15to49.ts") <- incrate15to49.ts
+    attr(infections.ts, "prevcurr") <- hivp.ii / (hivn.ii+hivp.ii)
+
+    return(infections.ts)
 }
 
 calc_infections_simpletransm <- function(fp, pop, hivpop, artpop, i, ii, r_ts){

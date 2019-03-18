@@ -46,6 +46,8 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ss$h.fert.idx <- which((AGE_START-1 + cumsum(ss$h.ag.span)) %in% 15:49)
   ss$h.age15to49.idx <- which((AGE_START-1 + cumsum(ss$h.ag.span)) %in% 15:49)
   ss$h.age15plus.idx <- which((AGE_START-1 + cumsum(ss$h.ag.span)) >= 15)
+  
+  ss$DT <- 1/ss$hiv_steps_per_year
 
   invisible(list2env(ss, environment())) # put ss variables in environment for convenience
 
@@ -218,48 +220,38 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ##     fp$paedsurv_lag[i+AGE_START] <- fp$paedsurv_lag[i+AGE_START] * (1 - hivqx[j, i+j-1])
 
   ## HIV prevalence and ART coverage among age 15 entrants
-  hivpop14 <- projp$age14hivpop[,,,as.character(proj_start:(proj_end-1))]
+  hivpop15 <- projp$age15hivpop[,,,as.character(proj_start:(proj_end-1))]
   pop14 <- projp$age14totpop[ , as.character(proj_start:(proj_end-1))]
-  hiv14 <- colSums(hivpop14,,2)
-  art14 <- colSums(hivpop14[5:7,,,],,2)
+  hiv14 <- colSums(hivpop15,,2)
+  art14 <- colSums(hivpop15[2:4,,,],,2)
 
   fp$entrantprev <- cbind(0, hiv14/pop14) # 1 year offset because age 15 population is age 14 in previous year
   fp$entrantartcov <- cbind(0, art14/hiv14)
   fp$entrantartcov[is.na(fp$entrantartcov)] <- 0
   colnames(fp$entrantprev) <- colnames(fp$entrantartcov) <- as.character(proj_start:proj_end)
 
-  hiv_noart14 <- colSums(hivpop14[1:4,,,])
-  artpop14 <- hivpop14[5:7,,,]
-
+  hiv_noart14 <- hivpop15[1,,,]
+  artpop14 <- hivpop15[2:4,,,]
+  
   fp$paedsurv_cd4dist <- array(0, c(hDS, NG, PROJ_YEARS))
   fp$paedsurv_artcd4dist <- array(0, c(hTS, hDS, NG, PROJ_YEARS))
 
-  cd4convert <- rbind(c(1, 0, 0, 0, 0, 0, 0),
-                      c(1, 0, 0, 0, 0, 0, 0),
-                      c(1, 0, 0, 0, 0, 0, 0),
-                      c(0, 1, 0, 0, 0, 0, 0),
-                      c(0, 0, 0.67, 0.33, 0, 0, 0),
-                      c(0, 0, 0, 0, 0.35, 0.21, 0.44))
+  fp$paedsurv_cd4dist[,,2:PROJ_YEARS] <- sweep(hiv_noart14, 2:3, colSums(hiv_noart14), "/")
+  fp$paedsurv_artcd4dist[,,,2:PROJ_YEARS] <- sweep(artpop14, 3:4, colSums(artpop14,,2), "/")
 
-  ## Convert age 5-14 CD4 distribution to adult CD4 distribution and normalize to
-  ## sum to 1 in each sex and year.
-  for(g in 1:NG)
-    for(i in 2:PROJ_YEARS){
-      
-      if((hiv14[g,i-1] - art14[g,i-1]) > 0)
-        fp$paedsurv_cd4dist[,g,i] <- hiv_noart14[,g,i-1] %*% cd4convert / (hiv14[g,i-1] - art14[g,i-1])
-      if(art14[g,i-1]){
-        fp$paedsurv_artcd4dist[,,g,i] <- artpop14[,,g,i-1] %*% cd4convert / art14[g,i-1]
+  fp$paedsurv_cd4dist[is.na(fp$paedsurv_cd4dist)] <- 0
+  fp$paedsurv_artcd4dist[is.na(fp$paedsurv_artcd4dist)] <- 0
 
-        ## if age 14 has ART population in CD4 above adult eligibilty, assign to highest adult
-        ## ART eligibility category.
-        idx <- fp$artcd4elig_idx[i]
-        if(idx > 1){
-          fp$paedsurv_artcd4dist[,idx,g,i] <- fp$paedsurv_artcd4dist[,idx,g,i] + rowSums(fp$paedsurv_artcd4dist[,1:(idx-1),g,i, drop=FALSE])
-          fp$paedsurv_artcd4dist[,1:(idx-1),g,i] <- 0
-        }
-      }
-    }
+  ## if age 14 has ART population in CD4 above adult eligibilty, assign to highest adult
+  ## ART eligibility category.
+  for(i in 2:PROJ_YEARS){
+    idx <- fp$artcd4elig_idx[i]
+    if(idx > 1){
+      fp$paedsurv_artcd4dist[ , idx, , i] <- fp$paedsurv_artcd4dist[ , idx, , i] +
+        c(apply(fp$paedsurv_artcd4dist[ , 1:(idx-1), , i, drop=FALSE], c(1,3,4), sum))
+      fp$paedsurv_artcd4dist[,1:(idx-1),,i] <- 0
+    } 
+  }
   
   fp$netmig_hivprob <- 0.4*0.22
   fp$netmighivsurv <- 0.25/0.22
@@ -333,16 +325,36 @@ update.specfp <- function (fp, ..., keep.attr = TRUE, list = vector("list")){
 #########################
 
 ## modprev15to49 <- function(mod, fp){colSums(mod[fp$ss$p.age15to49.idx,,fp$ss$hivp.idx,],,2) / colSums(mod[fp$ss$p.age15to49.idx,,,],,3)}
-prev.spec <- function(mod, fp){ attr(mod, "prev15to49") }
-incid.spec <- function(mod, fp){ attr(mod, "incid15to49") }
-fnPregPrev.spec <- function(mod, fp) { attr(mod, "pregprev") }
+prev.spec <- function(mod, fp){ 
+  if (!is.null(attr(mod, "prev15to49"))) 
+    attr(mod, "prev15to49")
+  else
+    mod$prev15to49
+}
+# prev.spec <- function(mod, fp){ attr(mod, "prev15to49") }
+incid.spec <- function(mod, fp){ 
+  if (!is.null(attr(mod, "incid15to49"))) 
+    attr(mod, "incid15to49")
+  else
+    mod$incid15to49
+}
+# incid.spec <- function(mod, fp){ attr(mod, "incid15to49") }
+fnPregPrev.spec <- function(mod, fp) { 
+  if (!is.null(attr(mod, "pregprev"))) 
+    attr(mod, "pregprev")
+  else
+    mod$pregprev
+}
+# fnPregPrev.spec <- function(mod, fp) { attr(mod, "pregprev") }
 
 calc_prev15to49 <- function(mod, fp){
-  colSums(mod[fp$ss$p.age15to49.idx,,2,],,2)/colSums(mod[fp$ss$p.age15to49.idx,,,],,3)
+  colSums(mod$data[fp$ss$p.age15to49.idx,,2,],,2)/colSums(mod$data[fp$ss$p.age15to49.idx,,,],,3)
+  # colSums(mod[fp$ss$p.age15to49.idx,,2,],,2)/colSums(mod[fp$ss$p.age15to49.idx,,,],,3)
 }
 
 calc_incid15to49 <- function(mod, fp){
-  c(0, colSums(attr(mod, "infections")[fp$ss$p.age15to49.idx,,-1],,2)/colSums(mod[fp$ss$p.age15to49.idx,,1,-fp$ss$PROJ_YEARS],,2))
+  c(0, colSums(mod$infections[fp$ss$p.age15to49.idx,,-1],,2)/colSums(mod$data[fp$ss$p.age15to49.idx,,1,-fp$ss$PROJ_YEARS],,2))
+  # c(0, colSums(attr(mod, "infections")[fp$ss$p.age15to49.idx,,-1],,2)/colSums(mod[fp$ss$p.age15to49.idx,,1,-fp$ss$PROJ_YEARS],,2))
 }
 
 calc_pregprev <- function(mod, fp){
@@ -363,6 +375,7 @@ calc_pregprev <- function(mod, fp){
 #' confirm this with John Stover.
 #'
 #' @param mod output of simmod of class \code{\link{spec}}.
+#' @param nonhiv Non HIV
 #' @return 3-dimensional array of mortality by age, sex, and year.
 agemx.spec <- function(mod, nonhiv=FALSE){
   if(nonhiv)
@@ -415,8 +428,14 @@ hivagemx.spec <- function(mod){
 
 #' Prevalene by arbitrary age groups
 #'
-#' @param sidx sex (1 = Male, 2 = Female, 0 = Both)
+#' @param mod Model simulation output
+#' @param aidx age index
+#' @param sidx sex index
+#' @param yidx year index
+#' @param agspan bin of age
+#' @param expand whether to expand aidx, yidx, sidx, and agspan
 #' Notes: Assumes that AGE_START is 15 and single year of age.
+#' @param VERSION R or Cpp
 #' @useDynLib eppasm ageprevC
 ageprev <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, expand=FALSE, VERSION="C"){
 
@@ -574,6 +593,11 @@ ageartcov <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NUL
 
 #' Age-specific prevalence among pregnant women
 #' 
+#' @param mod Model simulation output
+#' @param fp fix paramters
+#' @param aidx age index
+#' @param yidx year index
+#' @param agspan bin of age
 #' @param expand whether to expand aidx, yidx, sidx, and agspan
 agepregprev <- function(mod, fp,
                         aidx=3:9*5-fp$ss$AGE_START+1L,
@@ -622,6 +646,11 @@ agepregprev <- function(mod, fp,
 
 #' Age-specific ART coverage among pregnant women
 #' 
+#' @param mod Model simulation output
+#' @param fp fix paramters
+#' @param aidx age index
+#' @param yidx year index
+#' @param agspan bin of age
 #' @param expand whether to expand aidx, yidx, sidx, and agspan
 agepregartcov <- function(mod, fp,
                           aidx=3:9*5-fp$ss$AGE_START+1L,

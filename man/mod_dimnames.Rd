@@ -17,9 +17,3 @@ EPP-ASM model output with labelled dimensions
 \description{
 `mod_dimnames` assigns dimnames to spec model outputs.
 }
-\examples{
-pjnz <- system.file("extdata/testpjnz", "Botswana2018.PJNZ", package="eppasm")
-fp <- prepare_directincid(pjnz)
-mod <- simmod(fp)
-
-}

@@ -69,17 +69,6 @@ ancrtsite.beta.pr.sd <- 1.0
 #'
 #' @param ancsite_df data.frame of site-level ANC design for predictions
 #' @param fp fixed parameter input list
-#'
-#' @examples
-#' pjnz <- system.file("extdata/testpjnz", "Botswana2017.PJNZ", package="eppasm")
-#' bw <- prepare_spec_fit(pjnz, proj.end=2021.5)
-#'
-#' 
-#' bw_u_ancsite <- attr(bw$Urban, "eppd")$ancsitedat
-#' fp <- attr(bw$Urban, "specfp")
-#'
-#' ancsite_pred_df(bw_u_ancsite, fp)
-#' 
 ancsite_pred_df <- function(ancsite_df, fp) {
 
   df <- ancsite_df
@@ -372,6 +361,9 @@ fnCreateParam <- function(theta, fp){
 
 
 #' Prepare age-specific HH survey prevalence likelihood data
+#' 
+#' @param hhsage age-specific HH survey prevalence likelihood data
+#' @param fp fix parameters
 prepare_hhsageprev_likdat <- function(hhsage, fp){
   anchor.year <- floor(min(fp$proj.steps))
 
@@ -405,6 +397,10 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
 }
 
 #' Log likelihood for age-specific household survey prevalence
+#' 
+#' @param mod model simulation output
+#' @param dat Output data from prepare_likdat
+#' @param pointwise Point-wise likelihood
 ll_hhsage <- function(mod, dat, pointwise = FALSE){
 
   qM.age <- suppressWarnings(qnorm(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan)))
@@ -421,6 +417,10 @@ ll_hhsage <- function(mod, dat, pointwise = FALSE){
 
 
 #' Log likelihood for age-specific household survey prevalence using binomial approximation
+#' 
+#' @param mod model simulation output
+#' @param dat Output data from prepare_likdat
+#' @param pointwise Point-wise likelihood
 ll_hhsage_binom <- function(mod, dat, pointwise = FALSE){
 
   prevM.age <- suppressWarnings(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan))
@@ -445,6 +445,8 @@ ll_hhsage_binom <- function(mod, dat, pointwise = FALSE){
 
 #' Prepare sibling history mortality likelihood data
 #'
+#' @param sibmxdat sibmxdat
+#' @param fp fix parameters
 prepare_sibmx_likdat <- function(sibmxdat, fp){
   anchor.year <- floor(min(fp$proj.steps))
   nyears <- fp$ss$PROJ_YEARS
@@ -506,6 +508,9 @@ ll_sibmx <- function(mx, tipscoef, theta, sibmx.dat){
 #########################################
 
 #' Prepare household survey incidence likelihood data
+#' 
+#' @param hhsincid household survey incidence likelihood data
+#' @param fp fix parameters
 prepare_hhsincid_likdat <- function(hhsincid, fp){
   anchor.year <- floor(min(fp$proj.steps))
 

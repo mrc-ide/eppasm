@@ -1,9 +1,10 @@
-## Prepare fit by EPP regions
+#' Prepare fit by EPP regions
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
 #' @param proj.end end year for projection.
-#' @param popupdate logical should target population be updated to match
-#'   age-specific population size from DP file and %Urban from EPP XML.
+#' @param popadjust popadjust data
+#' @param popupdate logical should target population be updated to match age-specific population size from DP file and Urban from EPP XML.
+#' @param use_ep5 see `read_specdp_demog_param`
 prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=TRUE, use_ep5=FALSE){
 
   ## epp
@@ -63,6 +64,8 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
 }
 
 #' Melt ANC-SS and site-level ANC-RT to long dataset
+#' 
+#' @param eppd EPP data
 melt_ancsite_data <- function(eppd){
   
   anc.used <- data.frame(site=rownames(eppd$anc.prev), used=eppd$anc.used)
@@ -211,7 +214,7 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
   ## Apportion age 14 HIV population
   ## Allocate relative to HIV prevalence and population size, same as ART population
   for(subpop in names(eppd)){
-    projp.subpop[[subpop]]$age14hivpop <- projp.subpop[[subpop]]$age14hivpop * art.dist[subpop]
+    projp.subpop[[subpop]]$age15hivpop <- projp.subpop[[subpop]]$age15hivpop * art.dist[subpop]
   }
   
   specfp.subpop <- list()

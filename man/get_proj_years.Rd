@@ -6,6 +6,9 @@
 \usage{
 get_proj_years(ss)
 }
+\arguments{
+\item{ss}{state space from fix parameters}
+}
 \description{
 Get vector of years spanned by projections
 }

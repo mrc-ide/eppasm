@@ -1,0 +1,291 @@
+---
+title: "Basic example of sexual debut simulation"
+author: "Kinh Nguyen"
+date: "`r Sys.Date()`"
+output: 
+  html_vignette: 
+    toc: true
+    fig_width: 7
+bibliography: ref.bib
+vignette: >
+  %\VignetteIndexEntry{Basic example of sexual debut simulation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  warning = FALSE,
+  comment = "#>"
+)
+```
+
+This vignette develops the workflow for simulating the EPP-ASM model with sexual
+debut. 
+
+Sexual debut model has the following extra movements
+
+- Base population in the sexual debut age range is inititated as inactive and
+  then move to active based on the debut probability.
+- Entrant population enters the model as sexual inactive and then moves to
+  sexual active with the debut probability.
+- There are separete HIV and ART pop for sexual inactive group, these also move
+  from inactive to active.
+- HIV and ART pop is splitted to single year in the debut age range, the older
+  age-groups (max debut age + 1) are grouped as the original age-group but with
+  new group indices.
+- Incidence calculation ignores the inactive population (including those in HIV
+  positive with and without treatment).
+- Core population, HIV population, and ART population are assigned as their own
+  class (`refClasses.R`).
+
+```{r echo=FALSE, message=FALSE, load}
+## checkout `debut-withClass` branch
+library(magrittr)
+devtools::load_all()
+```
+
+## Preparing EPP-ASM inputs
+
+```{r, eppasm_inputs}
+# Use Botswana for convinient
+pjnz <- system.file("extdata/testpjnz", "Botswana2018.PJNZ", package="eppasm")
+bw <- prepare_spec_fit(pjnz, proj.end=2021.5)
+```
+
+### EPP model with single set of parameter inputs
+
+Prepare model parameters from parameter vector input
+```{r, single_param}
+theta_ur <- c(-0.63758, -2.76655, -1.26204, 1996.65945, 0.00778, 0.05195,
+              0.05103, 0.032, 0.01765, 0.01154, -0.00028, 0.01627, -0.00051,
+              0.01439, -0.00937, -0.01135, 0.03692, 0.14959, 0.00803, 0.02424,
+              -0.03548, 3.65223, -0.02515, -4.74563, 0.26259, -6.90124, 0.01583)
+
+fp <- attr(bw$Urban, "specfp")
+fp <- prepare_rhybrid(fp, rw_start = 2005, rw_dk = 1)
+
+## Set some flags that are set in fitmod(), (later improve this code...)
+fp$ancsitedata <- TRUE
+fp$ancrt <- "both"
+fp$logitiota <- TRUE
+fp$rw_start <- 2005
+fp$incidmod <- "eppspectrum"
+
+param <- fnCreateParam(theta_ur, fp)
+fp_par <- update(fp, list = param)
+```
+
+Blindly fix some wrong inputs
+
+```{r}
+# CD4 mortality rate > 1
+fp_par$cd4_mort %>% range
+fp_par$cd4_mort %<>% `/`(max(fp_par$cd4_mort))
+# Target pop < 0
+negid <- fp_par$targetpop %>% {which(. < 0, TRUE)} %T>% {cat(fp_par$targetpop[.])}
+fp_par$targetpop[negid] %<>% '*'(-1)
+```
+Simulate the model
+
+### C++ version of the current model
+```{r, simulate_model}
+mod <- simmod(fp_par)
+```
+
+### R version of the current model
+```{r}
+modR <- simmod(fp_par, VERSION = "R")
+
+expect_equal(prev(mod), prev(modR))
+expect_equal(incid(mod), incid(modR))
+```
+
+## Demographic model (R only)
+
+```{r, demographic, fig.height=6, fig.cap = "Figure: Demographic only"}
+demR <- simmod(fp_par, VERSION = "R", 0)
+plot(demR)
+```
+
+## Sexual debut (R only)
+
+How to run:
+
+- update fp with debut probability matrix (add parameters and indices):
+  - if data by age-group (`single_year=FALSE`, default):
+    - 4 columns by order: male, female, lower age, upper age
+  - if data by single-age (`single_year=TRUE`):
+    - 4 columns by order: male, female, age male, age female
+- specify `VERSION="R"` and `.MODEL=2`
+
+### Test
+
+That the model with 100% debut probability should be similar with model without
+debut:
+
+```{r}
+# All debut
+db1 <- eppasm:::debut_pr
+db1[, 1:2] <- 1
+
+fp_db1 <- update_fp_debut(fp_par, db1)
+modUni <- simmod(fp_db1, "R", 2)
+```
+
+Not exactly, only visually
+
+```{r, fig.show='hold', fig.width=3, fig.height=3}
+plot(prev(mod), prev(modUni)); abline(0,1)
+plot(incid(mod), incid(modUni)); abline(0,1)
+```
+
+## Simulation scenarios
+
+### By age-group [@Johnson:2009dd]
+
+```{r echo = FALSE, results = 'asis'}
+knitr::kable(eppasm:::debut_pr, caption="Table: Name")
+```
+
+```{r}
+fp_js <- update_fp_debut(fp_par, eppasm:::debut_pr)
+modjs <- simmod(fp_js, VERSION = "R", 2)
+``` 
+
+### By single-year pr up to 17 [@CavazosRehg:2009dl, Tab. 2, African-American]
+
+
+```{r echo=FALSE}
+# Males
+male <- matrix(c(12, 0.85, 13, 0.72, 14, 0.58, 15, 0.42, 16, 0.28, 17, 0.18),
+               ncol=2, byrow=TRUE)
+# Females               
+female <- matrix(c(12, 0.97, 13, 0.92, 14, 0.83, 15, 0.66, 16, 0.45, 17, 0.26),
+                 ncol=2, byrow=TRUE)
+debut_cv <- cbind(male[,2], female[,2], male[,1], female[,1])
+debut_cv[, 1:2] <- 1 - debut_cv[, 1:2]
+```
+
+Assume all debut at 18
+
+```{r}
+debut_cv <- rbind(debut_cv, c(1, 1, 18, 18))
+```
+
+```{r echo = FALSE, results = 'asis'}
+knitr::kable(debut_cv, caption="Table: @CavazosRehg:2009dl")
+```
+
+```{r}
+fp_db_cv <- update_fp_debut(fp_par, debut_cv, NULL, single_year=TRUE)
+modcv <- simmod(fp_db_cv, "R", 2)
+```
+
+### DHS data (Zimbabwe as an example)
+
+Smooth and step-wise
+
+```{r message=FALSE}
+# devtools::install_github("ropensci/rdhs")
+library(rdhs)
+
+indicators <- dhs_indicators()
+first_sex  <- grep('first sex', indicators[,"Definition"])
+first_sex  <- first_sex[1:10]
+myid       <- indicators[first_sex, "IndicatorId"]
+
+ccc <- dhs_countries(returnFields=c("CountryName","DHS_CountryCode"))
+zcc <- ccc[grep("Zimbabwe", ccc[, 2]), 1]
+
+fsex <- dhs_data(countryIds = zcc, indicatorIds = myid, breakdown="all") %$%
+        cbind.data.frame(perc=Value, agr=CharacteristicLabel, year=SurveyYear,
+                         id=IndicatorId) %>% 
+        .[-grep("Total", .[, "agr"]), ] %>% 
+        subset(year==2015)
+
+fsex$sex <- substring(fsex$id, nchar(as.character(fsex$id))-4,
+                      nchar(as.character(fsex$id))-4) %>% factor %>% as.numeric
+fsex$age <- substring(fsex$id, nchar(as.character(fsex$id))-1,
+                          nchar(as.character(fsex$id))) %>% as.numeric
+
+M_sm <- fsex %>% subset(sex==1) %$% smooth.spline(age, perc) %>% predict(15:30)
+W_sm <- fsex %>% subset(sex==2) %$% smooth.spline(age, perc) %>% predict(15:30)
+M_cs <- fsex %>% subset(sex==1) %$% approx(age, perc, 15:30, "constant")
+W_cs <- fsex %>% subset(sex==2) %$% approx(age, perc, 15:30, "constant")
+
+# Extrapolate to 30 when all are sexual experienced (debut probability = 1 in 30)
+M_sm$y[M_sm$y > 100] <- 100
+W_sm$y[W_sm$y > 100] <- 100
+M_cs$y[is.na(M_cs$y)] <- max(M_cs$y, na.rm=TRUE)
+W_cs$y[is.na(W_cs$y)] <- max(W_cs$y, na.rm=TRUE)
+W_cs$y[length(W_cs$y)] <- 100
+M_cs$y[length(M_cs$y)] <- 100
+```
+
+```{r echo=FALSE, fig.cap = "Figure: Probability of sexual debut", fig.height=6}
+put(1,1, c(5,4,1,1))
+fsex %$% pointplot(c(age, 26:30), c(perc, rep(NA, 5)), col=as.numeric(sex)+3,
+                   xlab="Age", ylab="Percent", ylim=c(0,100))
+lines(W_cs, col=5, lty=3); lines(W_sm, col=5)
+lines(M_cs, col=4, lty=3); lines(M_sm, col=4)
+legend("topleft", col=1:2+3, legend=c("M", "F"), lty=1)
+```
+
+```{r echo=FALSE}
+zim_sm <- cbind.data.frame(data.frame(M_sm), data.frame(W_sm))[, c(2,4,1,3)]
+zim_cs <- cbind.data.frame(data.frame(M_cs), data.frame(W_cs))[, c(2,4,1,3)]
+zim_sm[, 1:2] <- zim_sm[, 1:2]/100
+zim_cs[, 1:2] <- zim_cs[, 1:2]/100
+```
+
+Update parameters and run
+
+```{r}
+# Smooth data
+fp_sm  <- update_fp_debut(fp_par, zim_sm, single_year=TRUE)
+mod_sm <- simmod(fp_sm, "R", 2)
+# Step-wise data
+fp_cs <- update_fp_debut(fp_par, zim_cs, single_year=TRUE)
+mod_cs <- simmod(fp_cs, "R", 2)
+```
+
+## Outputs
+
+- `output$data` is the same as the old `output`
+- all attributes are stored as fields and accessed directly by `$`, with the same names.
+
+### Prevalence by models
+
+```{r echo=FALSE, fig.height=5, fig.cap = "Figure: Prevalence 15-49"}
+put(1,1, c(5,4,1,1))
+ylim <- c(0, max(prev(mod), prev(modcv), prev(modjs), prev(mod_sm), prev(mod_cs)))
+lineplot(prev(mod), col=1, lwd=2, ylim=ylim)
+lines(prev(modcv), col=2, lwd=2)
+lines(prev(modjs), col=3, lwd=2)
+lines(prev(mod_sm), col=4, lwd=2)
+lines(prev(mod_cs), col=5, lwd=2)
+legend("topleft", col=1:5, lwd=2,
+       legend=c("EPP", "Cavazos-Rehg", "Johnson", "Zimbabwe smooth", "Zimbabwe step-wise"))
+```
+
+### Prevalence by ages
+
+```{r echo=FALSE, fig.height=5, fig.cap = "Figure: Prevalence by ages (no debut)"}
+put(1,1, c(5,4,1,1))
+plot_prev(modR, main="no debut")
+```
+
+```{r echo=FALSE, fig.height=5, fig.cap = "Figure: Prevalence by ages (Zimbabwe smooth)"}
+put(1,1, c(5,4,1,1))
+plot_prev(mod_sm, main="with debut")
+```
+
+### Prevalence by age over time
+
+```{r echo=FALSE, fig.height=5, fig.cap = "Figure: Prevalence by ages over time"}
+plot_prev(mod_cs, stackbar=TRUE, separate=TRUE)
+```
+
+## References

@@ -10,6 +10,16 @@ harvard <- c(cod.gray="#0b0b09", vivid.burgundy="#961b36", medium.champagne="#f6
 gruvstd <- c("#282828", "#CD3B27", "#98971B", "#D7992A", "#458588", "#B16286", "#689D6A", "#A89984")
 gruvlt <- c("#928374", "#ED4631", "#B8BB26", "#F8BD32", "#83A598", "#D3869B", "#8EC07C", "#EBDBB2")
 
+AddAlpha <- function (plotclr, alpha = 0.5, verbose = 0) {
+    tmp <- col2rgb(plotclr, alpha = alpha)
+    tmp[4, ] = round(alpha * 255)
+    for (i in 1:ncol(tmp)) {
+        plotclr[i] = rgb(tmp[1, i], tmp[2, i], tmp[3, i], tmp[4, 
+            i], maxColorValue = 255)
+    }
+    return(plotclr)
+}
+
 Kgrid <- function(bg = "white", cols = "gray93" ) {
     rect(par("usr")[1], par("usr")[3], par("usr")[2], par("usr")[4], col = bg,
          border = NA)
@@ -54,6 +64,24 @@ Kaxis <- function(side = 1, col='gray93', colticks='dimgray', ...) {
     axis(side, col=col, col.ticks=colticks, ...)
 }
 
+Kolygon <- function(x, y, ylow=NULL, col='gray70', alpha=0.4, border='white',...) {
+  if (is.null(border)) border <- col
+  if (missing(x)) x <- 1:length(y)
+  if (missing(y)) {
+    y <- x
+    x <- seq(length(y))
+  }
+  xx <- c(x, rev(x))
+  if (is.null(ylow)) yy <- c(y, rep(0, length(y)))
+    else yy <- c(y, rev(ylow))
+  polygon(xx, yy, col = AddAlpha(col, alpha), border = border, ...)
+}
+
+genCols <- function(n, pallete = "Set1") {
+  getCols <- colorRampPalette(RColorBrewer::brewer.pal(8, pallete))
+  return(getCols(n))
+}
+
 # Line plot of FOI, infections, death
 # -----------------------------------------------------------------------------
 plot.eppmix <- function(mod, which="FOI",...){
@@ -93,4 +121,94 @@ plot.dempp <- function(mod, start_year=1970, min_age=15, bin_year=5, bin_age=5, 
     text(yl+1, mod[at_age,y,yl], (min_age:max_age)[at_age], cex=.7)
   })
   invisible()
+}
+
+# Plot mod prevalence
+plot_prev <- function(mod, byAge=TRUE, byAgeGroup=FALSE, byYear=FALSE,
+                      removeZero=TRUE, cols=c(4,5), stats=FALSE, add=FALSE,
+                      stackbar = FALSE, colset = "Pastel1", separate=FALSE, ...) {
+    palette(solarized)
+    list2env(mod$ss, environment())
+    sumByAGs <- function(x) x
+    if (byAgeGroup) {
+      sumByAGs <- function(x) apply(x, 2, fastmatch::ctapply, ag.idx, sum)
+    }
+    ages <- AGE_START:(AGE_START+pAG-1)
+    xlabs <- ages
+
+    if (byAgeGroup) 
+      xlabs <- c(ages[db_agr], paste(ages[agfirst.idx][-db_agr],
+                                     ages[aglast.idx][-db_agr], sep='-'))
+ 
+    m.prev <- sumByAGs(mod$data[,1,2,]) / 
+              sumByAGs(rowSums(aperm(mod$data[,1,,], c(1,3,2)),,2))
+    f.prev <- sumByAGs(mod$data[,2,2,]) / 
+              sumByAGs(rowSums(aperm(mod$data[,2,,], c(1,3,2)),,2))
+    
+    if (stackbar) {
+        m.prev <- sweep(mod$data[,1,2,], 2, colSums(mod$data[,1,2,]), '/')
+        f.prev <- sweep(mod$data[,2,2,], 2, colSums(mod$data[,2,2,]), '/')
+        m.prev[is.na(m.prev)] <- 0
+        f.prev[is.na(f.prev)] <- 0
+    }
+
+    if (removeZero) {
+        start <- which(colSums(m.prev) > 0)[1]
+        end <- dim(m.prev)[2]
+        identical(start, which(colSums(f.prev) > 0)[1])
+        m.prev <- m.prev[, start:end]
+        f.prev <- f.prev[, start:end]
+    }
+
+    if (stackbar) {
+        byAge <- FALSE
+        xlabs <- proj_start:(proj_start+PROJ_YEARS-1)
+        xlabs <- xlabs[start:end]
+        cls <- genCols(66, colset)
+        if (separate) {
+          put(1,1,c(4,2,1,2))
+          stackbarplot(m.prev, xlabs, ages, cls, main="Male")
+          if (interactive()) devAskNewPage(ask = 1)
+          stackbarplot(f.prev, xlabs, ages, cls, main="Female")
+        } else {
+          put(1,2,c(4,2,1,2))
+          stackbarplot(m.prev, xlabs, ages, cls, main="Male")
+          stackbarplot(f.prev, xlabs, ages, cls, main="Female")
+        }
+        if (stats)
+          return(list(f.prev, m.prev))
+    }
+
+    if (byAge) {
+        ncol   <- dim(t(m.prev))[2]
+        m.prev <- boxplot(t(m.prev), plot=FALSE)
+        f.prev <- boxplot(t(f.prev), plot=FALSE)
+        ylim <- c(0, max(m.prev$stats, f.prev$stats))
+        if (!add) {
+            blankplot(m.prev$stats[3, ], ylim=ylim, autoax=F, xlab="Age", ylab="Prevalence (IQR)", ...)
+            Kaxis(1, at=1:ncol, labels=xlabs); Kaxis(2)
+        }
+        Kolygon(y=m.prev$conf[2,], ylow=m.prev$conf[1,], col=cols[1])
+        Kolygon(y=f.prev$conf[2,], ylow=f.prev$conf[1,], col=cols[2])
+        lines(m.prev$stats[3,], col=cols[1], lwd=2)
+        lines(f.prev$stats[3,], col=cols[2], lwd=2)
+        legend("topright", lwd=2, col=cols, legend= c("Male", "Female"), bty='n')
+    }
+    if (stats) return(list(m.prev, f.prev))
+    on.exit(devAskNewPage(ask = 0))
+}
+
+stackbarplot <- function(x, xlabs, ages, cls=cls, space=0, axes=F, xaxs='i',
+                         ats=4, border=AddAlpha('gray95'), ...) {
+  tm <- barplot(x, col=cls, space=space, border=border, axes=axes, xaxs=xaxs,
+                font.main=1, ...)
+  ncol <- length(tm)
+  atYear <- seq(1, ncol, ats)
+  atAge  <- seq(1, length(ages), ats)
+  text(tm[atYear], par("yaxp")[1]-.05, labels=xlabs[atYear], srt=90,
+       xpd=T, cex=.7)
+  text(tm[1]-2, cumsum(x[,1])[atAge], labels=ages[atAge],
+       cex=.7, xpd=T, col='dimgray')
+  text(tm[ncol]+2, cumsum(x[,ncol])[atAge], labels=ages[atAge],
+       cex=.7, xpd=T, col='dimgray')
 }

@@ -55,6 +55,9 @@ simmod.specfp <- function(fp, VERSION="C"){
     u15deaths.out <- array(0, c(15, NG, PROJ_YEARS))
     hivbirths.out <- array(0, c(NG, PROJ_YEARS))
     u15infections <- array(0, c(pAGu5 + pAGu15, NG, PROJ_YEARS))
+    ## tracking under 1 infections to inform under 1 incidence splits
+    prop.trans <- array(0, c(3, PROJ_YEARS))
+    dimnames(prop.trans) <- list(transmission = c('perinatal', 'BF0', 'BF6'), year = 1:PROJ_YEARS)
   }
   
   ## initialize output
@@ -492,7 +495,7 @@ simmod.specfp <- function(fp, VERSION="C"){
       pregprevlag[i+AGE_START-1] <- pregprev
     if(exists('paedbasepop', where = fp) & pregprev > 0){
       ## calculate vertical transmission
-      ## MTC transmission is weighted avg of those receing PMTCT and not treated
+      ## MTC transmission is weighted avg of those receiving PMTCT and not treated
       ## Calculate percent of women by treatment option
       ## Default is no treatment
       ##TODO: if popadjust == true, we want births to align with GBD demographics births
@@ -554,7 +557,7 @@ simmod.specfp <- function(fp, VERSION="C"){
               (propgt350 * (fp$MTCtrans[fp$MTCtrans$regimen == 'no_prophylaxis' & fp$MTCtrans$definition == 'exisiting_GT340CD4', 'perinatal_trans_pct'] / 100)))
       ## HIV births is birth prevalence (perinatal transmission)
       hiv.births <- max(0, pregprev.num * PTR)
-      
+      prop.trans[1, i] <- hiv.births
       ## BF transmission
       ## corresponds to line 3035 of cohort_spectrum.py
       treat.opt <- list()
@@ -599,10 +602,12 @@ simmod.specfp <- function(fp, VERSION="C"){
       BFTR <- calcBFtransmissions(1,3,i, treat.opt, fp, artpop, artp.byage, proplt200, prop200to350, propgt350, prop.incident.infections)
       
       newInfFromBFLT6 <- as.numeric((pregprev.num - hiv.births) * BFTR)
+      prop.trans[2, i] <- newInfFromBFLT6
       cumNewInfFromBF <- newInfFromBFLT6
       
       BFTR <- calcBFtransmissions(4, 6, i,treat.opt, fp, artpop, artp.byage, proplt200, prop200to350, propgt350, prop.incident.infections)
       newInfFromBF6TO12 <- as.numeric((pregprev.num - hiv.births - newInfFromBFLT6) * BFTR)
+      prop.trans[3, i] <- newInfFromBF6TO12
       cumNewInfFromBF <- cumNewInfFromBF + newInfFromBF6TO12
       
       ## perinatal infections
@@ -874,6 +879,7 @@ simmod.specfp <- function(fp, VERSION="C"){
     attr(pop, 'popu5') <- popu5
     attr(pop, 'popu15') <- popu15
     attr(pop, 'infectionsu15') <- u15infections
+    attr(pop, 'under1incidence') <- prop.trans
   }
 
 

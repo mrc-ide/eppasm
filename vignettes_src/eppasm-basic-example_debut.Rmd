@@ -6,6 +6,7 @@ output:
   html_vignette: 
     toc: true
     fig_width: 7
+    fig_height: 5
 bibliography: ref.bib
 vignette: >
   %\VignetteIndexEntry{Basic example of sexual debut simulation}
@@ -80,9 +81,6 @@ fp_par <- update(fp, list = param)
 Blindly fix some wrong inputs
 
 ```{r}
-# CD4 mortality rate > 1
-fp_par$cd4_mort %>% range
-fp_par$cd4_mort %<>% `/`(max(fp_par$cd4_mort))
 # Target pop < 0
 negid <- fp_par$targetpop %>% {which(. < 0, TRUE)} %T>% {cat(fp_par$targetpop[.])}
 fp_par$targetpop[negid] %<>% '*'(-1)
@@ -258,7 +256,7 @@ mod_cs <- simmod(fp_cs, "R", 2)
 
 ### Prevalence by models
 
-```{r echo=FALSE, fig.height=5, fig.cap = "Figure: Prevalence 15-49"}
+```{r echo=FALSE, fig.cap = "Figure: Prevalence 15-49"}
 put(1,1, c(5,4,1,1))
 ylim <- c(0, max(prev(mod), prev(modcv), prev(modjs), prev(mod_sm), prev(mod_cs)))
 lineplot(prev(mod), col=1, lwd=2, ylim=ylim)
@@ -272,19 +270,19 @@ legend("topleft", col=1:5, lwd=2,
 
 ### Prevalence by ages
 
-```{r echo=FALSE, fig.height=5, fig.cap = "Figure: Prevalence by ages (no debut)"}
-put(1,1, c(5,4,1,1))
-plot_prev(modR, main="no debut")
-```
-
-```{r echo=FALSE, fig.height=5, fig.cap = "Figure: Prevalence by ages (Zimbabwe smooth)"}
+```{r echo=FALSE, fig.cap = "Figure: Prevalence by ages (Zimbabwe smooth)"}
 put(1,1, c(5,4,1,1))
 plot_prev(mod_sm, main="with debut")
 ```
 
+```{r echo=FALSE, fig.cap = "Figure: Prevalence by ages (Zimbabwe smooth)"}
+plot_prev(mod_sm, debut=TRUE, years=c(1990, 2000, 2010, 2018), main="with debut")
+plot_prev(mod_sm, debut=TRUE, years=c(2000:2010), main="with debut")
+```
+
 ### Prevalence by age over time
 
-```{r echo=FALSE, fig.height=5, fig.cap = "Figure: Prevalence by ages over time"}
+```{r echo=FALSE, fig.cap = "Figure: Prevalence by ages over time"}
 plot_prev(mod_cs, stackbar=TRUE, separate=TRUE)
 ```
 

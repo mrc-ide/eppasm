@@ -125,39 +125,97 @@ plot.dempp <- function(mod, start_year=1970, min_age=15, bin_year=5, bin_age=5, 
 
 # Plot mod prevalence
 plot_prev <- function(mod, byAge=TRUE, byAgeGroup=FALSE, byYear=FALSE,
-                      removeZero=TRUE, cols=c(4,5), stats=FALSE, add=FALSE,
-                      stackbar = FALSE, colset = "Pastel1", separate=FALSE, ...) {
+                      years=1970:2021, removeZero=TRUE, cols=c(4,5), stats=FALSE,
+                      add=FALSE, stackbar = FALSE, colset = "Pastel1", 
+                      separate=FALSE, debut=FALSE, ...) {
     palette(solarized)
+    options(font.main=1)
     list2env(mod$ss, environment())
     sumByAGs <- function(x) x
     if (byAgeGroup) {
       sumByAGs <- function(x) apply(x, 2, fastmatch::ctapply, ag.idx, sum)
     }
+    years <- as.character(years)
+    inmod <- mod$data
+
+    dimnames(inmod)[[4]] <- as.character(proj_start:(proj_start+PROJ_YEARS-1))
     ages <- AGE_START:(AGE_START+pAG-1)
     xlabs <- ages
 
     if (byAgeGroup) 
       xlabs <- c(ages[db_agr], paste(ages[agfirst.idx][-db_agr],
                                      ages[aglast.idx][-db_agr], sep='-'))
- 
-    m.prev <- sumByAGs(mod$data[,1,2,]) / 
-              sumByAGs(rowSums(aperm(mod$data[,1,,], c(1,3,2)),,2))
-    f.prev <- sumByAGs(mod$data[,2,2,]) / 
-              sumByAGs(rowSums(aperm(mod$data[,2,,], c(1,3,2)),,2))
-    
+
+    if (!stackbar) {
+      m.prev <- sumByAGs(inmod[,1,2,]) / 
+                sumByAGs(rowSums(aperm(inmod[,1,,], c(1,3,2)),,2))
+      f.prev <- sumByAGs(inmod[,2,2,]) / 
+                sumByAGs(rowSums(aperm(inmod[,2,,], c(1,3,2)),,2))
+    }
+
     if (stackbar) {
-        m.prev <- sweep(mod$data[,1,2,], 2, colSums(mod$data[,1,2,]), '/')
-        f.prev <- sweep(mod$data[,2,2,], 2, colSums(mod$data[,2,2,]), '/')
+        m.prev <- sweep(inmod[,1,2,], 2, colSums(inmod[,1,2,]), '/')
+        f.prev <- sweep(inmod[,2,2,], 2, colSums(inmod[,2,2,]), '/')
         m.prev[is.na(m.prev)] <- 0
         f.prev[is.na(f.prev)] <- 0
     }
 
+    if (debut) {
+        byAge <- FALSE
+        indb <- mod$pop_db
+        dimnames(indb)[[4]] <- as.character(proj_start:(proj_start+PROJ_YEARS-1))
+        # prevalence among total population
+        m.prev <- sumByAGs(inmod[db_aid,1,2,years]) / 
+                sumByAGs(rowSums(aperm(inmod[db_aid,1,,years], c(1,3,2)),,2))
+        f.prev <- sumByAGs(inmod[db_aid,2,2,years]) / 
+                sumByAGs(rowSums(aperm(inmod[db_aid,2,,years], c(1,3,2)),,2))
+        # prevalence among sexually population
+        a_pop  <- inmod[db_aid,,,years]
+        a_pop  <- a_pop - indb[,,,years]
+        m.prev_a <- sumByAGs(a_pop[,1,2,]) / 
+                    sumByAGs(rowSums(aperm(a_pop[,1,,], c(1,3,2)),,2))
+        f.prev_a <- sumByAGs(a_pop[,2,2,]) / 
+                    sumByAGs(rowSums(aperm(a_pop[,2,,], c(1,3,2)),,2))
+        # incidence rate among sexually active population vs. total population
+        # zero for inactive
+        # % sexually active by age
+        pc_active <- 1 - rowSums(aperm(indb[,,,years],c(1,2,4,3)),,3) / 
+                         rowSums(aperm(inmod[db_aid,,,years],c(1,2,4,3)),,3)
+    }
+
+    # Beer's coffiecients
+
     if (removeZero) {
         start <- which(colSums(m.prev) > 0)[1]
-        end <- dim(m.prev)[2]
+        end   <- dim(m.prev)[2]
         identical(start, which(colSums(f.prev) > 0)[1])
         m.prev <- m.prev[, start:end]
         f.prev <- f.prev[, start:end]
+        if (debut) {
+          m.prev_a <- m.prev_a[, start:end]
+          f.prev_a <- f.prev_a[, start:end]
+        }
+    }
+
+    if (debut) {
+      ylim <- c(0, max(m.prev, f.prev, m.prev_a, f.prev_a))
+      def.par <- par(no.readonly = TRUE)
+      layout(matrix(c(1,2,3,4), 2, 2, byrow = TRUE), height=c(.6,.4))
+      sexdebutplot(m.prev, m.prev_a, ages, years, ylim, db_aid, main="Male") 
+      sexdebutplot(f.prev, f.prev_a, ages, years, ylim, db_aid, main="Female") 
+      lineplot(pc_active[,1,1], col=years[1], lwd=2, ylab="% active", xlab="", cex=.7, autoax=F, ylim=c(0,1))
+      Kaxis(1, at=db_aid, labels=ages[db_aid])
+      Kaxis(2)
+      lines(pc_active[,1,2], col=years[2], lty=2, lwd=2)
+      lines(pc_active[,1,3], col=years[3], lty=3, lwd=2)
+      lines(pc_active[,1,4], col=years[4], lty=4, lwd=2)
+      lineplot(pc_active[,2,1], col=years[1], lwd=2, ylab="% active", xlab="", cex=.7, autoax=F, ylim=c(0,1))
+      Kaxis(1, at=db_aid, labels=ages[db_aid])
+      Kaxis(2)
+      lines(pc_active[,2,2], col=years[2], lty=2, lwd=2)
+      lines(pc_active[,2,3], col=years[3], lty=3, lwd=2)
+      lines(pc_active[,2,4], col=years[4], lty=4, lwd=2)
+      par(def.par)
     }
 
     if (stackbar) {
@@ -211,4 +269,18 @@ stackbarplot <- function(x, xlabs, ages, cls=cls, space=0, axes=F, xaxs='i',
        cex=.7, xpd=T, col='dimgray')
   text(tm[ncol]+2, cumsum(x[,ncol])[atAge], labels=ages[atAge],
        cex=.7, xpd=T, col='dimgray')
+}
+
+sexdebutplot <- function(m.prev, m.prev_a, ages, years, ylim, db_aid,...) {
+    blankplot(m.prev[, 1], ylim=ylim, autoax=F, xlab="Age", ylab="Prevalence",
+              font.main=1, ...)
+    Kaxis(1, at=db_aid, labels=ages[db_aid])
+    Kaxis(2)
+    for (i in years) {
+        lines(m.prev[, i], col = i, lty=1, lwd=2)
+        lines(m.prev_a[, i], col = i, lty=3, lwd=2)
+    }
+    legend("topleft", lwd=2, col=years, cex=.7, legend=years, bty='n')
+    legend("bottomright", lwd=2, lty=c(1,3), cex=.7,
+           legend=c("Total", "Sexual active"), bty='n')
 }

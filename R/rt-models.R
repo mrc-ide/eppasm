@@ -193,13 +193,13 @@ calc_rtrend_rt <- function(t, fp, rveclast, prevlast, pop, i, ii){
   ## Attach state space variables
   invisible(list2env(fp$ss, environment())) # put ss variables in environment for convenience
 
-  hivn.ii <- sum(pop[p.age15to49.idx,,hivn.idx,i])
-  hivn.ii <- hivn.ii - sum(pop[p.age15to49.idx[1],,hivn.idx,i])*(1-DT*(ii-1))
-  hivn.ii <- hivn.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivn.idx,i])*(1-DT*(ii-1))
+  hivn.ii <- sum(pop$data[p.age15to49.idx,,hivn.idx,i])
+  hivn.ii <- hivn.ii - sum(pop$data[p.age15to49.idx[1],,hivn.idx,i])*(1-DT*(ii-1))
+  hivn.ii <- hivn.ii + sum(pop$data[tail(p.age15to49.idx,1)+1,,hivn.idx,i])*(1-DT*(ii-1))
 
-  hivp.ii <- sum(pop[p.age15to49.idx,,hivp.idx,i])
-  hivp.ii <- hivp.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i])*(1-DT*(ii-1))
-  hivp.ii <- hivp.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i])*(1-DT*(ii-1))
+  hivp.ii <- sum(pop$data[p.age15to49.idx,,hivp.idx,i])
+  hivp.ii <- hivp.ii - sum(pop$data[p.age15to49.idx[1],,hivp.idx,i])*(1-DT*(ii-1))
+  hivp.ii <- hivp.ii + sum(pop$data[tail(p.age15to49.idx,1)+1,,hivp.idx,i])*(1-DT*(ii-1))
 
   prevcurr <- hivp.ii / (hivn.ii + hivp.ii)
 

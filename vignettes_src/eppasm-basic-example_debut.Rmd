@@ -65,6 +65,7 @@ theta_ur <- c(-0.63758, -2.76655, -1.26204, 1996.65945, 0.00778, 0.05195,
               -0.03548, 3.65223, -0.02515, -4.74563, 0.26259, -6.90124, 0.01583)
 
 fp <- attr(bw$Urban, "specfp")
+# Constructing `fp$rt`
 fp <- prepare_rhybrid(fp, rw_start = 2005, rw_dk = 1)
 
 ## Set some flags that are set in fitmod(), (later improve this code...)
@@ -74,6 +75,7 @@ fp$logitiota <- TRUE
 fp$rw_start <- 2005
 fp$incidmod <- "eppspectrum"
 
+# create rvec, iota, update frr,...
 param <- fnCreateParam(theta_ur, fp)
 fp_par <- update(fp, list = param)
 ```
@@ -274,6 +276,9 @@ legend("topleft", col=1:5, lwd=2,
 put(1,1, c(5,4,1,1))
 plot_prev(mod_sm, main="with debut")
 ```
+
+Prevalence among sexually active population vs. total population and % sexually
+active by age
 
 ```{r echo=FALSE, fig.cap = "Figure: Prevalence by ages (Zimbabwe smooth)"}
 plot_prev(mod_sm, debut=TRUE, years=c(1990, 2000, 2010, 2018), main="with debut")

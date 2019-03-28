@@ -60,10 +60,12 @@ set = function(FUN="+", x, AG=TRUE, NG=TRUE, DS=TRUE, YEAR=TRUE) {
 }, 
 
 put = function(x, AG=TRUE, NG=TRUE, DS=TRUE, YEAR=TRUE) {
+    'This can be done directly with `<-` using pop_object$data'
     data[AG, NG, DS, YEAR] <<- x
 }, 
 
 get = function(AG=TRUE, NG=TRUE, DS=TRUE, YEAR=TRUE) {
+    'This can be done directly with `[` using pop_object$data'
     data[AG, NG, DS, YEAR]
 }, 
 

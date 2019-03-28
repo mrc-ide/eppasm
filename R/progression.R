@@ -74,10 +74,9 @@ epp_adjust_pop <- function(MODEL, fp, i, pop, hivpop, hiv_db, artpop, art_db) {
 
 # calculate, distribute eligible for ART, update grad, gradART
 # -----------------------------------------------------------------------------
-epp_art_init <- function(MODEL, birth_agrp, pop, hivpop, artpop,
+epp_art_init <- function(MODEL, pop, hivpop, artpop,
                      hiv_db, art_db, grad, grad_db, gradART, gradART_db, 
                      fp, i, ii) {
-  
   list2env(fp$ss, environment())
 
   # progression and mortality
@@ -103,7 +102,7 @@ epp_art_init <- function(MODEL, birth_agrp, pop, hivpop, artpop,
     sus_pop <- pop$data
     if (MODEL==2)
       sus_pop[db_aid,,,] <- sus_pop[db_aid,,,] - pop$pop_db
-    art_elig <- updatePreg(art_elig, birth_agrp, fp, i, sus_pop, hivpop, artpop)
+    art_elig <- updatePreg(art_elig, pop$birth_agrp, fp, i, sus_pop, hivpop, artpop)
   }
 
   # add sexual inactive but eligible for treatment
@@ -268,7 +267,7 @@ epp_disease_model <- function(MODEL, year, fp, pop, hivpop, artpop,
     pop$hivdeaths[,,year]  <- pop$hivdeaths[,,year] + hivdeaths_ts
     # ART initiation
     if (year >= fp$tARTstart)
-      epp_art_init(MODEL, pop$birth_agrp, pop, hivpop, artpop,
+      epp_art_init(MODEL, pop, hivpop, artpop,
                    hiv_db, art_db, grad, grad_db, gradART, gradART_db, 
                    fp, year, time_step)
     

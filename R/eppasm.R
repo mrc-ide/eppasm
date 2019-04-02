@@ -288,23 +288,27 @@ simmod.specfp <- function(fp, VERSION="C"){
         cd4_mort_ts <- fp$cd4_mort * cd4mx_scale
       } else
         cd4_mort_ts <- fp$cd4_mort
-    
       ## Remove hivdeaths from pop
       hivdeaths.ts <- DT*(colSums(cd4_mort_ts * hivpop[,,,i]) + colSums(fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i],,2))
+      calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
+      hivdeaths_est.ts <- apply(hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
+      ##TODO: make sure ts indexing correctly
       if(exists('deaths_dt', where = fp)){
-        delta_ts <- fp$deaths_dt[,ts] / colSums(hivdeaths.ts)
+        delta_ts <- fp$deaths_dt[,,ts] / hivdeaths_est.ts
         delta_ts[!is.finite(delta_ts)] <- 1
+        deaths_dt_hivag <- apply(fp$deaths_dt[,,ts], 2, ctapply, ag.idx, sum)
+        delta_ts_hivag <- deaths_dt_hivag / hivdeaths.ts
+        delta_ts_hivag[!is.finite(delta_ts_hivag)] <- 1
       }else{
         delta_ts <- 1
+        delta_ts_sex <- 1
       }
       
-      grad <- grad - sweep(cd4_mort_ts * hivpop[,,,i], 3, delta_ts, "*")            # HIV mortality, untreated
+      grad <- grad - sweep(cd4_mort_ts * hivpop[,,,i] ,2:3, delta_ts_hivag, '*')            # HIV mortality, untreated
 
-      calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
-      hivdeaths_p.ts <- apply(hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
-      hivdeaths_p.ts <- sweep(hivdeaths_p.ts, 2, delta_ts, "*")
+      hivdeaths_p.ts <- hivdeaths_est.ts * delta_ts
       pop[,,2,i] <- pop[,,2,i] - hivdeaths_p.ts
-      # pop[,,2,i][pop[,,2,i] < 0] <- 0.01
+      pop[,,2,i][pop[,,2,i] < 0] <- 0
       hivdeaths[,,i] <- hivdeaths[,,i] + hivdeaths_p.ts
 
       ## ART initiation
@@ -316,7 +320,7 @@ simmod.specfp <- function(fp, VERSION="C"){
         gradART[1:2,,,] <- gradART[1:2,,,] - 2.0 * artpop[1:2,,,, i]      # remove ART duration progression (HARD CODED 6 months duration)
         gradART[2:3,,,] <- gradART[2:3,,,] + 2.0 * artpop[1:2,,,, i]      # add ART duration progression (HARD CODED 6 months duration)
 
-        gradART <- gradART - sweep(fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i], 4, delta_ts, "*")   # ART mortality
+        gradART <- gradART - sweep(fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i], 3:4, delta_ts_hivag, "*")   # ART mortality
 
         ## ART dropout
         ## remove proportion from all adult ART groups back to untreated pop

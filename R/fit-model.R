@@ -349,7 +349,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
   fp <- prepare_irr_model(fp)
 
-  ## Fit using optimization
+   ## Fit using optimization
   if(optfit){
     optfn <- function(theta, fp, likdat) lprior(theta, fp) + sum(ll(theta, fp, likdat))
     if(is.null(opt_init)){

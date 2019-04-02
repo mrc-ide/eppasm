@@ -582,6 +582,14 @@ prepare_likdat <- function(eppd, fp){
 
 
 lprior <- function(theta, fp){
+  
+  if((exists('group', where = fp) & fp$group == '2')){
+    if(fp$mortadjust == 'simple'){
+      lpr <- dnorm(log(theta[1]), log(0.5), 1, log = TRUE)
+      lpr <- lpr + dnorm(log(theta[2]), log(1), 1, log = TRUE)
+      epp_nparam <- 0
+    }
+  }
 
   if(exists("prior_args", where = fp)){
     for(i in seq_along(fp$prior_args))
@@ -654,6 +662,7 @@ lprior <- function(theta, fp){
     }
   }
   
+  
   return(lpr)
 }
 
@@ -666,8 +675,17 @@ ll_deaths <- function(fp, mod, likdat){
 
 ll <- function(theta, fp, likdat){
   theta.last <<- theta
-  fp <- update(fp, list=fnCreateParam(theta, fp))
-
+  ## TF - running group 2 countries with directincid right now
+  if(!(exists('group', where = fp) & fp$group == '2')){
+    fp <- update(fp, list=fnCreateParam(theta, fp))
+  }else{
+    fp$mortscalar <- theta
+    if(fp$mortadjust == 'simple'){
+      fp$art_mort <- fp$art_mort * theta[2]
+    }
+    
+    }
+  
   if(exists("fitincrr", where=fp) && fp$fitincrr==TRUE){
     ll.incpen <- sum(dnorm(diff(fp$logincrr_age, differences=2), sd=fp$sigma_agepen, log=TRUE))
   } else
@@ -677,14 +695,14 @@ ll <- function(theta, fp, likdat){
     if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) 
       return(-Inf)
   ##TF
-   if(!exists('deaths_dt', where = fp)){
+   if(!(exists('group', where = fp) & fp$group == '2')){
      mod <- simmod(fp)
    }else{
     mod <- simmod(fp, VERSION = 'R')
   }
   
   ## VR likelihood
-  if(exists('deaths_dt', where = fp)){
+  if(exists('vr', where = likdat)){
     ll.deaths <- ll_deaths(fp, mod, likdat)
   } else{ll.deaths <- 0}
 
@@ -762,7 +780,20 @@ ll <- function(theta, fp, likdat){
 ##########################
 ####  IMIS functions  ####
 ##########################
-
+sample.prior.group2 <- function(n, fp){
+  ## applying a single scalar to on-ART and off-ART mort
+  if(fp$mortadjust == 'simple'){
+    nparam <- 2
+    
+    ## Create matrix for storing samples
+    mat <- matrix(NA, n, nparam)
+    mat[,1] <- exp(rnorm(n, log(0.5), 1))
+    mat[,2] <- exp(rnorm(n, log(1), 1))
+  }
+  
+  return(mat)
+  
+}
 sample.prior <- function(n, fp){
 
   if(exists("prior_args", where = fp)){
@@ -877,6 +908,14 @@ ldsamp <- function(theta, fp){
   if(exists("prior_args", where = fp)){
     for(i in seq_along(fp$prior_args))
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
+  }
+  ## Keeping the same density for initial IMIS sample 
+  if((exists('group', where = fp) & fp$group == '2')){
+    if(fp$mortadjust == 'simple'){
+      lpr <- dnorm(log(theta[1]), log(0.5), 1, log = TRUE)
+      lpr <- lpr + dnorm(log(theta[2]), log(1), 1, log = TRUE)
+      epp_nparam <- 0
+    }
   }
 
   if(fp$eppmod %in% c("rspline", "logrw")){

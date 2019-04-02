@@ -22,10 +22,15 @@ imis <- function(B0, B, B_re, number_k, opt_k=NULL, fp, likdat,
                  prior=eppasm::prior,
                  likelihood=eppasm::likelihood,
                  sample_prior=eppasm::sample.prior,
+                 sample_prior_group2=eppasm::sample.prior.group2,
                  dsamp = eppasm::dsamp, save_all=FALSE){
 
   ## Draw initial samples from prior distribution
-  X_k <- sample_prior(B0, fp)  # Draw initial samples from the prior distribution
+  if((exists('group', where = fp) & fp$group == '2')){
+    X_k <- sample_prior_group2(B0, fp) # Draw initial samples of mort param adjustment from the prior distribution
+    }else{
+     X_k <- sample_prior(B0, fp)  # Draw initial samples from the prior distribution
+    }
   cov_prior = cov(X_k)        # estimate of the prior covariance
 
   ## Locations and covariance of mixture components

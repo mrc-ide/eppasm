@@ -97,8 +97,6 @@ vinfl.prior.rate <- 1/0.015
 
 ancrtsite.beta.pr.mean <- 0
 ancrtsite.beta.pr.sd <- 1.0
-## ancrtsite.beta.pr.sd <- 0.05
-## ancrtsite.vinfl.pr.rate <- 1/0.015
 
 
 #' Prepare design matrix indices for ANC prevalence predictions
@@ -139,25 +137,39 @@ ancsite_pred_df <- function(ancsite_df, fp) {
 #'
 #' @param ancsitedat data.frame of site-level ANC data
 #' @param fp fixed parameter input list, including state space
+#' @param offset column name for probit ANC prevalence offset 
 
-prepare_ancsite_likdat <- function(ancsitedat, fp){
+prepare_ancsite_likdat <- function(ancsitedat, fp, offset = "offset"){
 
   d <- ancsite_pred_df(ancsitedat, fp)
 
-  df <- d$df[c("site", "year", "used", "type", "age", "agspan",
-               "n", "prev", "aidx", "yidx", "qMidx")]
+  df <- d$df
   
   ## Calculate probit transformed prevalence and variance approximation
   df$pstar <- (df$prev * df$n + 0.5) / (df$n + 1)
   df$W <- qnorm(df$pstar)
   df$v <- 2 * pi * exp(df$W^2) * df$pstar * (1 - df$pstar) / df$n
 
+  ## offset
+  if(length(offset) > 1 ||
+     !is.character(offset) ||
+     offset != "offset" && is.null(df[[offset]]))
+    stop("ANC offset column not found")
+  else if(is.null(df[[offset]]))
+    df$offset <- 0
+  else 
+    df$offset <- df[[offset]]
+  
   ## Design matrix for fixed effects portion
   df$type <- factor(df$type, c("ancss", "ancrt"))
   Xancsite <- model.matrix(~type, df)
 
   ## Indices for observation
   df_idx.lst <- split(seq_len(nrow(df)), factor(df$site))
+
+  df <- df[c("site", "year", "used", "type", "age", "agspan",
+             "n", "prev", "aidx", "yidx", "qMidx",
+             "pstar", "W", "v", "offset", "type")]
 
   list(df = df,
        datgrp = d$datgrp,
@@ -177,7 +189,7 @@ ll_ancsite <- function(mod, fp, coef=c(0, 0), vinfl=0, dat){
   if(any(is.na(qM)) || any(qM == -Inf) || any(qM > 2))  ## prev < 0.977
     return(-Inf)
   
-  mu <- qM[df$qMidx] + dat$Xancsite %*% coef
+  mu <- qM[df$qMidx] + dat$Xancsite %*% coef + df$offset
   d <- df$W - mu
   v <- df$v + vinfl
   
@@ -196,9 +208,7 @@ ll_ancsite <- function(mod, fp, coef=c(0, 0), vinfl=0, dat){
 
 ## prior parameters for ANCRT census
 log_frr_adjust.pr.mean <- 0
-## ancrtcens.bias.pr.sd <- 1.0
 log_frr_adjust.pr.sd <- 1.0
-## log_frr_adjust.pr.sd <- 0.2
 ancrtcens.vinfl.pr.rate <- 1/0.015
 
 prepare_ancrtcens_likdat <- function(dat, fp){

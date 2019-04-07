@@ -9,7 +9,7 @@ sample_b_site <- function(mod, fp, dat, resid=TRUE){
   df <- dat$df
   qM <- suppressWarnings(qnorm(agepregprev(mod, fp, dat$datgrp$aidx, dat$datgrp$yidx, dat$datgrp$agspan)))
 
-  mu <- qM[df$qMidx] + dat$Xancsite %*% coef
+  mu <- qM[df$qMidx] + dat$Xancsite %*% coef + df$offset
   d <- df$W - mu
   v <- df$v + vinfl
   
@@ -41,7 +41,7 @@ sample_ancsite_pred <- function(mod, fp, newdata, b_site){
   df$type <- factor(df$type, c("ancss", "ancrt"))
   Xancsite <- model.matrix(~type, df)
 
-  mu <- qM[df$qMidx] + Xancsite %*% coef + b_site[match(df$site, names(b_site))]
+  mu <- qM[df$qMidx] + Xancsite %*% coef + df$offset + b_site[match(df$site, names(b_site))]
   v <- 2 * pi * exp(mu^2) * pnorm(mu) * (1 - pnorm(mu))/df$n + fp$v.infl
   rnorm(nrow(df), mu, sqrt(v))
 }  
@@ -60,7 +60,7 @@ ll_ancsite_conditional <- function(mod, fp, newdata, b_site){
   df$type <- factor(df$type, c("ancss", "ancrt"))
   Xancsite <- model.matrix(~type, df)
 
-  mu <- qM[df$qMidx] + Xancsite %*% coef + b_site[match(df$site, names(b_site))]
+  mu <- qM[df$qMidx] + Xancsite %*% coef + df$offset + b_site[match(df$site, names(b_site))]
   v <- 2 * pi * exp(mu^2) * pnorm(mu) * (1 - pnorm(mu))/df$n + fp$v.infl
   dnorm(df$W, mu, sqrt(v), log=TRUE)
 }  

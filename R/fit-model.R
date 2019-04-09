@@ -121,7 +121,7 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
                else subpop  # bloody French...
     demp.subpop[[subpop]] <- demp
     if (popadjust) {
-      demp.subpop[[subpop]]$basepop <- subp[[grep(paste0("^", country_code, "_"), names(subp))]][[strsubp]][,,dimnames(demp$basepop)[[3]]]
+      demp.subpop[[subpop]]$basepop <- subp[[grep(paste0("\\_", country_code, "$"), names(subp))]][[strsubp]][,,dimnames(demp$basepop)[[3]]]
       demp.subpop[[subpop]]$netmigr[] <- 0
 
       ## Record GFR for each subpop

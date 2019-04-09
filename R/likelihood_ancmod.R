@@ -15,9 +15,9 @@ prepare_anc_model <- function(fp, eppd,
 
   ancmod <- list()
 
-  ancmod$has_ancss <- exists("ancsitedat", eppd) && any(eppd$ancsitedat$type == "ancss")
-  ancmod$has_ancrtsite <- exists("ancsitedat", eppd) && any(eppd$ancsitedat$type == "ancrt")
-  ancmod$has_ancrtcens <- exists("ancrtcens", eppd) && nrow(eppd$ancrtcens)
+  ancmod$has_ancss <- !is.null(eppd$ancsitedat) && any(eppd$ancsitedat$type == "ancss")
+  ancmod$has_ancrtsite <- !is.null(eppd$ancsitedat) && any(eppd$ancsitedat$type == "ancrt")
+  ancmod$has_ancrtcens <- !is.null(eppd$ancrtcens) && nrow(eppd$ancrtcens)
 
   ancmod$fit_ancbias <- ancmod$has_ancss || ancmod$has_ancrt
   ancmod$fit_logfrr <- ancmod$has_ancrtcens
@@ -238,8 +238,11 @@ ll_ancsite <- function(mod, fp, coef=c(0, 0), vinfl=0, dat){
 
   if(!nrow(df))
     return(0)
-    
-  qM <- suppressWarnings(qnorm(agepregprev(mod, fp, dat$datgrp$aidx, dat$datgrp$yidx, dat$datgrp$agspan)))
+
+  if(exists("pregprev", fp) && !fp$pregprev)
+    qM <- suppressWarnings(qnorm(ageprev(mod, dat$datgrp$aidx, rep(0L, nrow(dat$datgrp)), dat$datgrp$yidx, dat$datgrp$agspan)))
+  else
+    qM <- suppressWarnings(qnorm(agepregprev(mod, fp, dat$datgrp$aidx, dat$datgrp$yidx, dat$datgrp$agspan)))
 
   if(any(is.na(qM)) || any(qM == -Inf) || any(qM > 2))  ## prev < 0.977
     return(-Inf)
@@ -263,7 +266,11 @@ sample_b_site <- function(mod, fp, dat, resid=TRUE){
   vinfl <- fp$v.infl
 
   df <- dat$df
-  qM <- suppressWarnings(qnorm(agepregprev(mod, fp, dat$datgrp$aidx, dat$datgrp$yidx, dat$datgrp$agspan)))
+
+  if(exists("pregprev", fp) && !fp$pregprev)
+    qM <- suppressWarnings(qnorm(ageprev(mod, newdata$aidx, rep(0L, nrow(newdata)), newdata$yidx, newdata$agspan)))
+  else
+    qM <- suppressWarnings(qnorm(agepregprev(mod, fp, newdata$datgrp$aidx, newdata$datgrp$yidx, newdata$datgrp$agspan)))
 
   mu <- qM[df$qMidx] + dat$Xancsite %*% coef + df$offset
   d <- df$W - mu
@@ -291,7 +298,11 @@ sample_ancsite_pred <- function(mod, fp, newdata, b_site){
   coef <- c(fp$ancbias, fp$ancrtsite.beta)
   
   df <- newdata$df
-  qM <- suppressWarnings(qnorm(agepregprev(mod, fp, newdata$datgrp$aidx, newdata$datgrp$yidx, newdata$datgrp$agspan)))
+
+  if(exists("pregprev", fp) && !fp$pregprev)
+    qM <- suppressWarnings(qnorm(ageprev(mod, newdata$aidx, rep(0L, nrow(newdata)), newdata$yidx, newdata$agspan)))
+  else
+    qM <- suppressWarnings(qnorm(agepregprev(mod, fp, newdata$datgrp$aidx, newdata$datgrp$yidx, newdata$datgrp$agspan)))
 
   ## Design matrix for fixed effects portion
   df$type <- factor(df$type, c("ancss", "ancrt"))
@@ -310,7 +321,11 @@ ll_ancsite_conditional <- function(mod, fp, newdata, b_site){
   coef <- c(fp$ancbias, fp$ancrtsite.beta)
   
   df <- newdata$df
-  qM <- suppressWarnings(qnorm(agepregprev(mod, fp, newdata$datgrp$aidx, newdata$datgrp$yidx, newdata$datgrp$agspan)))
+
+  if(exists("pregprev", fp) && !fp$pregprev)
+    qM <- suppressWarnings(qnorm(ageprev(mod, newdata$aidx, rep(0L, nrow(newdata)), newdata$yidx, newdata$agspan)))
+  else
+    qM <- suppressWarnings(qnorm(agepregprev(mod, fp, newdata$datgrp$aidx, newdata$datgrp$yidx, newdata$datgrp$agspan)))
 
   ## Design matrix for fixed effects portion
   df$type <- factor(df$type, c("ancss", "ancrt"))
@@ -357,12 +372,15 @@ ll_ancrtcens <- function(mod, dat, fp, pointwise = FALSE){
   if(!nrow(dat))
     return(0)
 
-  qM.prev <- suppressWarnings(qnorm(agepregprev(mod, fp, dat$aidx, dat$yidx, dat$agspan)))
+  if(exists("pregprev", fp) && !fp$pregprev)
+    qM <- suppressWarnings(qnorm(ageprev(mod, dat$aidx, rep(0L, nrow(dat)), dat$yidx, dat$agspan)))
+  else
+    qM <- suppressWarnings(qnorm(agepregprev(mod, fp, dat$aidx, dat$yidx, dat$agspan)))
 
-  if(any(is.na(qM.prev)))
+  if(any(is.na(qM)))
     val <- rep(-Inf, nrow(dat))
   else
-    val <- dnorm(dat$W.ancrt, qM.prev, sqrt(dat$v.ancrt + fp$ancrtcens.vinfl), log=TRUE)
+    val <- dnorm(dat$W.ancrt, qM, sqrt(dat$v.ancrt + fp$ancrtcens.vinfl), log=TRUE)
 
   if(pointwise)
     return(val)

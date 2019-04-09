@@ -128,3 +128,4 @@
 ## eppasm 0.5.7
 
 - ART dropout as part of gradient calculation at end of 
+- Refactor ANC data model code and add option to input offset in regression equation.

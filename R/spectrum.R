@@ -311,6 +311,8 @@ update.specfp <- function (fp, ..., keep.attr = TRUE, list = vector("list")){
   return(fp)
 }
 
+update_par <- update.specfp
+
 
 #########################
 ####  Model outputs  ####

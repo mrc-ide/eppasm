@@ -5,10 +5,9 @@ bw <- prepare_spec_fit(pjnz, proj.end=2022.5)
 
 bw_fp <- attr(bw$Urban, "specfp")
 
+bw_fp <- prepare_anc_model(bw_fp, attr(bw$Urban, "eppd"))
+
 bw_fp <- prepare_rhybrid(bw_fp)
-bw_fp$ancsitedata <- TRUE
-bw_fp$ancrt <- "census"
-bw_fp$ancrtsite.beta <- 0
 bw_fp$logitiota <- TRUE
 
 bw_theta <- c(-0.407503322169364, -2.76794181367538, -1.26018073624346, 1995.96447776502,
@@ -38,10 +37,8 @@ mpm <- prepare_spec_fit(pjnz, proj.end=2021.5)
 
 mp_fp <- attr(mpm[[1]], "specfp")
 
+mp_fp <- prepare_anc_model(mp_fp, attr(mpm[[1]], "eppd"))
 mp_fp <- prepare_rhybrid(mp_fp)
-mp_fp$ancsitedata <- TRUE
-mp_fp$ancrt <- "census"
-mp_fp$ancrtsite.beta <- 0
 mp_fp$logitiota <- TRUE
 
 theta <- c(-0.407503322169364, -2.76794181367538, -1.26018073624346, 1995.96447776502,

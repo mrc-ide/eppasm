@@ -213,7 +213,6 @@ ll_ancrtcens <- function(mod, dat, fp, pointwise = FALSE){
 }
 
 
-
 ###################################
 ####  Age/sex incidence model  ####
 ###################################
@@ -272,34 +271,12 @@ fnCreateParam <- function(theta, fp){
     param$rvec <- create_rvec(theta[1:fp$rt$n_param], fp$rt)
     param$iota <- transf_iota(theta[fp$rt$n_param+1], fp)
   }
-  
-  if(fp$ancsitedata){
-    param$ancbias <- theta[epp_nparam+1]
-    if(!exists("v.infl", where=fp)){
-      anclik_nparam <- 2
-      param$v.infl <- exp(theta[epp_nparam+2])
-    } else
-      anclik_nparam <- 1
-  }
-  else
-    anclik_nparam <- 0
-  
-  
-  paramcurr <- epp_nparam+anclik_nparam
-  if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
-    param$log_frr_adjust <- theta[paramcurr+1]
+
+  if(exists("ancmod", fp) && fp$ancmod$nparam > 0) {
+    theta_anc <- theta[epp_nparam+1:fp$ancmod$nparam]
+    param <- update_par(param, list = create_ancmod_param(theta_anc, fp$ancmod))
     param$frr_cd4 <- fp$frr_cd4 * exp(param$log_frr_adjust)
     param$frr_art <- fp$frr_art * exp(param$log_frr_adjust)
-    
-    if(!exists("ancrtcens.vinfl", fp)){
-      param$ancrtcens.vinfl <- exp(theta[paramcurr+2])
-      paramcurr <- paramcurr+2
-    } else
-      paramcurr <- paramcurr+1
-  }
-  if(exists("ancrt", fp) && fp$ancrt %in% c("site", "both")){
-    param$ancrtsite.beta <- theta[paramcurr+1]
-    paramcurr <- paramcurr+1
   }
   
   return(param)
@@ -425,14 +402,14 @@ prepare_likdat <- function(eppd, fp){
 
     ancsitedat <- eppd$ancsitedat
     
-    if(exists("ancrt", fp) && fp$ancrt %in% c("none", "census"))
+    if(exists("ancmod", fp) && !fp$ancmod$has_ancrtsite)
       ancsitedat <- subset(ancsitedat, type == "ancss")
     
     likdat$ancsite.dat <- prepare_ancsite_likdat(ancsitedat, fp)
   }
  
   if(exists("ancrtcens", where=eppd)){
-    if(exists("ancrt", fp) && fp$ancrt %in% c("none", "site"))
+    if(exists("ancmod", fp) && !fp$ancmod$has_ancrtcens)
       eppd$ancrtcens <- NULL
     else
       likdat$ancrtcens.dat <- prepare_ancrtcens_likdat(eppd$ancrtcens, fp)
@@ -488,28 +465,9 @@ lprior <- function(theta, fp){
     lpr <- lpr + lprior_iota(theta[fp$rt$n_param+1], fp)
   }
 
-  if(fp$ancsitedata){
-    lpr <- lpr + dnorm(theta[epp_nparam+1], ancbias.pr.mean, ancbias.pr.sd, log=TRUE)
-    if(!exists("v.infl", where=fp)){
-      anclik_nparam <- 2
-      lpr <- lpr + dexp(exp(theta[epp_nparam+2]), vinfl.prior.rate, TRUE) + theta[epp_nparam+2]         # additional ANC variance
-    } else
-      anclik_nparam <- 1
-  } else
-    anclik_nparam <- 0
-
-  paramcurr <- epp_nparam+anclik_nparam
-  if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
-    lpr <- lpr + dnorm(theta[paramcurr+1], log_frr_adjust.pr.mean, log_frr_adjust.pr.sd, log=TRUE)
-    if(!exists("ancrtcens.vinfl", fp)){
-      lpr <- lpr + dexp(exp(theta[paramcurr+2]), ancrtcens.vinfl.pr.rate, TRUE) + theta[paramcurr+2]
-      paramcurr <- paramcurr+2
-    } else
-      paramcurr <- paramcurr+1
-  }
-  if(exists("ancrt", fp) && fp$ancrt %in% c("site", "both")){
-    lpr <- lpr + dnorm(theta[paramcurr+1], ancrtsite.beta.pr.mean, ancrtsite.beta.pr.sd, log=TRUE)
-    paramcurr <- paramcurr+1
+  if(exists("ancmod", fp) && fp$ancmod$nparam > 0) {
+    theta_anc <- theta[epp_nparam+1:fp$ancmod$nparam]
+    lpr <- lpr + lprior_ancmod(theta_anc, fp$ancmod, fp$prior_args)
   }
 
   return(lpr)
@@ -607,27 +565,7 @@ sample.prior <- function(n, fp){
   else if(fp$eppmod == "rhybrid")
     epp_nparam <- fp$rt$n_param+1
 
-  if(fp$ancsitedata)
-    if(!exists("v.infl", fp))
-      anclik_nparam <- 2
-    else
-      anclik_nparam <- 1
-  else
-    anclik_nparam <- 0
-
-  if(exists("ancrt", fp) && fp$ancrt == "both")
-    ancrt_nparam <- 2
-  else if(exists("ancrt", fp) && fp$ancrt == "census")
-    ancrt_nparam <- 1
-  else if(exists("ancrt", fp) && fp$ancrt == "site")
-    ancrt_nparam <- 1
-  else
-    ancrt_nparam <- 0
-
-  if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both") && !exists("ancrtcens.vinfl", fp))
-    ancrt_nparam <- ancrt_nparam+1
-
-  nparam <- epp_nparam+anclik_nparam+ancrt_nparam
+  nparam <- epp_nparam + fp$ancmod$nparam 
   
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
@@ -664,28 +602,10 @@ sample.prior <- function(n, fp){
     mat[,fp$rt$n_param+1] <- sample_iota(n, fp)
   }
 
-  ## sample ANC bias paramters
-  if(fp$ancsitedata){
-    mat[,epp_nparam+1] <- rnorm(n, ancbias.pr.mean, ancbias.pr.sd)   # ancbias parameter
-    if(!exists("v.infl", where=fp))
-      mat[,epp_nparam+2] <- log(rexp(n, vinfl.prior.rate))
-  }
-
-  ## sample ANCRT parameters
-  paramcurr <- epp_nparam+anclik_nparam
-  if(exists("ancrt", where=fp) && fp$ancrt %in% c("census", "both")){
-    mat[,paramcurr+1] <- rnorm(n, log_frr_adjust.pr.mean, log_frr_adjust.pr.sd)
-    if(!exists("ancrtcens.vinfl", fp)){
-      mat[,paramcurr+2] <- log(rexp(n, ancrtcens.vinfl.pr.rate))
-      paramcurr <- paramcurr+2
-    } else
-      paramcurr <- paramcurr+1
-  }
-  if(exists("ancrt", where=fp) && fp$ancrt %in% c("site", "both")){
-    mat[,paramcurr+1] <- rnorm(n, ancrtsite.beta.pr.mean, ancrtsite.beta.pr.sd)
-    paramcurr <- paramcurr+1
-  }
-
+  ## sample ANC model parameters
+  if(exists("ancmod", fp) && fp$ancmod$nparam > 0)
+    mat[ , epp_nparam + 1:fp$ancmod$nparam] <- sample_prior_ancmod(n, fp$ancmod, fp$prior_args)
+  
   return(mat)
 }
 
@@ -736,28 +656,9 @@ ldsamp <- function(theta, fp){
     lpr <- lpr + ldsamp_iota(theta[fp$rt$n_param+1], fp)
   }
 
-  if(fp$ancsitedata){
-    lpr <- lpr + dnorm(theta[epp_nparam+1], ancbias.pr.mean, ancbias.pr.sd, log=TRUE)
-    if(!exists("v.infl", where=fp)){
-      anclik_nparam <- 2
-      lpr <- lpr + dexp(exp(theta[epp_nparam+2]), vinfl.prior.rate, TRUE) + theta[epp_nparam+2]         # additional ANC variance
-    } else
-      anclik_nparam <- 1
-  } else
-    anclik_nparam <- 0
-
-  paramcurr <- epp_nparam+anclik_nparam
-  if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
-    lpr <- lpr + dnorm(theta[paramcurr+1], log_frr_adjust.pr.mean, log_frr_adjust.pr.sd, log=TRUE)
-    if(!exists("ancrtcens.vinfl", fp)){
-      lpr <- lpr + dexp(exp(theta[paramcurr+2]), ancrtcens.vinfl.pr.rate, TRUE) + theta[paramcurr+2]
-      paramcurr <- paramcurr+2
-    } else
-      paramcurr <- paramcurr+1
-  }
-  if(exists("ancrt", fp) && fp$ancrt %in% c("site", "both")){
-    lpr <- lpr + dnorm(theta[paramcurr+1], ancrtsite.beta.pr.mean, ancrtsite.beta.pr.sd, log=TRUE) ## +
-    paramcurr <- paramcurr+1
+  if(exists("ancmod", fp) && fp$ancmod$nparam > 0) {
+    theta_anc <- theta[epp_nparam+1:fp$ancmod$nparam]
+    lpr <- lpr + lprior_ancmod(theta_anc, fp$ancmod, fp$prior_args)
   }
 
   return(lpr)

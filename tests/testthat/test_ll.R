@@ -5,9 +5,7 @@ inputs <- prepare_spec_fit(pjnz, 2022.5)
 fp <- attr(inputs$Urban, "specfp")
 likdat <- prepare_likdat(attr(inputs$Urban, "eppd"), fp)
 
-fp$ancsitedata <- TRUE
-fp$ancrt <- "census"
-fp$ancrtsite.beta <- 0
+fp <- prepare_anc_model(fp, attr(inputs$Urban, "eppd"))
 fp$logitiota <- TRUE
 
 

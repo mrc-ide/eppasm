@@ -287,24 +287,8 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
   ## Prepare likelihood data
   eppd <- attr(obj, "eppd")
-
-  has_ancrtsite <- exists("ancsitedat", eppd) && any(eppd$ancsitedat$type == "ancrt")
-  has_ancrtcens <- !is.null(eppd$ancrtcens) && nrow(eppd$ancrtcens)
-  
-  if(!has_ancrtsite)
-    fp$ancrtsite.beta <- 0
-
-  if(has_ancrtsite & has_ancrtcens)
-    fp$ancrt <- "both"
-  else if(has_ancrtsite & !has_ancrtcens)
-    fp$ancrt <- "site"
-  else if(!has_ancrtsite & has_ancrtcens)
-    fp$ancrt <- "census"
-  else
-    fp$ancrt <- "none"
-
+  fp <- prepare_anc_model(fp, eppd)
   likdat <- prepare_likdat(eppd, fp)
-  fp$ancsitedata <- as.logical(nrow(likdat$ancsite.dat$df))
 
   if(fp$eppmod %in% c("logrw", "rhybrid")) { # THIS IS REALLY MESSY, NEED TO REFACTOR CODE
     

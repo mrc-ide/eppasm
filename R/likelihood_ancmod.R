@@ -139,6 +139,122 @@ sample_prior_ancmod <- function(n, ancmod, prior_args) {
   mat
 }
 
+
+###########################################
+####                                   ####
+####  Site level ANC data (SS and RT)  ####
+####                                   ####
+###########################################
+
+ancbias.pr.mean <- 0.15
+ancbias.pr.sd <- 1.0
+vinfl.prior.rate <- 1/0.015
+
+ancrtsite.beta.pr.mean <- 0
+ancrtsite.beta.pr.sd <- 1.0
+
+
+#' Prepare design matrix indices for ANC prevalence predictions
+#'
+#' @param ancsite_df data.frame of site-level ANC design for predictions
+#' @param fp fixed parameter input list
+#'
+#' @examples
+#' pjnz <- system.file("extdata/testpjnz", "Botswana2017.PJNZ", package="eppasm")
+#' bw <- prepare_spec_fit(pjnz, proj.end=2021.5)
+#'
+#' 
+#' bw_u_ancsite <- attr(bw$Urban, "eppd")$ancsitedat
+#' fp <- attr(bw$Urban, "specfp")
+#'
+#' ancsite_pred_df(bw_u_ancsite, fp)
+#' 
+ancsite_pred_df <- function(ancsite_df, fp) {
+
+  df <- ancsite_df
+  anchor.year <- fp$ss$proj_start
+  
+  df$aidx <- df$age - fp$ss$AGE_START + 1L
+  df$yidx <- df$year - anchor.year + 1
+  
+  ## List of all unique agegroup / year combinations for which prevalence is needed
+  datgrp <- unique(df[c("aidx", "yidx", "agspan")])
+  datgrp$qMidx <- seq_len(nrow(datgrp))
+
+  ## Indices for accessing prevalence offset from datgrp
+  df <- merge(df, datgrp)
+  
+  list(df = df, datgrp = datgrp)
+}
+
+
+#' Prepare site-level ANC prevalence data for EPP random-effects likelihood
+#'
+#' @param ancsitedat data.frame of site-level ANC data
+#' @param fp fixed parameter input list, including state space
+#' @param offset column name for probit ANC prevalence offset 
+
+prepare_ancsite_likdat <- function(ancsitedat, fp, offset = "offset"){
+
+  d <- ancsite_pred_df(ancsitedat, fp)
+
+  df <- d$df
+  
+  ## Calculate probit transformed prevalence and variance approximation
+  df$pstar <- (df$prev * df$n + 0.5) / (df$n + 1)
+  df$W <- qnorm(df$pstar)
+  df$v <- 2 * pi * exp(df$W^2) * df$pstar * (1 - df$pstar) / df$n
+
+  ## offset
+  if(length(offset) > 1 ||
+     !is.character(offset) ||
+     offset != "offset" && is.null(df[[offset]]))
+    stop("ANC offset column not found")
+  else if(is.null(df[[offset]]))
+    df$offset <- 0
+  else 
+    df$offset <- df[[offset]]
+  
+  ## Design matrix for fixed effects portion
+  df$type <- factor(df$type, c("ancss", "ancrt"))
+  Xancsite <- model.matrix(~type, df)
+
+  ## Indices for observation
+  df_idx.lst <- split(seq_len(nrow(df)), factor(df$site))
+
+  df <- df[c("site", "year", "used", "type", "age", "agspan",
+             "n", "prev", "aidx", "yidx", "qMidx",
+             "pstar", "W", "v", "offset", "type")]
+
+  list(df = df,
+       datgrp = d$datgrp,
+       Xancsite = Xancsite,
+       df_idx.lst = df_idx.lst)
+}
+
+ll_ancsite <- function(mod, fp, coef=c(0, 0), vinfl=0, dat){
+
+  df <- dat$df
+
+  if(!nrow(df))
+    return(0)
+    
+  qM <- suppressWarnings(qnorm(agepregprev(mod, fp, dat$datgrp$aidx, dat$datgrp$yidx, dat$datgrp$agspan)))
+
+  if(any(is.na(qM)) || any(qM == -Inf) || any(qM > 2))  ## prev < 0.977
+    return(-Inf)
+  
+  mu <- qM[df$qMidx] + dat$Xancsite %*% coef + df$offset
+  d <- df$W - mu
+  v <- df$v + vinfl
+  
+  d.lst <- lapply(dat$df_idx.lst, function(idx) d[idx])
+  v.lst <- lapply(dat$df_idx.lst, function(idx) v[idx])
+  
+  log(anclik::anc_resid_lik(d.lst, v.lst))
+}
+
+
 #' Sample from posterior ditribution for ANC site level random effects
 #' 
 sample_b_site <- function(mod, fp, dat, resid=TRUE){
@@ -204,3 +320,52 @@ ll_ancsite_conditional <- function(mod, fp, newdata, b_site){
   v <- 2 * pi * exp(mu^2) * pnorm(mu) * (1 - pnorm(mu))/df$n + fp$v.infl
   dnorm(df$W, mu, sqrt(v), log=TRUE)
 }  
+
+
+#############################################
+####                                     ####
+####  ANCRT census likelihood functions  ####
+####                                     ####
+#############################################
+
+## prior parameters for ANCRT census
+log_frr_adjust.pr.mean <- 0
+log_frr_adjust.pr.sd <- 1.0
+ancrtcens.vinfl.pr.rate <- 1/0.015
+
+prepare_ancrtcens_likdat <- function(dat, fp){
+
+  anchor.year <- fp$ss$proj_start
+  
+  x.ancrt <- (dat$prev*dat$n+0.5)/(dat$n+1)
+  dat$W.ancrt <- qnorm(x.ancrt)
+  dat$v.ancrt <- 2*pi*exp(dat$W.ancrt^2)*x.ancrt*(1-x.ancrt)/dat$n
+
+  if(!exists("age", dat))
+    dat$age <- rep(15, nrow(dat))
+
+  if(!exists("agspan", dat))
+    dat$agspan <- rep(35, nrow(dat))
+
+  dat$aidx <- dat$age - fp$ss$AGE_START + 1
+  dat$yidx <- dat$year - anchor.year + 1
+  
+  return(dat)
+}
+
+ll_ancrtcens <- function(mod, dat, fp, pointwise = FALSE){
+  if(!nrow(dat))
+    return(0)
+
+  qM.prev <- suppressWarnings(qnorm(agepregprev(mod, fp, dat$aidx, dat$yidx, dat$agspan)))
+
+  if(any(is.na(qM.prev)))
+    val <- rep(-Inf, nrow(dat))
+  else
+    val <- dnorm(dat$W.ancrt, qM.prev, sqrt(dat$v.ancrt + fp$ancrtcens.vinfl), log=TRUE)
+
+  if(pointwise)
+    return(val)
+
+  sum(val)
+}

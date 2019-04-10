@@ -266,11 +266,12 @@ sample_b_site <- function(mod, fp, dat, resid=TRUE){
   vinfl <- fp$v.infl
 
   df <- dat$df
+  datgrp <- dat$datgrp
 
   if(exists("pregprev", fp) && !fp$pregprev)
-    qM <- suppressWarnings(qnorm(ageprev(mod, newdata$aidx, rep(0L, nrow(newdata)), newdata$yidx, newdata$agspan)))
+    qM <- suppressWarnings(qnorm(ageprev(mod, datgrp$aidx, rep(0L, nrow(datgrp)), datgrp$yidx, datgrp$agspan)))
   else
-    qM <- suppressWarnings(qnorm(agepregprev(mod, fp, newdata$datgrp$aidx, newdata$datgrp$yidx, newdata$datgrp$agspan)))
+    qM <- suppressWarnings(qnorm(agepregprev(mod, fp, datgrp$aidx, datgrp$yidx, datgrp$agspan)))
 
   mu <- qM[df$qMidx] + dat$Xancsite %*% coef + df$offset
   d <- df$W - mu
@@ -298,11 +299,12 @@ sample_ancsite_pred <- function(mod, fp, newdata, b_site){
   coef <- c(fp$ancbias, fp$ancrtsite.beta)
   
   df <- newdata$df
+  datgrp <- newdata$datgrp
 
   if(exists("pregprev", fp) && !fp$pregprev)
-    qM <- suppressWarnings(qnorm(ageprev(mod, newdata$aidx, rep(0L, nrow(newdata)), newdata$yidx, newdata$agspan)))
+    qM <- suppressWarnings(qnorm(ageprev(mod, datgrp$aidx, rep(0L, nrow(datgrp)), datgrp$yidx, datgrp$agspan)))
   else
-    qM <- suppressWarnings(qnorm(agepregprev(mod, fp, newdata$datgrp$aidx, newdata$datgrp$yidx, newdata$datgrp$agspan)))
+    qM <- suppressWarnings(qnorm(agepregprev(mod, fp, datgrp$aidx, datgrp$yidx, datgrp$agspan)))
 
   ## Design matrix for fixed effects portion
   df$type <- factor(df$type, c("ancss", "ancrt"))
@@ -321,11 +323,12 @@ ll_ancsite_conditional <- function(mod, fp, newdata, b_site){
   coef <- c(fp$ancbias, fp$ancrtsite.beta)
   
   df <- newdata$df
+  datgrp <- newdata$datgrp
 
   if(exists("pregprev", fp) && !fp$pregprev)
-    qM <- suppressWarnings(qnorm(ageprev(mod, newdata$aidx, rep(0L, nrow(newdata)), newdata$yidx, newdata$agspan)))
+    qM <- suppressWarnings(qnorm(ageprev(mod, datgrp$aidx, rep(0L, nrow(datgrp)), datgrp$yidx, datgrp$agspan)))
   else
-    qM <- suppressWarnings(qnorm(agepregprev(mod, fp, newdata$datgrp$aidx, newdata$datgrp$yidx, newdata$datgrp$agspan)))
+    qM <- suppressWarnings(qnorm(agepregprev(mod, fp, datgrp$aidx, datgrp$yidx, datgrp$agspan)))
 
   ## Design matrix for fixed effects portion
   df$type <- factor(df$type, c("ancss", "ancrt"))

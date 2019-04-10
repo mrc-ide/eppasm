@@ -160,6 +160,7 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA, ancsite = TRUE){
 
   ## Site-level ANC outputs
   if(ancsite && nrow(fit$likdat$ancsite.dat$df)) {
+
     b_site <- Map(sample_b_site, mod_list, fp_list,
                   list(fit$likdat$ancsite.dat), resid = FALSE)
 

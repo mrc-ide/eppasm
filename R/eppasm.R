@@ -65,7 +65,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   incid15to49 <- numeric(PROJ_YEARS)
   sexinc15to49out <- array(NA, c(NG, PROJ_YEARS))
   paedsurvout <- rep(NA, PROJ_YEARS)
-
+  hivdeaths_est <- array(0, c(14, NG, PROJ_YEARS ))
   infections <- array(0, c(pAG, NG, PROJ_YEARS))
   hivdeaths <- array(0, c(pAG, NG, PROJ_YEARS))
   natdeaths <- array(0, c(pAG, NG, PROJ_YEARS))
@@ -286,29 +286,38 @@ simmod.specfp <- function(fp, VERSION="C"){
         cd4mx_scale <- hivpop[,,,i] / (hivpop[,,,i] + colSums(artpop[,,,,i]))
         cd4mx_scale[!is.finite(cd4mx_scale)] <- 1.0
         cd4_mort_ts <- fp$cd4_mort * cd4mx_scale
-      } else
+      }else if(fp$mortadjust == 'simple'){
+        art.not.cov <- sum(hivpop[,,,i]) / sum(hivpop[,,,i] + colSums(artpop[,,,,i]))
+        art.not.cov[!is.finite(art.not.cov)] <- 1.0
+        cd4_mort_ts <- fp$cd4_mort_adjust * art.not.cov * fp$cd4_mort
+      } else{
         cd4_mort_ts <- fp$cd4_mort
+      }
       ## Remove hivdeaths from pop
       hivdeaths.ts <- DT*(colSums(cd4_mort_ts * hivpop[,,,i]) + colSums(fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i],,2))
       calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
       hivdeaths_est.ts <- apply(hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
-      ##TODO: make sure ts indexing correctly
+      # if(any(hivdeaths_est.ts < 0)){browser()}
       if(exists('deaths_dt', where = fp)){
-        delta_ts <- fp$deaths_dt[,,ts] / hivdeaths_est.ts
-        delta_ts[!is.finite(delta_ts)] <- 1
-        deaths_dt_hivag <- apply(fp$deaths_dt[,,ts], 2, ctapply, ag.idx, sum)
-        delta_ts_hivag <- deaths_dt_hivag / hivdeaths.ts
-        delta_ts_hivag[!is.finite(delta_ts_hivag)] <- 1
+        ag.idx.5 <- c(unlist(lapply(1:13, function(x){rep(x, 5)})), 14)
+        hivdeaths_est[,,i] <- hivdeaths_est[,,i] + apply(hivdeaths_est.ts, 2, ctapply, ag.idx.5, sum)
+        # delta_ts <- fp$deaths_dt[,,ts] / hivdeaths_est.ts
+        # delta_ts[!is.finite(delta_ts)] <- 1
+        # deaths_dt_hivag <- apply(fp$deaths_dt[,,ts], 2, ctapply, ag.idx, sum)
+        # delta_ts_hivag <- deaths_dt_hivag / hivdeaths.ts
+        # delta_ts_hivag[!is.finite(delta_ts_hivag)] <- 1
+        delta_ts <- 1
+        delta_ts_hivag <- 1
       }else{
         delta_ts <- 1
-        delta_ts_sex <- 1
+        delta_ts_hivag <- 1
       }
       
       grad <- grad - sweep(cd4_mort_ts * hivpop[,,,i] ,2:3, delta_ts_hivag, '*')            # HIV mortality, untreated
 
-      hivdeaths_p.ts <- hivdeaths_est.ts * delta_ts
+      # hivdeaths_p.ts <- hivdeaths_est.ts * delta_ts
+      hivdeaths_p.ts <- hivdeaths_est.ts
       pop[,,2,i] <- pop[,,2,i] - hivdeaths_p.ts
-      pop[,,2,i][pop[,,2,i] < 0] <- 0
       hivdeaths[,,i] <- hivdeaths[,,i] + hivdeaths_p.ts
 
       ## ART initiation
@@ -896,7 +905,9 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "infections") <- infections
   attr(pop, "hivdeaths") <- hivdeaths
   attr(pop, "natdeaths") <- natdeaths
-
+  if(exists('deaths_dt', where = fp)){
+    attr(pop, "hivdeaths_est") <- hivdeaths_est
+  }
   attr(pop, "popadjust") <- popadj.prob
 
   attr(pop, "pregprevlag") <- pregprevlag

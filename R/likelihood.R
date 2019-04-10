@@ -585,8 +585,8 @@ lprior <- function(theta, fp){
   
   if((exists('group', where = fp) & fp$group == '2')){
     if(fp$mortadjust == 'simple'){
-      lpr <- dnorm(log(theta[1]), log(0.5), 1, log = TRUE)
-      lpr <- lpr + dnorm(log(theta[2]), log(1), 1, log = TRUE)
+      lpr <- dexp(theta[1], 2, log = TRUE)
+      lpr <- lpr + dexp(theta[2], 1, log = TRUE)
       epp_nparam <- 0
     }
   }
@@ -667,10 +667,13 @@ lprior <- function(theta, fp){
 }
 
 ll_deaths <- function(fp, mod, likdat){
-  expected_deaths <- colSums(sweep(attr(mod, "artpop"), 1:4, fp$art_mort, "*"),,3) + 
-    colSums(sweep(attr(mod, "hivpop"), 1:3, fp$cd4_mort, "*"),,2)
+  # expected_deaths <- colSums(sweep(attr(mod, "artpop"), 1:4, fp$art_mort, "*"),,3) + 
+  #   colSums(sweep(attr(mod, "hivpop"), 1:3, fp$cd4_mort, "*"),,2)
+  expected_deaths <- attr(mod, 'hivdeaths_est')[,,-1]
   if(any(expected_deaths < 0)){return(-Inf)}
-  return(sum(ldpois(likdat$vr, expected_deaths[ , 1:dim(likdat$vr)[2]]), na.rm = T))
+  ll.d <- ldpois(likdat$vr, expected_deaths)
+  ll.d[!is.finite(ll.d)] <- 0
+  return(sum(ll.d, na.rm = T))
 }
 
 ll <- function(theta, fp, likdat){
@@ -682,6 +685,7 @@ ll <- function(theta, fp, likdat){
     fp$mortscalar <- theta
     if(fp$mortadjust == 'simple'){
       fp$art_mort <- fp$art_mort * theta[2]
+      fp$cd4_mort_adjust <- theta[1]
     }
     
     }
@@ -787,8 +791,8 @@ sample.prior.group2 <- function(n, fp){
     
     ## Create matrix for storing samples
     mat <- matrix(NA, n, nparam)
-    mat[,1] <- exp(rnorm(n, log(0.5), 1))
-    mat[,2] <- exp(rnorm(n, log(1), 1))
+    mat[,1] <- rexp(n, 2)
+    mat[,2] <- rexp(n, 1)
   }
   
   return(mat)
@@ -912,8 +916,8 @@ ldsamp <- function(theta, fp){
   ## Keeping the same density for initial IMIS sample 
   if((exists('group', where = fp) & fp$group == '2')){
     if(fp$mortadjust == 'simple'){
-      lpr <- dnorm(log(theta[1]), log(0.5), 1, log = TRUE)
-      lpr <- lpr + dnorm(log(theta[2]), log(1), 1, log = TRUE)
+      lpr <- dexp(theta[1], 2, log = TRUE)
+      lpr <- lpr + dexp(theta[2], 1, log = TRUE)
       epp_nparam <- 0
     }
   }

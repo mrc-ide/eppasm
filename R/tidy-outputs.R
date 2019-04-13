@@ -51,9 +51,13 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA, ancsite = TRUE){
   aidsdeaths <- sapply(lapply(mod_list, attr, "hivdeaths"), colSums, dims=2)
   artcov <- sapply(mod_list, artcov15plus)
   ancartcov <- mapply(agepregartcov, mod_list, fp_list, MoreArgs=list(aidx=1, yidx=1:fit$fp$ss$PROJ_YEARS, agspan=35, expand=TRUE))
+  artcov15to49 <- sapply(mod_list, artcov15to49)
 
   artcov[is.na(artcov)] <- 0
   ancartcov[is.na(ancartcov)] <- 0
+  artcov15to49[is.na(artcov15to49)] <- 0
+
+  artprop15to49 <- prev * artcov15to49
 
   year <- fit$fp$ss$proj_start + 1:fit$fp$ss$PROJ_YEARS - 1L
   
@@ -61,6 +65,8 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA, ancsite = TRUE){
                incid = incid,
                aidsdeaths15pl = aidsdeaths,
                artcov15pl = artcov,
+               artcov15to49 = artcov15to49,
+               artprop15to49 = artprop15to49,
                pregartcov = ancartcov,
                popsize15pl = popsize,
                plhiv15pl = plhiv,

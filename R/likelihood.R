@@ -588,6 +588,7 @@ lprior <- function(theta, fp){
       lpr <- dexp(theta[1], 2, log = TRUE)
       lpr <- lpr + dexp(theta[2], 1, log = TRUE)
       epp_nparam <- 0
+      paramcurr <- 2
     }
   }
 
@@ -670,7 +671,7 @@ ll_deaths <- function(fp, mod, likdat){
   # expected_deaths <- colSums(sweep(attr(mod, "artpop"), 1:4, fp$art_mort, "*"),,3) + 
   #   colSums(sweep(attr(mod, "hivpop"), 1:3, fp$cd4_mort, "*"),,2)
   expected_deaths <- attr(mod, 'hivdeaths_est')[,,-1]
-  if(any(expected_deaths < 0)){return(-Inf)}
+  if(any(expected_deaths < 0) | any(!is.finite(expected_deaths))){return(-Inf)}
   ll.d <- ldpois(likdat$vr, expected_deaths)
   ll.d[!is.finite(ll.d)] <- 0
   return(sum(ll.d, na.rm = T))
@@ -686,6 +687,15 @@ ll <- function(theta, fp, likdat){
     if(fp$mortadjust == 'simple'){
       fp$art_mort <- fp$art_mort * theta[2]
       fp$cd4_mort_adjust <- theta[1]
+      incrr_nparam <- getnparam_incrr(fp)
+      if(incrr_nparam > 0){
+        fp$incrr_sex = fp$incrr_sex[1:fp$SIM_YEARS]
+        fp$incrr_age = fp$incrr_age[,,1:fp$SIM_YEARS]
+        param <- list()
+        paramcurr <- 2
+        param <- transf_incrr(theta[paramcurr + 1:incrr_nparam], param, fp)
+        fp <- update(fp, list = param)
+      }
     }
     
     }
@@ -787,14 +797,19 @@ ll <- function(theta, fp, likdat){
 sample.prior.group2 <- function(n, fp){
   ## applying a single scalar to on-ART and off-ART mort
   if(fp$mortadjust == 'simple'){
-    nparam <- 2
-    
-    ## Create matrix for storing samples
+    nparam <- 2 + getnparam_incrr(fp)
     mat <- matrix(NA, n, nparam)
     mat[,1] <- rexp(n, 2)
     mat[,2] <- rexp(n, 1)
+    paramcurr <- 2
   }
-  
+
+  if(exists("fitincrr", where=fp)){
+    incrr_nparam <- getnparam_incrr(fp)
+    if(incrr_nparam)
+      mat[,paramcurr+1:incrr_nparam] <- sample_incrr(n, fp)
+    paramcurr <- paramcurr+incrr_nparam
+  }
   return(mat)
   
 }

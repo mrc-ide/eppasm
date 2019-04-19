@@ -2,6 +2,41 @@
 ####  EPP model prior  ####
 ###########################
 
+ilogistic_theta_mean <- c(-1, -10)
+ilogistic_theta_sd <- c(5, 5)
+
+idbllogistic_theta_mean <- c(-1, -1, 1995, -10, -10)
+idbllogistic_theta_sd <- c(5, 5, 10, 5, 5)
+
+diagn_theta_mean <- c(3, -3)
+diagn_theta_sd <- c(5, 5)
+
+logiota_pr_mean <- -13
+logiota_pr_sd <- 5
+
+
+#' Basic logistic function for incidence rate
+ilogistic <- function(t, p, t0){
+  ## p[1] = alpha (growth rate)
+  ## p[2] = c (max value)
+  
+  e <- exp(p[1] * (t - t0))
+  p[2] * e / (1+e)
+}
+
+#' Double logistic function for incidence rate
+idbllogistic <- function(t, p){
+  ## p[1] = alpha
+  ## p[2] = beta
+  ## p[3] = t0
+  ## p[4] = a
+  ## p[5] = b
+  e1 <- exp(p[1] * (t - p[3]))
+  e2 <- exp(-p[2] * (t - p[3]))
+  
+  e1/(1+e1) * (2 * p[4] * (e2/(1+e2)) + p[5])
+}
+
 ldinvgamma <- function(x, alpha, beta){
   log.density <- alpha * log(beta) - lgamma(alpha) - (alpha + 1) * log(x) - (beta/x)
   return(log.density)
@@ -259,6 +294,42 @@ create_natmx_param <- function(theta_natmx, fp){
   return(par)
 }
 
+#' Calculate parameter inputs for CSAVR fit
+create_param_csavr <- function(theta, fp){
+  
+  if(fp$eppmod == "directincid" && fp$incid_func == "ilogistic"){
+    nparam_incid <- 2
+    fp$incidinput <- ilogistic(seq_len(fp$ss$PROJ_YEARS), exp(theta[1:2]), 1)
+  }
+  
+  if(fp$eppmod == "directincid" && fp$incid_func == "idbllogistic"){
+    nparam_incid <- 5
+    tt <- fp$ss$proj_start + seq_len(fp$ss$PROJ_YEARS) - 1L
+    p <- theta[1:5]
+    p[c(1:2, 4:5)] <- exp(theta[c(1:2, 4:5)])
+    fp$incidinput <- idbllogistic(tt, p)
+  }
+  
+  if(fp$eppmod == "rlogistic"){
+    nparam_incid <- 5
+    par <- theta[1:4]
+    par[3] <- exp(theta[3])
+    fp$rvec <- exp(rlogistic(fp$proj.steps, par))
+    fp$iota <- exp(theta[5])
+  }
+  
+  if(fp$eppmod == "logrw"){
+    nparam_incid <- fp$numKnots + 1L
+    beta <- theta[1:fp$numKnots]
+    
+    param <- list(beta = beta,
+                  rvec = exp(as.vector(fp$rvec.spldes %*% beta)),
+                  iota = transf_iota(theta[fp$numKnots+1], fp))
+    fp[names(param)] <- param
+  }
+  
+  fp
+}
 
 fnCreateParam <- function(theta, fp){
 
@@ -574,11 +645,43 @@ prepare_likdat <- function(eppd, fp){
   if(exists('vr', where = eppd)){
     likdat$vr <- eppd$vr
   }
+  if(exists('diagnoses', where = eppd)){
+    likdat$diagnoses <- eppd$diagnoses
+  }
 
   return(likdat)
 }
 
+get_nparam_eppmod <- function(fp){
+  if(fp$eppmod == "directincid" && fp$incid_func == "ilogistic")
+    return(length(ilogistic_theta_mean))
+  else if(fp$eppmod == "directincid" && fp$incid_func == "idbllogistic")
+    return(length(idbllogistic_theta_mean))
+  else if(fp$eppmod == "rlogistic")
+    return(length(rlog_pr_mean))
+  else if(fp$eppmod == "logrw")
+    return(fp$numKnots + 1L)
+  else
+    stop("incidence model not recognized")
+}
 
+lprior_eppmod <- function(theta_eppmod, fp){
+  
+  if(fp$eppmod == "directincid" && fp$incid_func == "ilogistic")
+    return(sum(dnorm(theta_eppmod, ilogistic_theta_mean, ilogistic_theta_sd, log=TRUE)))
+  else if(fp$eppmod == "directincid" && fp$incid_func == "idbllogistic")
+    return(sum(dnorm(theta_eppmod, idbllogistic_theta_mean, idbllogistic_theta_sd, log=TRUE)))
+  else if(fp$eppmod == "rlogistic")
+    return(sum(dnorm(theta_eppmod, rlog_pr_mean, rlog_pr_sd, log=TRUE)))
+  else if(fp$eppmod == "logrw"){
+    lpr <- bayes_lmvt(theta_eppmod[2:fp$numKnots], rw_prior_shape, rw_prior_rate)
+    lpr <- lpr + lprior_iota(theta_eppmod[fp$numKnots+1], fp)
+    return(lpr)
+  }
+  else
+    stop("incidence model not recognized")
+  
+}
 
 
 lprior <- function(theta, fp){
@@ -590,76 +693,85 @@ lprior <- function(theta, fp){
       epp_nparam <- 0
       paramcurr <- 2
     }
-  }
-
-  if(exists("prior_args", where = fp)){
-    for(i in seq_along(fp$prior_args))
-      assign(names(fp$prior_args)[i], fp$prior_args[[i]])
-  }
-
-  if(fp$eppmod %in% c("rspline", "logrw")){
-    epp_nparam <- fp$numKnots+1
-
-    nk <- fp$numKnots
-
-    if(fp$eppmod == "logrw")
-      lpr <- bayes_lmvt(theta[2:fp$numKnots], rw_prior_shape, rw_prior_rate)
-    else
-      lpr <- bayes_lmvt(theta[(1+fp$rtpenord):nk], tau2_prior_shape, tau2_prior_rate)
-
-    if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
-      lpr <- lpr + dunif(theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
-    else
-      lpr <- lpr + lprior_iota(theta[nk+1], fp)
-
-  } else if(fp$eppmod == "rlogistic") {
-    epp_nparam <- 5
-    lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE))
-    lpr <- lpr + lprior_iota(theta[5], fp)
-  } else if(fp$eppmod == "rtrend"){ # rtrend
-    
-    epp_nparam <- 7
-    
-    lpr <- dunif(round(theta[1]), t0.unif.prior[1], t0.unif.prior[2], log=TRUE) +
-      dnorm(round(theta[2]), t1.pr.mean, t1.pr.sd, log=TRUE) +
-      dnorm(theta[3], logr0.pr.mean, logr0.pr.sd, log=TRUE) +
-      sum(dnorm(theta[4:7], rtrend.beta.pr.mean, rtrend.beta.pr.sd, log=TRUE))
-  } else if(fp$eppmod == "rhybrid"){
-    epp_nparam <- fp$rt$n_param+1
-    lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE)) +
-      sum(dnorm(theta[4+1:fp$rt$n_rw], 0, rw_prior_sd, log=TRUE))
-    lpr <- lpr + lprior_iota(theta[fp$rt$n_param+1], fp)
-  }
-
-  if(fp$ancsitedata){
-    lpr <- lpr + dnorm(theta[epp_nparam+1], ancbias.pr.mean, ancbias.pr.sd, log=TRUE)
-    if(!exists("v.infl", where=fp)){
-      anclik_nparam <- 2
-      lpr <- lpr + dexp(exp(theta[epp_nparam+2]), vinfl.prior.rate, TRUE) + theta[epp_nparam+2]         # additional ANC variance
+    if(exists("fitincrr", where=fp)){
+      incrr_nparam <- getnparam_incrr(fp)
+      if(incrr_nparam){
+        lpr <- lpr + lprior_incrr(theta[paramcurr+1:incrr_nparam], fp)
+        paramcurr <- paramcurr+incrr_nparam
+      }
+    }
+    nparam_eppmod <- get_nparam_eppmod(fp)
+    lpr <- lpr + lprior_eppmod(theta[paramcurr + 1:nparam_eppmod], fp)
+  }else{
+    if(exists("prior_args", where = fp)){
+      for(i in seq_along(fp$prior_args))
+        assign(names(fp$prior_args)[i], fp$prior_args[[i]])
+    }
+  
+    if(fp$eppmod %in% c("rspline", "logrw")){
+      epp_nparam <- fp$numKnots+1
+  
+      nk <- fp$numKnots
+  
+      if(fp$eppmod == "logrw")
+        lpr <- bayes_lmvt(theta[2:fp$numKnots], rw_prior_shape, rw_prior_rate)
+      else
+        lpr <- bayes_lmvt(theta[(1+fp$rtpenord):nk], tau2_prior_shape, tau2_prior_rate)
+  
+      if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
+        lpr <- lpr + dunif(theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
+      else
+        lpr <- lpr + lprior_iota(theta[nk+1], fp)
+  
+    } else if(fp$eppmod == "rlogistic") {
+      epp_nparam <- 5
+      lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE))
+      lpr <- lpr + lprior_iota(theta[5], fp)
+    } else if(fp$eppmod == "rtrend"){ # rtrend
+      
+      epp_nparam <- 7
+      
+      lpr <- dunif(round(theta[1]), t0.unif.prior[1], t0.unif.prior[2], log=TRUE) +
+        dnorm(round(theta[2]), t1.pr.mean, t1.pr.sd, log=TRUE) +
+        dnorm(theta[3], logr0.pr.mean, logr0.pr.sd, log=TRUE) +
+        sum(dnorm(theta[4:7], rtrend.beta.pr.mean, rtrend.beta.pr.sd, log=TRUE))
+    } else if(fp$eppmod == "rhybrid"){
+      epp_nparam <- fp$rt$n_param+1
+      lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE)) +
+        sum(dnorm(theta[4+1:fp$rt$n_rw], 0, rw_prior_sd, log=TRUE))
+      lpr <- lpr + lprior_iota(theta[fp$rt$n_param+1], fp)
+    }
+  
+    if(fp$ancsitedata){
+      lpr <- lpr + dnorm(theta[epp_nparam+1], ancbias.pr.mean, ancbias.pr.sd, log=TRUE)
+      if(!exists("v.infl", where=fp)){
+        anclik_nparam <- 2
+        lpr <- lpr + dexp(exp(theta[epp_nparam+2]), vinfl.prior.rate, TRUE) + theta[epp_nparam+2]         # additional ANC variance
+      } else
+        anclik_nparam <- 1
     } else
-      anclik_nparam <- 1
-  } else
-    anclik_nparam <- 0
-
-  paramcurr <- epp_nparam+anclik_nparam
-  if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
-    lpr <- lpr + dnorm(theta[paramcurr+1], log_frr_adjust.pr.mean, log_frr_adjust.pr.sd, log=TRUE)
-    if(!exists("ancrtcens.vinfl", fp)){
-      lpr <- lpr + dexp(exp(theta[paramcurr+2]), ancrtcens.vinfl.pr.rate, TRUE) + theta[paramcurr+2]
-      paramcurr <- paramcurr+2
-    } else
+      anclik_nparam <- 0
+  
+    paramcurr <- epp_nparam+anclik_nparam
+    if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
+      lpr <- lpr + dnorm(theta[paramcurr+1], log_frr_adjust.pr.mean, log_frr_adjust.pr.sd, log=TRUE)
+      if(!exists("ancrtcens.vinfl", fp)){
+        lpr <- lpr + dexp(exp(theta[paramcurr+2]), ancrtcens.vinfl.pr.rate, TRUE) + theta[paramcurr+2]
+        paramcurr <- paramcurr+2
+      } else
+        paramcurr <- paramcurr+1
+    }
+    if(exists("ancrt", fp) && fp$ancrt %in% c("site", "both")){
+      lpr <- lpr + dnorm(theta[paramcurr+1], ancrtsite.beta.pr.mean, ancrtsite.beta.pr.sd, log=TRUE)
       paramcurr <- paramcurr+1
-  }
-  if(exists("ancrt", fp) && fp$ancrt %in% c("site", "both")){
-    lpr <- lpr + dnorm(theta[paramcurr+1], ancrtsite.beta.pr.mean, ancrtsite.beta.pr.sd, log=TRUE)
-    paramcurr <- paramcurr+1
-  }
-
-  if(exists("fitincrr", where=fp)){
-    incrr_nparam <- getnparam_incrr(fp)
-    if(incrr_nparam){
-      lpr <- lpr + lprior_incrr(theta[paramcurr+1:incrr_nparam], fp)
-      paramcurr <- paramcurr+incrr_nparam
+    }
+  
+    if(exists("fitincrr", where=fp)){
+      incrr_nparam <- getnparam_incrr(fp)
+      if(incrr_nparam){
+        lpr <- lpr + lprior_incrr(theta[paramcurr+1:incrr_nparam], fp)
+        paramcurr <- paramcurr+incrr_nparam
+      }
     }
   }
   
@@ -677,13 +789,22 @@ ll_deaths <- function(fp, mod, likdat){
   return(sum(ll.d, na.rm = T))
 }
 
+ll_diagn <- function(fp, mod, likdat){
+  expected_incid <- apply(attr(mod, 'infections'), 3, 'sum')
+  ## subset to years of diagnosis data
+  expected_incid <- expected_incid[as.numeric(dimnames(likdat$diagnoses)[[2]]) - 1970 + 1]
+  ll.inf <- ldpois(likdat$diagnoses, expected_incid)
+  ll.inf[!is.finite(ll.inf)] <- 0
+  return(sum(ll.inf, na.rm = T))
+}
+
 ll <- function(theta, fp, likdat){
   theta.last <<- theta
   ## TF - running group 2 countries with directincid right now
   if(!(exists('group', where = fp) & fp$group == '2')){
     fp <- update(fp, list=fnCreateParam(theta, fp))
   }else{
-    fp$mortscalar <- theta
+    fp$mortscalar <- theta[1:2]
     if(fp$mortadjust == 'simple'){
       fp$art_mort <- fp$art_mort * theta[2]
       fp$cd4_mort_adjust <- theta[1]
@@ -694,9 +815,12 @@ ll <- function(theta, fp, likdat){
         param <- list()
         paramcurr <- 2
         param <- transf_incrr(theta[paramcurr + 1:incrr_nparam], param, fp)
+        paramcurr <- paramcurr + incrr_nparam
         fp <- update(fp, list = param)
       }
     }
+    nparam_eppmod <- get_nparam_eppmod(fp)
+    fp <- create_param_csavr(theta[paramcurr + 1:nparam_eppmod], fp)
     
     }
   
@@ -719,6 +843,12 @@ ll <- function(theta, fp, likdat){
   if(exists('vr', where = likdat)){
     ll.deaths <- ll_deaths(fp, mod, likdat)
   } else{ll.deaths <- 0}
+  
+  if(exists('diagnoses', where = likdat)){
+    ll.diagn <- ll_diagn(fp, mod, likdat)
+  } else{ll.diagn <- 0}
+  print(ll.diagn)
+  print(fp$incidinput)
 
   ## ANC likelihood
   if(exists("ancsite.dat", likdat))
@@ -787,7 +917,8 @@ ll <- function(theta, fp, likdat){
     sibmx  = ll.sibmx,
     rprior = ll.rprior,
     incpen = ll.incpen,
-    deaths = ll.deaths)
+    deaths = ll.deaths,
+    diagn  = ll.diagn)
 }
 
 
@@ -804,15 +935,66 @@ sample.prior.group2 <- function(n, fp){
     paramcurr <- 2
   }
 
+  ## age-sex fitting parameters
   if(exists("fitincrr", where=fp)){
     incrr_nparam <- getnparam_incrr(fp)
     if(incrr_nparam)
       mat[,paramcurr+1:incrr_nparam] <- sample_incrr(n, fp)
     paramcurr <- paramcurr+incrr_nparam
   }
+  
+  ## incidence parameters
+  mat_eppmod <- sample_prior_eppmod(n, fp)
+  
+  mat <- cbind(mat, mat_eppmod)
+  
   return(mat)
   
 }
+sample_prior_eppmod <- function(n, fp){
+  
+  if(fp$eppmod == "logrw"){
+    nparam <- fp$numKnots + 1L
+    
+    mat <- matrix(NA, n, nparam)
+    mat[,1] <- rnorm(n, 0.2, 1)  # u[1]
+    mat[,2:fp$rt$n_rw] <- bayes_rmvt(n, fp$rt$n_rw-1, rw_prior_shape, rw_prior_rate)  # u[2:numKnots]
+    mat[,fp$numKnots+1] <- sample_iota(n, fp)
+    
+  } else {
+    
+    theta_mean <- numeric()
+    theta_sd <- numeric()
+    
+    if(fp$eppmod == "directincid" && fp$incid_func == "ilogistic"){
+      theta_mean <- c(theta_mean, ilogistic_theta_mean)
+      theta_sd <- c(theta_sd, ilogistic_theta_sd)
+    }
+    else if(fp$eppmod == "directincid" && fp$incid_func == "idbllogistic"){
+      theta_mean <- c(theta_mean, idbllogistic_theta_mean)
+      theta_sd <- c(theta_sd, idbllogistic_theta_sd)
+    }
+    else if(fp$eppmod == "rlogistic"){
+      theta_mean <- c(theta_mean, rlog_pr_mean, logiota_pr_mean)
+      theta_sd <- c(theta_sd, rlog_pr_sd, logiota_pr_sd)
+    }
+    else if(fp$eppmod == "rlogrw"){
+      epp_nparam <- fp$numKnots+1L
+    }
+    else
+      stop("incidence model not recognized")
+    
+    nparam <- length(theta_mean)
+    
+    ## Create matrix of samples
+    v <- rnorm(nparam * n, theta_mean, theta_sd)
+    mat <- t(matrix(v, nparam, n))
+  }
+  
+  mat
+}
+
+
 sample.prior <- function(n, fp){
 
   if(exists("prior_args", where = fp)){
@@ -933,79 +1115,88 @@ ldsamp <- function(theta, fp){
     if(fp$mortadjust == 'simple'){
       lpr <- dexp(theta[1], 2, log = TRUE)
       lpr <- lpr + dexp(theta[2], 1, log = TRUE)
-      epp_nparam <- 0
+      paramcurr <- 2
     }
-  }
-
-  if(fp$eppmod %in% c("rspline", "logrw")){
-    epp_nparam <- fp$numKnots+1
-
-    nk <- fp$numKnots
-
-    if(fp$eppmod == "rspline")  # u[1]
-      lpr <- dnorm(theta[1], 1.5, 1, log=TRUE)
-    else # logrw
-      lpr <- dnorm(theta[1], 0.2, 1, log=TRUE)
-
-    if(fp$eppmod == "logrw")
-      bayes_lmvt(theta[2:fp$rt$n_rw], rw_prior_shape, rw_prior_rate)
-    else
-      lpr <- bayes_lmvt(theta[2:nk], tau2_prior_shape, tau2_prior_rate)
-
-
-    if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
-      lpr <- lpr + dunif(theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
-    else
-      lpr <- lpr + ldsamp_iota(theta[nk+1], fp)
-
-  } else if(fp$eppmod == "rlogistic") {
-    epp_nparam <- 5
-    lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE))
-    lpr <- lpr + ldsamp_iota(theta[5], fp)
-  } else if(fp$eppmod == "rtrend"){ # rtrend
-
-    epp_nparam <- 7
-
-    lpr <- dunif(round(theta[1]), t0.unif.prior[1], t0.unif.prior[2], log=TRUE) +
-      dnorm(round(theta[2]), t1.pr.mean, t1.pr.sd, log=TRUE) +
-      dnorm(theta[3], logr0.pr.mean, logr0.pr.sd, log=TRUE) +
-      sum(dnorm(theta[4:7], rtrend.beta.pr.mean, rtrend.beta.pr.sd, log=TRUE))
-  } else if(fp$eppmod == "rhybrid"){
-    epp_nparam <- fp$rt$n_param+1
-    lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE)) +
-      sum(dnorm(theta[4+1:fp$rt$n_rw], 0, rw_prior_sd, log=TRUE))
-    lpr <- lpr + ldsamp_iota(theta[fp$rt$n_param+1], fp)
-  }
-
-  if(fp$ancsitedata){
-    lpr <- lpr + dnorm(theta[epp_nparam+1], ancbias.pr.mean, ancbias.pr.sd, log=TRUE)
-    if(!exists("v.infl", where=fp)){
-      anclik_nparam <- 2
-      lpr <- lpr + dexp(exp(theta[epp_nparam+2]), vinfl.prior.rate, TRUE) + theta[epp_nparam+2]         # additional ANC variance
+    if(exists("fitincrr", where=fp)){
+      incrr_nparam <- getnparam_incrr(fp)
+      if(incrr_nparam){
+        lpr <- lpr + lprior_incrr(theta[paramcurr+1:incrr_nparam], fp)
+        paramcurr <- paramcurr+incrr_nparam
+      }
+    }
+    nparam_eppmod <- get_nparam_eppmod(fp)
+    lpr <- lpr + lprior_eppmod(theta[paramcurr + 1:nparam_eppmod], fp)
+  }else{
+    if(fp$eppmod %in% c("rspline", "logrw")){
+      epp_nparam <- fp$numKnots+1
+  
+      nk <- fp$numKnots
+  
+      if(fp$eppmod == "rspline")  # u[1]
+        lpr <- dnorm(theta[1], 1.5, 1, log=TRUE)
+      else # logrw
+        lpr <- dnorm(theta[1], 0.2, 1, log=TRUE)
+  
+      if(fp$eppmod == "logrw")
+        bayes_lmvt(theta[2:fp$rt$n_rw], rw_prior_shape, rw_prior_rate)
+      else
+        lpr <- bayes_lmvt(theta[2:nk], tau2_prior_shape, tau2_prior_rate)
+  
+  
+      if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
+        lpr <- lpr + dunif(theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
+      else
+        lpr <- lpr + ldsamp_iota(theta[nk+1], fp)
+  
+    } else if(fp$eppmod == "rlogistic") {
+      epp_nparam <- 5
+      lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE))
+      lpr <- lpr + ldsamp_iota(theta[5], fp)
+    } else if(fp$eppmod == "rtrend"){ # rtrend
+  
+      epp_nparam <- 7
+  
+      lpr <- dunif(round(theta[1]), t0.unif.prior[1], t0.unif.prior[2], log=TRUE) +
+        dnorm(round(theta[2]), t1.pr.mean, t1.pr.sd, log=TRUE) +
+        dnorm(theta[3], logr0.pr.mean, logr0.pr.sd, log=TRUE) +
+        sum(dnorm(theta[4:7], rtrend.beta.pr.mean, rtrend.beta.pr.sd, log=TRUE))
+    } else if(fp$eppmod == "rhybrid"){
+      epp_nparam <- fp$rt$n_param+1
+      lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE)) +
+        sum(dnorm(theta[4+1:fp$rt$n_rw], 0, rw_prior_sd, log=TRUE))
+      lpr <- lpr + ldsamp_iota(theta[fp$rt$n_param+1], fp)
+    }
+  
+    if(fp$ancsitedata){
+      lpr <- lpr + dnorm(theta[epp_nparam+1], ancbias.pr.mean, ancbias.pr.sd, log=TRUE)
+      if(!exists("v.infl", where=fp)){
+        anclik_nparam <- 2
+        lpr <- lpr + dexp(exp(theta[epp_nparam+2]), vinfl.prior.rate, TRUE) + theta[epp_nparam+2]         # additional ANC variance
+      } else
+        anclik_nparam <- 1
     } else
-      anclik_nparam <- 1
-  } else
-    anclik_nparam <- 0
-
-  paramcurr <- epp_nparam+anclik_nparam
-  if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
-    lpr <- lpr + dnorm(theta[paramcurr+1], log_frr_adjust.pr.mean, log_frr_adjust.pr.sd, log=TRUE)
-    if(!exists("ancrtcens.vinfl", fp)){
-      lpr <- lpr + dexp(exp(theta[paramcurr+2]), ancrtcens.vinfl.pr.rate, TRUE) + theta[paramcurr+2]
-      paramcurr <- paramcurr+2
-    } else
+      anclik_nparam <- 0
+  
+    paramcurr <- epp_nparam+anclik_nparam
+    if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
+      lpr <- lpr + dnorm(theta[paramcurr+1], log_frr_adjust.pr.mean, log_frr_adjust.pr.sd, log=TRUE)
+      if(!exists("ancrtcens.vinfl", fp)){
+        lpr <- lpr + dexp(exp(theta[paramcurr+2]), ancrtcens.vinfl.pr.rate, TRUE) + theta[paramcurr+2]
+        paramcurr <- paramcurr+2
+      } else
+        paramcurr <- paramcurr+1
+    }
+    if(exists("ancrt", fp) && fp$ancrt %in% c("site", "both")){
+      lpr <- lpr + dnorm(theta[paramcurr+1], ancrtsite.beta.pr.mean, ancrtsite.beta.pr.sd, log=TRUE) ## +
       paramcurr <- paramcurr+1
-  }
-  if(exists("ancrt", fp) && fp$ancrt %in% c("site", "both")){
-    lpr <- lpr + dnorm(theta[paramcurr+1], ancrtsite.beta.pr.mean, ancrtsite.beta.pr.sd, log=TRUE) ## +
-    paramcurr <- paramcurr+1
-  }
-
-  if(exists("fitincrr", where=fp)){
-    incrr_nparam <- getnparam_incrr(fp)
-    if(incrr_nparam){
-      lpr <- lpr + ldsamp_incrr(theta[paramcurr+1:incrr_nparam], fp)
-      paramcurr <- paramcurr+incrr_nparam
+    }
+  
+    if(exists("fitincrr", where=fp)){
+      incrr_nparam <- getnparam_incrr(fp)
+      if(incrr_nparam){
+        lpr <- lpr + ldsamp_incrr(theta[paramcurr+1:incrr_nparam], fp)
+        paramcurr <- paramcurr+incrr_nparam
+      }
     }
   }
   

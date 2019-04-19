@@ -8,12 +8,13 @@ ilogistic_theta_sd <- c(5, 5)
 idbllogistic_theta_mean <- c(-1, -1, 1995, -10, -10)
 idbllogistic_theta_sd <- c(5, 5, 10, 5, 5)
 
-diagn_theta_mean <- c(3, -3)
-diagn_theta_sd <- c(5, 5)
+## time to diagnosis
+## based on van Sighem 2015
+ttd_mean <- c(6.1,-0.25, -0.15, -0.1)
+ttd_sd <- c(0.5, 0.05, 0.05, 0.05)
 
 logiota_pr_mean <- -13
 logiota_pr_sd <- 5
-
 
 #' Basic logistic function for incidence rate
 ilogistic <- function(t, p, t0){
@@ -327,6 +328,18 @@ create_param_csavr <- function(theta, fp){
                   iota = transf_iota(theta[fp$numKnots+1], fp))
     fp[names(param)] <- param
   }
+  
+  ## 11.5 from 1970-1983
+  ## mean of 6.1 from 1984-1995
+  ## slopes 1996-1999, 2000-2004, 2005-2019
+  nparam_diagn <- 4
+  ttd <- theta[nparam_incid + 1:nparam_diagn]
+  lin.func <- c(rep(11.5, 14), rep(ttd[1], 12), (ttd[1] + (ttd[2] * 1:4)))
+  lin.func <- c(lin.func, (lin.func[length(lin.func)] + (ttd[3] * 1:5)))
+  lin.func <- c(lin.func, (lin.func[length(lin.func)] + (ttd[4] * 1:15)))
+  lin.func[lin.func < 2] <- 2
+  names(lin.func) <- 1970:2019
+  fp$yr_to_diagn <- lin.func
   
   fp
 }
@@ -790,10 +803,13 @@ ll_deaths <- function(fp, mod, likdat){
 }
 
 ll_diagn <- function(fp, mod, likdat){
-  expected_incid <- apply(attr(mod, 'infections'), 3, 'sum')
+  expected_incid <- data.frame(incid = apply(attr(mod, 'infections'), 3, 'sum'))
+  expected_incid$year <- round(fp$ss$proj_start:(fp$ss$proj_start + fp$SIM_YEARS - 1) + unname(fp$yr_to_diagn))
+  expected_diagn  <- aggregate(expected_incid$incid, by = list(year = expected_incid$year), FUN=sum)
+
   ## subset to years of diagnosis data
-  expected_incid <- expected_incid[as.numeric(dimnames(likdat$diagnoses)[[2]]) - 1970 + 1]
-  ll.inf <- ldpois(likdat$diagnoses, expected_incid)
+  expected_diagn <- expected_diagn$x[expected_diagn$year %in% as.numeric(dimnames(likdat$diagnoses)[[2]])]
+  ll.inf <- ldpois(likdat$diagnoses, expected_diagn)
   ll.inf[!is.finite(ll.inf)] <- 0
   return(sum(ll.inf, na.rm = T))
 }
@@ -820,7 +836,8 @@ ll <- function(theta, fp, likdat){
       }
     }
     nparam_eppmod <- get_nparam_eppmod(fp)
-    fp <- create_param_csavr(theta[paramcurr + 1:nparam_eppmod], fp)
+    nparam_diagn <- 4
+    fp <- create_param_csavr(theta[paramcurr + 1:(nparam_eppmod + nparam_diagn)], fp)
     
     }
   
@@ -847,8 +864,6 @@ ll <- function(theta, fp, likdat){
   if(exists('diagnoses', where = likdat)){
     ll.diagn <- ll_diagn(fp, mod, likdat)
   } else{ll.diagn <- 0}
-  print(ll.diagn)
-  print(fp$incidinput)
 
   ## ANC likelihood
   if(exists("ancsite.dat", likdat))
@@ -945,12 +960,24 @@ sample.prior.group2 <- function(n, fp){
   
   ## incidence parameters
   mat_eppmod <- sample_prior_eppmod(n, fp)
+  mat_ttd <- sample_prior_ttd(n, fp)
   
-  mat <- cbind(mat, mat_eppmod)
+  mat <- cbind(mat, mat_eppmod, mat_ttd)
   
   return(mat)
   
 }
+
+sample_prior_ttd <- function(n, fp){
+  nparam_ttd <- 4
+  mat <- matrix(NA, n, nparam_ttd)
+  mat[,1] <- rnorm(n, ttd_mean[1], ttd_sd[1])
+  mat[,2] <- rnorm(n, ttd_mean[2], ttd_sd[2])
+  mat[,3] <- rnorm(n, ttd_mean[3], ttd_sd[3])
+  mat[,4] <- rnorm(n, ttd_mean[4], ttd_sd[4])
+  return(mat)
+}
+
 sample_prior_eppmod <- function(n, fp){
   
   if(fp$eppmod == "logrw"){

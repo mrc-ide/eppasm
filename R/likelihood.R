@@ -333,7 +333,8 @@ create_param_csavr <- function(theta, fp){
   ## mean of 6.1 from 1984-1995
   ## slopes 1996-1999, 2000-2004, 2005-2019
   nparam_diagn <- 4
-  ttd <- theta[nparam_incid + 1:nparam_diagn]
+  # ttd <- theta[nparam_incid + 1:nparam_diagn]
+  ttd <- c(6.1,-0.25, -0.15, -0.1)
   lin.func <- c(rep(11.5, 14), rep(ttd[1], 12), (ttd[1] + (ttd[2] * 1:4)))
   lin.func <- c(lin.func, (lin.func[length(lin.func)] + (ttd[3] * 1:5)))
   lin.func <- c(lin.func, (lin.func[length(lin.func)] + (ttd[4] * 1:15)))
@@ -671,7 +672,7 @@ get_nparam_eppmod <- function(fp){
   else if(fp$eppmod == "directincid" && fp$incid_func == "idbllogistic")
     return(length(idbllogistic_theta_mean))
   else if(fp$eppmod == "rlogistic")
-    return(length(rlog_pr_mean))
+    return(length(rlog_pr_mean) + 1)
   else if(fp$eppmod == "logrw")
     return(fp$numKnots + 1L)
   else
@@ -795,7 +796,9 @@ lprior <- function(theta, fp){
 ll_deaths <- function(fp, mod, likdat){
   # expected_deaths <- colSums(sweep(attr(mod, "artpop"), 1:4, fp$art_mort, "*"),,3) + 
   #   colSums(sweep(attr(mod, "hivpop"), 1:3, fp$cd4_mort, "*"),,2)
-  expected_deaths <- attr(mod, 'hivdeaths_est')[,,-1]
+  ag.idx.5 <- c(unlist(lapply(1:13, function(x){rep(x, 5)})), 14)
+  expected_deaths <- attr(mod, 'hivdeaths')[,,-1]
+  expected_deaths <- apply(expected_deaths, 2:3, tapply, ag.idx.5, sum)
   if(any(expected_deaths < 0) | any(!is.finite(expected_deaths))){return(-Inf)}
   ll.d <- ldpois(likdat$vr, expected_deaths)
   ll.d[!is.finite(ll.d)] <- 0
@@ -804,11 +807,24 @@ ll_deaths <- function(fp, mod, likdat){
 
 ll_diagn <- function(fp, mod, likdat){
   expected_incid <- data.frame(incid = apply(attr(mod, 'infections'), 3, 'sum'))
-  expected_incid$year <- round(fp$ss$proj_start:(fp$ss$proj_start + fp$SIM_YEARS - 1) + unname(fp$yr_to_diagn))
-  expected_diagn  <- aggregate(expected_incid$incid, by = list(year = expected_incid$year), FUN=sum)
-
+  if(any(is.na(expected_incid$incid))){return(-Inf)}
+  expected_incid$year <- fp$ss$proj_start:(fp$ss$proj_start + fp$SIM_YEARS - 1)
+  #Matrix of cohort-specific year of diagnosis
+  diag.mat <- sapply(1:fp$SIM_YEARS, function(x){
+    dgamma(expected_incid$year - expected_incid$year[x] + 1, unname(fp$yr_to_diagn[x])) * expected_incid$incid[x]
+  })
+  ## Adjust post-1983 to fix discontinuity
+  discont.adj <- sapply(1:14, function(x){
+    lag  <- 1983 - expected_incid$year[x]
+    temp <- dgamma(expected_incid$year - expected_incid$year[x] + 1, max(6.1 - lag, 2.5)) * (expected_incid$incid[x] - sum(diag.mat[1:14,x]))
+    temp <- temp[x:fp$SIM_YEARS]
+    temp <- c(temp, rep(0, x - 1))
+  })
+  diag.mat[15:50, 1:14] <- discont.adj[1:36, 1:14]
+  expected_diagn <- rowSums(diag.mat)
   ## subset to years of diagnosis data
-  expected_diagn <- expected_diagn$x[expected_diagn$year %in% as.numeric(dimnames(likdat$diagnoses)[[2]])]
+  names(expected_diagn) <- expected_incid$year
+  expected_diagn <- unname(expected_diagn[names(expected_diagn) %in% as.numeric(dimnames(likdat$diagnoses)[[2]])])
   ll.inf <- ldpois(likdat$diagnoses, expected_diagn)
   ll.inf[!is.finite(ll.inf)] <- 0
   return(sum(ll.inf, na.rm = T))
@@ -825,18 +841,19 @@ ll <- function(theta, fp, likdat){
       fp$art_mort <- fp$art_mort * theta[2]
       fp$cd4_mort_adjust <- theta[1]
       incrr_nparam <- getnparam_incrr(fp)
+      paramcurr <- 2
       if(incrr_nparam > 0){
         fp$incrr_sex = fp$incrr_sex[1:fp$SIM_YEARS]
         fp$incrr_age = fp$incrr_age[,,1:fp$SIM_YEARS]
         param <- list()
-        paramcurr <- 2
         param <- transf_incrr(theta[paramcurr + 1:incrr_nparam], param, fp)
         paramcurr <- paramcurr + incrr_nparam
         fp <- update(fp, list = param)
       }
     }
     nparam_eppmod <- get_nparam_eppmod(fp)
-    nparam_diagn <- 4
+    # nparam_diagn <- 4
+    nparam_diagn <- 0
     fp <- create_param_csavr(theta[paramcurr + 1:(nparam_eppmod + nparam_diagn)], fp)
     
     }
@@ -850,11 +867,11 @@ ll <- function(theta, fp, likdat){
     if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) 
       return(-Inf)
   ##TF
-   if(!(exists('group', where = fp) & fp$group == '2')){
+   # if(!(exists('group', where = fp) & fp$group == '2')){
      mod <- simmod(fp)
-   }else{
-    mod <- simmod(fp, VERSION = 'R')
-  }
+  #  }else{
+  #   mod <- simmod(fp, VERSION = 'R')
+  # }
   
   ## VR likelihood
   if(exists('vr', where = likdat)){
@@ -960,9 +977,9 @@ sample.prior.group2 <- function(n, fp){
   
   ## incidence parameters
   mat_eppmod <- sample_prior_eppmod(n, fp)
-  mat_ttd <- sample_prior_ttd(n, fp)
+  # mat_ttd <- sample_prior_ttd(n, fp)
   
-  mat <- cbind(mat, mat_eppmod, mat_ttd)
+  mat <- cbind(mat, mat_eppmod)
   
   return(mat)
   

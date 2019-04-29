@@ -905,9 +905,6 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "infections") <- infections
   attr(pop, "hivdeaths") <- hivdeaths
   attr(pop, "natdeaths") <- natdeaths
-  if(exists('deaths_dt', where = fp)){
-    attr(pop, "hivdeaths_est") <- hivdeaths_est
-  }
   attr(pop, "popadjust") <- popadj.prob
 
   attr(pop, "pregprevlag") <- pregprevlag

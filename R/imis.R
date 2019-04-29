@@ -64,10 +64,13 @@ imis <- function(B0, B, B_re, number_k, opt_k=NULL, fp, likdat,
 
     X_k <- X_k[which_k,]
     ll_k <- ll_k[which_k]
-    lprior_k <- log(prior(X_k, fp))
+    prior_k <- prior(X_k, fp)
+    prior_k[prior_k == 0] <- .Machine$double.xmin
+    lprior_k <- log(prior_k)
 
     ## calculate mixture weights for new inputs
     mix_k <- dsamp(X_k, fp) * B0 / B
+    mix_k[mix_k == 0] <- .Machine$double.xmin
     if(k > 1)
       mix_k <- mix_k + rowSums(mapply(mvtnorm::dmvnorm, mean=center_all, sigma=sigma_all, MoreArgs=list(x=X_k)))
 

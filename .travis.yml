@@ -3,6 +3,8 @@
 language: R
 sudo: false
 cache: packages
+r_github_packages:
+  - jeffeaton/anclik
 warnings_are_errors: false
 
 after_success:

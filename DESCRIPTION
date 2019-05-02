@@ -4,19 +4,22 @@ Version: 0.5.7-3
 Authors@R: person("Jeff", "Eaton", email = "jeffrey.eaton@imperial.ac.uk", role = c("aut", "cre"))
 Description: What the package does (one paragraph).
 Depends: R (>= 3.1.0),
-Imports: epp (>= 0.4.1), methods,
-    fastmatch (>= 1.1),
+Imports: 
     abind (>= 1.4),
-    mvtnorm,
-    binom,
-    mgcv,
-    magrittr,
-    reshape2,
-    xml2,
-    data.table,
-    Rcpp,
     anclik,
-    RColorBrewer
+    binom,
+    data.table,
+    epp (>= 0.4.1), 
+    fastmatch (>= 1.1),
+    magrittr,
+    methods,
+    mgcv,
+    mvtnorm,
+    RColorBrewer,
+    Rcpp,
+    reshape2,
+    R6,
+    xml2
 LinkingTo: 
     BH,
     Rcpp,

@@ -118,6 +118,7 @@ prepare_ancsite_likdat <- function(ancsitedat, fp){
        df_idx.lst = df_idx.lst)
 }
 
+#' @import anclik
 ll_ancsite <- function(mod, fp, coef=c(0, 0), vinfl=0, dat){
 
   df <- dat$df
@@ -651,7 +652,7 @@ lprior <- function(theta, fp){
   return(lpr)
 }
 
-
+#' @importFrom stats aggregate approx cov cov.wt density dexp dlnorm dnorm dunif ecdf mahalanobis median model.matrix na.omit optim optimHess pnorm qnorm quantile relevel rexp rgamma rnorm runif sd setNames update var
 ll <- function(theta, fp, likdat){
   theta.last <<- theta
   fp <- update(fp, list=fnCreateParam(theta, fp))

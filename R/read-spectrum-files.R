@@ -783,6 +783,7 @@ read_demog_param <- function(upd.file, age.intervals = 1){
 
 ## Note: only parses Spectrum 2016 files, produces outputs by single-year age
 
+#' @importFrom utils read.csv tail unzip
 read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
 
   if(use_ep5)

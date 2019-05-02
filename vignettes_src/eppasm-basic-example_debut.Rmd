@@ -205,10 +205,8 @@ fsex <- dhs_data(countryIds = zcc, indicatorIds = myid, breakdown="all") %$%
         .[-grep("Total", .[, "agr"]), ] %>% 
         subset(year==2015)
 
-fsex$sex <- substring(fsex$id, nchar(as.character(fsex$id))-4,
-                      nchar(as.character(fsex$id))-4) %>% factor %>% as.numeric
-fsex$age <- substring(fsex$id, nchar(as.character(fsex$id))-1,
-                          nchar(as.character(fsex$id))) %>% as.numeric
+fsex$sex <- gsub('.*_([WM])_.*', '\\1', fsex$id) %>% factor %>% as.numeric
+fsex$age <- gsub('.*(\\d{2})$', '\\1', fsex$id)
 
 M_sm <- fsex %>% subset(sex==1) %$% smooth.spline(age, perc) %>% predict(15:30)
 W_sm <- fsex %>% subset(sex==2) %$% smooth.spline(age, perc) %>% predict(15:30)

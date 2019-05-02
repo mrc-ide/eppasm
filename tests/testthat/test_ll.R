@@ -32,8 +32,9 @@ theta_rtrend <- c(1977.68776203971, 16.2122044236609, 0.196472777334891, 0.45554
                   -0.0267911146079137, -4.95764130472059, 0.280707027212794, -6.70883228710422)
 
 test_that("ll returns expected value", {
-  # expect_equal(round(ll(theta_rhybrid, fp_rhybrid, likdat), 4),
-  #              c(anc = 81.3993, ancrt = 7.3509, hhs = 6.8466, incid = 0, rprior = 0)) why this one failed
+  namev <- c("anc", "ancrt", "hhs", "incid", "rprior")
+  expect_equal(round(ll(theta_rhybrid, fp_rhybrid, likdat), 4)[namev],
+               c(anc = 81.3993, ancrt = 7.3509, hhs = 6.8466, incid = 0, rprior = 0))
   expect_equal(round(ll(theta_rspline, fp_rspline, likdat), 4),
                c(anc = 53.0482, ancrt = 1.6649, hhs = 4.4887,
                  incid = 0, sibmx = 0, rprior = 0, incpen = 0))

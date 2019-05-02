@@ -1,4 +1,5 @@
-simmod.specfp <- function(fp, VERSION="C", .MODEL=1) {
+#' @useDynLib eppasm eppasmC
+simmod.specfp <- function(fp, VERSION="C", .MODEL=1, MIX=FALSE) {
 
   if (!exists("popadjust", where=fp))
     fp$popadjust <- FALSE
@@ -15,67 +16,53 @@ simmod.specfp <- function(fp, VERSION="C", .MODEL=1) {
   }
 
   ## initialize projection
-  pop     <- POPClass(fp, .MODEL)
+  pop <- popEPP$new(fp, .MODEL, VERSION, MIX)
   
   if (.MODEL!=0) {
-    hivpop  <- HIVClass(fp, single_year = FALSE)
-    artpop  <- ARTClass(fp, single_year = FALSE)
-    grad    <- HIVClass(fp)
-    gradART <- ARTClass(fp)
-    if (.MODEL==2) {
-      hiv_db     <- HIVClass(fp, single_year = FALSE)
-      art_db     <- ARTClass(fp, single_year = FALSE)
-      grad_db    <- HIVClass(fp)
-      gradART_db <- ARTClass(fp)
-    }
-    if (fp$eppmod != "directincid")
-      rvec <- if (fp$eppmod == "rtrend") rep(NA, length(fp$proj.steps)) 
-                else fp$rvec
-    ## store last prevalence value (for r-trend model)
-    prevlast <- 0
+    hivpop  <- hivEPP$new(fp, .MODEL)
+    artpop  <- artEPP$new(fp, .MODEL)
   }
 
-  ##  Single-year population projection  ##
   for (i in 2:fp$SIM_YEARS) {
-    epp_aging(.MODEL, i, fp, pop, hivpop, artpop, hiv_db, art_db)
+    
+    pop$year <- hivpop$year <- artpop$year <- i
+    
+    epp_aging(pop, hivpop, artpop)
+    
+    epp_death(pop, hivpop, artpop)
+    
+    epp_migration(pop, hivpop, artpop)
+    
+    pop$update_fertile()
 
-    ## survive the population
-    epp_death(.MODEL, i, fp, pop, hivpop, hiv_db, artpop, art_db)
-
-    ## net migration
-    epp_migration(.MODEL, i, fp, pop, hivpop, hiv_db, artpop, art_db)
-
-    ## fertility
-    pop$update_fertile(.MODEL, i, fp)
-
-    ##  Disease model simulation: events at dt timestep
-    if (.MODEL!=0) {
-      epp_disease_model(.MODEL, i, fp, pop, hivpop, artpop, hiv_db, art_db,
-                        grad, gradART, grad_db, gradART_db, rvec)
-
-      ## Direct incidence input
-      if (fp$eppmod == "directincid")
-        epp_disease_model_direct(pop, hivpop, i, fp)
+    if (.MODEL!=0) { # Disease model simulation: events at dt timestep
+      epp_disease_model(pop, hivpop, artpop)
+      if (fp$eppmod == "directincid") ## Direct incidence input model
+        pop$epp_disease_model_direct(hivpop, artpop)
     }
 
-    ## adjust population to match target population size
-    if (exists("popadjust", where=fp) & fp$popadjust)
-      epp_adjust_pop(.MODEL, fp, i, pop, hivpop, hiv_db, artpop, art_db)
+    if (exists("popadjust", where=fp) && fp$popadjust) { # match target pop
+      pop$adjust_pop()
+      if (.MODEL!=0) {
+        hivpop$adjust_pop(pop$adj_prob)
+        if (i >= fp$tARTstart)
+          artpop$adjust_pop(pop$adj_prob)
+      }
+    }
 
     if (.MODEL!=0) {
-      ## prevalence among pregnant women
       if (i + fp$ss$AGE_START <= fp$ss$PROJ_YEARS)
-        pop$cal_prev_pregant(.MODEL, i, fp, hivpop, artpop)
-
-      ## prevalence and incidence 15 to 49
-      pop$save_prev_n_inc(.MODEL, i)
+        pop$cal_prev_pregant(hivpop, artpop) # prevalence among pregnant women
+      pop$save_prev_n_inc() # save prevalence and incidence 15 to 49
     }
   }
+
   if (.MODEL!=0) {
     attr(pop, "hivpop") <- hivpop
     attr(pop, "artpop") <- artpop
     class(pop) <- "spec"
   }
-  if (.MODEL==0) class(pop) <- "dempp"
+  else 
+    class(pop) <- "dempp"
   return(pop)
 }

@@ -439,6 +439,7 @@ rw_projection <- function(fit) {
 
 
 ## simulate incidence and prevalence
+#' @importFrom abind abind
 simfit.specfit <- function(fit,
                            rwproj=fit$fp$eppmod == "rspline",
                            ageprevdat=FALSE,

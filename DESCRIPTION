@@ -14,7 +14,9 @@ Imports: epp (>= 0.4.1), methods,
     reshape2,
     xml2,
     data.table,
-    Rcpp
+    Rcpp,
+    anclik,
+    RColorBrewer
 LinkingTo: 
     BH,
     Rcpp,

@@ -143,7 +143,7 @@ plot_artcov15plus <- function(fit, ..., ylim=NULL, xlim=c(2003, max(as.integer(d
 }
 
 
-
+#' @importFrom binom binom.exact
 plot_compare_ageprev2 <- function(fit, fit2=NULL, fit3=NULL, specres=NULL, likdat=NULL, ylim=NULL, col=c("navy", "darkred", "forestgreen"), exact_ci=TRUE){
   if(is.null(ylim)){
     if(!is.null(likdat))
@@ -157,7 +157,7 @@ plot_compare_ageprev2 <- function(fit, fit2=NULL, fit3=NULL, specres=NULL, likda
   if(!is.null(likdat)){
     survprev <- merge(likdat$hhsage.dat, fit$ageprevdat, by=c("year", "survyear", "sex", "agegr"), all.x=TRUE)
     if(exact_ci)
-      survprev[c("ci_l", "ci_u")] <- with(survprev, binom::binom.exact(x_eff, n_eff))[c("lower", "upper")]
+      survprev[c("ci_l", "ci_u")] <- with(survprev, binom.exact(x_eff, n_eff))[c("lower", "upper")]
   }
   survprev$survyear <- with(survprev, factor(survyear, levels(survyear)[order(as.integer(substr(levels(survyear), 1, 4)))]))
   survprev <- split(survprev, factor(survprev$survyear))  

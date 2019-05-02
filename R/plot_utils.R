@@ -1,3 +1,6 @@
+#' @importFrom grDevices adjustcolor dev.new palette
+#' @importFrom graphics abline axis barplot boxplot layout legend lines 
+#' @importFrom graphics mtext par plot points polygon rect segments text
 showPch <- function() {
     dev.new()
     plot(0:25, pch=0:25, col=1:25)
@@ -10,6 +13,7 @@ harvard <- c(cod.gray="#0b0b09", vivid.burgundy="#961b36", medium.champagne="#f6
 gruvstd <- c("#282828", "#CD3B27", "#98971B", "#D7992A", "#458588", "#B16286", "#689D6A", "#A89984")
 gruvlt <- c("#928374", "#ED4631", "#B8BB26", "#F8BD32", "#83A598", "#D3869B", "#8EC07C", "#EBDBB2")
 
+#' @importFrom grDevices col2rgb rgb
 AddAlpha <- function (plotclr, alpha = 0.5, verbose = 0) {
     tmp <- col2rgb(plotclr, alpha = alpha)
     tmp[4, ] = round(alpha * 255)
@@ -20,7 +24,7 @@ AddAlpha <- function (plotclr, alpha = 0.5, verbose = 0) {
     return(plotclr)
 }
 
-Kgrid <- function(bg = "white", cols = "gray93" ) {
+Kgrid <- function(bg = NA, cols = "gray93" ) {
     rect(par("usr")[1], par("usr")[3], par("usr")[2], par("usr")[4], col = bg,
          border = NA)
     xaxp <- par("xaxp"); yaxp <- par("yaxp")
@@ -77,9 +81,22 @@ Kolygon <- function(x, y, ylow=NULL, col='gray70', alpha=0.4, border='white',...
   polygon(xx, yy, col = AddAlpha(col, alpha), border = border, ...)
 }
 
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom grDevices  colorRampPalette
 genCols <- function(n, pallete = "Set1") {
-  getCols <- colorRampPalette(RColorBrewer::brewer.pal(8, pallete))
+  getCols <- colorRampPalette(brewer.pal(8, pallete))
   return(getCols(n))
+}
+
+area_plot <- function(..., add=FALSE, autoax = TRUE) {
+  if (!add) {
+    plot(..., type = "n", axes = FALSE)
+    Kgrid()
+  }
+  Kolygon(...)
+  if (autoax) {
+    Kaxis(1); Kaxis(2, las = 2) 
+  }
 }
 
 # Line plot of FOI, infections, death
@@ -124,7 +141,8 @@ plot.dempp <- function(mod, start_year=1970, min_age=15, bin_year=5, bin_age=5, 
 }
 
 # Plot mod prevalence
-plot_prev <- function(mod, byAge=TRUE, byAgeGroup=FALSE, byYear=FALSE,
+#' @importFrom grDevices dev.new devAskNewPage
+plot_prev_r6 <- function(mod, byAge=TRUE, byAgeGroup=FALSE, byYear=FALSE,
                       years=1970:2021, removeZero=TRUE, cols=c(4,5), stats=FALSE,
                       add=FALSE, stackbar = FALSE, colset = "Pastel1", 
                       separate=FALSE, debut=FALSE, ...) {
@@ -132,9 +150,8 @@ plot_prev <- function(mod, byAge=TRUE, byAgeGroup=FALSE, byYear=FALSE,
     options(font.main=1)
     list2env(mod$ss, environment())
     sumByAGs <- function(x) x
-    if (byAgeGroup) {
+    if (byAgeGroup)
       sumByAGs <- function(x) apply(x, 2, fastmatch::ctapply, ag.idx, sum)
-    }
     years <- as.character(years)
     inmod <- mod$data
 
@@ -200,7 +217,7 @@ plot_prev <- function(mod, byAge=TRUE, byAgeGroup=FALSE, byYear=FALSE,
     if (debut) {
       ylim <- c(0, max(m.prev, f.prev, m.prev_a, f.prev_a))
       def.par <- par(no.readonly = TRUE)
-      layout(matrix(c(1,2,3,4), 2, 2, byrow = TRUE), height=c(.6,.4))
+      layout(matrix(c(1,2,3,4), 2, 2, byrow = TRUE), heights=c(.6,.4))
       sexdebutplot(m.prev, m.prev_a, ages, years, ylim, db_aid, main="Male") 
       sexdebutplot(f.prev, f.prev_a, ages, years, ylim, db_aid, main="Female") 
       lineplot(pc_active[,1,1], col=years[1], lwd=2, ylab="% active", xlab="", cex=.7, autoax=F, ylim=c(0,1))

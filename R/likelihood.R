@@ -702,8 +702,8 @@ lprior <- function(theta, fp){
   
   if((exists('group', where = fp) & fp$group == '2')){
     if(fp$mortadjust == 'simple'){
-      lpr <- dexp(theta[1], 2, log = TRUE)
-      lpr <- lpr + dexp(theta[2], 1, log = TRUE)
+      lpr <- dexp(exp(theta[1]), 2, log = TRUE)
+      # lpr <- lpr + dexp(exp(theta[2]), 1, log = TRUE)
       epp_nparam <- 0
       paramcurr <- 2
     }
@@ -836,10 +836,9 @@ ll <- function(theta, fp, likdat){
   if(!(exists('group', where = fp) & fp$group == '2')){
     fp <- update(fp, list=fnCreateParam(theta, fp))
   }else{
-    fp$mortscalar <- theta[1:2]
     if(fp$mortadjust == 'simple'){
-      fp$art_mort <- fp$art_mort * theta[2]
-      fp$cd4_mort_adjust <- theta[1]
+      # fp$art_mort <- fp$art_mort * exp(theta[2])
+      fp$cd4_mort_adjust <- exp(theta[1])
       incrr_nparam <- getnparam_incrr(fp)
       paramcurr <- 2
       if(incrr_nparam > 0){
@@ -960,10 +959,9 @@ ll <- function(theta, fp, likdat){
 sample.prior.group2 <- function(n, fp){
   ## applying a single scalar to on-ART and off-ART mort
   if(fp$mortadjust == 'simple'){
-    nparam <- 2 + getnparam_incrr(fp)
-    mat <- matrix(NA, n, nparam)
-    mat[,1] <- rexp(n, 2)
-    mat[,2] <- rexp(n, 1)
+    mat <- matrix(NA, n, 2)
+    mat[,1] <- log(rexp(n, 2))
+    mat[,2] <- log(rexp(n, 1))
     paramcurr <- 2
   }
 
@@ -971,7 +969,7 @@ sample.prior.group2 <- function(n, fp){
   if(exists("fitincrr", where=fp)){
     incrr_nparam <- getnparam_incrr(fp)
     if(incrr_nparam)
-      mat[,paramcurr+1:incrr_nparam] <- sample_incrr(n, fp)
+      mat <- cbind(mat, sample_incrr(n, fp))
     paramcurr <- paramcurr+incrr_nparam
   }
   
@@ -1157,8 +1155,8 @@ ldsamp <- function(theta, fp){
   ## Keeping the same density for initial IMIS sample 
   if((exists('group', where = fp) & fp$group == '2')){
     if(fp$mortadjust == 'simple'){
-      lpr <- dexp(theta[1], 2, log = TRUE)
-      lpr <- lpr + dexp(theta[2], 1, log = TRUE)
+      lpr <- dexp(exp(theta[1]), 2, log = TRUE)
+      # lpr <- lpr + dexp(exp(theta[2]), 1, log = TRUE)
       paramcurr <- 2
     }
     if(exists("fitincrr", where=fp)){

@@ -176,6 +176,7 @@ getnparam_incrr <- function(fp){
   value <- switch(as.character(fp$fitincrr),
                   "FALSE" = 0,
                   "TRUE" = NPARAM_RW2,
+                  cibaincrr = 14,
                   linincrr = NPARAM_RW2+NPARAM_LININCRR,
                   lognorm = 7,
                   relbehav = NPAR_RELBEHAV, NA)
@@ -188,7 +189,7 @@ transf_incrr <- function(theta_incrr, param, fp){
 
   incrr_nparam <- getnparam_incrr(fp)
   
-  if(fp$incidmod == "eppspectrum"){
+  if(fp$incidmod == "eppspectrum" & !fp$fitincrr == 'cibaincrr'){
     param$incrr_sex <- fp$incrr_sex
     param$incrr_sex[] <- exp(theta_incrr[1])
   } else if(fp$incidmod == "transm") {
@@ -253,6 +254,16 @@ transf_incrr <- function(theta_incrr, param, fp){
     ## param$incrr_age <- fp$logrelbehav
     ## param$incrr_age[,,1:(BREAK_YEAR-1)] <- exp(sweep(fp$logrelbehav[,,1:(BREAK_YEAR-1)], 1:2, logadjust1, "+"))
     ## param$incrr_age[,,BREAK_YEAR:fp$SIM_YEARS] <- exp(sweep(fp$logrelbehav[,,BREAK_YEAR:fp$SIM_YEARS], 1:2, logadjust2, "+"))
+  } else if(fp$fitincrr == 'cibaincrr'){
+    param$incrr_sex <- fp$incrr_sex
+    param$incrr_age <- array(0, c(14, 2))
+    param$incrr_age[c(1:2, 4:14), ] <- exp(rep(theta_incrr[2:14], 2))
+    param$incrr_age[3,] <- c(1,1)
+    incrr_age <- beers_Amat %*% param$incrr_age 
+    
+    param$incrr_age <- array(incrr_age, c(dim(incrr_age), fp$ss$PROJ_YEARS))
+    
+    
   }
 
 
@@ -270,7 +281,7 @@ lprior_incrr <- function(theta_incrr, fp){
 
   lpr <- 0
   
-  if(fp$incidmod == "eppspectrum")
+  if(fp$incidmod == "eppspectrum" & !fp$fitincrr == 'cibaincrr')
     lpr <- lpr + dnorm(theta_incrr[1], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE)
   else if(fp$incidmod == "transm")
     lpr <- lpr + dnorm(theta_incrr[1], mf_transm_rr.pr.mean, mf_transm_rr.pr.sd, log=TRUE)
@@ -290,6 +301,10 @@ lprior_incrr <- function(theta_incrr, fp){
         sum(dnorm(theta_incrr[c(4,7)], lognorm.logsdlog.pr.mean, lognorm.logsdlog.pr.sd, log=TRUE))
     } else if(fp$fitincrr=="relbehav"){
       lpr <- lpr + sum(dnorm(theta_incrr[2:NPAR_RELBEHAV], 0, relbehav_adjust_sd, log=TRUE));
+    } else if(fp$fitincrr == 'cibaincrr'){
+      cibaincrr.pr.mean <- fp$ciba_incrr_prior$rr[!fp$ciba_incrr_prior$age == 25]
+      cibaincrr.pr.sd <- fp$ciba_incrr_prior$sd[!fp$ciba_incrr_prior$age == 25]
+      lpr <- lpr + sum(dnorm(theta_incrr[2:14], cibaincrr.pr.mean, cibaincrr.pr.sd, log=TRUE))
     }
 
   return(lpr)
@@ -321,6 +336,10 @@ sample_incrr <- function(n, fp){
   } else if(fp$fitincrr=="relbehav"){
     incrr_nparam <- NPAR_RELBEHAV
     mat[,2:NPAR_RELBEHAV] <- rnorm(n*(NPAR_RELBEHAV-1), 0, relbehav_adjust_sd)
+  } else if(fp$fitincrr == 'cibaincrr'){
+    cibaincrr.pr.mean <- fp$ciba_incrr_prior$rr[!fp$ciba_incrr_prior$age == 25]
+    cibaincrr.pr.sd <- fp$ciba_incrr_prior$sd[!fp$ciba_incrr_prior$age == 25]
+    mat[,2:14] <- t(matrix(rnorm(n*13, cibaincrr.pr.mean, cibaincrr.pr.sd), nrow=13))
   }
 
   return(mat)

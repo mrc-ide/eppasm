@@ -51,7 +51,8 @@ imis <- function(B0, B, B_re, number_k, opt_k=NULL, fp, likdat,
 
   iter_start_time <- proc.time()
   for(k in 1:number_k){
-
+    temp = exp(X_k[,1:2])
+    if(any(temp[temp < 0])){browser()}
     ## Calculate log-likelihood for new inputs
     ll_k <- likelihood(X_k, fp, likdat, log=TRUE)
 

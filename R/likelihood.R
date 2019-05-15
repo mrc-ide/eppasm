@@ -703,9 +703,8 @@ lprior <- function(theta, fp){
   if((exists('group', where = fp) & fp$group == '2')){
     if(fp$mortadjust == 'simple'){
       lpr <- dexp(exp(theta[1]), 2, log = TRUE)
-      # lpr <- lpr + dexp(exp(theta[2]), 1, log = TRUE)
       epp_nparam <- 0
-      paramcurr <- 2
+      paramcurr <- 1
     }
     if(exists("fitincrr", where=fp)){
       incrr_nparam <- getnparam_incrr(fp)
@@ -837,10 +836,9 @@ ll <- function(theta, fp, likdat){
     fp <- update(fp, list=fnCreateParam(theta, fp))
   }else{
     if(fp$mortadjust == 'simple'){
-      # fp$art_mort <- fp$art_mort * exp(theta[2])
       fp$cd4_mort_adjust <- exp(theta[1])
       incrr_nparam <- getnparam_incrr(fp)
-      paramcurr <- 2
+      paramcurr <- 1
       if(incrr_nparam > 0){
         fp$incrr_sex = fp$incrr_sex[1:fp$SIM_YEARS]
         fp$incrr_age = fp$incrr_age[,,1:fp$SIM_YEARS]
@@ -959,10 +957,9 @@ ll <- function(theta, fp, likdat){
 sample.prior.group2 <- function(n, fp){
   ## applying a single scalar to on-ART and off-ART mort
   if(fp$mortadjust == 'simple'){
-    mat <- matrix(NA, n, 2)
+    mat <- matrix(NA, n, 1)
     mat[,1] <- log(rexp(n, 2))
-    mat[,2] <- log(rexp(n, 1))
-    paramcurr <- 2
+    paramcurr <- 1
   }
 
   ## age-sex fitting parameters
@@ -1156,8 +1153,7 @@ ldsamp <- function(theta, fp){
   if((exists('group', where = fp) & fp$group == '2')){
     if(fp$mortadjust == 'simple'){
       lpr <- dexp(exp(theta[1]), 2, log = TRUE)
-      # lpr <- lpr + dexp(exp(theta[2]), 1, log = TRUE)
-      paramcurr <- 2
+      paramcurr <- 1
     }
     if(exists("fitincrr", where=fp)){
       incrr_nparam <- getnparam_incrr(fp)

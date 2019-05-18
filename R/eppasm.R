@@ -1,6 +1,5 @@
 #' @useDynLib eppasm eppasmC
 simmod.specfp <- function(fp, VERSION="C", .MODEL=1, MIX=FALSE) {
-
   if (!exists("popadjust", where=fp))
     fp$popadjust <- FALSE
 
@@ -8,39 +7,33 @@ simmod.specfp <- function(fp, VERSION="C", .MODEL=1, MIX=FALSE) {
     fp$incidmod <- "eppspectrum"
 
   if (VERSION != "R") {
-    fp$eppmodInt <- match(fp$eppmod, c("rtrend", "directincid"), nomatch=0) # 0: r-spline;
-    fp$incidmodInt <- match(fp$incidmod, c("eppspectrum"))-1L  # -1 for 0-based indexing
-    mod <- .Call(eppasmC, fp)
-    class(mod) <- "spec"
-    return(mod)
+    if (VERSION=="K") { # C++ classes
+      fp <- prepare_fp_for_Cpp(fp)
+      mod <- eppasmOO(fp, .MODEL, MIX)
+      return(mod)
+    } 
+    else { # keep this for tests
+      fp$eppmodInt <- match(fp$eppmod, c("rtrend", "directincid"), nomatch=0) # 0: r-spline;
+      fp$incidmodInt <- match(fp$incidmod, c("eppspectrum"))-1L  # -1 for 0-based indexing
+      mod <- .Call(eppasmC, fp)
+      class(mod) <- "spec"
+      return(mod)
+    }
   }
-
-  ## initialize projection
   pop <- popEPP$new(fp, .MODEL, VERSION, MIX)
-  
-  if (.MODEL!=0) {
-    hivpop  <- hivEPP$new(fp, .MODEL)
-    artpop  <- artEPP$new(fp, .MODEL)
-  }
-
+  hivpop  <- hivEPP$new(fp, .MODEL)
+  artpop  <- artEPP$new(fp, .MODEL)
   for (i in 2:fp$SIM_YEARS) {
-    
     pop$year <- hivpop$year <- artpop$year <- i
-    
     epp_aging(pop, hivpop, artpop)
-    
     epp_death(pop, hivpop, artpop)
-    
     epp_migration(pop, hivpop, artpop)
-    
     pop$update_fertile()
-
     if (.MODEL!=0) { # Disease model simulation: events at dt timestep
       epp_disease_model(pop, hivpop, artpop)
       if (fp$eppmod == "directincid") ## Direct incidence input model
         pop$epp_disease_model_direct(hivpop, artpop)
     }
-
     if (exists("popadjust", where=fp) && fp$popadjust) { # match target pop
       pop$adjust_pop()
       if (.MODEL!=0) {
@@ -49,14 +42,12 @@ simmod.specfp <- function(fp, VERSION="C", .MODEL=1, MIX=FALSE) {
           artpop$adjust_pop(pop$adj_prob)
       }
     }
-
     if (.MODEL!=0) {
       if (i + fp$ss$AGE_START <= fp$ss$PROJ_YEARS)
         pop$cal_prev_pregant(hivpop, artpop) # prevalence among pregnant women
       pop$save_prev_n_inc() # save prevalence and incidence 15 to 49
     }
   }
-
   if (.MODEL!=0) {
     attr(pop, "hivpop") <- hivpop
     attr(pop, "artpop") <- artpop

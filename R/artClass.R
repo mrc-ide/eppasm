@@ -51,12 +51,11 @@ aging = function(ag_prob) {
 },
 
 add_entrants = function(artYesNo) {
+    n_in <- sweep(p$paedsurv_artcd4dist[,,,year], 3, head(artYesNo, 2), "*")
     if (MODEL==1)
-        data[,,1,,year] <<- data[,,1,,year] + 
-                    sweep(p$paedsurv_artcd4dist[,,,year], 3, artYesNo[1:2], "*")
+        data[,,1,,year] <<- data[,,1,,year] + n_in
     if (MODEL==2) # add to virgin then debut
-        data_db[,,1,,year] <<- data_db[,,1,,year] + 
-                    sweep(p$paedsurv_artcd4dist[,,,year], 3, artYesNo[1:2], "*")
+        data_db[,,1,,year] <<- data_db[,,1,,year] + n_in
 },
 
 sexual_debut = function() {
@@ -129,13 +128,13 @@ adjust_pop = function(adj_prob) {
         data_db[,,,,year] <<- sweep(data_db[,,,,year], 3:4, adj_prob, "*")
 },
 
-# set = function(FUN="+", x, TS=T, DS=T, AG=T, NG=T, YEAR=NULL) {
-#     FUN <- match.fun(FUN)
-#     if (is.null(YEAR))
-#         data[TS, DS, AG, NG] <<- FUN(data[TS, DS, AG, NG], x)
-#     else
-#         data[TS, DS, AG, NG, YEAR] <<- FUN(data[TS, DS, AG, NG, YEAR], x)
-# }, 
+set_data = function(FUN="+", x, TS=T, DS=T, AG=T, NG=T, YEAR=NULL) {
+    FUN <- match.fun(FUN)
+    if (is.null(YEAR))
+        data[TS, DS, AG, NG] <<- FUN(data[TS, DS, AG, NG], x)
+    else
+        data[TS, DS, AG, NG, YEAR] <<- FUN(data[TS, DS, AG, NG, YEAR], x)
+}, 
 
 get = function(YEAR=NULL, TS=T, DS=T, AG=T, NG=T) {
     'get does not change anything, just return the data, use set to change'

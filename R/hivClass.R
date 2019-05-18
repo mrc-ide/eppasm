@@ -41,10 +41,10 @@ aging = function(ag_prob) {
 add_entrants = function(artYesNo) {
     if (MODEL==1)
         data[,1,,year] <<- data[,1,,year] + 
-                        sweep(p$paedsurv_cd4dist[,,year], 2, artYesNo[3:4], "*")
+            sweep(p$paedsurv_cd4dist[,,year], 2, tail(artYesNo,2), "*")
     if (MODEL==2) # add to virgin then debut
         data_db[,1,,year] <<- data_db[,1,,year] + 
-                        sweep(p$paedsurv_cd4dist[,,year], 2, artYesNo[3:4], "*")
+            sweep(p$paedsurv_cd4dist[,,year], 2, tail(artYesNo,2), "*")
 },
 
 sexual_debut = function() {
@@ -87,7 +87,11 @@ grad_progress = function(mortality_rate) {
 },
 
 eligible_for_art = function() {
-    1 - (1 - rep(0:1, times=c(p$artcd4elig_idx[year]-1, hDS - p$artcd4elig_idx[year]+1))) * (1 - rep(c(0, p$who34percelig), c(2, hDS-2))) * (1 - rep(p$specpop_percelig[year], hDS))
+    1 - (1 - rep(0:1, times=c(      p$artcd4elig_idx[year]-1,
+                              hDS - p$artcd4elig_idx[year]+1))) * 
+        (1 - rep(c(0, p$who34percelig),
+                 c(2, hDS-2))) * 
+        (1 - rep(p$specpop_percelig[year], hDS))
 },
 
 distribute_artinit = function(artinit, artpop) {

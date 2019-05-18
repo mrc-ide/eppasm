@@ -124,3 +124,17 @@ test_that("Model ouputs are equal", {
                modR1$incrate15to49_ts[1:length(attr(mod, "incrate15to49_ts"))])
   expect_equal(attr(mod, "entrantprev"), modR1$entrantprev)
 })
+
+test_that("Model with C++ class ouputs are equal", {
+  mod <- simmod(bw_fp)
+  modK <- simmod(bw_fp, "K")
+  expect_equal(attr(mod, "natdeaths"), attr(modK, "natdeaths"))
+  expect_equal(attr(mod, "popadjust"), attr(modK, "popadjust"))
+  expect_equal(attr(mod, "prev15to49"), attr(modK, "prev15to49"))
+  expect_equal(attr(mod, "incid15to49"), attr(modK, "incid15to49"))
+  expect_equal(attr(mod, "infections"), attr(modK, "infections"))
+  expect_equal(attr(mod, "hivdeaths"), attr(modK, "hivdeaths"))
+  expect_equal(attr(mod, "prev15to49_ts"), attr(modK, "prev15to49_ts"))
+  expect_equal(attr(mod, "incrate15to49_ts"), attr(modK, "incrate15to49_ts"))
+  expect_equal(attr(mod, "entrantprev"), attr(modK, "entrantprev"))
+})

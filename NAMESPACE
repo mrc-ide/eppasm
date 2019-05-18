@@ -2,7 +2,6 @@
 
 import(anclik)
 import(data.table)
-import(magrittr)
 importFrom(RColorBrewer,brewer.pal)
 importFrom(Rcpp,sourceCpp)
 importFrom(abind,abind)

@@ -60,33 +60,32 @@ epp_disease_model <- function(pop, hivpop, artpop) {
     hivpop$grad_progress(cd4_mort) # cd4 disease progression and mortality
     pop$remove_hiv_death(cd4_mort, hivpop, artpop) # Remove hivdeaths from pop
     if (pop$year >= pop$p$tARTstart) # ART initiation
-      epp_art_init(pop, hivpop, artpop, time_step)
+      pop$epp_art_init(hivpop, artpop, time_step)
     hivpop$add_grad_to_pop()
   } # end time step
 }
 
 # calculate, distribute eligible for ART, update grad, gradART
 # -----------------------------------------------------------------------------
-epp_art_init <- function(pop, hivpop, artpop, time_step) {
-  year <- pop$year
+.epp_art_init <- function(hivpop, artpop, time_step) {
   artpop$grad_progress()
   artpop$art_dropout(hivpop) # pass hivpop to receive the drop out
   eligible <- hivpop$eligible_for_art()
   art_elig <- sweep(hivpop$get(year), 1, eligible, "*")
-  art_elig <- pop$update_preg(art_elig, hivpop, artpop) ## add pregnant?
-  if (pop$MODEL==2) # add sexual inactive but eligible for treatment
+  if (p$pw_artelig[year] & p$artcd4elig_idx[year] > 1)
+    art_elig <- update_preg(art_elig, hivpop, artpop) ## add pregnant?
+  if (MODEL==2) # add sexual inactive but eligible for treatment
     art_elig <- art_elig + sweep(hivpop$data_db[,,,year], 1, eligible, "*")
-
-  ## calculate number to initiate ART and distribute
+  # calculate number to initiate ART and distribute
   art_curr        <- artpop$current_on_art()
-  artnum.ii       <- pop$artInit(art_curr, art_elig, time_step)
+  artnum.ii       <- artInit(art_curr, art_elig, time_step)
   art15plus.inits <- pmax(artnum.ii - art_curr, 0)
-  artinit         <- pop$artDist(art_elig, art15plus.inits)
-
-  if (pop$MODEL==1) 
-    artinit <- pmin(artinit, hivpop$get(year) + hivpop$DT * hivpop$grad)
-  if (pop$MODEL==2) # split the number proportionally for active and idle pop
+  artinit         <- artDist(art_elig, art15plus.inits)
+  if (MODEL==1) 
+    artinit <- pmin(artinit, hivpop$get(year) + DT * hivpop$grad)
+  if (MODEL==2) # split the number proportionally for active and idle pop
     artinit <- hivpop$distribute_artinit(artinit, artpop)
-  hivpop$grad <- hivpop$grad - artinit / hivpop$DT
+  hivpop$grad <- hivpop$grad - artinit / DT
   artpop$grad_init(artinit)
 }
+setMembers(popEPP, "public", "epp_art_init", .epp_art_init)

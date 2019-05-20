@@ -831,9 +831,8 @@ ll_diagn <- function(fp, mod, likdat){
 
 ll <- function(theta, fp, likdat){
   theta.last <<- theta
-  ## TF - running group 2 countries with directincid right now
   if(!(exists('group', where = fp) & fp$group == '2')){
-    fp <- update(fp, list=fnCreateParam(theta, fp))
+    fp <- update(fp, list=fnCreateParam(theta, fp), keep.attr = FALSE)
   }else{
     if(fp$mortadjust == 'simple'){
       fp$cd4_mort_adjust <- exp(theta[1])
@@ -864,11 +863,11 @@ ll <- function(theta, fp, likdat){
     if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) 
       return(-Inf)
   ##TF
-   # if(!(exists('group', where = fp) & fp$group == '2')){
+   if(!(exists('group', where = fp) & fp$group == '2')){
      mod <- simmod(fp)
-  #  }else{
-  #   mod <- simmod(fp, VERSION = 'R')
-  # }
+   }else{
+    mod <- simmod(fp, VERSION = 'R')
+  }
   
   ## VR likelihood
   if(exists('vr', where = likdat)){

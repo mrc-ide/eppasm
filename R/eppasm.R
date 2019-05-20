@@ -289,7 +289,12 @@ simmod.specfp <- function(fp, VERSION="C"){
       }else if(fp$mortadjust == 'simple'){
         art.not.cov <- sum(hivpop[,,,i]) / sum(hivpop[,,,i] + colSums(artpop[,,,,i]))
         art.not.cov[!is.finite(art.not.cov)] <- 1.0
-        cd4_mort_ts <- fp$cd4_mort_adjust * art.not.cov * fp$cd4_mort
+        if(fp$mort_scalar_type == 'exp'){
+          scalar <- exp(-(fp$cd4_mort_adjust) * (1-art.not.cov))
+          cd4_mort_ts <- fp$cd4_mort * scalar
+        }else{
+          cd4_mort_ts <- fp$cd4_mort_adjust * art.not.cov * fp$cd4_mort
+        }
       } else{
         cd4_mort_ts <- fp$cd4_mort
       }

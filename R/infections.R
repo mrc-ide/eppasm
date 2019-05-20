@@ -176,7 +176,7 @@ getnparam_incrr <- function(fp){
   value <- switch(as.character(fp$fitincrr),
                   "FALSE" = 0,
                   "TRUE" = NPARAM_RW2,
-                  cibaincrr = 17,
+                  cibaincrr = 13,
                   linincrr = NPARAM_RW2+NPARAM_LININCRR,
                   lognorm = 7,
                   relbehav = NPAR_RELBEHAV, NA)
@@ -262,12 +262,12 @@ transf_incrr <- function(theta_incrr, param, fp){
     
     incrr_age <- beers_Amat %*% param$incrr_age 
     param$incrr_age <- array(incrr_age, c(dim(incrr_age), fp$ss$PROJ_YEARS))
-    m15to24_adjust <- theta_incrr[14] + (theta_incrr[15] * 1:fp$SIM_YEARS)
-    f15to24_adjust <- theta_incrr[16] + (theta_incrr[17] * 1:fp$SIM_YEARS)
-    adj <- exp(rbind(m15to24_adjust, f15to24_adjust))
-    adj[adj > 2] <- 2
-    adj[adj< 0.5] <- 0.5
-    param$incrr_age[1:10,,] <- sweep(param$incrr_age[1:10,,,drop=FALSE], 2:3, adj, "*")      
+    # m15to24_adjust <- theta_incrr[14] + (theta_incrr[15] * 1:fp$SIM_YEARS)
+    # f15to24_adjust <- theta_incrr[16] + (theta_incrr[17] * 1:fp$SIM_YEARS)
+    # adj <- exp(rbind(m15to24_adjust, f15to24_adjust))
+    # adj[adj > 2] <- 2
+    # adj[adj< 0.5] <- 0.5
+    # param$incrr_age[1:10,,] <- sweep(param$incrr_age[1:10,,,drop=FALSE], 2:3, adj, "*")      
     
     
   }
@@ -311,10 +311,10 @@ lprior_incrr <- function(theta_incrr, fp){
       cibaincrr.pr.mean <- fp$ciba_incrr_prior$rr[!fp$ciba_incrr_prior$age == 25]
       cibaincrr.pr.sd <- fp$ciba_incrr_prior$sd[!fp$ciba_incrr_prior$age == 25]
       lpr <- lpr + sum(dnorm(theta_incrr[1:13], cibaincrr.pr.mean, cibaincrr.pr.sd, log=TRUE))
-      m.prior <- c(log(unname(fp$m15to24_ratio)[1]), unname(fp$m15to24_ratio[2]))
-      f.prior <- c(log(unname(fp$f15to24_ratio)[1]), unname(fp$f15to24_ratio[2]))
-      lpr <- lpr + sum(dnorm(theta_incrr[14:15],m.prior, c(0.5, 0.05), log = TRUE))
-      lpr <- lpr + sum(dnorm(theta_incrr[16:17], f.prior, c(0.5, 0.05), log = TRUE))
+      # m.prior <- c(log(unname(fp$m15to24_ratio)[1]), unname(fp$m15to24_ratio[2]))
+      # f.prior <- c(log(unname(fp$f15to24_ratio)[1]), unname(fp$f15to24_ratio[2]))
+      # lpr <- lpr + sum(dnorm(theta_incrr[14:15],m.prior, c(0.5, 0.05), log = TRUE))
+      # lpr <- lpr + sum(dnorm(theta_incrr[16:17], f.prior, c(0.5, 0.05), log = TRUE))
     }
 
   return(lpr)
@@ -350,10 +350,10 @@ sample_incrr <- function(n, fp){
     cibaincrr.pr.mean <- fp$ciba_incrr_prior$rr[!fp$ciba_incrr_prior$age == 25]
     cibaincrr.pr.sd <- fp$ciba_incrr_prior$sd[!fp$ciba_incrr_prior$age == 25]
     mat[,1:13] <- t(matrix(rnorm(n*13, cibaincrr.pr.mean, cibaincrr.pr.sd), nrow=13))
-    m15to24 <- t(matrix(rnorm(n*2, c(log(unname(fp$m15to24_ratio)[1]), unname(fp$m15to24_ratio[2])), c(0.5, 0.05)), nrow = 2))
-    f15to24 <- t(matrix(rnorm(n*2, c(log(unname(fp$f15to24_ratio)[1]), unname(fp$f15to24_ratio[2])), c(0.5, 0.05)), nrow = 2))
-    mat[,14:15] <- m15to24
-    mat[,16:17] <- f15to24
+    # m15to24 <- t(matrix(rnorm(n*2, c(log(unname(fp$m15to24_ratio)[1]), unname(fp$m15to24_ratio[2])), c(0.5, 0.05)), nrow = 2))
+    # f15to24 <- t(matrix(rnorm(n*2, c(log(unname(fp$f15to24_ratio)[1]), unname(fp$f15to24_ratio[2])), c(0.5, 0.05)), nrow = 2))
+    # mat[,14:15] <- m15to24
+    # mat[,16:17] <- f15to24
   }
 
   return(mat)

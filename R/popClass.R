@@ -107,11 +107,11 @@ update_rvec = function(time_step) {
 },
 
 update_infection = function(infect) {
-    change_ts <- infect * DT
-    data[,, hivn.idx, year] <<- data[,, hivn.idx, year] - change_ts
-    data[,, hivp.idx, year] <<- data[,, hivp.idx, year] + change_ts
-    infections[,,year] <<- infections[,,year] + change_ts 
-    incid15to49[year]  <<- incid15to49[year] + sum(change_ts[p.age15to49.idx,])  
+    infect <- infect * DT
+    data[,, hivn.idx, year] <<- data[,, hivn.idx, year] - infect
+    data[,, hivp.idx, year] <<- data[,, hivp.idx, year] + infect
+    infections[,,year] <<- infections[,,year] + infect 
+    incid15to49[year]  <<- incid15to49[year] + sum(infect[p.age15to49.idx,])  
 },
 
 remove_hiv_death = function(cd4_mx, hivpop, artpop) {
@@ -313,8 +313,8 @@ entrant_art = function() { # return these for updating HIV and ART pop
 deaths = function() {
     death_now <- sweep(data[,,,year], 1:2, 1 - p$Sx[,,year], "*")
     if (MODEL==1) {
-      hiv_sx_prob <<- 1 - sumByAGs(death_now[,,2], ag.idx) / 
-                          sumByAGs(data[,,2,year], ag.idx)
+      hiv_sx_prob <<- 1 - sumByAGs(death_now[,,hivp.idx], ag.idx) / 
+                          sumByAGs(data[,,hivp.idx,year], ag.idx)
       hiv_sx_prob[is.nan(hiv_sx_prob)] <<- 0
     }
     if (MODEL==2) {

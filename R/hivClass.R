@@ -28,23 +28,22 @@ aging = function(ag_prob) {
     nHup <- sweep(data[,-hAG,, year], 2:3, ag_prob[-hAG,], "*")
     data[,-hAG,,year] <<- data[,-hAG,,year] - nHup
     data[,  -1,,year] <<- data[,  -1,,year] + nHup
-
     if (MODEL==2) {
         data_db[,,,year]     <<- data_db[,,,year-1]
         nHup <- sweep(data_db[,-hAG,, year], 2:3, ag_prob[-hAG,], "*")
         data_db[,-hAG,,year] <<- data_db[,-hAG,,year] - nHup
         data_db[,  -1,,year] <<- data_db[,  -1,,year] + nHup
-        if (any((data_db[,2,,year] - data_db[,1,,year-1]) != 0)) browser()
     }
 },
 
 add_entrants = function(artYesNo) {
+    artNO = tail(artYesNo,2)
     if (MODEL==1)
         data[,1,,year] <<- data[,1,,year] + 
-            sweep(p$paedsurv_cd4dist[,,year], 2, tail(artYesNo,2), "*")
+            sweep(p$paedsurv_cd4dist[,,year], 2, artNO, "*")
     if (MODEL==2) # add to virgin then debut
         data_db[,1,,year] <<- data_db[,1,,year] + 
-            sweep(p$paedsurv_cd4dist[,,year], 2, tail(artYesNo,2), "*")
+            sweep(p$paedsurv_cd4dist[,,year], 2, artNO, "*")
 },
 
 sexual_debut = function() {
@@ -70,18 +69,19 @@ update_infection = function(new_infect) {
     grad <<- grad + sweep(p$cd4_initdist, 2:3, sumByAGs(new_infect, ag.idx), "*")
 },
 
-# HIV gradient progress
-grad_progress = function(mortality_rate) {
+grad_progress = function(mortality_rate) { # HIV gradient progress
     if (p$eppmod == "directincid")
         grad[,,] <<- 0 # reset every time step
     # remove cd4 stage progression (untreated)
-    grad[-hDS,,] <<- grad[-hDS,,] - p$cd4_prog * data[-hDS,,,year]
-    grad[-1,,]   <<- grad[-1,,]   + p$cd4_prog * data[-hDS,,,year] # add 
+    nARTup <- p$cd4_prog * data[-hDS,,,year]
+    grad[-hDS,,] <<- grad[-hDS,,] - nARTup
+    grad[-1,,]   <<- grad[-1,,]   + nARTup # add 
     grad <<- grad - mortality_rate * data[,,,year] # HIV mortality, untreated
     if (MODEL==2) {
         grad_db[,,] <<- 0 # reset every time, this's the 1st time grad_db is used
-        grad_db[-hDS,,] <<- grad_db[-hDS,,] - p$cd4_prog * data_db[-hDS,,,year]
-        grad_db[-1,,]   <<- grad_db[-1,,]   + p$cd4_prog * data_db[-hDS,,,year] 
+        nARTup <- p$cd4_prog * data_db[-hDS,,,year]
+        grad_db[-hDS,,] <<- grad_db[-hDS,,] - nARTup
+        grad_db[-1,,]   <<- grad_db[-1,,]   + nARTup 
         grad_db <<- grad_db - mortality_rate * data_db[,,,year]
     }
 },

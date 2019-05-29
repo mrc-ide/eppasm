@@ -30,17 +30,18 @@ ldinvlogit <- function(x){v <- invlogit(x); log(v) + log(1-v)}
 prepare_fp_for_Cpp <- function(fp) {
     names(fp$ss) <- gsub('\\.', '_', names(fp$ss))
     names(fp) <- gsub('\\.', '_', names(fp))
-    names(fp$rt) <- gsub('\\.', '_', names(fp$rt))
+    if (exists("rt", where=fp)) 
+        names(fp$rt) <- gsub('\\.', '_', names(fp$rt))
+    # rhybrid = 0 # rtrend = 1 # directincid =2 
     fp$eppmodInt <- match(fp$eppmod, c("rtrend", "directincid"), nomatch=0)
-    if (fp$eppmod=="rtrend") 
-        fp$eppmodInt <- 2
     fp$incidmodInt <- match(fp$incidmod, c("eppspectrum"))-1L
     fp$ancrtInt <- match(fp$ancrt, c("both"), nomatch=0) # just a placeholder
     fp$art15plus_isperc <- apply(fp$art15plus_isperc, 2, as.numeric)
     fp$ss$h_ag_span <- as.numeric(fp$ss$h_ag_span)
     if (!exists("rw_start", where=fp)) fp$rw_start <- fp$rt$rw_start;
+    if (!exists("rvec", where=fp)) fp$rvec <- 1;
     if (!exists("pDB", where=fp$ss))  { # mixing model parameters
-        fp$ss$pDB <- 1
+        fp$ss$pDB <- 1L
         fp$db_pr <- matrix(1, fp$ss$pDB, 2)
         fp$mat_f <- fp$mat_m <- matrix(1, fp$ss$pAG, fp$ss$pAG)
     }

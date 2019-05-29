@@ -576,8 +576,8 @@ ageartcov <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NUL
   haidx <- h.ag.idx[rep(idx$aidx, agspan) + unlist(sapply(agspan, seq_len))-1]
 
   ## ART coverage with HA age groups
-  artpop <- colSums(attr(mod, "artpop")$data,,2)
-  artcov <- artpop / (artpop + colSums(attr(mod, "hivpop")$data,,1))
+  artpop <- colSums(attr(mod, "artpop"),,2)
+  artcov <- artpop / (artpop + colSums(attr(mod, "hivpop"),,1))
 
   hdim <- dim(artcov)
   hallidx <- haidx + (sidx.ag-1)*hdim[1] + (yidx.ag-1)*hdim[1]*hdim[2]
@@ -633,8 +633,8 @@ agepregprev <- function(mod, fp,
   hivn <- (mod$data[cbind(a_idx, s_idx, 1, y_idx)] + mod$data[cbind(a_idx, s_idx, 1, yminus1_idx)]) / 2
 
   ## Calculate age-specific FRR given the CD4 and ART duration distribution
-  hivpop_fert <- attr(mod, "hivpop")$data[ , fp$ss$h.fert.idx, fp$ss$f.idx, ]
-  artpop_fert <- attr(mod, "artpop")$data[ , , fp$ss$h.fert.idx, fp$ss$f.idx, ]
+  hivpop_fert <- attr(mod, "hivpop")[ , fp$ss$h.fert.idx, fp$ss$f.idx, ]
+  artpop_fert <- attr(mod, "artpop")[ , , fp$ss$h.fert.idx, fp$ss$f.idx, ]
   ha_frr <- (colSums(hivpop_fert * fp$frr_cd4) + colSums(artpop_fert * fp$frr_art,,2)) / (colSums(hivpop_fert) + colSums(artpop_fert,,2))
   
   births_a <- fp$asfr[cbind(fert_idx, y_idx)] * (hivn + hivp)
@@ -686,8 +686,8 @@ agepregartcov <- function(mod, fp,
   hivn <- (mod$data[cbind(a_idx, s_idx, 1, y_idx)] + mod$data[cbind(a_idx, s_idx, 1, yminus1_idx)]) / 2
   
   ## Calculate age-specific FRR given the CD4 and ART duration distribution
-  hivpop_fert <- attr(mod, "hivpop")$data[ , fp$ss$h.fert.idx, fp$ss$f.idx, ]
-  artpop_fert <- attr(mod, "artpop")$data[ , , fp$ss$h.fert.idx, fp$ss$f.idx, ]
+  hivpop_fert <- attr(mod, "hivpop")[ , fp$ss$h.fert.idx, fp$ss$f.idx, ]
+  artpop_fert <- attr(mod, "artpop")[ , , fp$ss$h.fert.idx, fp$ss$f.idx, ]
   wgt_hivp <- colSums(hivpop_fert * fp$frr_cd4)
   wgt_art <- colSums(artpop_fert * fp$frr_art,,2)
 
@@ -716,18 +716,18 @@ calc_nqx.spec <- function(mod, fp, n=45, x=15, nonhiv=FALSE){
 
 
 pop15to49.spec <- function(mod){colSums(mod[1:35,,,],,3)}
-artpop15to49.spec <- function(mod){colSums(attr(mod, "artpop")$data[,,1:8,,],,4)}
-artpop15plus.spec <- function(mod){colSums(attr(mod, "artpop")$data,,4)}
+artpop15to49.spec <- function(mod){colSums(attr(mod, "artpop")[,,1:8,,],,4)}
+artpop15plus.spec <- function(mod){colSums(attr(mod, "artpop"),,4)}
 
 artcov15to49.spec <- function(mod, sex=1:2){
-  n_art <- colSums(attr(mod, "artpop")$data[,,1:8,sex,,drop=FALSE],,4)
-  n_hiv <- colSums(attr(mod, "hivpop")$data[,1:8,sex,,drop=FALSE],,3)
+  n_art <- colSums(attr(mod, "artpop")[,,1:8,sex,,drop=FALSE],,4)
+  n_hiv <- colSums(attr(mod, "hivpop")[,1:8,sex,,drop=FALSE],,3)
   return(n_art / (n_hiv+n_art))
 }
 
 artcov15plus.spec <- function(mod, sex=1:2){
-  n_art <- colSums(attr(mod, "artpop")$data[,,,sex,,drop=FALSE],,4)
-  n_hiv <- colSums(attr(mod, "hivpop")$data[,,sex,,drop=FALSE],,3)
+  n_art <- colSums(attr(mod, "artpop")[,,,sex,,drop=FALSE],,4)
+  n_hiv <- colSums(attr(mod, "hivpop")[,,sex,,drop=FALSE],,3)
   return(n_art / (n_hiv+n_art))
 }
 

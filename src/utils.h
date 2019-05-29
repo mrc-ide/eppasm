@@ -12,33 +12,86 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
+#define BOOST_DISABLE_ASSERTS
+#include <boost/multi_array.hpp>
 #define R_NO_REMAP
 #include <R.h>
 #include <Rinternals.h>
-#include <armadillo>
-using namespace arma;
+#include <Rdefines.h>
+using namespace boost;
+#pragma once
 
-vec sumByAG (vec B, uvec age_of_interest);
-mat sumByAG (mat B, uvec age_of_interest);
-cube sweepX23(cube A, mat B);
-// R sweep(array, 3:4, mat, "*")
-field<cube> sweepX34 (field<cube> A, mat B, uword max_slice=0);
-mat rep_each_row_by_span(mat M0, vec v_span);
-vec col_sum_cube_to_vec(cube C);
+SEXP get_value(SEXP list, const char *str);
+bool has_value(SEXP list, const char *str);
 
-// Pmin
+typedef multi_array<double, 1> boost1D;
+typedef multi_array<int,    1> boost1I;
+typedef multi_array<double, 2> boost2D;
+typedef multi_array<double, 3> boost3D;
+typedef multi_array<double, 4> boost4D;
+typedef multi_array<double, 5> boost5D;
+
+typedef multi_array_ref<double, 1> boost1D_ptr;
+typedef multi_array_ref<int,    1> boost1I_ptr;
+typedef multi_array_ref<double, 2> boost2D_ptr;
+typedef multi_array_ref<double, 3> boost3D_ptr;
+typedef multi_array_ref<double, 4> boost4D_ptr;
+typedef multi_array_ref<double, 5> boost5D_ptr;
+
+typedef multi_array_types::index_range in;
+
+array<boost2D_ptr::index, 2> get_extents_2D(SEXP array);
+array<boost3D_ptr::index, 3> get_extents_3D(SEXP array);
+array<boost4D_ptr::index, 4> get_extents_4D(SEXP array);
+boost2D_ptr sexp_2D_to_boost (const SEXP& sexp_obj, bool zeroing=true);
+
+boost2D sumByAG (boost2D B, boost1I age_of_interest, int new_size);
+boost1D sumByAG (boost1D B, boost1I age_of_interest, int new_size);
+
+// Boost array NA/INF to zero: num/0.0 or 0.0/0.0
 template <class K>
-K p_min (K A, double B, bool na_rm = true) {
-  A.elem( find(A > B)).fill(B);
-  if (na_rm)
-    A.replace(datum::nan, B);
+void replace_na_with (K& A, double B = 0.0) {
+  for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
+    if (std::isnan(*i) || std::isinf(*i))
+      *i = B;
+}
+
+// Boost array all to zero
+template <class K>
+void zeroing (K& A) {
+  for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
+      *i = 0.0;
+}
+
+// Boost array sum
+template <class K>
+double sumArray (K& A) {
+  double sum = 0;
+  for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
+    sum += *i;
+  return sum;
+}
+
+// Boost array multiply each cell
+template <class K>
+K multiply_with (K A, double X) { // not by reference
+  for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
+      *i *= X;
   return A;
 }
-// Pmax
+
+// Boost array multiply each cell
 template <class K>
-K p_max (K A, double B, bool na_rm = true) {
-  A.elem( find(A < B)).fill(B);
-  if (na_rm)
-    A.replace(datum::nan, B);
+K add_to_each (K A, double X) { // not by reference
+  for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
+      *i += X;
+  return A;
+}
+
+// Boost array multiply each cell
+template <class K>
+K substract_from_each (K A, double X) { // not by reference
+  for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
+      *i -= X;
   return A;
 }

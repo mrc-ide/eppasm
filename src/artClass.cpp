@@ -14,155 +14,247 @@
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Classes.h"
 
-void artC::aging (mat ag_prob) {
-  data.row(year) = data.row(year-1);
-  field<cube> nARTup = sweepX34(data.row(year), ag_prob, hAG - 1);
-  for (uword sex = 0; sex < 2; ++sex) {
-    data.row(year)(sex).slices(0, hAG-2) -= nARTup(sex);
-    data.row(year)(sex).slices(1, hAG-1) += nARTup(sex);
-  }
+void artC::aging (boost2D ag_prob) {
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++)
+          data[year][sex][agr][cd4][dur] = data[year-1][sex][agr][cd4][dur];
+  boost4D nARTup(extents[NG][hAG-1][hDS][hTS]);
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG-1; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++)
+          nARTup[sex][agr][cd4][dur] =
+            data[year][sex][agr][cd4][dur] * ag_prob[sex][agr];
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG-1; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++)
+          data[year][sex][agr][cd4][dur] -= nARTup[sex][agr][cd4][dur];
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 1; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++)
+          data[year][sex][agr][cd4][dur] += nARTup[sex][agr-1][cd4][dur];
   if (MODEL==2) {
-    data_db.row(year) = data_db.row(year-1);
-    nARTup = sweepX34(data_db.row(year), ag_prob, hAG - 1);
-    for (uword sex = 0; sex < 2; ++sex) {
-      data_db.row(year)(sex).slices(0, hAG-2) -= nARTup(sex);
-      data_db.row(year)(sex).slices(1, hAG-1) += nARTup(sex);
-    }
+    for (int sex = 0; sex < NG; sex++)
+      for (int agr = 0; agr < hAG; agr++)
+        for (int cd4 = 0; cd4 < hDS; cd4++)
+          for (int dur = 0; dur < hTS; dur++)
+            data_db[year][sex][agr][cd4][dur] =
+              data_db[year-1][sex][agr][cd4][dur];
+    for (int sex = 0; sex < NG; sex++)
+      for (int agr = 0; agr < hAG; agr++)
+        for (int cd4 = 0; cd4 < hDS; cd4++)
+          for (int dur = 0; dur < hTS; dur++)
+            nARTup[sex][agr][cd4][dur] =
+              data_db[year-1][sex][agr][cd4][dur] * ag_prob[sex][agr];
+    for (int sex = 0; sex < NG; sex++)
+      for (int agr = 0; agr < hAG - 1; agr++)
+        for (int cd4 = 0; cd4 < hDS; cd4++)
+          for (int dur = 0; dur < hTS; dur++)
+            data_db[year][sex][agr][cd4][dur] -= nARTup[sex][agr][cd4][dur];
+    for (int sex = 0; sex < NG; sex++)
+      for (int agr = 1; agr < hAG; agr++)
+        for (int cd4 = 0; cd4 < hDS; cd4++)
+          for (int dur = 0; dur < hTS; dur++)
+            data_db[year][sex][agr][cd4][dur] += nARTup[sex][agr-1][cd4][dur];
   }
 }
 
-void artC::add_entrants (vec artYesNo) {
-  vec artYes = artYesNo.head(2);
-  cube n_in = p.paedsurv_artcd4dist(year); // 3x7x2
-  for (uword sex = 0; sex < 2; ++sex)
-    n_in.slice(sex) = p.paedsurv_artcd4dist(year).slice(sex) * artYes(sex);
+void artC::add_entrants (boost1D artYesNo) {
+  boost3D n_in(extents[NG][hDS][hTS]);
+  for (int sex = 0; sex < NG; sex++)
+    for (int cd4 = 0; cd4 < hDS; cd4++)
+      for (int dur = 0; dur < hTS; dur++)
+        n_in[sex][cd4][dur] = 
+          p.paedsurv_artcd4dist[year][sex][cd4][dur] * artYesNo[sex];
   if (MODEL==1)
-    for (uword sex = 0; sex < 2; ++sex)
-      data.row(year)(sex).slice(0) += n_in.slice(sex);
+    for (int sex = 0; sex < NG; sex++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++)
+          data[year][sex][0][cd4][dur] += n_in[sex][cd4][dur];
   if (MODEL==2) // add to virgin then debut
-    for (uword sex = 0; sex < 2; ++sex)
-      data_db.row(year)(sex).slice(0) += n_in.slice(sex);
+    for (int sex = 0; sex < NG; sex++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++)
+          data_db[year][sex][0][cd4][dur] += n_in[sex][cd4][dur];
 }
 
 void artC::sexual_debut () {
-  field<cube> debut_art = sweepX34(data_db.row(year), p.db_pr, pDB);
-  data.row(year)(0).slices(0, pDB-1) += debut_art(0);
-  data.row(year)(1).slices(0, pDB-1) += debut_art(1);
-  data_db.row(year)(0).slices(0, pDB-1) -= debut_art(0);
-  data_db.row(year)(1).slices(0, pDB-1) -= debut_art(1);
+  double debut_art;
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < pDB; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++) {
+          debut_art = data_db[year][sex][agr][cd4][dur] * p.db_pr[sex][agr];
+          data[year][sex][agr][cd4][dur] += debut_art;
+          data_db[year][sex][agr][cd4][dur] -= debut_art;
+        }
 }
 
-void artC::deaths (mat survival_pr) {
-  data.row(year) = sweepX34(data.row(year), survival_pr);
+void artC::deaths (boost2D survival_pr) {
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++)
+          data[year][sex][agr][cd4][dur] *= survival_pr[sex][agr];
   if (MODEL==2)
-    data_db.row(year) = sweepX34(data_db.row(year), survival_pr);
+    for (int sex = 0; sex < NG; sex++)
+      for (int agr = 0; agr < hAG; agr++)
+        for (int cd4 = 0; cd4 < hDS; cd4++)
+          for (int dur = 0; dur < hTS; dur++)
+            data_db[year][sex][agr][cd4][dur] *= survival_pr[sex][agr];
 }
 
-void artC::migration (mat migration_pr) {
-  data.row(year) = sweepX34(data.row(year), migration_pr);
+void artC::migration (boost2D migration_pr) {
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++)
+          data[year][sex][agr][cd4][dur] *= migration_pr[sex][agr];
   if (MODEL==2)
-    data_db.row(year) = sweepX34(data_db.row(year), migration_pr);
+    for (int sex = 0; sex < NG; sex++)
+      for (int agr = 0; agr < hAG; agr++)
+        for (int cd4 = 0; cd4 < hDS; cd4++)
+          for (int dur = 0; dur < hTS; dur++)
+            data_db[year][sex][agr][cd4][dur] *= migration_pr[sex][agr];
 }
 
 void artC::grad_progress () {
-  gradART.for_each([](cube& X) { X.zeros(); } ); // reset gradient
+  zeroing(gradART); // reset gradient
   if (MODEL==2)
-    gradART_db.for_each([](cube& X) { X.zeros(); } ); // reset gradient
+    zeroing(gradART_db); // reset gradient
 
   // progression and mortality (HARD CODED 6 months duration)
-  for (uword sex = 0; sex < 2; ++sex)
-    gradART(sex).rows(0, 1) -= 2.0 * data.row(year)(sex).rows(0, 1);
-  for (uword sex = 0; sex < 2; ++sex)
-    gradART(sex).rows(1, 2) += 2.0 * data.row(year)(sex).rows(0, 1);
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS - 1; dur++)
+          gradART[sex][agr][cd4][dur] -=
+            2.0 * data[year][sex][agr][cd4][dur];
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 1; dur < hTS; dur++)
+          gradART[sex][agr][cd4][dur] +=
+            2.0 * data[year][sex][agr][cd4][dur-1];
   if (MODEL==2) {
-    for (uword sex = 0; sex < 2; ++sex)
-      gradART_db(sex).rows(0, 1) -= 2.0 * data_db.row(year)(sex).rows(0, 1);
-    for (uword sex = 0; sex < 2; ++sex)
-      gradART_db(sex).rows(1, 2) += 2.0 * data_db.row(year)(sex).rows(0, 1);
+    for (int sex = 0; sex < NG; sex++)
+      for (int agr = 0; agr < hAG; agr++)
+        for (int cd4 = 0; cd4 < hDS; cd4++)
+          for (int dur = 0; dur < hTS - 1; dur++)
+            gradART_db[sex][agr][cd4][dur] -=
+              2.0 * data_db[year][sex][agr][cd4][dur];
+    for (int sex = 0; sex < NG; sex++)
+      for (int agr = 0; agr < hAG; agr++)
+        for (int cd4 = 0; cd4 < hDS; cd4++)
+          for (int dur = 1; dur < hTS; dur++)
+            gradART_db[sex][agr][cd4][dur] +=
+              2.0 * data_db[year][sex][agr][cd4][dur-1];
   }
-
   // ART mortality
-  field<cube> art_mort_now = p.art_mort;
-  for (uword sex = 0; sex < 2; ++sex) {
-    for (uword agr = 0; agr < hAG; ++agr)
-      art_mort_now(sex).slice(agr).each_col() %= p.artmx_timerr.col(year);
-    gradART(sex) -= (art_mort_now(sex) % data.row(year)(sex));
-    if (MODEL==2)
-      gradART_db(sex) -= art_mort_now(sex) % data_db.row(year)(sex);
-  }
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++) 
+          gradART[sex][agr][cd4][dur] -= 
+            p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur] * 
+            data[year][sex][agr][cd4][dur];
+  if (MODEL==2)
+    for (int sex = 0; sex < NG; sex++)
+      for (int agr = 0; agr < hAG; agr++)
+        for (int cd4 = 0; cd4 < hDS; cd4++)
+          for (int dur = 0; dur < hTS; dur++) 
+            gradART_db[sex][agr][cd4][dur] -= 
+              p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur] * 
+              data_db[year][sex][agr][cd4][dur];
 }
 
 void artC::art_dropout (hivC& hivpop) {
-  double dropout_rate = p.art_dropout(year);
-  cube cube_now(size(hivpop.grad)); // 7x9x2
-  for (uword sex = 0; sex < 2; ++sex) {
-    mat mat_now  = sum(data.row(year)(sex)); //7x9
-    cube_now.slice(sex) = mat_now;
-  }
-  hivpop.grad += cube_now * dropout_rate;
-  for (uword sex = 0; sex < 2; ++sex)
-    gradART(sex) -= data.row(year)(sex) * dropout_rate;
-
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++)
+          hivpop.grad[sex][agr][cd4] +=
+            data[year][sex][agr][cd4][dur] * p.art_dropout[year];
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++)
+          gradART[sex][agr][cd4][dur] -=
+            data[year][sex][agr][cd4][dur] * p.art_dropout[year];
   if (MODEL==2) {
-    cube_now.zeros();
-    for (uword sex = 0; sex < 2; ++sex) {
-      mat mat_now  = sum(data_db.row(year)(sex));
-      cube_now.slice(sex) = mat_now;
-    }
-    hivpop.grad_db += cube_now * dropout_rate;
-    for (uword sex = 0; sex < 2; ++sex)
-      gradART_db(sex) -= data.row(year)(sex)  * dropout_rate;
+    for (int sex = 0; sex < NG; sex++)
+      for (int agr = 0; agr < hAG; agr++)
+        for (int cd4 = 0; cd4 < hDS; cd4++)
+          for (int dur = 0; dur < hTS; dur++)
+            hivpop.grad_db[sex][agr][cd4] +=
+              data_db[year][sex][agr][cd4][dur] * p.art_dropout[year];
+    for (int sex = 0; sex < NG; sex++)
+      for (int agr = 0; agr < hAG; agr++)
+        for (int cd4 = 0; cd4 < hDS; cd4++)
+          for (int dur = 0; dur < hTS; dur++)
+            gradART_db[sex][agr][cd4][dur] -=
+              data_db[year][sex][agr][cd4][dur] * p.art_dropout[year];
   }
 }
 
-vec artC::current_on_art () {
-  vec art_curr = { accu(data.row(year)(0)), accu(data.row(year)(1)) }; 
-  vec grad_curr = { accu(gradART(0)), accu(gradART(1)) };
-  art_curr += (grad_curr * DT);
-  if (MODEL==2) {
-    vec art_curr_2 = {accu(data_db.row(year)(0)), accu(data_db.row(year)(1))};
-    vec grad_curr_2 = {accu(gradART_db(0)), accu(gradART_db(1))};
-    art_curr += (art_curr_2 + grad_curr_2 * DT);
-  }
+boost1D artC::current_on_art () {
+  boost1D art_curr(extents[NG]);
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++)
+          art_curr[sex] += (data[year][sex][agr][cd4][dur] + 
+                               gradART[sex][agr][cd4][dur] * DT);
+  if (MODEL==2)
+    for (int sex = 0; sex < NG; sex++)
+      for (int agr = 0; agr < hAG; agr++)
+        for (int cd4 = 0; cd4 < hDS; cd4++)
+          for (int dur = 0; dur < hTS; dur++)
+            art_curr[sex] += (data_db[year][sex][agr][cd4][dur] + 
+                                 gradART_db[sex][agr][cd4][dur] * DT);
   return art_curr;
 }
 
-void artC::grad_init (cube artinit) {
-  for (uword sex = 0; sex < 2; ++sex) {
-    gradART(sex).row(0) += artinit.slice(sex) / DT;
-    data.row(year)(sex) += DT * gradART(sex);
-  }
+void artC::grad_init (boost3D artinit) { // 7x9x2
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        gradART[sex][agr][cd4][0] += artinit[sex][agr][cd4] / DT;
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++)
+          data[year][sex][agr][cd4][dur] +=
+            DT * gradART[sex][agr][cd4][dur];
 }
 
-void artC::grad_db_init (cube artinit_db) {
-  for (uword sex = 0; sex < 2; ++sex) {
-    gradART_db(sex).row(0) += artinit_db.slice(sex) / DT;
-    data_db.row(year)(sex) += DT * gradART_db(sex);
-  }
+void artC::grad_db_init (boost3D artinit_db) {
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        gradART_db[sex][agr][cd4][0] += artinit_db[sex][agr][cd4] / DT;
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++)
+          data_db[year][sex][agr][cd4][dur] +=
+             DT * gradART_db[sex][agr][cd4][dur];
 }
 
-void artC::adjust_pop (mat adj_prob) {
-  data.row(year) = sweepX34(data.row(year), adj_prob);
+void artC::adjust_pop (boost2D adj_prob) {
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++)
+          data[year][sex][agr][cd4][dur] *= adj_prob[sex][agr];
   if (MODEL==2)
-    data_db.row(year) = sweepX34(data_db.row(year), adj_prob);
+    for (int sex = 0; sex < NG; sex++)
+      for (int agr = 0; agr < hAG; agr++)
+        for (int cd4 = 0; cd4 < hDS; cd4++)
+          for (int dur = 0; dur < hTS; dur++)
+            data_db[year][sex][agr][cd4][dur] *= adj_prob[sex][agr];
 }
-
-// set_data (FUN="+", x, TS=T, DS=T, AG=T, NG=T, YEAR=NULL) {
-//     FUN <- match.fun(FUN)
-//     if (is.null(YEAR))
-//         data[TS, DS, AG, NG] <<- FUN(data[TS, DS, AG, NG], x)
-//     else
-//         data[TS, DS, AG, NG, YEAR] <<- FUN(data[TS, DS, AG, NG, YEAR], x)
-// } 
-
-// get (YEAR=NULL, TS=T, DS=T, AG=T, NG=T) {
-//     'get does not change anything, just return the data, use set to change'
-//     if (is.null(YEAR))
-//         data[TS, DS, AG, NG, TRUE]
-//     else
-//         data[TS, DS, AG, NG, YEAR]
-// }
-
-// sweep_sex (FUN="*", x, year) {
-//     data[,,,,year] <<- sweep(data[,,,,year], 3:4, x, FUN)
-// }

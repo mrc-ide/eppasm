@@ -10,15 +10,15 @@ update_hiv_ss <- function(max_debut_age, fp) {
   agegr     <- c(tt$db_agr, agr_up)
 
   tt$ag.idx_bk       <- tt$ag.idx
-  tt$ag.idx          <- agegr
-  tt$h.ag.span       <- rle(agegr)$lengths
+  tt$ag.idx          <- as.integer(agegr)
+  tt$h.ag.span       <- as.numeric(rle(agegr)$lengths)
   tt$hAG             <- length(unique(agegr))
-  tt$agfirst.idx     <- which(!duplicated(tt$ag.idx))
-  tt$aglast.idx      <- which(!duplicated(tt$ag.idx, fromLast=TRUE))
+  tt$agfirst.idx     <- as.integer(which(!duplicated(tt$ag.idx)))
+  tt$aglast.idx      <- as.integer(which(!duplicated(tt$ag.idx, fromLast=TRUE)))
   tt$h.fert.idx_bk   <- tt$h.fert.idx
-  tt$h.fert.idx      <- which((tt$AGE_START-1 + cumsum(tt$h.ag.span)) %in% 15:49)
-  tt$h.age15to49.idx <- which((tt$AGE_START-1 + cumsum(tt$h.ag.span)) %in% 15:49)
-  tt$h.age15plus.idx <- which((tt$AGE_START-1 + cumsum(tt$h.ag.span)) >= 15)
+  tt$h.fert.idx      <- as.integer(which((tt$AGE_START-1 + cumsum(tt$h.ag.span)) %in% 15:49))
+  tt$h.age15to49.idx <- as.integer(which((tt$AGE_START-1 + cumsum(tt$h.ag.span)) %in% 15:49))
+  tt$h.age15plus.idx <- as.integer(which((tt$AGE_START-1 + cumsum(tt$h.ag.span)) >= 15))
 
   # Expanding fp for the new added age because of sexual debut model
   fp$cd4_initdist <- fp$cd4_initdist[, tt$ag.idx_bk, ][, tt$agfirst.idx, ]

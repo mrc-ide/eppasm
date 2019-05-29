@@ -21,256 +21,221 @@ class hivC;
 // Pop class
 class popC : public CeppFP {
 public: // Pop inits
-  popC(SEXP fp, int inMODEL, bool inMIX) : CeppFP(fp) {
-    int np = 0;
+  popC(SEXP fp, int inMODEL, bool inMIX) : CeppFP(fp),
+// boost array class inits
+    data_sexp(PROTECT(NEW_NUMERIC(pAG * NG * pDS * PROJ_YEARS))),
+    data(REAL(data_sexp), extents[PROJ_YEARS][pDS][NG][pAG]),
+    
+    birth_age(extents[pAG_FERT]),
+    birth_agrp(extents[hAG_FERT]),
+    
+    prev15to49_sexp(PROTECT(NEW_NUMERIC(PROJ_YEARS))),
+    incid15to49_sexp(PROTECT(NEW_NUMERIC(PROJ_YEARS))),
+    prev15to49(REAL(prev15to49_sexp), extents[PROJ_YEARS]),
+    incid15to49(REAL(incid15to49_sexp), extents[PROJ_YEARS]),
+    
+    pregprevlag_sexp(PROTECT(NEW_NUMERIC(PROJ_YEARS))),
+    entrantprev_sexp(PROTECT(NEW_NUMERIC(PROJ_YEARS))),
+    entrantprev(REAL(entrantprev_sexp), extents[PROJ_YEARS]),
+    pregprevlag(REAL(pregprevlag_sexp), extents[PROJ_YEARS]),
+    
+    inci15to49_ts_sexp(PROTECT(NEW_NUMERIC(n_steps))),
+    prev15to49_ts_sexp(PROTECT(NEW_NUMERIC(n_steps))),
+    incrate15to49_ts(REAL(inci15to49_ts_sexp), extents[n_steps]),
+    prev15to49_ts(REAL(prev15to49_ts_sexp), extents[n_steps]),
+    
+    rvec_sexp(PROTECT(NEW_NUMERIC(n_steps))),
+    rvec(REAL(rvec_sexp), extents[n_steps]),
+    
+    birthslag(p.birthslag),
+    hivp_entrants_out(extents[PROJ_YEARS][NG]),
+    hiv_sx_prob(extents[NG][hAG]),
+    hiv_mr_prob(extents[NG][hAG]),
+    adj_prob(extents[NG][hAG]),
+    
+    infections_sexp ( PROTECT(NEW_NUMERIC(pAG * NG * PROJ_YEARS)) ),
+    hivdeaths_sexp  ( PROTECT(NEW_NUMERIC(pAG * NG * PROJ_YEARS)) ),
+    natdeaths_sexp  ( PROTECT(NEW_NUMERIC(pAG * NG * PROJ_YEARS)) ),
+    popadjust_sexp  ( PROTECT(NEW_NUMERIC(pAG * NG * PROJ_YEARS)) ),
+    infections (REAL(infections_sexp), extents[PROJ_YEARS][NG][pAG]),
+    hivdeaths  (REAL(hivdeaths_sexp ), extents[PROJ_YEARS][NG][pAG]),
+    natdeaths  (REAL(natdeaths_sexp ), extents[PROJ_YEARS][NG][pAG]),
+    popadjust  (REAL(popadjust_sexp ), extents[PROJ_YEARS][NG][pAG]),
+    
+    data_all(extents[pDS][NG][pAG]), // 1 year only
+    data_db(extents[PROJ_YEARS][pDS][NG][pDB])
+  {
+// Non class init
+    UNPROTECT(12);
     MODEL = inMODEL;
     MIX = inMIX;
     year = 1;
-    
-    // SEXP inits and create pointers
-    data_sexp = PROTECT(NEW_NUMERIC(pAG * NG * pDS * PROJ_YEARS)); ++np;
-    SEXP data_sexp_dim = PROTECT(NEW_INTEGER(4)); ++np;
-    INTEGER(data_sexp_dim)[0] = pAG;
-    INTEGER(data_sexp_dim)[1] = NG;
-    INTEGER(data_sexp_dim)[2] = pDS;
-    INTEGER(data_sexp_dim)[3] = PROJ_YEARS;
-    SET_DIM(data_sexp, data_sexp_dim);
-    data = fourD2ptr(data_sexp);
-    data(0).slice(hivn_idx) = p.basepop;
-    // 
-    SEXP AgeSexYear_dim = PROTECT(NEW_INTEGER(3)); ++np;
-    INTEGER(AgeSexYear_dim)[0] = pAG;
-    INTEGER(AgeSexYear_dim)[1] = NG;
-    INTEGER(AgeSexYear_dim)[2] = PROJ_YEARS;
 
-    infections_sexp = PROTECT(NEW_NUMERIC(pAG * NG * PROJ_YEARS)); ++np;
-    hivdeaths_sexp  = PROTECT(NEW_NUMERIC(pAG * NG * PROJ_YEARS)); ++np;
-    natdeaths_sexp  = PROTECT(NEW_NUMERIC(pAG * NG * PROJ_YEARS)); ++np;
-    popadjust_sexp  = PROTECT(NEW_NUMERIC(pAG * NG * PROJ_YEARS)); ++np;
-    SET_DIM(infections_sexp, AgeSexYear_dim);
-    SET_DIM(hivdeaths_sexp, AgeSexYear_dim);
-    SET_DIM(natdeaths_sexp, AgeSexYear_dim);
-    SET_DIM(popadjust_sexp, AgeSexYear_dim);
-    infections = cube2ptr(infections_sexp);
-    hivdeaths  = cube2ptr(hivdeaths_sexp);
-    natdeaths  = cube2ptr(natdeaths_sexp);
-    popadjust  = cube2ptr(popadjust_sexp);
+    memset(REAL(data_sexp         ), 0, pAG * NG * pDS * PROJ_YEARS * sizeof(double));
+    memset(REAL(prev15to49_sexp   ), 0, PROJ_YEARS                  * sizeof(double));
+    memset(REAL(incid15to49_sexp  ), 0, PROJ_YEARS                  * sizeof(double));
+    memset(REAL(pregprevlag_sexp  ), 0, PROJ_YEARS                  * sizeof(double));
+    memset(REAL(entrantprev_sexp  ), 0, PROJ_YEARS                  * sizeof(double));
+    memset(REAL(inci15to49_ts_sexp), 0, n_steps                     * sizeof(double));
+    memset(REAL(prev15to49_ts_sexp), 0, n_steps                     * sizeof(double));
+    memset(REAL(rvec_sexp         ), 0, n_steps                     * sizeof(double));
+    memset(REAL(infections_sexp   ), 0, pAG * NG * PROJ_YEARS       * sizeof(double));
+    memset(REAL(hivdeaths_sexp    ), 0, pAG * NG * PROJ_YEARS       * sizeof(double));
+    memset(REAL(natdeaths_sexp    ), 0, pAG * NG * PROJ_YEARS       * sizeof(double));
+    memset(REAL(popadjust_sexp    ), 0, pAG * NG * PROJ_YEARS       * sizeof(double));
 
-    pregprevlag_sexp = PROTECT(NEW_NUMERIC(PROJ_YEARS)); ++np;
-    prev15to49_sexp = PROTECT(NEW_NUMERIC(PROJ_YEARS)); ++np;
-    incid15to49_sexp = PROTECT(NEW_NUMERIC(PROJ_YEARS)); ++np;
-    entrantprev_sexp = PROTECT(NEW_NUMERIC(PROJ_YEARS)); ++np;
-    pregprevlag = vec2ptr(pregprevlag_sexp);
-    prev15to49  = vec2ptr(prev15to49_sexp);
-    incid15to49 = vec2ptr(incid15to49_sexp);
-    entrantprev = vec2ptr(entrantprev_sexp);
-    // 
-    int n_steps = (PROJ_YEARS-1) * hiv_steps_per_year;
-    incrate15to49_ts_sexp = PROTECT(NEW_NUMERIC(n_steps)); ++np;
-    prev15to49_ts_sexp    = PROTECT(NEW_NUMERIC(n_steps)); ++np;
-    rvec_sexp             = PROTECT(NEW_NUMERIC(n_steps)); ++np;
-    incrate15to49_ts = vec2ptr(incrate15to49_ts_sexp);
-    prev15to49_ts    = vec2ptr(prev15to49_ts_sexp);
-    rvec             = vec2ptr(rvec_sexp);
-    if (p.eppmod == 1)
+    for (int sex = 0; sex < NG; sex++)
+      for (int age = 0; age < pAG; age++)
+        data[0][hivn_idx][sex][age] = p.basepop[sex][age];
+
+    if (p.eppmod == 0)
       rvec = p.rvec;
 
-    // for external use
-    hivp_entrants_out = zeros(NG, PROJ_YEARS);
-    birth_agrp        = zeros(h_fert_idx.n_elem);
-    birth_age         = zeros(p_fert_idx.n_elem);
-    hiv_sx_prob       = zeros(agfirst_idx.n_elem, NG);
-    hiv_mr_prob       = hiv_sx_prob;
-    adj_prob          = zeros(pAG, NG);
-    birthslag         = p.birthslag;
-
-    data_all = zeros(pAG, NG, pDS); // 1 year only
-    if (MODEL==2) { // @debut empty pop, all inactive starts from new entrants
-      if (pDB==1) 
-        Rf_warning("Debut model state-space seem not exist >> ?update_fp_debut");
-      data_db = field<cube>(PROJ_YEARS);
-      data_db.for_each( [&] (cube& X) { X.zeros(pDB, NG, pDS); }); // debut ages
-    }
-    incrate15to49_ts_m = cube(pAG, NG, p.rvec.n_elem);
-    prev15to49_ts_m = incrate15to49_ts_m;
-    if (MIX) {
-      prev15to49_ts_m.zeros(); 
-      incrate15to49_ts_m.zeros();
-    }
-    UNPROTECT(np);
+    if ( MODEL==2 && pDB==1 )
+      Rf_warning("Debut model state-space not exist, see update_fp_debut()");
   }
 // Pop methods 
   void my_all (int when) ;
   void aging () ;
   void add_entrants () ;
   void sexual_debut () ;
-  mat hiv_aging_prob () ;
-  vec entrant_art () ;
+  boost2D hiv_aging_prob () ;
+  boost1D entrant_art () ;
   void deaths () ;
   void migration () ;
   void update_fertile () ;
   void adjust_pop () ;
   void cal_prev_pregant (hivC& hivpop, artC& artpop); // only on active pop
   void save_prev_n_inc () ;
-  mat infect_mix (uword ii);
-  mat infect_spec (hivC& hivpop, artC& artpop, uword time_step);
-  // epp_disease_model_direct (hivpop, artpop)
-  double calc_rtrend_rt (uword ts, double time_step) ;
+  boost2D infect_mix (int ii);
+  boost2D infect_spec (hivC& hivpop, artC& artpop, int time_step);
+  void epp_disease_model_direct (hivC& hivpop, artC& artpop) ;
+  double calc_rtrend_rt (int ts, double time_step) ;
   void update_rvec (double time_step) ;
-  void update_infection (mat infect) ;
-  void remove_hiv_death (cube cd4_mx, hivC& hivpop, artC& artpop);
-  cube update_preg (cube art_elig, hivC& hivpop, artC& artpop);
-  vec artInit (vec art_curr, cube art_elig, int time_step);
-  cube artDist (cube art_elig, vec art_need);
-  cube scale_cd4_mort (hivC& hivpop, artC& artpop);
+  void update_infection (boost2D infect) ;
+  void remove_hiv_death (boost3D cd4_mx, hivC& hivpop, artC& artpop);
+  boost3D update_preg (boost3D art_elig, hivC& hivpop, artC& artpop);
+  boost1D artInit (boost1D art_curr, boost3D art_elig, int time_step);
+  boost3D artDist (boost3D art_elig, boost1D art_need);
+  boost3D scale_cd4_mort (hivC& hivpop, artC& artpop);
   void epp_art_init (hivC& hivpop, artC& artpop, int time_step);
   void finalize (hivC& hivpop, artC& artpop);
 public: // Pop fields
   int         MODEL;
   bool        MIX;
+  int         year;
   SEXP        data_sexp;
-  field<cube> data; // pointer to data_sexp, the same for others
-  uword       year;
-  vec         birth_age;
-  vec         birth_agrp;
+  boost4D_ptr data; // pointer to pop_data_sexp, the same for others
+  boost1D     birth_age;
+  boost1D     birth_agrp;
   SEXP        prev15to49_sexp;
-  vec         prev15to49;  
   SEXP        incid15to49_sexp;
-  vec         incid15to49;
+  boost1D_ptr prev15to49;  
+  boost1D_ptr incid15to49;
   double      prev = 0.0;
   double      incid = 0.0;
-  SEXP        entrantprev_sexp;
-  vec         entrantprev;
   SEXP        pregprevlag_sexp;
-  vec         pregprevlag;
-  mat         birthslag;
-  SEXP        infections_sexp;
-  cube        infections;
-  SEXP        hivdeaths_sexp;
-  cube        hivdeaths;
-  SEXP        natdeaths_sexp;
-  cube        natdeaths;
-  SEXP        popadjust_sexp;
-  cube        popadjust;
-  mat         hivp_entrants_out;
-  SEXP        incrate15to49_ts_sexp;  
-  vec         incrate15to49_ts;  
+  SEXP        entrantprev_sexp;
+  boost1D_ptr entrantprev;
+  boost1D_ptr pregprevlag;
+  SEXP        inci15to49_ts_sexp;
   SEXP        prev15to49_ts_sexp;
-  vec         prev15to49_ts;
-  cube        incrate15to49_ts_m; // for storing in mixing model
-  cube        prev15to49_ts_m; // for storing in mixing model
-  
-  field<cube> data_db; // debut only population
-  cube        data_all; // all populations in the year requested
-  vec         artcov = zeros(2); //numeric(2), // initially no one on treatment
-  double      prev_last = 0.0; // = 0 last time step prevalence
-  mat         hiv_sx_prob;
-  mat         hiv_mr_prob;
-  mat         adj_prob;
+  boost1D_ptr incrate15to49_ts;  
+  boost1D_ptr prev15to49_ts;
   SEXP        rvec_sexp;
-  vec         rvec;
+  boost1D_ptr rvec;
+  boost2D     birthslag;
+  boost2D     hivp_entrants_out;
+  boost2D     hiv_sx_prob;
+  boost2D     hiv_mr_prob;
+  boost2D     adj_prob;
+  SEXP        infections_sexp;
+  SEXP        hivdeaths_sexp;
+  SEXP        natdeaths_sexp;
+  SEXP        popadjust_sexp;
+  boost3D_ptr infections;
+  boost3D_ptr hivdeaths;
+  boost3D_ptr natdeaths;
+  boost3D_ptr popadjust;
+  // boost3D     incrate15to49_ts_m; // for storing in mixing model
+  // boost3D     prev15to49_ts_m; // for storing in mixing model
+  boost3D     data_all; // all populations in the year requested
+  boost4D     data_db; // debut only population
+  double      artcov[2] = {0, 0}; //numeric(2), // initially no one on treatment
+  double      prev_last = 0.0; // = 0 last time step prevalence
 };
 
 // HIV class
 class hivC : public CeppFP {
 public: // inits
-  hivC(SEXP fp, int inMODEL) : CeppFP(fp) {
-    int np = 0;
+  hivC(SEXP fp, int inMODEL) : CeppFP(fp),
+// Boost array class init
+  data_sexp(PROTECT(NEW_NUMERIC(hDS * hAG * NG * PROJ_YEARS))),
+  data(REAL(data_sexp), extents[PROJ_YEARS][NG][hAG][hDS]),
+  data_db(extents[PROJ_YEARS][NG][hAG][hDS]), // later return this as well
+  grad(extents[NG][hAG][hDS]),
+  grad_db(extents[NG][hAG][hDS]),
+  data_all(extents[NG][hAG][hDS])
+  {
+    UNPROTECT(1);
     MODEL = inMODEL;
-    year = 1;
-
-    data_sexp = PROTECT(NEW_NUMERIC(hDS * hAG * NG * PROJ_YEARS)); ++np;
-    SEXP data_dim = PROTECT(NEW_INTEGER(4)); ++np;
-    INTEGER(data_dim)[0] = hDS;
-    INTEGER(data_dim)[1] = hAG;
-    INTEGER(data_dim)[2] = NG;
-    INTEGER(data_dim)[3] = PROJ_YEARS;
-    SET_DIM(data_sexp, data_dim);
-    data = fourD2ptr(data_sexp);
-    // 
-    grad = zeros(hDS, hAG, NG);
-    data_all = zeros(pAG, NG, pDS); // 1 year only
-    if (MODEL==2) {
-      data_db = data;
-      data_all = grad_db = grad;
-    }
-    UNPROTECT(np);
+    memset(REAL(data_sexp), 0.0, hDS * hAG * NG * PROJ_YEARS * sizeof(double));
   };
 // methods
-  void aging(mat ag_prob);
-  void add_entrants(vec artYesNo) ;
+  void aging(boost2D ag_prob);
+  void add_entrants(boost1D artYesNo) ;
   void sexual_debut() ;
-  void deaths (mat survival_pr) ;
-  void migration (mat migration_pr) ;
-  void update_infection (mat new_infect) ;
-  void grad_progress (cube mortality_rate) ;
-  vec eligible_for_art () ;
-  cube distribute_artinit (cube artinit, artC& artpop);
+  void deaths (boost2D survival_pr) ;
+  void migration (boost2D migration_pr) ;
+  void update_infection (boost2D new_infect) ;
+  void grad_progress (boost3D mortality_rate) ;
+  boost1D eligible_for_art () ;
+  boost3D distribute_artinit (boost3D artinit, artC& artpop);
   void add_grad_to_pop () ;
-  void adjust_pop (mat adj_prob) ;
-  // set_data = function(FUN="+", x, DS=T, AG=T, NG=T, YEAR=NULL) {
-  // get = function(YEAR=NULL, DS=T, AG=T, NG=T) {
-  // sweep_sex = function(FUN="*", x, year) {
+  void adjust_pop (boost2D adj_prob) ;
 public: // fields
-  uword       year;
+  int         year = 1;
   int         MODEL;
   SEXP        data_sexp;
-  field<cube> data;
-  field<cube> data_db; // debut only population
-  cube        grad;
-  cube        grad_db;
-  cube        data_all; // all populations in the year requested
+  boost4D_ptr data;
+  boost4D     data_db; // debut only population
+  boost3D     grad;
+  boost3D     grad_db;
+  boost3D     data_all; // all populations in the year requested
 };
 
 // ART class
 class artC : public CeppFP {
 public: // Inits
-  artC(SEXP fp, int inMODEL) : CeppFP(fp) {
-    int np = 0;
+  artC(SEXP fp, int inMODEL) : CeppFP(fp), 
+    data_sexp(PROTECT(NEW_NUMERIC(hTS * hDS * hAG * NG * PROJ_YEARS))),
+    data(REAL(data_sexp), extents[PROJ_YEARS][NG][hAG][hDS][hTS]),
+    data_db(extents[PROJ_YEARS][NG][hAG][hDS][hTS]),
+    gradART(extents[NG][hAG][hDS][hTS]),
+    gradART_db(extents[NG][hAG][hDS][hTS])
+  {
+    UNPROTECT(1);
     MODEL = inMODEL;
-    year = 1;
-
-    data_sexp = PROTECT(NEW_NUMERIC(hTS * hDS * hAG * NG * PROJ_YEARS)); ++np;
-    SEXP data_dim = PROTECT(NEW_INTEGER(5)); ++np;
-    INTEGER(data_dim)[0] = hTS;
-    INTEGER(data_dim)[1] = hDS;
-    INTEGER(data_dim)[2] = hAG;
-    INTEGER(data_dim)[3] = NG;
-    INTEGER(data_dim)[4] = PROJ_YEARS;
-    SET_DIM(data_sexp, data_dim);
-
-    data = fiveD2ptr(data_sexp);
-    // data = field<cube>(PROJ_YEARS, NG); // 52 X 2
-    // data.for_each( [&](cube& X) { X.zeros(hTS, hDS, hAG); } );
-    gradART = field<cube>(NG);
-    gradART.for_each( [&](cube& X) { X.zeros(hTS, hDS, hAG); } );
-    if (MODEL==2) {
-      data_db = data;
-      gradART_db = gradART;
-    }
-    UNPROTECT(np);
+    memset(REAL(data_sexp), 0, hTS * hDS * hAG * NG * PROJ_YEARS * sizeof(double));
   }
 // Methods
-  void aging (mat ag_prob) ;
-  void add_entrants (vec artYesNo) ;
+  void aging (boost2D ag_prob) ;
+  void add_entrants (boost1D artYesNo) ;
   void sexual_debut () ;
-  void deaths (mat survival_pr) ;
-  void migration (mat migration_pr) ;
+  void deaths (boost2D survival_pr) ;
+  void migration (boost2D migration_pr) ;
   void grad_progress () ;
   void art_dropout (hivC& hivpop) ;
-  vec current_on_art () ;
-  void grad_init (cube artinit) ;
-  void grad_db_init (cube artinit_db) ;
-  void adjust_pop (mat adj_prob) ;
-  // set_data (FUN="+", x, TS=T, DS=T, AG=T, NG=T, YEAR=NULL) {
-  // get (YEAR=NULL, TS=T, DS=T, AG=T, NG=T) {
-  // sweep_sex (FUN="*", x, year) {
+  boost1D current_on_art () ;
+  void grad_init (boost3D artinit) ;
+  void grad_db_init (boost3D artinit_db) ;
+  void adjust_pop (boost2D adj_prob) ;
 public: // fields
-  uword       year;
+  int         year = 1;
   int         MODEL;
   SEXP        data_sexp;
-  field<cube> data;
-  field<cube> data_db; // debut only population
-  field<cube> gradART;
-  field<cube> gradART_db;
+  boost5D_ptr data;
+  boost5D     data_db; // debut only population
+  boost4D     gradART;
+  boost4D     gradART_db;
 };

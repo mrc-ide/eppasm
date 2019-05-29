@@ -12,83 +12,102 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
-#define R_NO_REMAP
-#include <R.h>
-#include <Rinternals.h>
-#include <armadillo>
-using namespace arma;
+#include "utils.h"
 
-vec sumByAG (vec B, uvec age_of_interest) {
-  uvec C = unique(age_of_interest);
-  vec A = zeros(C.n_elem);
-  uword current_age_group = age_of_interest(0); // first age group
-  for (uword i = 0; i < age_of_interest.n_elem; ++i) {
-    if (age_of_interest(i)==current_age_group) 
-      A(current_age_group) += B(i);
-    else {
-      ++current_age_group;
-      A(current_age_group) += B(i);
+SEXP get_value(SEXP list, const char *str) {
+  SEXP out = R_NilValue, names = GET_NAMES(list);
+  int i;
+  for ( i = 0; i < GET_LENGTH(list); i++ ) {
+    if ( strcmp(CHAR(STRING_ELT(names, i)), str) == 0 ) {
+      out = VECTOR_ELT(list, i);
+        break;
     }
   }
-  return A;
+  if ( out == R_NilValue )
+    Rf_warning("%s missing from list, check ?prepare_fp_for_Cpp", str);
+  return out;
 }
 
-mat sumByAG (mat B, uvec age_of_interest) {
-  uvec C = unique(age_of_interest);
-  mat A = zeros(C.n_elem, B.n_cols);
-  uword current_age_group = age_of_interest(0); // first age group
-  for (uword j = 0; j < B.n_cols; ++j) {
-    for (uword i = 0; i < age_of_interest.n_elem; ++i) {
-      if (age_of_interest(i)==current_age_group) 
-        A(current_age_group, j) += B(i, j);
+bool has_value(SEXP list, const char *str) {
+  SEXP names = GET_NAMES(list);
+  for (int i = 0; i < GET_LENGTH(list); i++ )
+    if ( strcmp(CHAR(STRING_ELT(names, i)), str) == 0 ) {
+      if (VECTOR_ELT(list, i) == R_NilValue)
+        return false;
+      else
+        return true;
+    }
+  return false;
+}
+
+boost1I array_dim(SEXP array) {
+  SEXP r_dims = Rf_protect(Rf_getAttrib(array, R_DimSymbol));
+  boost1I dims(extents[Rf_length(r_dims)]);
+  int *rdims = INTEGER(r_dims);
+  for (int i = 0; i < dims.num_elements(); ++i)
+    dims[i] = rdims[i];
+  UNPROTECT(1);
+  return dims;
+}
+
+boost::array<boost2D_ptr::index, 2> get_extents_2D(SEXP array) {
+  SEXP r_dims = Rf_protect(Rf_getAttrib(array, R_DimSymbol));
+  int *rdims = INTEGER(r_dims);
+  UNPROTECT(1);
+  boost::array<boost2D_ptr::index, 2> out = {{ rdims[1], rdims[0] }};
+  return out;
+}
+
+boost::array<boost3D_ptr::index, 3> get_extents_3D(SEXP array) {
+  SEXP r_dims = Rf_protect(Rf_getAttrib(array, R_DimSymbol));
+  int *rdims = INTEGER(r_dims);
+  UNPROTECT(1);
+  boost::array<boost3D_ptr::index, 3> out = {{ rdims[2], rdims[1], rdims[0] }};
+  return out;
+}
+
+boost::array<boost4D_ptr::index, 4> get_extents_4D(SEXP array) {
+  SEXP r_dims = Rf_protect(Rf_getAttrib(array, R_DimSymbol));
+  int *rdims = INTEGER(r_dims);
+  UNPROTECT(1);
+  boost::array<boost4D_ptr::index, 4> out = {{ rdims[3], rdims[2], rdims[1], rdims[0] }};
+  return out;
+}
+
+boost2D_ptr sexp_2D_to_boost(SEXP sexp_mat) {
+  boost1I dimcube = array_dim(sexp_mat);
+  boost2D_ptr out(REAL(sexp_mat), boost::extents[dimcube[1]][dimcube[0]]);
+  return out;
+}
+
+// age_of_interest example is ag_idx, not shifted
+boost2D sumByAG (boost2D B, boost1I age_of_interest, int new_size) {
+  boost2D A(extents[ B.shape()[0] ][ new_size ]);
+  int current_age_group = age_of_interest[0]; // first age group
+  for (int j = 0; j < B.shape()[0]; ++j) {
+    for (int i = 0; i < B.shape()[1]; ++i) {
+      if ( age_of_interest[i] == current_age_group)
+        A[j][current_age_group - 1] += B[j][i];
       else {
         ++current_age_group;
-        A(current_age_group, j) += B(i, j);
+        A[j][current_age_group - 1] += B[j][i];
       }
     } // end age-groups
-    current_age_group = age_of_interest(0); // reset
+    current_age_group = age_of_interest[0]; // reset
   } // end columns
   return A;
 }
 
-cube sweepX23(cube A, mat B) {
-  mat current(A.n_cols, A.n_slices);
-  if (size(current) != size(B))
-    Rf_error("Mat to sweep is of wrong size.");
-  cube out(size(A));
-  for (uword i = 0; i < A.n_rows; ++i) {
-    current = A.row(i);
-    out.row(i) = current % B;
-  }
-  return out;
-}
-
-// R sweep(array, 3:4, mat, "*")
-field<cube> sweepX34 (field<cube> A, mat B, uword max_slice) {
-  uword n_slice = (max_slice > 0) ? max_slice : A(0).n_slices;
-  field<cube> FC(size(A)); //copied
-  FC.for_each([&] (cube& X) { 
-    X.zeros(A(0).n_rows, A(0).n_cols, n_slice); // resize the cube if needed
-  });
-  for (uword sex = 0; sex < A.n_cols; ++sex)
-    for (uword agr = 0; agr < n_slice; ++agr)
-      FC(sex).slice(agr) = A(sex).slice(agr) * B(agr, sex);
-  return FC;
-}
-
-// rep each mat row by span
-mat rep_each_row_by_span(mat M0, vec v_span) {
-  mat M1( accu(v_span), M0.n_cols);
-  vec my_leng = cumsum(v_span) - 1;
-  uword j = 0;
-  for (int i = 0; i < M0.n_rows; ++i) {
-    M1.rows(j, my_leng(i)) = repmat(M0.row(i), v_span(i), 1);
-    j = my_leng(i) + 1;
-  }
-  return M1;
-}
-
-vec col_sum_cube_to_vec(cube C) {
-  mat A = sum(C);
-  return trans(sum(A));
+boost1D sumByAG (boost1D B, boost1I age_of_interest, int new_size) {
+  boost1D A(extents[ new_size ]);
+  int current_age_group = age_of_interest[0]; // first age group
+  for (int i = 0; i < B.num_elements(); ++i) {
+    if ( age_of_interest[i] == current_age_group)
+      A[current_age_group - 1] += B[i];
+    else {
+      ++current_age_group;
+      A[current_age_group - 1] += B[i];
+    }
+  } // end age-groups
+  return A;
 }

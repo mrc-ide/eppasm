@@ -16,14 +16,11 @@ Imports:
     mgcv,
     mvtnorm,
     RColorBrewer,
-    Rcpp,
     reshape2,
     R6,
     xml2
 LinkingTo: 
-    BH,
-    Rcpp,
-    RcppArmadillo
+    BH
 Remotes:
     jeffeaton/epp
 License: GPL-3

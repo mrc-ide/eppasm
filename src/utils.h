@@ -82,6 +82,13 @@ K multiply_with (K A, double X) { // not by reference
 
 // Boost array multiply each cell
 template <class K>
+void multiply_with_inplace (K& A, double X) { // by reference
+  for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
+      *i *= X;
+}
+
+// Boost array multiply each cell
+template <class K>
 K add_to_each (K A, double X) { // not by reference
   for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
       *i += X;
@@ -89,6 +96,13 @@ K add_to_each (K A, double X) { // not by reference
 }
 
 // Boost array multiply each cell
+template <class K>
+void add_to_each_inplace (K& A, double X) { // by reference
+  for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
+      *i += X;
+}
+
+// Boost array substract each cell
 template <class K>
 K substract_from_each (K A, double X) { // not by reference
   for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)

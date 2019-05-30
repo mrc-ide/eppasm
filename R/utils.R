@@ -43,6 +43,8 @@ prepare_fp_for_Cpp <- function(fp) {
     if (!exists("pDB", where=fp$ss))  { # mixing model parameters
         fp$ss$pDB <- 1L
         fp$db_pr <- matrix(1, fp$ss$pDB, 2)
+    }
+    if (!exists("mat_f", where=fp))  { # mixing model parameters
         fp$mat_f <- fp$mat_m <- matrix(1, fp$ss$pAG, fp$ss$pAG)
     }
     fp

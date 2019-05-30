@@ -148,5 +148,5 @@ public:
   fp_main      p;
   int          n_steps;
   // 
-  int pAG_FERT, hAG_FERT;
+  int pAG_FERT, hAG_FERT, pAG_1549, hAG_1549;
 };

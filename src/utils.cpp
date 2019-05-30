@@ -16,8 +16,7 @@
 
 SEXP get_value(SEXP list, const char *str) {
   SEXP out = R_NilValue, names = GET_NAMES(list);
-  int i;
-  for ( i = 0; i < GET_LENGTH(list); i++ ) {
+  for (int i = 0; i < GET_LENGTH(list); i++ ) {
     if ( strcmp(CHAR(STRING_ELT(names, i)), str) == 0 ) {
       out = VECTOR_ELT(list, i);
         break;
@@ -32,11 +31,14 @@ bool has_value(SEXP list, const char *str) {
   SEXP names = GET_NAMES(list);
   for (int i = 0; i < GET_LENGTH(list); i++ )
     if ( strcmp(CHAR(STRING_ELT(names, i)), str) == 0 ) {
-      if (VECTOR_ELT(list, i) == R_NilValue)
+      if (VECTOR_ELT(list, i) == R_NilValue) {
+        Rf_warning("%s is NULL", str);
         return false;
+      }
       else
         return true;
     }
+  Rf_warning("%s does not exist.", str);
   return false;
 }
 
@@ -70,7 +72,8 @@ boost::array<boost4D_ptr::index, 4> get_extents_4D(SEXP array) {
   SEXP r_dims = Rf_protect(Rf_getAttrib(array, R_DimSymbol));
   int *rdims = INTEGER(r_dims);
   UNPROTECT(1);
-  boost::array<boost4D_ptr::index, 4> out = {{ rdims[3], rdims[2], rdims[1], rdims[0] }};
+  boost::array<boost4D_ptr::index, 4> 
+    out = {{ rdims[3], rdims[2], rdims[1], rdims[0] }};
   return out;
 }
 

@@ -27,7 +27,7 @@ void fp_rt::init_me(SEXP fp) {
   rw_idx = INTEGER(get_value(fp_rt, "rw_idx"));
   n_param = *REAL(get_value(fp_rt, "n_param"));
   rw_transition = REAL(get_value(fp_rt, "rw_transition"));
-};
+}
 
 fp_main::fp_main(SEXP fp) : 
 // init list for boost array class
@@ -144,7 +144,7 @@ fp_main::fp_main(SEXP fp) :
     // rt parameters
     if (has_value(fp, "rt")) // direct incidence model does not have rt
       rt.init_me(fp);
-};
+}
 
 CeppFP::CeppFP(SEXP fp) : 
 // Boost array class init
@@ -191,8 +191,10 @@ CeppFP::CeppFP(SEXP fp) :
   hTS                = (int) *REAL(get_value(fp_ss, "hTS"));
   DT                 = *REAL(get_value(fp_ss, "DT"));
   if (has_value(fp_ss, "pDB"))
-    pDB              = *INTEGER(get_value(fp_ss, "pDB"));
-  n_steps            = (PROJ_YEARS-1) * hiv_steps_per_year;
-  pAG_FERT           = p_fert_idx.num_elements();
-  hAG_FERT           = h_fert_idx.num_elements();
-};
+    pDB            = *INTEGER(get_value(fp_ss, "pDB"));
+  n_steps          = (PROJ_YEARS-1) * hiv_steps_per_year;
+  pAG_FERT         = (p_fert_idx[0] - 1) + p_fert_idx.num_elements();
+  hAG_FERT         = (h_fert_idx[0] - 1) + h_fert_idx.num_elements();
+  pAG_1549         = (p_age15to49_idx[0] - 1) + p_age15to49_idx.num_elements();
+  hAG_1549         = (h_age15to49_idx[0] - 1) + h_age15to49_idx.num_elements();
+}

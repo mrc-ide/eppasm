@@ -197,4 +197,6 @@ CeppFP::CeppFP(SEXP fp) :
   hAG_FERT         = (h_fert_idx[0] - 1) + h_fert_idx.num_elements();
   pAG_1549         = (p_age15to49_idx[0] - 1) + p_age15to49_idx.num_elements();
   hAG_1549         = (h_age15to49_idx[0] - 1) + h_age15to49_idx.num_elements();
+  pAG_15plus       = (p_age15plus_idx[0] - 1) + p_age15plus_idx.num_elements();
+  hAG_15plus       = (h_age15plus_idx[0] - 1) + h_age15plus_idx.num_elements();
 }

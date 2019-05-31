@@ -27,8 +27,8 @@ extern "C" SEXP eppasmOOpp(SEXP fp, SEXP MODEL, SEXP MIX) {
     pop.update_fertile();
     if (cMODEL!=0) { // Disease model simulation: events at dt timestep
       epp_disease_model(pop, hivpop, artpop);
-    //   if (pop.p.eppmod == 2) //// Direct incidence input model
-    //     pop.epp_disease_model_direct(hivpop, artpop);
+      if (pop.p.eppmod == 2) //// Direct incidence input model
+        pop.epp_disease_model_direct(hivpop, artpop);
     }
     if (pop.p.popadjust) { // match target pop
       pop.adjust_pop();

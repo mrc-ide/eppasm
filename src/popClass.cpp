@@ -244,18 +244,15 @@ void popC::migration () {
 
 void popC::update_fertile () { // only on active pop
   double ave_fert_pop;
-  for (int age = 0; age < pAG_FERT; age++) {
-    ave_fert_pop = (  data[year][hivp_idx][f_idx][age] + 
-                      data[year][hivn_idx][f_idx][age] + 
-                    data[year-1][hivp_idx][f_idx][age] + 
-                    data[year-1][hivn_idx][f_idx][age] ) / 2;
-    birth_age[age] = ave_fert_pop * p.asfr[year][age];
-  }
-  int a_l = p_fert_idx[0] - 1, a_r = a_l + p_fert_idx.num_elements();
-  boost1I sub_id = ag_idx[indices[in(a_l, a_r)]];
-  birth_agrp = sumByAG(birth_age, sub_id, h_fert_idx.num_elements());
+  for (int age = 0; age < pAG_FERT; age++)
+    birth_age[age] =
+      ((data[year][hivp_idx][f_idx][age] + data[year][hivn_idx][f_idx][age] +
+      data[year-1][hivp_idx][f_idx][age] + data[year-1][hivn_idx][f_idx][age]) /
+      2) * p.asfr[year][age];
+  boost1I sub_id = ag_idx[indices[in(p_fert_idx[0] - 1, pAG_FERT)]];
+  birth_agrp = sumByAG(birth_age, sub_id, hAG_FERT);
   double n_births = sumArray(birth_agrp);
-  if (year + AGE_START <= PROJ_YEARS - 1)
+  if ( (year + AGE_START) <= (PROJ_YEARS - 1) )
     for (int sex = 0; sex < NG; ++sex)
       birthslag[year + AGE_START - 1][sex] = p.srb[year][sex] * n_births;
 }
@@ -320,7 +317,7 @@ void popC::cal_prev_pregant (hivC& hivpop, artC& artpop) { // only on active pop
     frap[agr] = 
       birth_agrp[agr] * (1 - hivn[agr] / (hivn[agr] + frp[agr] + fra[agr]));
   double pregprev = sumArray(frap) / sumArray(birth_age);
-  pregprevlag[year + AGE_START] = pregprev;
+  pregprevlag[year + AGE_START -1] = pregprev;
 }
 
 void popC::save_prev_n_inc () {
@@ -480,59 +477,50 @@ boost2D popC::infect_spec (hivC& hivpop, artC& artpop, int time_step) {
 }
 
 void popC::epp_disease_model_direct  (hivC& hivpop, artC& artpop) {
-  boost1D age_id;
-  if (p.incidpopage)
-    age_id = p_age15plus_idx; // incidence for 15+ population
-  else
-    age_id = p_age15to49_idx; // incidence for 15 -49 population
-  int a_l = age_id[0] -1, a_r = a_l + age_id.num_elements();
-  boost1D num(extents[NG]);
-
-  boost2D A = data[ indices[year-1][hivn_idx][in(0, NG)][in(a_l, a_r)] ]; 
-  double  Asum = sumArray(A);
-  num[m_idx] = 1 * Asum;
-  num[f_idx] = p.incrr_sex[year] * Asum;
-  boost1D B = data[ indices[year-1][hivn_idx][m_idx][in(a_l, a_r)]];
-  boost1D C = data[ indices[year-1][hivn_idx][f_idx][in(a_l, a_r)]];
+  int a_l, a_r;
+  if (p.incidpopage) { // incidence for 15+ population
+    a_l = p_age15plus_idx[0] - 1;
+    a_r = pAG_15plus;
+  }
+  else { // incidence for 15 -49 population
+    a_l = p_age15to49_idx[0] - 1;
+    a_r = pAG_1549;
+  }
+  boost2D neg_pop = data[ indices[year-1][hivn_idx][in(0, NG)][in(a_l, a_r)] ]; 
+  double num[2] = {sumArray(neg_pop), p.incrr_sex[year] * sumArray(neg_pop)};
+  boost1D B = data[ indices[year-1][hivn_idx][m_idx][in(a_l, a_r)]],
+          C = data[ indices[year-1][hivn_idx][f_idx][in(a_l, a_r)]];
   double den = sumArray(B) + sumArray(C) * p.incrr_sex[year];
-  boost1D sexinc(extents[NG]);
-  for (int sex = 0; sex < NG; ++sex)
+
+  boost1D sexinc(extents[NG]), ageinc(extents[NG]),
+          neg_pop_colsum(extents[NG]), D_colsum(extents[NG]);
+  for (int sex = 0; sex < NG; sex++) {
     sexinc[sex] = p.incidinput[year] * num[sex] / den;
-  
-  boost2D D = A;
-  for (int sex = 0; sex < NG; sex++)
-    for (int age = a_l; age < a_r; age++)
-      D[sex][age] *= p.incrr_age[year][sex][age];
-  boost1D A_colsum(extents[NG]), D_colsum(extents[NG]);
-  for (int sex = 0; sex < NG; sex++)
     for (int age = a_l; age < a_r; age++) {
-      A_colsum[sex] += A[sex][age];
-      D_colsum[sex] += D[sex][age];
+      neg_pop_colsum[sex] += neg_pop[sex][age];
+      D_colsum[sex] += neg_pop[sex][age] * p.incrr_age[year][sex][age];
     }
-  boost1D ageinc(extents[NG]);
-  for (int sex = 0; sex < NG; ++sex)
-    ageinc[sex] = D_colsum[sex] / A_colsum[sex];
-  boost2D agesex_inc(extents[NG][pAG]);
+    ageinc[sex] = D_colsum[sex] / neg_pop_colsum[sex];
+  }
+  double new_infect;
   for (int sex = 0; sex < NG; sex++)
-    for (int age = a_l; age < a_r; age++)
-      agesex_inc[sex][age] =
-        p.incrr_age[year][sex][age] * (sexinc[sex] / ageinc[sex]);
-  double N;
-  for (int sex = 0; sex < NG; sex++)
-    for (int age = a_l; age < a_r; age++) {
-      N = agesex_inc[sex][age] * data[year-1][hivn_idx][sex][age];
-      infections[year][sex][age]      = N;
-      data[year][hivn_idx][sex][age] -= N;
-      data[year][hivp_idx][sex][age] += N;
+    for (int age = 0; age < pAG; age++) {
+      new_infect = p.incrr_age[year][sex][age] * (sexinc[sex] / ageinc[sex]) *
+                   data[year-1][hivn_idx][sex][age];
+      infections[year][sex][age]      = new_infect;
+      data[year][hivn_idx][sex][age] -= new_infect;
+      data[year][hivp_idx][sex][age] += new_infect;
     }
-  boost2D M = infections[ indices[year][in(0, NG)][in(a_l, a_r)] ];
-  boost2D infect_agrp = sumByAG(M, ag_idx, hAG);
+  boost2D infect_agrp = 
+    sumByAG(infections[ indices[year][in(0, NG)][in(0, pAG)]], ag_idx, hAG);
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
         hivpop.data[year][sex][agr][cd4] +=
           p.cd4_initdist[sex][agr][cd4] * infect_agrp[sex][agr];
-  incid15to49[year]  =  sumArray(M);
+  for (int sex = 0; sex < NG; sex++)
+    for (int age = p_age15to49_idx[0] - 1; age < pAG_1549; age++)
+      incid15to49[year] += infections[year][sex][age];
 }
 
 double popC::calc_rtrend_rt (int ts, double time_step) {

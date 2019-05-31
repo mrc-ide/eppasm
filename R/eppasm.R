@@ -6,6 +6,9 @@ simmod.specfp <- function(fp, VERSION="C", MODEL=1, MIX=FALSE) {
   if (!exists("incidmod", where=fp))
     fp$incidmod <- "eppspectrum"
 
+  if (MODEL==2) 
+    fp <- update_fp_debut(fp, max_debut_age=30)
+
   if (VERSION != "R") {
     if (VERSION=="K") { # C++ classes
       fp <- prepare_fp_for_Cpp(fp)

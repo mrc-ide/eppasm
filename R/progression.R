@@ -78,8 +78,8 @@ epp_disease_model <- function(pop, hivpop, artpop) {
     art_elig <- art_elig + sweep(hivpop$data_db[,,,year], 1, eligible, "*")
   # calculate number to initiate ART and distribute
   art_curr        <- artpop$current_on_art()
-  artnum.ii       <- artInit(art_curr, art_elig, time_step)
-  art15plus.inits <- pmax(artnum.ii - art_curr, 0)
+  artnum_ii       <- artInit(art_curr, art_elig, time_step)
+  art15plus.inits <- pmax(artnum_ii - art_curr, 0)
   artinit         <- artDist(art_elig, art15plus.inits)
   if (MODEL==1) 
     artinit <- pmin(artinit, hivpop$get(year) + DT * hivpop$grad)

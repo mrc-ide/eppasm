@@ -20,66 +20,45 @@ void artC::aging (boost2D ag_prob) {
       for (int cd4 = 0; cd4 < hDS; cd4++)
         for (int dur = 0; dur < hTS; dur++)
           data[year][sex][agr][cd4][dur] = data[year-1][sex][agr][cd4][dur];
-  boost4D nARTup(extents[NG][hAG-1][hDS][hTS]);
+  double nARTup;
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG-1; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
-        for (int dur = 0; dur < hTS; dur++)
-          nARTup[sex][agr][cd4][dur] =
-            data[year][sex][agr][cd4][dur] * ag_prob[sex][agr];
-  for (int sex = 0; sex < NG; sex++)
-    for (int agr = 0; agr < hAG-1; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
-        for (int dur = 0; dur < hTS; dur++)
-          data[year][sex][agr][cd4][dur] -= nARTup[sex][agr][cd4][dur];
-  for (int sex = 0; sex < NG; sex++)
-    for (int agr = 1; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
-        for (int dur = 0; dur < hTS; dur++)
-          data[year][sex][agr][cd4][dur] += nARTup[sex][agr-1][cd4][dur];
+        for (int dur = 0; dur < hTS; dur++) {
+          nARTup = data[year-1][sex][agr][cd4][dur] * ag_prob[sex][agr];
+          data[year][sex][agr][cd4][dur]   -= nARTup;
+          data[year][sex][agr+1][cd4][dur] += nARTup;
+        }
   if (MODEL==2) {
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hAG; agr++)
         for (int cd4 = 0; cd4 < hDS; cd4++)
           for (int dur = 0; dur < hTS; dur++)
-            data_db[year][sex][agr][cd4][dur] =
-              data_db[year-1][sex][agr][cd4][dur];
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++)
-          for (int dur = 0; dur < hTS; dur++)
-            nARTup[sex][agr][cd4][dur] =
-              data_db[year-1][sex][agr][cd4][dur] * ag_prob[sex][agr];
+            data_db[year][sex][agr][cd4][dur] = data_db[year-1][sex][agr][cd4][dur];
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hAG - 1; agr++)
         for (int cd4 = 0; cd4 < hDS; cd4++)
-          for (int dur = 0; dur < hTS; dur++)
-            data_db[year][sex][agr][cd4][dur] -= nARTup[sex][agr][cd4][dur];
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 1; agr < hAG; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++)
-          for (int dur = 0; dur < hTS; dur++)
-            data_db[year][sex][agr][cd4][dur] += nARTup[sex][agr-1][cd4][dur];
+          for (int dur = 0; dur < hTS; dur++)  {
+            nARTup = data_db[year-1][sex][agr][cd4][dur] * ag_prob[sex][agr];
+            data_db[year][sex][agr][cd4][dur]   -= nARTup;
+            data_db[year][sex][agr+1][cd4][dur] += nARTup;
+          }
   }
 }
 
 void artC::add_entrants (boost1D artYesNo) {
-  boost3D n_in(extents[NG][hDS][hTS]);
-  for (int sex = 0; sex < NG; sex++)
-    for (int cd4 = 0; cd4 < hDS; cd4++)
-      for (int dur = 0; dur < hTS; dur++)
-        n_in[sex][cd4][dur] = 
-          p.paedsurv_artcd4dist[year][sex][cd4][dur] * artYesNo[sex];
   if (MODEL==1)
     for (int sex = 0; sex < NG; sex++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
         for (int dur = 0; dur < hTS; dur++)
-          data[year][sex][0][cd4][dur] += n_in[sex][cd4][dur];
+          data[year][sex][0][cd4][dur] += 
+            p.paedsurv_artcd4dist[year][sex][cd4][dur] * artYesNo[sex];
   if (MODEL==2) // add to virgin then debut
     for (int sex = 0; sex < NG; sex++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
         for (int dur = 0; dur < hTS; dur++)
-          data_db[year][sex][0][cd4][dur] += n_in[sex][cd4][dur];
+          data_db[year][sex][0][cd4][dur] += 
+            p.paedsurv_artcd4dist[year][sex][cd4][dur] * artYesNo[sex];
 }
 
 void artC::sexual_debut () {
@@ -131,15 +110,10 @@ void artC::grad_progress () {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
-        for (int dur = 0; dur < hTS - 1; dur++)
-          gradART[sex][agr][cd4][dur] -=
-            2.0 * data[year][sex][agr][cd4][dur];
-  for (int sex = 0; sex < NG; sex++)
-    for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
-        for (int dur = 1; dur < hTS; dur++)
-          gradART[sex][agr][cd4][dur] +=
-            2.0 * data[year][sex][agr][cd4][dur-1];
+        for (int dur = 0; dur < hTS - 1; dur++) {
+          gradART[sex][agr][cd4][dur]   -= 2.0 * data[year][sex][agr][cd4][dur];
+          gradART[sex][agr][cd4][dur+1] += 2.0 * data[year][sex][agr][cd4][dur];
+        }
   if (MODEL==2) {
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hAG; agr++)

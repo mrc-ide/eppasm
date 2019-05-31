@@ -223,7 +223,7 @@ void popC::migration () {
     boost2D nH_mr(extents[NG][pAG]);
     for (int sex = 0; sex < NG; sex++)
       for (int age = 0; age < pAG; age++)
-        nH_mr[sex][age] = mr_prob[sex][age] * data[year][hivp_idx][sex][age];
+        nH_mr[sex][age] = mr_prob[sex][age] * data_all[hivp_idx][sex][age];
     boost2D nH_mr_agr = sumByAG(nH_mr, ag_idx, hAG);
     boost2D n_pop_agr = 
       sumByAG(data_all[indices[hivp_idx][in(0, NG)][in(0, pAG)]], ag_idx, hAG);
@@ -243,7 +243,6 @@ void popC::migration () {
 }
 
 void popC::update_fertile () { // only on active pop
-  double ave_fert_pop;
   for (int age = 0; age < pAG_FERT; age++)
     birth_age[age] =
       ((data[year][hivp_idx][f_idx][age] + data[year][hivn_idx][f_idx][age] +
@@ -289,35 +288,28 @@ void popC::adjust_pop () {
 }
 
 void popC::cal_prev_pregant (hivC& hivpop, artC& artpop) { // only on active pop
-  int a_l = p_fert_idx[0] - 1; // in this 15-80 model
   boost1D n_mean(extents[pAG_FERT]); // 1 X 35
   for (int age = 0; age < pAG_FERT; ++age)
     n_mean[age] = (data[year-1][hivn_idx][f_idx][age] +
                      data[year][hivn_idx][f_idx][age]) / 2;
-  boost1I sub_id = ag_idx[indices[in(a_l, pAG_FERT)]];
+  boost1I sub_id = ag_idx[indices[in(p_fert_idx[0] - 1, pAG_FERT)]];
   boost1D hivn = sumByAG(n_mean, sub_id, pAG_FERT); // 1 x 8
-  boost2D hivp(extents[hAG][hDS]);
-  for (int agr = 0; agr < hAG_FERT; ++agr)
-    for (int cd4 = 0; cd4 < hDS; ++cd4)
-      hivp[agr][cd4] = (hivpop.data[year-1][f_idx][agr][cd4] +
-                        hivpop.data[year  ][f_idx][agr][cd4] ) / 2;
-  boost1D frp(extents[hAG_FERT]);
-  for (int agr = 0; agr < hAG_FERT; ++agr)
-    for (int cd4 = 0; cd4 < hDS; ++cd4)
-      frp[agr] += p.frr_cd4[year][agr][cd4] * hivp[agr][cd4]; // 8
-  boost1D fra(extents[hAG_FERT]);
-  for (int agr = 0; agr < hAG_FERT; agr++)
-    for (int cd4 = 0; cd4 < hDS; cd4++)
+  double frp = 0, fra = 0, frap = 0;
+  for (int agr = 0; agr < hAG_FERT; ++agr) {
+    for (int cd4 = 0; cd4 < hDS; ++cd4) {
+      frp += 
+        p.frr_cd4[year][agr][cd4] * (hivpop.data[year-1][f_idx][agr][cd4] +
+                                     hivpop.data[year  ][f_idx][agr][cd4] ) / 2;
       for (int dur = 0; dur < hTS; dur++)
-        fra[agr] += ( (artpop.data[year-1][f_idx][agr][cd4][dur] + 
-                       artpop.data[year  ][f_idx][agr][cd4][dur]) / 2) * 
-                       p.frr_art[year][agr][cd4][dur]; 
-  boost1D frap(extents[hAG_FERT]);
-  for (int agr = 0; agr < hAG_FERT; ++agr)
-    frap[agr] = 
-      birth_agrp[agr] * (1 - hivn[agr] / (hivn[agr] + frp[agr] + fra[agr]));
-  double pregprev = sumArray(frap) / sumArray(birth_age);
-  pregprevlag[year + AGE_START -1] = pregprev;
+        fra += ( (artpop.data[year-1][f_idx][agr][cd4][dur] +
+                  artpop.data[year  ][f_idx][agr][cd4][dur]) / 2 ) *
+                  p.frr_art[year][agr][cd4][dur];
+    }
+    frap += birth_agrp[agr] * (1 - hivn[agr] / (hivn[agr] + frp + fra));
+    frp = 0; fra = 0;
+  }
+  double pregprev = frap / sumArray(birth_age);
+  pregprevlag[year + AGE_START - 1] = pregprev;
 }
 
 void popC::save_prev_n_inc () {
@@ -695,10 +687,9 @@ boost3D popC::update_preg (boost3D art_elig, hivC& hivpop, artC& artpop) {
 
 boost1D popC::artInit (boost1D art_curr, boost3D art_elig, int time_step) {
   boost1D out(extents[2]);
-  boost1D transition(extents[2]); 
   int year_w = (DT * (time_step + 1) < 0.5) ? 0 : 1;
   double trans = DT * (time_step + 1) + 0.5 - year_w;
-  transition[0] = 1 - trans; transition[1] = trans;
+  double transition[2] = { 1 - trans,  trans};
   int year_l = year - (2 - year_w), year_r = year - (1 - year_w);
   for (int sex = 0; sex < NG; ++sex) {
     if( p.art15plus_isperc[year_l][sex] == 0 & 
@@ -765,47 +756,46 @@ boost3D popC::artDist (boost3D art_elig, boost1D art_need) {
       return art_real;
     } 
     else { // Spectrum Manual p168--p169, 
-      int A = h_age15plus_idx[0] - 1, Z = A + h_age15plus_idx.num_elements();
-      boost3D art_real(extents[NG][Z][hDS]);
-      // Rf_error("we are here");
-      
+      int A = h_age15plus_idx[0] - 1;
+      boost3D art_real(extents[NG][hAG_15plus][hDS]);
+
       boost1D artX(extents[NG]);
       for (int sex = 0; sex < NG; sex++)
-        for (int agr = A; agr < Z; agr++)
+        for (int agr = A; agr < hAG_15plus; agr++)
           for (int cd4 = 0; cd4 < hDS; cd4++)
             artX[sex] += art_elig[sex][agr][cd4] * p.cd4_mort[sex][agr][cd4];
-      boost3D expect_mort_w(extents[NG][Z][hDS]); // 2 9 7
+      boost3D expect_mort_w(extents[NG][hAG_15plus][hDS]); // 2 9 7
       for (int sex = 0; sex < NG; sex++)
-        for (int agr = A; agr < Z; agr++)
+        for (int agr = A; agr < hAG_15plus; agr++)
           for (int cd4 = 0; cd4 < hDS; cd4++)
             expect_mort_w[sex][agr][cd4] = p.cd4_mort[sex][agr][cd4] / artX[sex];
       
-      boost3D init_w(extents[NG][Z][hDS]);
+      boost3D init_w(extents[NG][hAG_15plus][hDS]);
       for (int sex = 0; sex < NG; sex++)
-        for (int agr = A; agr < Z; agr++)
+        for (int agr = A; agr < hAG_15plus; agr++)
           for (int cd4 = 0; cd4 < hDS; cd4++)
             init_w[sex][agr][cd4] = 
               expect_mort_w[sex][agr][cd4] * p.art_alloc_mxweight; // scalar
       boost1D artY(extents[NG]);
       for (int sex = 0; sex < NG; sex++)
-        for (int agr = A; agr < Z; agr++)
+        for (int agr = A; agr < hAG_15plus; agr++)
           for (int cd4 = 0; cd4 < hDS; cd4++)
             artY[sex] += art_elig[sex][agr][cd4];
       for (int sex = 0; sex < NG; sex++)
-        for (int agr = A; agr < Z; agr++)
+        for (int agr = A; agr < hAG_15plus; agr++)
           for (int cd4 = 0; cd4 < hDS; cd4++)
             init_w[sex][agr][cd4] += ((1 - p.art_alloc_mxweight) / artY[sex]);
       
       for (int sex = 0; sex < NG; sex++)
-        for (int agr = A; agr < Z; agr++)
+        for (int agr = A; agr < hAG_15plus; agr++)
           for (int cd4 = 0; cd4 < hDS; cd4++)
             init_w[sex][agr][cd4] *= art_elig[sex][agr][cd4];
       for (int sex = 0; sex < NG; sex++)
-        for (int agr = A; agr < Z; agr++)
+        for (int agr = A; agr < hAG_15plus; agr++)
           for (int cd4 = 0; cd4 < hDS; cd4++)
             init_w[sex][agr][cd4] *= art_need[sex];
       for (int sex = 0; sex < NG; sex++)
-        for (int agr = A; agr < Z; agr++)
+        for (int agr = A; agr < hAG_15plus; agr++)
           for (int cd4 = 0; cd4 < hDS; cd4++)
             art_real[sex][agr][cd4] = 
               (init_w[sex][agr][cd4] < art_elig[sex][agr][cd4]) ?
@@ -908,56 +898,55 @@ boost3D popC::scale_cd4_mort (hivC& hivpop, artC& artpop) {
 
 void popC::finalize (hivC& hivpop, artC& artpop) {
   int np = 0;
+
   SEXP pop_sexp_dim = PROTECT(NEW_INTEGER(4)); ++np;
   INTEGER(pop_sexp_dim)[0] = pAG;
   INTEGER(pop_sexp_dim)[1] = NG;
   INTEGER(pop_sexp_dim)[2] = pDS;
   INTEGER(pop_sexp_dim)[3] = PROJ_YEARS;
-  SET_DIM(data_sexp, pop_sexp_dim);
+  SET_DIM(pop_sexp, pop_sexp_dim);
 
-  SEXP age_sex_year_dim = PROTECT(NEW_INTEGER(3)); ++np;
-  INTEGER(age_sex_year_dim)[0] = pAG;
-  INTEGER(age_sex_year_dim)[1] = NG;
-  INTEGER(age_sex_year_dim)[2] = PROJ_YEARS;
-  SET_DIM(infections_sexp, age_sex_year_dim);
-  SET_DIM(hivdeaths_sexp, age_sex_year_dim);
-  SET_DIM(natdeaths_sexp, age_sex_year_dim);
-  SET_DIM(popadjust_sexp, age_sex_year_dim);
-
-  SEXP hiv_sexp_dim = PROTECT(NEW_INTEGER(4)); ++np;
-  INTEGER(hiv_sexp_dim)[0] = hDS;
-  INTEGER(hiv_sexp_dim)[1] = hAG;
-  INTEGER(hiv_sexp_dim)[2] = NG;
-  INTEGER(hiv_sexp_dim)[3] = PROJ_YEARS;
-  SET_DIM(hivpop.data_sexp, hiv_sexp_dim);
-
-  SEXP art_sexp_dim = PROTECT(NEW_INTEGER(5)); ++np;
-  INTEGER(art_sexp_dim)[0] = hTS;
-  INTEGER(art_sexp_dim)[1] = hDS;
-  INTEGER(art_sexp_dim)[2] = hAG;
-  INTEGER(art_sexp_dim)[3] = NG;
-  INTEGER(art_sexp_dim)[4] = PROJ_YEARS;
-  SET_DIM(artpop.data_sexp, art_sexp_dim);
-
-  SET_ATTR(data_sexp, Rf_install("infections"), infections_sexp);
-  SET_ATTR(data_sexp, Rf_install("hivdeaths"), hivdeaths_sexp);
-  SET_ATTR(data_sexp, Rf_install("natdeaths"), natdeaths_sexp);
-  SET_ATTR(data_sexp, Rf_install("popadjust"), popadjust_sexp);
-  SET_ATTR(data_sexp, Rf_install("pregprevlag"), pregprevlag_sexp);
-  SET_ATTR(data_sexp, Rf_install("inci15to49_ts"), inci15to49_ts_sexp);
-  SET_ATTR(data_sexp, Rf_install("prev15to49_ts"), prev15to49_ts_sexp);
-  SET_ATTR(data_sexp, Rf_install("rvec_ts"), rvec_sexp);
-  SET_ATTR(data_sexp, Rf_install("prev15to49"), prev15to49_sexp);
-  SET_ATTR(data_sexp, Rf_install("incid15to49"), incid15to49_sexp);
-  SET_ATTR(data_sexp, Rf_install("entrantprev"), entrantprev_sexp);
-  SET_ATTR(data_sexp, Rf_install("incrate15to49_ts"), inci15to49_ts_sexp);
-  SET_ATTR(data_sexp, Rf_install("prev15to49_ts_sexp"), prev15to49_ts_sexp);
   if (MODEL!=0) {
-    SET_ATTR(data_sexp, Rf_install("artpop"), artpop.data_sexp);
-    SET_ATTR(data_sexp, Rf_install("hivpop"), hivpop.data_sexp);
-    SET_CLASS(data_sexp, Rf_mkString("spec"));
+    SEXP age_sex_year_dim = PROTECT(NEW_INTEGER(3)); ++np;
+    INTEGER(age_sex_year_dim)[0] = pAG;
+    INTEGER(age_sex_year_dim)[1] = NG;
+    INTEGER(age_sex_year_dim)[2] = PROJ_YEARS;
+    SET_DIM(infections_sexp, age_sex_year_dim);
+    SET_DIM(hivdeaths_sexp, age_sex_year_dim);
+    SET_DIM(natdeaths_sexp, age_sex_year_dim);
+    SET_DIM(popadjust_sexp, age_sex_year_dim);
+
+    SEXP hiv_sexp_dim = PROTECT(NEW_INTEGER(4)); ++np;
+    INTEGER(hiv_sexp_dim)[0] = hDS;
+    INTEGER(hiv_sexp_dim)[1] = hAG;
+    INTEGER(hiv_sexp_dim)[2] = NG;
+    INTEGER(hiv_sexp_dim)[3] = PROJ_YEARS;
+    SET_DIM(hivpop.hiv_sexp, hiv_sexp_dim);
+
+    SEXP art_sexp_dim = PROTECT(NEW_INTEGER(5)); ++np;
+    INTEGER(art_sexp_dim)[0] = hTS;
+    INTEGER(art_sexp_dim)[1] = hDS;
+    INTEGER(art_sexp_dim)[2] = hAG;
+    INTEGER(art_sexp_dim)[3] = NG;
+    INTEGER(art_sexp_dim)[4] = PROJ_YEARS;
+    SET_DIM(artpop.art_sexp, art_sexp_dim);
+
+    SET_ATTR(pop_sexp, Rf_install("infections"), infections_sexp);
+    SET_ATTR(pop_sexp, Rf_install("hivdeaths"), hivdeaths_sexp);
+    SET_ATTR(pop_sexp, Rf_install("natdeaths"), natdeaths_sexp);
+    SET_ATTR(pop_sexp, Rf_install("popadjust"), popadjust_sexp);
+    SET_ATTR(pop_sexp, Rf_install("pregprevlag"), pregprevlag_sexp);
+    SET_ATTR(pop_sexp, Rf_install("rvec_ts"), rvec_sexp);
+    SET_ATTR(pop_sexp, Rf_install("prev15to49"), prev15to49_sexp);
+    SET_ATTR(pop_sexp, Rf_install("incid15to49"), incid15to49_sexp);
+    SET_ATTR(pop_sexp, Rf_install("entrantprev"), entrantprev_sexp);
+    SET_ATTR(pop_sexp, Rf_install("incrate15to49_ts"), inci15to49_ts_sexp);
+    SET_ATTR(pop_sexp, Rf_install("prev15to49_ts_sexp"), prev15to49_ts_sexp);
+    SET_ATTR(pop_sexp, Rf_install("artpop"), artpop.art_sexp);
+    SET_ATTR(pop_sexp, Rf_install("hivpop"), hivpop.hiv_sexp);
+    SET_CLASS(pop_sexp, Rf_mkString("spec"));
   }
   else 
-    SET_CLASS(data_sexp, Rf_mkString("dempp"));
-  UNPROTECT(np);
+    SET_CLASS(pop_sexp, Rf_mkString("dempp"));
+  UNPROTECT(np + 14); // pop 
 }

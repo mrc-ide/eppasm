@@ -45,5 +45,5 @@ extern "C" SEXP eppasmOOpp(SEXP fp, SEXP MODEL, SEXP MIX) {
     }
   }
   pop.finalize(hivpop, artpop);
-  return pop.data_sexp;
+  return pop.pop_sexp;
 }

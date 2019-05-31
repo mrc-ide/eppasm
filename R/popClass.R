@@ -340,15 +340,15 @@ migration = function() {
     if (MODEL!=2)
       mr.prob <- 1 + netmigsurv / rowSums(data[,,,year],,2)
     if (MODEL==1) {
-      hiv_mr_prob <<- sumByAGs(mr.prob * data[,,2,year], ag.idx) / 
-                      sumByAGs(data[,,2,year], ag.idx)
+      hiv_mr_prob <<- sumByAGs(mr.prob * data[,,hivp.idx,year], ag.idx) / 
+                      sumByAGs(          data[,,hivp.idx,year], ag.idx)
       hiv_mr_prob[is.nan(hiv_mr_prob)] <<- 0
     }
     if (MODEL==2) {
       my_all(year)
       mr.prob <- 1 + netmigsurv / rowSums(data_all[,,],,2)
-      hiv_mr_prob <<- sumByAGs(mr.prob * data_all[,,2], ag.idx) / 
-                      sumByAGs(          data_all[,,2], ag.idx)
+      hiv_mr_prob <<- sumByAGs(mr.prob * data_all[,,hivp.idx], ag.idx) / 
+                      sumByAGs(          data_all[,,hivp.idx], ag.idx)
       hiv_mr_prob[is.nan(hiv_mr_prob)] <<- 0
       data_db[,,,year] <<- sweep(data_db[,,,year], 1:2, mr.prob[db_aid,], "*")
     }

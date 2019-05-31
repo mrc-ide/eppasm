@@ -1,1 +1,4 @@
-PKG_CXXFLAGS= -pedantic
+CXX14FLAGS=-O3 -mtune=native -march=native -Wno-unused-variable -Wno-unused-function  -Wno-unknown-pragmas
+CC=clang
+CXX14=clang++ -arch x86_64 -ftemplate-depth-256 -std=c++1y
+CXX = clang++ -std=c++14

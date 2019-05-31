@@ -293,7 +293,7 @@ void popC::cal_prev_pregant (hivC& hivpop, artC& artpop) { // only on active pop
     n_mean[age] = (data[year-1][hivn_idx][f_idx][age] +
                      data[year][hivn_idx][f_idx][age]) / 2;
   boost1I sub_id = ag_idx[indices[in(p_fert_idx[0] - 1, pAG_FERT)]];
-  boost1D hivn = sumByAG(n_mean, sub_id, pAG_FERT); // 1 x 8
+  boost1D hivn = sumByAG(n_mean, sub_id, hAG_FERT); // 1 x 8
   double frp = 0, fra = 0, frap = 0;
   for (int agr = 0; agr < hAG_FERT; ++agr) {
     for (int cd4 = 0; cd4 < hDS; ++cd4) {

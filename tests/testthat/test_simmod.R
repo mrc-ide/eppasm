@@ -134,7 +134,7 @@ test_that("Model C++ with and without classes ouputs are equal", {
   expect_equal(attr(mod, "artpop"), attr(modK, "artpop"))
   expect_equal(attr(mod, "infections"), attr(modK, "infections"))
   expect_equal(attr(mod, "hivdeaths"), attr(modK, "hivdeaths"))
-  expect_equal(attr(mod, "pregprevlag"), attr(modK, "pregprevlag"))
+  expect_equal(attr(mod, "pregprevlag")[1:52], attr(modK, "pregprevlag")[1:52])
   expect_equal(attr(mod, "prev15to49_ts"), attr(modK, "prev15to49_ts"))
   expect_equal(attr(mod, "entrantprev"), attr(modK, "entrantprev"))
 })

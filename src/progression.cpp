@@ -12,7 +12,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
-#include "progression.h"
+#include "progression.hpp"
 
 // Natural deaths
 // -----------------------------------------------------------------------------
@@ -88,14 +88,14 @@ void popC::epp_art_init (hivC& hivpop, artC& artpop, int time_step) {
   artpop.grad_progress(); 
   artpop.art_dropout(hivpop); // pass hivpop to receive the drop out
   boost1D eligible = hivpop.eligible_for_art();
-  boost3D art_elig = hivpop.data[
-    indices[year][in(0, NG)][in(0, hAG)][in(0, hDS)] ];
+  boost3D art_elig(extents[NG][hAG][hDS]);
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
-        art_elig[sex][agr][cd4] *= eligible[cd4];
+        art_elig[sex][agr][cd4] =
+          hivpop.data[year][sex][agr][cd4] * eligible[cd4];
   if ( (p.pw_artelig[year]==1) & (p.artcd4elig_idx[year] > 1) )
-    art_elig = update_preg(art_elig, hivpop, artpop); // add pregnant?
+    update_preg(art_elig, hivpop, artpop); // add pregnant?
   double x;
   if (MODEL==2) { // add sexual inactive but eligible for treatment
     for (int sex = 0; sex < NG; sex++)
@@ -124,7 +124,7 @@ void popC::epp_art_init (hivC& hivpop, artC& artpop, int time_step) {
         }
   }
   if (MODEL==2) // split the number proportionally for active and idle pop
-    artinit = hivpop.distribute_artinit(artinit, artpop);
+    hivpop.distribute_artinit(artinit, artpop);
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)

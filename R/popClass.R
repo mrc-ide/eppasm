@@ -162,9 +162,9 @@ artInit = function(art_curr, art_elig, time_step) {
     } 
     else if (!p$art15plus_isperc[sex, years[1]] & 
               p$art15plus_isperc[sex, years[2]]) { # transition number > % 
-      curr_n_cov <- art_curr[sex] / (sum(art_elig[,,sex]) + art_curr[sex])
-      diff_n_cov <- p$art15plus_num[sex, years[2]] - curr_n_cov
-      cov <- curr_n_cov + diff_n_cov * DT / (0.5 + year_w - DT*(time_step - 1))
+      actual_cov <- art_curr[sex] / (sum(art_elig[,,sex]) + art_curr[sex])
+      diff_cov <- p$art15plus_num[sex, years[2]] - actual_cov
+      cov <- actual_cov + diff_cov * DT / (0.5 + year_w - DT*(time_step - 1))
       if (MIX)
         artcov[sex] <<- min(1, cov) # save for infect_mix
       out[sex] <- cov * (sum(art_elig[,,sex]) + art_curr[sex])

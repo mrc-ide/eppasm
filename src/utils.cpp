@@ -12,7 +12,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
-#include "utils.h"
+#include "utils.hpp"
 
 SEXP get_value(SEXP list, const char *str) {
   SEXP out = R_NilValue, names = GET_NAMES(list);
@@ -84,11 +84,13 @@ boost2D_ptr sexp_2D_to_boost(SEXP sexp_mat) {
 }
 
 // age_of_interest example is ag_idx, not shifted
-boost2D sumByAG (boost2D B, boost1I age_of_interest, int new_size) {
-  boost2D A(extents[ B.shape()[0] ][ new_size ]);
-  int current_age_group = age_of_interest[0]; // first age group
-  for (int j = 0; j < B.shape()[0]; ++j) {
-    for (int i = 0; i < B.shape()[1]; ++i) {
+boost2D sumByAG (const boost2D& B, const boost1I& age_of_interest, int new_size) 
+{
+  int current_age_group = age_of_interest[0],
+      row = B.shape()[0], col = B.shape()[1]; // first age group
+  boost2D A(extents[ row ][ new_size ]);
+  for (int j = 0; j < row; ++j) {
+    for (int i = 0; i < col; ++i) {
       if ( age_of_interest[i] == current_age_group)
         A[j][current_age_group - 1] += B[j][i];
       else {
@@ -101,7 +103,8 @@ boost2D sumByAG (boost2D B, boost1I age_of_interest, int new_size) {
   return A;
 }
 
-boost1D sumByAG (boost1D B, boost1I age_of_interest, int new_size) {
+boost1D sumByAG (const boost1D& B, const boost1I& age_of_interest, int new_size) 
+{
   boost1D A(extents[ new_size ]);
   int current_age_group = age_of_interest[0]; // first age group
   for (int i = 0; i < B.num_elements(); ++i) {

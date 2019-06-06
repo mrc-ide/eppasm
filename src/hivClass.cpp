@@ -12,28 +12,21 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
-#include "Classes.h"
+#include "Classes.hpp"
 
-void hivC::aging(boost2D ag_prob) {
+void hivC::aging(const boost2D& ag_prob) {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
         data[year][sex][agr][cd4] = data[year-1][sex][agr][cd4];
-  boost3D nHup(extents[NG][hAG][hDS]); // use only up to hAG-1, but otherwise
-                                       // over/underflow e.g 1.49167e-154, why?
+  double nHup;
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG - 1; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++) 
-        nHup[sex][agr][cd4] = data[year][sex][agr][cd4] * ag_prob[sex][agr];
-  for (int sex = 0; sex < NG; sex++)
-    for (int agr = 0; agr < hAG - 1; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
-        data[year][sex][agr][cd4] -= nHup[sex][agr][cd4];
-  for (int sex = 0; sex < NG; sex++)
-    for (int agr = 1; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
-        data[year][sex][agr][cd4] += nHup[sex][agr-1][cd4];
-
+      for (int cd4 = 0; cd4 < hDS; cd4++) {
+        nHup = data[year-1][sex][agr][cd4] * ag_prob[sex][agr];
+        data[year][sex][agr][cd4]   -= nHup;
+        data[year][sex][agr+1][cd4] += nHup;
+      }
   if (MODEL==2) {
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hAG; agr++)
@@ -41,29 +34,24 @@ void hivC::aging(boost2D ag_prob) {
           data_db[year][sex][agr][cd4] = data_db[year-1][sex][agr][cd4];
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hAG - 1; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++) 
-          nHup[sex][agr][cd4] = data_db[year][sex][agr][cd4] * ag_prob[sex][agr];
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG - 1; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++)
-          data_db[year][sex][agr][cd4] -= nHup[sex][agr][cd4];
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 1; agr < hAG; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++)
-          data_db[year][sex][agr][cd4] += nHup[sex][agr-1][cd4];
+        for (int cd4 = 0; cd4 < hDS; cd4++) {
+          nHup = data_db[year-1][sex][agr][cd4] * ag_prob[sex][agr];
+          data_db[year][sex][agr][cd4]   -= nHup;
+          data_db[year][sex][agr+1][cd4] += nHup;
+        }
   }
 }
 
-void hivC::add_entrants(boost1D artYesNo) { // see pop.entrant_art
+void hivC::add_entrants(const boost1D& artYesNo) { // see pop.entrant_art
   if (MODEL==1)
     for (int sex = 0; sex < NG; sex++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
-        data[year][sex][0][cd4] += 
+        data[year][sex][0][cd4] +=
           p.paedsurv_cd4dist[year][sex][cd4] * artYesNo[sex+2];
   if (MODEL==2) // add to virgin then debut
     for (int sex = 0; sex < NG; sex++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
-        data_db[year][sex][0][cd4] += 
+        data_db[year][sex][0][cd4] +=
           p.paedsurv_cd4dist[year][sex][cd4] * artYesNo[sex+2];
 }
 
@@ -77,7 +65,7 @@ void hivC::sexual_debut() {
       }
 }
 
-void hivC::deaths (boost2D survival_pr) {
+void hivC::deaths (const boost2D& survival_pr) {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
@@ -89,7 +77,7 @@ void hivC::deaths (boost2D survival_pr) {
           data_db[year][sex][adb][cd4] *= survival_pr[sex][adb];
 }
 
-void hivC::migration (boost2D migration_pr) {
+void hivC::migration (const boost2D& migration_pr) {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
@@ -101,7 +89,7 @@ void hivC::migration (boost2D migration_pr) {
           data_db[year][sex][adb][cd4] *= migration_pr[sex][adb];
 }
 
-void hivC::update_infection (boost2D new_infect) {
+void hivC::update_infection (const boost2D& new_infect) {
   zeroing(grad); // reset every time step
   boost2D infectAG = sumByAG(new_infect, ag_idx, hAG);
   for (int sex = 0; sex < NG; sex++)
@@ -111,24 +99,18 @@ void hivC::update_infection (boost2D new_infect) {
           p.cd4_initdist[sex][agr][cd4] * infectAG[sex][agr];
 }
 
-void hivC::grad_progress (boost3D mortality_rate) { // HIV gradient progress
+void hivC::grad_progress (const boost3D& mortality_rate) { // HIV gradient progress
   if (p.eppmod == 2)
     zeroing(grad); // reset every time step
   // remove cd4 stage progression (untreated)
-  boost3D nHup(extents[NG][hAG][hDS-1]);
+  double nHup;
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS - 1; cd4++)
-        nHup[sex][agr][cd4] = 
-          data[year][sex][agr][cd4] * p.cd4_prog[sex][agr][cd4];
-  for (int sex = 0; sex < NG; sex++)
-    for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS - 1; cd4++)
-        grad[sex][agr][cd4] -= nHup[sex][agr][cd4];
-  for (int sex = 0; sex < NG; sex++)
-    for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 1; cd4 < hDS; cd4++)
-        grad[sex][agr][cd4] += nHup[sex][agr][cd4-1];
+      for (int cd4 = 0; cd4 < hDS - 1; cd4++) {
+        nHup = data[year][sex][agr][cd4] * p.cd4_prog[sex][agr][cd4];
+        grad[sex][agr][cd4]   -= nHup;
+        grad[sex][agr][cd4+1] += nHup;
+      }
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
@@ -138,17 +120,11 @@ void hivC::grad_progress (boost3D mortality_rate) { // HIV gradient progress
     zeroing(grad_db); // reset, this's the 1st time grad_db is used
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hAG; agr++)
-        for (int cd4 = 0; cd4 < hDS - 1; cd4++)
-          nHup[sex][agr][cd4] = 
-            data_db[year][sex][agr][cd4] * p.cd4_prog[sex][agr][cd4];
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
-        for (int cd4 = 0; cd4 < hDS - 1; cd4++)
-          grad_db[sex][agr][cd4] -= nHup[sex][agr][cd4];
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
-        for (int cd4 = 1; cd4 < hDS; cd4++)
-          grad_db[sex][agr][cd4] += nHup[sex][agr][cd4-1];
+        for (int cd4 = 0; cd4 < hDS - 1; cd4++) {
+          nHup = data_db[year][sex][agr][cd4] * p.cd4_prog[sex][agr][cd4];
+          grad_db[sex][agr][cd4]   -= nHup;
+          grad_db[sex][agr][cd4+1] += nHup;
+        }
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hAG; agr++)
         for (int cd4 = 0; cd4 < hDS; cd4++)
@@ -157,16 +133,23 @@ void hivC::grad_progress (boost3D mortality_rate) { // HIV gradient progress
   }
 }
 
-boost1D hivC::eligible_for_art () {
-  boost1D A(extents[hDS]), B(extents[hDS]),  C(extents[hDS]), D(extents[hDS]);
-  for (int i = p.artcd4elig_idx[year] - 1; i < hDS; ++i) A[i] = 1;
-  for (int i = 2; i < hDS; ++i) B[i] = p.who34percelig;
+boost1D hivC::eligible_for_art () { // this one does not depend on model state
+                                    // can just do this in fp and have a new par
+  boost1D A(extents[hDS]);
+  for (int i = p.artcd4elig_idx[year] - 1; i < hDS; ++i) 
+    A[i] = 1;
+  boost1D B(extents[hDS]);
+  for (int i = 2; i < hDS; ++i) 
+    B[i] = p.who34percelig;
+  boost1D C(extents[hDS]);
   C = add_to_each(C, p.specpop_percelig[year]);
-  for (int i = 0; i < hDS; ++i) D[i] = 1 - (1 - A[i]) * (1 - B[i]) * (1 - C[i]);
+  boost1D D(extents[hDS]);
+  for (int i = 0; i < hDS; ++i) 
+    D[i] = 1 - (1 - A[i]) * (1 - B[i]) * (1 - C[i]);
   return D;
 }
 
-boost3D hivC::distribute_artinit (boost3D artinit, artC& artpop) {
+void hivC::distribute_artinit (boost3D& artinit, artC& artpop) {
     double debut_now, all_hivpop, pr_weight_db, n_cal, n_artinit_db;
     boost3D artinit_db(extents[NG][hAG][hDS]);
     for (int sex = 0; sex < NG; sex++)
@@ -186,7 +169,6 @@ boost3D hivC::distribute_artinit (boost3D artinit, artC& artpop) {
           grad_db[sex][agr][cd4]    -= n_artinit_db / DT;
         }
     artpop.grad_db_init(artinit_db);
-    return artinit;
 }
 
 void hivC::add_grad_to_pop () { // this is over-extraction
@@ -201,7 +183,7 @@ void hivC::add_grad_to_pop () { // this is over-extraction
           data_db[year][sex][adb][cd4] += DT * grad_db[sex][adb][cd4];
 }
 
-void hivC::adjust_pop (boost2D adj_prob) {
+void hivC::adjust_pop (const boost2D& adj_prob) {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)

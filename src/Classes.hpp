@@ -12,8 +12,8 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
-#include "fpClass.h"
-#include "utils.h"
+#include "fpClass.hpp"
+#include "utils.hpp"
 #include "Rdefines.h"
 class artC;
 class hivC;
@@ -63,14 +63,15 @@ public: // Pop inits
     popadjust(REAL(popadjust_sexp ), extents[PROJ_YEARS][NG][pAG]),
     
     data_all(extents[pDS][NG][pAG]), // 1 year only
-    data_db(extents[PROJ_YEARS][pDS][NG][pDB])
+    data_db_sexp(PROTECT(NEW_NUMERIC(pDB * NG * pDS * PROJ_YEARS))),
+    data_db(REAL(data_db_sexp), extents[PROJ_YEARS][pDS][NG][pDB])
   {
 // Non class init
     MODEL = inMODEL;
     MIX = inMIX;
-    year = 1;
 
-    memset(REAL(pop_sexp         ), 0, pAG * NG * pDS * PROJ_YEARS * sizeof(double));
+    memset(REAL(pop_sexp          ), 0, pAG * NG * pDS * PROJ_YEARS * sizeof(double));
+    memset(REAL(data_db_sexp      ), 0, pDB * NG * pDS * PROJ_YEARS * sizeof(double));
     memset(REAL(prev15to49_sexp   ), 0, PROJ_YEARS                  * sizeof(double));
     memset(REAL(incid15to49_sexp  ), 0, PROJ_YEARS                  * sizeof(double));
     memset(REAL(pregprevlag_sexp  ), 0, PROJ_YEARS                  * sizeof(double));
@@ -104,25 +105,28 @@ public: // Pop inits
   void migration () ;
   void update_fertile () ;
   void adjust_pop () ;
-  void cal_prev_pregant (hivC& hivpop, artC& artpop); // only on active pop
+  void cal_prev_pregant (const hivC& hivpop, const artC& artpop); // only on active pop
   void save_prev_n_inc () ;
   boost2D infect_mix (int ii);
-  boost2D infect_spec (hivC& hivpop, artC& artpop, int time_step);
+  boost2D infect_spec (const hivC& hivpop, const artC& artpop, int time_step);
   void epp_disease_model_direct (hivC& hivpop, artC& artpop) ;
   double calc_rtrend_rt (int ts, double time_step) ;
   void update_rvec (double time_step) ;
-  void update_infection (boost2D infect) ;
-  void remove_hiv_death (boost3D cd4_mx, hivC& hivpop, artC& artpop);
-  boost3D update_preg (boost3D art_elig, hivC& hivpop, artC& artpop);
-  boost1D artInit (boost1D art_curr, boost3D art_elig, int time_step);
-  boost3D artDist (boost3D art_elig, boost1D art_need);
+  void update_infection (const boost2D& infect) ;
+  void remove_hiv_death (const boost3D& cd4_mx,
+                         const hivC& hivpop, const artC& artpop);
+  void update_preg (boost3D& art_elig,
+                    const hivC& hivpop, const artC& artpop);
+  boost1D artInit (const boost1D& art_curr, const boost3D& art_elig,
+                   int time_step);
+  boost3D artDist (const boost3D& art_elig, const boost1D& art_need);
   boost3D scale_cd4_mort (hivC& hivpop, artC& artpop);
   void epp_art_init (hivC& hivpop, artC& artpop, int time_step);
   void finalize (hivC& hivpop, artC& artpop);
 public: // Pop fields
   int         MODEL;
   bool        MIX;
-  int         year;
+  int         year = 1;
   SEXP        pop_sexp;
   boost4D_ptr data; // pointer to pop_data_sexp, the same for others
   boost1D     birth_age;
@@ -159,8 +163,9 @@ public: // Pop fields
   // boost3D     incrate15to49_ts_m; // for storing in mixing model
   // boost3D     prev15to49_ts_m; // for storing in mixing model
   boost3D     data_all; // all populations in the year requested
-  boost4D     data_db; // debut only population
-  double      artcov[2] = {0, 0}; //numeric(2), // initially no one on treatment
+  SEXP        data_db_sexp; // debut only population
+  boost4D_ptr data_db; // debut only population
+  double      artcov[2] = {0.0, 0.0}; // initially no one on treatment
   double      prev_last = 0.0; // = 0 last time step prevalence
 };
 
@@ -177,20 +182,21 @@ public: // inits
   data_all(extents[NG][hAG][hDS])
   {
     MODEL = inMODEL;
-    memset(REAL(hiv_sexp), 0.0, hDS * hAG * NG * PROJ_YEARS * sizeof(double));
+    memset(REAL(hiv_sexp), 0, hDS * hAG * NG * PROJ_YEARS * sizeof(double));
+    zeroing(data_db); zeroing(grad); zeroing(grad_db);
   };
 // methods
-  void aging(boost2D ag_prob);
-  void add_entrants(boost1D artYesNo) ;
+  void aging(const boost2D& ag_prob);
+  void add_entrants(const boost1D& artYesNo) ;
   void sexual_debut() ;
-  void deaths (boost2D survival_pr) ;
-  void migration (boost2D migration_pr) ;
-  void update_infection (boost2D new_infect) ;
-  void grad_progress (boost3D mortality_rate) ;
+  void deaths (const boost2D& survival_pr) ;
+  void migration (const boost2D& migration_pr) ;
+  void update_infection (const boost2D& new_infect) ;
+  void grad_progress (const boost3D& mortality_rate) ;
   boost1D eligible_for_art () ;
-  boost3D distribute_artinit (boost3D artinit, artC& artpop);
+  void distribute_artinit (boost3D& artinit, artC& artpop);
   void add_grad_to_pop () ;
-  void adjust_pop (boost2D adj_prob) ;
+  void adjust_pop (const boost2D& adj_prob) ;
 public: // fields
   int         year = 1;
   int         MODEL;
@@ -214,19 +220,20 @@ public: // Inits
   {
     MODEL = inMODEL;
     memset(REAL(art_sexp), 0, hTS * hDS * hAG * NG * PROJ_YEARS * sizeof(double));
+    zeroing(data_db); zeroing(gradART); zeroing(gradART_db);
   }
 // Methods
-  void aging (boost2D ag_prob) ;
-  void add_entrants (boost1D artYesNo) ;
+  void aging (const boost2D& ag_prob) ;
+  void add_entrants (const boost1D& artYesNo) ;
   void sexual_debut () ;
-  void deaths (boost2D survival_pr) ;
-  void migration (boost2D migration_pr) ;
+  void deaths (const boost2D& survival_pr) ;
+  void migration (const boost2D& migration_pr) ;
   void grad_progress () ;
   void art_dropout (hivC& hivpop) ;
   boost1D current_on_art () ;
-  void grad_init (boost3D artinit) ;
-  void grad_db_init (boost3D artinit_db) ;
-  void adjust_pop (boost2D adj_prob) ;
+  void grad_init (const boost3D& artinit) ;
+  void grad_db_init (const boost3D& artinit_db) ;
+  void adjust_pop (const boost2D& adj_prob) ;
 public: // fields
   int         year = 1;
   int         MODEL;

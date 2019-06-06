@@ -40,17 +40,25 @@ typedef multi_array_ref<double, 5> boost5D_ptr;
 
 typedef multi_array_types::index_range in;
 
+typedef boost1D::index i1D; typedef boost1D_ptr::index i1D_ptr;
+typedef boost1D::index i1I; typedef boost1D_ptr::index i1D_ptr;
+typedef boost1D::index i1D; typedef boost1D_ptr::index i1D_ptr;
+typedef boost2D::index i2D; typedef boost2D_ptr::index i2D_ptr;
+typedef boost3D::index i3D; typedef boost3D_ptr::index i3D_ptr;
+typedef boost4D::index i4D; typedef boost4D_ptr::index i4D_ptr;
+typedef boost5D::index i5D; typedef boost5D_ptr::index i5D_ptr;
+
 array<boost2D_ptr::index, 2> get_extents_2D(SEXP array);
 array<boost3D_ptr::index, 3> get_extents_3D(SEXP array);
 array<boost4D_ptr::index, 4> get_extents_4D(SEXP array);
 boost2D_ptr sexp_2D_to_boost (const SEXP& sexp_obj, bool zeroing=true);
 
-boost2D sumByAG (boost2D B, boost1I age_of_interest, int new_size);
-boost1D sumByAG (boost1D B, boost1I age_of_interest, int new_size);
+boost2D sumByAG (const boost2D& B, const boost1I& age_of_interest, int new_size);
+boost1D sumByAG (const boost1D& B, const boost1I& age_of_interest, int new_size);
 
 // Boost array NA/INF to zero: num/0.0 or 0.0/0.0
 template <class K>
-void replace_na_with (K& A, double B = 0.0) {
+void replace_na_with (K& A, double B = 0) {
   for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
     if (std::isnan(*i) || std::isinf(*i))
       *i = B;
@@ -108,4 +116,19 @@ K substract_from_each (K A, double X) { // not by reference
   for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
       *i -= X;
   return A;
+}
+
+// Boost array fill
+template <class K>
+K fill_with (K A, double B) {
+  for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
+      *i = B;
+  return A;
+}
+
+// Boost array fill inplace
+template <class K>
+void fill_with_inplace (K& A, double B) {
+  for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
+      *i = B;
 }

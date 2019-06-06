@@ -93,14 +93,13 @@ grad_progress = function() {
 },
 
 art_dropout = function(hivpop) {
-    dropout_rate <- p$art_dropout[year]
     now          <- data[,,,,year]
-    hivpop$grad  <- hivpop$grad + colSums(now) * dropout_rate
-    gradART     <<- gradART             - now  * dropout_rate
+    hivpop$grad  <- hivpop$grad + colSums(now) * p$art_dropout[year]
+    gradART     <<- gradART             - now  * p$art_dropout[year]
     if (MODEL==2) {
         now            <- data_db[,,,,year]
-        hivpop$grad_db <- hivpop$grad_db + colSums(now) * dropout_rate
-        gradART_db     <<- gradART_db            - now  * dropout_rate
+        hivpop$grad_db <- hivpop$grad_db + colSums(now) * p$art_dropout[year]
+        gradART_db     <<- gradART_db            - now  * p$art_dropout[year]
     }
 },
 

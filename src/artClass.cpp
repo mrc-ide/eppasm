@@ -12,9 +12,9 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
-#include "Classes.h"
+#include "Classes.hpp"
 
-void artC::aging (boost2D ag_prob) {
+void artC::aging (const boost2D& ag_prob) {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
@@ -46,7 +46,7 @@ void artC::aging (boost2D ag_prob) {
   }
 }
 
-void artC::add_entrants (boost1D artYesNo) {
+void artC::add_entrants (const boost1D& artYesNo) {
   if (MODEL==1)
     for (int sex = 0; sex < NG; sex++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
@@ -73,7 +73,7 @@ void artC::sexual_debut () {
         }
 }
 
-void artC::deaths (boost2D survival_pr) {
+void artC::deaths (const boost2D& survival_pr) {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
@@ -87,7 +87,7 @@ void artC::deaths (boost2D survival_pr) {
             data_db[year][sex][agr][cd4][dur] *= survival_pr[sex][agr];
 }
 
-void artC::migration (boost2D migration_pr) {
+void artC::migration (const boost2D& migration_pr) {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
@@ -103,9 +103,6 @@ void artC::migration (boost2D migration_pr) {
 
 void artC::grad_progress () {
   zeroing(gradART); // reset gradient
-  if (MODEL==2)
-    zeroing(gradART_db); // reset gradient
-
   // progression and mortality (HARD CODED 6 months duration)
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
@@ -115,18 +112,16 @@ void artC::grad_progress () {
           gradART[sex][agr][cd4][dur+1] += 2.0 * data[year][sex][agr][cd4][dur];
         }
   if (MODEL==2) {
+    zeroing(gradART_db); // reset gradient
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hAG; agr++)
         for (int cd4 = 0; cd4 < hDS; cd4++)
-          for (int dur = 0; dur < hTS - 1; dur++)
+          for (int dur = 0; dur < hTS - 1; dur++) {
             gradART_db[sex][agr][cd4][dur] -=
-              2.0 * data_db[year][sex][agr][cd4][dur];
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++)
-          for (int dur = 1; dur < hTS; dur++)
-            gradART_db[sex][agr][cd4][dur] +=
-              2.0 * data_db[year][sex][agr][cd4][dur-1];
+               2.0 * data_db[year][sex][agr][cd4][dur];
+            gradART_db[sex][agr][cd4][dur+1] +=
+               2.0 * data_db[year][sex][agr][cd4][dur];
+          }
   }
   // ART mortality
   for (int sex = 0; sex < NG; sex++)
@@ -147,31 +142,24 @@ void artC::grad_progress () {
 }
 
 void artC::art_dropout (hivC& hivpop) {
+  double n_dropout;
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
-        for (int dur = 0; dur < hTS; dur++)
-          hivpop.grad[sex][agr][cd4] +=
-            data[year][sex][agr][cd4][dur] * p.art_dropout[year];
-  for (int sex = 0; sex < NG; sex++)
-    for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
-        for (int dur = 0; dur < hTS; dur++)
-          gradART[sex][agr][cd4][dur] -=
-            data[year][sex][agr][cd4][dur] * p.art_dropout[year];
+        for (int dur = 0; dur < hTS; dur++) {
+          n_dropout = data[year][sex][agr][cd4][dur] * p.art_dropout[year];
+          hivpop.grad[sex][agr][cd4]  += n_dropout;
+          gradART[sex][agr][cd4][dur] -= n_dropout;
+        }
   if (MODEL==2) {
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hAG; agr++)
         for (int cd4 = 0; cd4 < hDS; cd4++)
-          for (int dur = 0; dur < hTS; dur++)
-            hivpop.grad_db[sex][agr][cd4] +=
-              data_db[year][sex][agr][cd4][dur] * p.art_dropout[year];
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++)
-          for (int dur = 0; dur < hTS; dur++)
-            gradART_db[sex][agr][cd4][dur] -=
-              data_db[year][sex][agr][cd4][dur] * p.art_dropout[year];
+          for (int dur = 0; dur < hTS; dur++) {
+            n_dropout = data_db[year][sex][agr][cd4][dur] * p.art_dropout[year];
+            hivpop.grad_db[sex][agr][cd4]  += n_dropout;
+            gradART_db[sex][agr][cd4][dur] -= n_dropout;
+          }
   }
 }
 
@@ -193,33 +181,28 @@ boost1D artC::current_on_art () {
   return art_curr;
 }
 
-void artC::grad_init (boost3D artinit) { // 7x9x2
+void artC::grad_init (const boost3D& artinit) { // 7x9x2
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
+      for (int cd4 = 0; cd4 < hDS; cd4++) {
         gradART[sex][agr][cd4][0] += artinit[sex][agr][cd4] / DT;
-  for (int sex = 0; sex < NG; sex++)
-    for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
         for (int dur = 0; dur < hTS; dur++)
-          data[year][sex][agr][cd4][dur] +=
-            DT * gradART[sex][agr][cd4][dur];
+          data[year][sex][agr][cd4][dur] += DT * gradART[sex][agr][cd4][dur];
+      }
 }
 
-void artC::grad_db_init (boost3D artinit_db) {
+void artC::grad_db_init (const boost3D& artinit_db) {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
+      for (int cd4 = 0; cd4 < hDS; cd4++) {
         gradART_db[sex][agr][cd4][0] += artinit_db[sex][agr][cd4] / DT;
-  for (int sex = 0; sex < NG; sex++)
-    for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
         for (int dur = 0; dur < hTS; dur++)
-          data_db[year][sex][agr][cd4][dur] +=
-             DT * gradART_db[sex][agr][cd4][dur];
+          data_db[year][sex][agr][cd4][dur] += 
+            DT * gradART_db[sex][agr][cd4][dur];
+      }
 }
 
-void artC::adjust_pop (boost2D adj_prob) {
+void artC::adjust_pop (const boost2D& adj_prob) {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)

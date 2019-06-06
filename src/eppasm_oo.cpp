@@ -12,7 +12,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
-#include "progression.h"
+#include "progression.hpp"
 
 extern "C" SEXP eppasmOOpp(SEXP fp, SEXP MODEL, SEXP MIX) {
   int cMODEL = INTEGER_VALUE(MODEL); bool cMIX = LOGICAL_VALUE(MIX);

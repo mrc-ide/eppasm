@@ -45,7 +45,7 @@ void epp_aging (popC& pop, hivC& hivpop, artC& artpop) {
     pop.sexual_debut();
   if (pop.MODEL!=0) {
     boost2D hiv_ag_prob = pop.hiv_aging_prob();
-    boost1D artYesNo = pop.entrant_art();
+    dvec artYesNo = pop.entrant_art();
     hivpop.aging(hiv_ag_prob);
     hivpop.add_entrants(artYesNo);
     if (pop.MODEL==2)
@@ -62,8 +62,8 @@ void epp_aging (popC& pop, hivC& hivpop, artC& artpop) {
 // Disease model
 // -----------------------------------------------------------------------------
 void epp_disease_model (popC& pop, hivC& hivpop, artC& artpop) {
-  boost2D infect(extents[pop.NG][pop.pAG]);
   for (int time_step = 0; time_step < pop.hiv_steps_per_year; ++time_step) {
+    boost2D infect(extents[pop.NG][pop.pAG]);
     if (pop.p.eppmod != 2) { // != "directincid"
       pop.update_rvec(time_step);
       if (pop.MIX)
@@ -87,14 +87,14 @@ void epp_disease_model (popC& pop, hivC& hivpop, artC& artpop) {
 void popC::epp_art_init (hivC& hivpop, artC& artpop, int time_step) {
   artpop.grad_progress(); 
   artpop.art_dropout(hivpop); // pass hivpop to receive the drop out
-  boost1D eligible = hivpop.eligible_for_art();
+  dvec eligible = hivpop.eligible_for_art();
   boost3D art_elig(extents[NG][hAG][hDS]);
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
         art_elig[sex][agr][cd4] =
           hivpop.data[year][sex][agr][cd4] * eligible[cd4];
-  if ( (p.pw_artelig[year]==1) & (p.artcd4elig_idx[year] > 1) )
+  if ( (p.pw_artelig[year] == 1) & (p.artcd4elig_idx[year] > 1) )
     update_preg(art_elig, hivpop, artpop); // add pregnant?
   double x;
   if (MODEL==2) { // add sexual inactive but eligible for treatment
@@ -106,14 +106,14 @@ void popC::epp_art_init (hivC& hivpop, artC& artpop, int time_step) {
         }
   }
   // calculate number to initiate ART and distribute
-  boost1D art_curr = artpop.current_on_art();
-  boost1D artnum_ii = artInit(art_curr, art_elig, time_step);
-  boost1D art15plus_inits(extents[NG]);
+  dvec art_curr = artpop.current_on_art();
+  dvec artnum_ii = art_initiate(art_curr, art_elig, time_step);
+  dvec art15plus_inits(NG);
   for (int sex = 0; sex < NG; ++sex) {
     x = artnum_ii[sex] - art_curr[sex];
     art15plus_inits[sex] = (x > 0) ? x : 0;
   }
-  boost3D artinit = artDist(art_elig, art15plus_inits);
+  boost3D artinit = art_distribute(art_elig, art15plus_inits);
   if (MODEL==1) {
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hAG; agr++)

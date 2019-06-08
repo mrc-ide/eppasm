@@ -666,7 +666,16 @@ ll <- function(theta, fp, likdat){
     if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) 
       return(-Inf)
 
-  mod <- simmod(fp, 'R')
+  settings = c(1, FALSE)
+  if (exists("is_debut_model", where=fp)) {
+    if (fp$is_debut_model)
+      settings[1] <- 2
+  }
+  if (exists("is_debut_model", where=fp)) {
+    if (fp$is_mixing_model)
+      settings[2] <- TRUE
+  }
+  mod <- simmod(fp, 'K', settings[1], settings[2])
 
   ## ANC likelihood
   if(exists("ancsite.dat", likdat))

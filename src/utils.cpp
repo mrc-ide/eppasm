@@ -117,3 +117,17 @@ boost1D sumByAG (const boost1D& B, const boost1I& age_of_interest, int new_size)
   } // end age-groups
   return A;
 }
+
+dvec sumByAG (const dvec& B, const ivec& age_of_interest, int new_size) {
+  dvec A(new_size);
+  int current_age_group = age_of_interest[0]; // first age group
+  for (int i = 0; i < B.size(); ++i) {
+    if ( age_of_interest[i] == current_age_group)
+      A[current_age_group - 1] += B[i];
+    else {
+      ++current_age_group;
+      A[current_age_group - 1] += B[i];
+    }
+  } // end age-groups
+  return A;
+}

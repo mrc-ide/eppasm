@@ -26,8 +26,8 @@ public: // Pop inits
     pop_sexp(PROTECT(NEW_NUMERIC(pAG * NG * pDS * PROJ_YEARS))),
     data(REAL(pop_sexp), extents[PROJ_YEARS][pDS][NG][pAG]),
     
-    birth_age(extents[pAG_FERT]),
-    birth_agrp(extents[hAG_FERT]),
+    birth_age(pAG_FERT),
+    birth_agrp(hAG_FERT),
     
     prev15to49_sexp(PROTECT(NEW_NUMERIC(PROJ_YEARS))),
     prev15to49(REAL(prev15to49_sexp), extents[PROJ_YEARS]),
@@ -89,7 +89,8 @@ public: // Pop inits
         data[0][hivn_idx][sex][age] = p.basepop[sex][age];
 
     if (p.eppmod == 0)
-      rvec = p.rvec;
+      for (int i = 0; i < n_steps; ++i)
+        rvec[i] = p.rvec[i];
 
     if ( MODEL==2 && pDB==1 )
       Rf_warning("Debut model state-space not exist, see update_fp_debut()");
@@ -100,7 +101,7 @@ public: // Pop inits
   void add_entrants () ;
   void sexual_debut () ;
   boost2D hiv_aging_prob () ;
-  boost1D entrant_art () ;
+  dvec entrant_art () ;
   void deaths () ;
   void migration () ;
   void update_fertile () ;
@@ -117,9 +118,9 @@ public: // Pop inits
                          const hivC& hivpop, const artC& artpop);
   void update_preg (boost3D& art_elig,
                     const hivC& hivpop, const artC& artpop);
-  boost1D artInit (const boost1D& art_curr, const boost3D& art_elig,
+  dvec art_initiate (const dvec& art_curr, const boost3D& art_elig,
                    int time_step);
-  boost3D artDist (const boost3D& art_elig, const boost1D& art_need);
+  boost3D art_distribute (const boost3D& art_elig, const dvec& art_need);
   boost3D scale_cd4_mort (hivC& hivpop, artC& artpop);
   void epp_art_init (hivC& hivpop, artC& artpop, int time_step);
   void finalize (hivC& hivpop, artC& artpop);
@@ -129,8 +130,8 @@ public: // Pop fields
   int         year = 1;
   SEXP        pop_sexp;
   boost4D_ptr data; // pointer to pop_data_sexp, the same for others
-  boost1D     birth_age;
-  boost1D     birth_agrp;
+  dvec        birth_age;
+  dvec        birth_agrp;
   SEXP        prev15to49_sexp;
   boost1D_ptr prev15to49;  
   SEXP        incid15to49_sexp;
@@ -187,13 +188,13 @@ public: // inits
   };
 // methods
   void aging(const boost2D& ag_prob);
-  void add_entrants(const boost1D& artYesNo) ;
+  void add_entrants(const dvec& artYesNo) ;
   void sexual_debut() ;
   void deaths (const boost2D& survival_pr) ;
   void migration (const boost2D& migration_pr) ;
   void update_infection (const boost2D& new_infect) ;
   void grad_progress (const boost3D& mortality_rate) ;
-  boost1D eligible_for_art () ;
+  dvec eligible_for_art () ;
   void distribute_artinit (boost3D& artinit, artC& artpop);
   void add_grad_to_pop () ;
   void adjust_pop (const boost2D& adj_prob) ;
@@ -224,13 +225,13 @@ public: // Inits
   }
 // Methods
   void aging (const boost2D& ag_prob) ;
-  void add_entrants (const boost1D& artYesNo) ;
+  void add_entrants (const dvec& artYesNo) ;
   void sexual_debut () ;
   void deaths (const boost2D& survival_pr) ;
   void migration (const boost2D& migration_pr) ;
   void grad_progress () ;
   void art_dropout (hivC& hivpop) ;
-  boost1D current_on_art () ;
+  dvec current_on_art () ;
   void grad_init (const boost3D& artinit) ;
   void grad_db_init (const boost3D& artinit_db) ;
   void adjust_pop (const boost2D& adj_prob) ;

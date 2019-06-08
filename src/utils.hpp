@@ -31,6 +31,9 @@ typedef multi_array<double, 3> boost3D;
 typedef multi_array<double, 4> boost4D;
 typedef multi_array<double, 5> boost5D;
 
+typedef std::vector<double>    dvec;
+typedef std::vector<int>       ivec;
+
 typedef multi_array_ref<double, 1> boost1D_ptr;
 typedef multi_array_ref<int,    1> boost1I_ptr;
 typedef multi_array_ref<double, 2> boost2D_ptr;
@@ -55,6 +58,7 @@ boost2D_ptr sexp_2D_to_boost (const SEXP& sexp_obj, bool zeroing=true);
 
 boost2D sumByAG (const boost2D& B, const boost1I& age_of_interest, int new_size);
 boost1D sumByAG (const boost1D& B, const boost1I& age_of_interest, int new_size);
+dvec sumByAG (const dvec& B, const ivec& age_of_interest, int new_size);
 
 // Boost array NA/INF to zero: num/0.0 or 0.0/0.0
 template <class K>
@@ -76,6 +80,15 @@ template <class K>
 double sumArray (K& A) {
   double sum = 0;
   for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
+    sum += *i;
+  return sum;
+}
+
+// stand vector sum
+template <class K>
+double sum_vector (K& A) {
+  double sum = 0;
+  for (auto i = A.data(); i < (A.data() + A.size()); ++i)
     sum += *i;
   return sum;
 }

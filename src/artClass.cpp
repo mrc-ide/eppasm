@@ -46,7 +46,7 @@ void artC::aging (const boost2D& ag_prob) {
   }
 }
 
-void artC::add_entrants (const boost1D& artYesNo) {
+void artC::add_entrants (const dvec& artYesNo) {
   if (MODEL==1)
     for (int sex = 0; sex < NG; sex++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
@@ -163,8 +163,8 @@ void artC::art_dropout (hivC& hivpop) {
   }
 }
 
-boost1D artC::current_on_art () {
-  boost1D art_curr(extents[NG]);
+dvec artC::current_on_art () {
+  dvec art_curr(NG);
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)

@@ -121,9 +121,9 @@ boost2D popC::hiv_aging_prob () {
     return out;
 }
 
-boost1D popC::entrant_art () { // return these for updating HIV and ART pop
+dvec popC::entrant_art () { // return these for updating HIV and ART pop
   my_all(year);
-  boost1D out(extents[4]);
+  dvec out(4);
   for (int sex = 0; sex < NG; ++sex) {
     out[sex]   = data_all[hivp_idx][sex][0] *      p.entrantartcov[year][sex];
     out[sex+2] = data_all[hivp_idx][sex][0] * (1 - p.entrantartcov[year][sex]);
@@ -139,9 +139,9 @@ void popC::deaths () {
         death_now[ds][sex][age] = 
           data[year][ds][sex][age] * (1 - p.Sx[year][sex][age]);
   if (MODEL==1) {
-    boost2D d_n = 
+    boost2D d_n =
       sumByAG(death_now[indices[hivp_idx][in(0, NG)][in(0, pAG)]], ag_idx, hAG);
-    boost2D p_n = 
+    boost2D p_n =
       sumByAG(data[indices[year][hivp_idx][in(0, NG)][in(0, pAG)]], ag_idx, hAG);
     for (int sex = 0; sex < NG; sex++)
       for (int age = 0; age < hAG; age++)
@@ -149,7 +149,7 @@ void popC::deaths () {
     replace_na_with(hiv_sx_prob, 0);
   }
   boost3D death_all(extents[pDS][NG][pAG]);
-  if (MODEL==2) {
+  if (MODEL == 2) {
     zeroing(data_all);zeroing(death_all);
     my_all(year);
     for (int ds = 0; ds < pDS; ds++)
@@ -246,9 +246,9 @@ void popC::update_fertile () { // only on active pop
       ((data[year][hivp_idx][f_idx][age] + data[year][hivn_idx][f_idx][age] +
       data[year-1][hivp_idx][f_idx][age] + data[year-1][hivn_idx][f_idx][age]) /
       2) * p.asfr[year][age];
-  boost1I sub_id = ag_idx[indices[in(p_fert_idx[0] - 1, pAG_FERT)]];
+  ivec sub_id(ag_idx.begin() + p_fert_idx[0] - 1, ag_idx.begin() + pAG_FERT);
   birth_agrp = sumByAG(birth_age, sub_id, hAG_FERT);
-  double n_births = sumArray(birth_agrp);
+  double n_births = sum_vector(birth_agrp);
   if ( (year + AGE_START) <= (PROJ_YEARS - 1) )
     for (int sex = 0; sex < NG; ++sex)
       birthslag[year + AGE_START - 1][sex] = p.srb[year][sex] * n_births;
@@ -286,12 +286,12 @@ void popC::adjust_pop () {
 }
 
 void popC::cal_prev_pregant (const hivC& hivpop, const artC& artpop) { // only on active pop
-  boost1D n_mean(extents[pAG_FERT]); // 1 X 35
+  dvec n_mean(pAG_FERT); // 1 X 35
   for (int age = 0; age < pAG_FERT; ++age)
     n_mean[age] = (data[year-1][hivn_idx][f_idx][age] +
                      data[year][hivn_idx][f_idx][age]) / 2;
-  boost1I sub_id = ag_idx[indices[in(p_fert_idx[0] - 1, pAG_FERT)]];
-  boost1D hivn = sumByAG(n_mean, sub_id, hAG_FERT); // 1 x 8
+  ivec sub_id(ag_idx.begin() + p_fert_idx[0] - 1, ag_idx.begin() + pAG_FERT);
+  dvec hivn = sumByAG(n_mean, sub_id, hAG_FERT); // 1 x 8
   double frp = 0, fra = 0, frap = 0;
   for (int agr = 0; agr < hAG_FERT; ++agr) {
     for (int cd4 = 0; cd4 < hDS; ++cd4) {
@@ -306,7 +306,7 @@ void popC::cal_prev_pregant (const hivC& hivpop, const artC& artpop) { // only o
     frap += birth_agrp[agr] * (1 - hivn[agr] / (hivn[agr] + frp + fra));
     frp = 0; fra = 0;
   }
-  pregprevlag[year + AGE_START - 1] = frap / sumArray(birth_age);
+  pregprevlag[year + AGE_START - 1] = frap / sum_vector(birth_age);
 }
 
 void popC::save_prev_n_inc () {
@@ -473,12 +473,12 @@ void popC::epp_disease_model_direct  (hivC& hivpop, artC& artpop) {
     n_m += data[year-1][hivn_idx][m_idx][age];
     n_f += data[year-1][hivn_idx][f_idx][age];
   }
-  boost1D sex_inc(extents[NG]); 
+  dvec sex_inc(NG); 
   sex_inc[m_idx] = (n_m + n_f) * p.incidinput[year] / 
                    (n_m + n_f  * p.incrr_sex[year]);
   sex_inc[f_idx] = (n_m + n_f) * p.incidinput[year] * p.incrr_sex[year] /
                    (n_m + n_f  * p.incrr_sex[year]);
-  boost1D ageinc(extents[NG]);
+  dvec ageinc(NG);
   for (int sex = 0; sex < NG; sex++) {
     double neg_sa = 0, inc_sa = 0;
     for (int age = a_l; age < a_r; age++) {
@@ -602,9 +602,9 @@ void popC::remove_hiv_death (const boost3D& cd4_mx,
   boost2D nH =
     sumByAG(data[ indices[year][hivp_idx][in(0, NG)][in(0, pAG)] ], ag_idx, hAG);
   double pA, dbyA;
-  for (int sex = 0; sex < NG; ++sex) {
+  for (int sex = 0; sex < NG; sex++) {
     int agr_count = 0;
-    for (int age = 0; age < pAG; ++age) {
+    for (int age = 0; age < pAG; age++) {
       agr_count = ((ag_idx[age] - 1) == agr_count) ? agr_count : ++agr_count;
       pA = data[year][hivp_idx][sex][age] / nH[sex][agr_count];
       pA = (isnan(pA) | isinf(pA) ) ? 0 : pA;
@@ -624,29 +624,25 @@ void popC::update_preg (boost3D& art_elig,
   boost1D hivn =
     sumByAG(data[indices[year][hivn_idx][f_idx][in(p_lo, pAG_FERT)]],
             sub_id, hAG_FERT); // 1 x 8
-  
-  boost1D all_art(extents[hAG_FERT]);
+  dvec all_art(hAG_FERT);
   for (int agr = h_lo; agr < hAG_FERT; agr++)
-    for (int cd4 = 0; cd4 < hDS; cd4++)
+    for (int cd4 = 0; cd4 < hDS; cd4++) {
       for (int dur = 0; dur < hTS; dur++)
         all_art[agr] += artpop.data[year][f_idx][agr][cd4][dur] * 
-                    p.frr_art[year][agr][cd4][dur];
-
-  boost1D hivp_colsum (extents[ hAG_FERT ]);
-  for (int agr = h_lo; agr < hAG_FERT; ++agr) 
-    for (int cd4 = 0; cd4 < hDS; ++cd4)
-      hivp_colsum[agr] +=
+          p.frr_art[year][agr][cd4][dur];
+      all_art[agr] +=
         hivpop.data[year][f_idx][agr][cd4] * p.frr_cd4[year][agr][cd4];
+    }
   for (int agr = h_lo; agr < hAG_FERT; agr++)
     for (int cd4 = 0; cd4 < (p.artcd4elig_idx[year] - 1); cd4++)
       art_elig[f_idx][agr][cd4] += 
         hivpop.data[year][f_idx][agr][cd4] * p.frr_cd4[year][agr][cd4] *
-                (birth_agrp[agr] / (hivn[agr] + hivp_colsum[agr] + all_art[agr]));
+          (birth_agrp[agr] / (hivn[agr] + all_art[agr]));
 }
 
-boost1D popC::artInit (const boost1D& art_curr, const boost3D& art_elig,
-                       int time_step) {
-  boost1D out(extents[NG]);
+dvec popC::art_initiate (const dvec& art_curr, const boost3D& art_elig,
+                         int time_step) {
+  dvec out(NG);
   int year_w = (DT * (time_step + 1) < 0.5) ? 0 : 1;
   double trans = DT * (time_step + 1) + 0.5 - year_w;
   int year_l = year - (2 - year_w), year_r = year - (1 - year_w);
@@ -673,7 +669,8 @@ boost1D popC::artInit (const boost1D& art_curr, const boost3D& art_elig,
     else if ( (p.art15plus_isperc[year_l][sex] == 0) & 
               (p.art15plus_isperc[year_r][sex] == 1) ) { // transition number to percentage
       boost2D art_elig_sex = art_elig[ indices[sex][in(0, hAG)][in(0, hDS)] ];
-      double actual_cov = art_curr[sex] / (sumArray(art_elig_sex) + art_curr[sex]);
+      double actual_cov =
+        art_curr[sex] / (sumArray(art_elig_sex) + art_curr[sex]);
       double diff_cov = p.art15plus_num[year_r][sex] - actual_cov;
       double cov = actual_cov + diff_cov * DT / (0.5 + year_w - DT * time_step);
       if (MIX)
@@ -685,15 +682,14 @@ boost1D popC::artInit (const boost1D& art_curr, const boost3D& art_elig,
 } 
 
 // calculate ART initiation distribution
-boost3D popC::artDist (const boost3D& art_elig, const boost1D& art_need) {
+boost3D popC::art_distribute (const boost3D& art_elig, const dvec& art_need) {
   if (!p.med_cd4init_input[year]) {
     if (p.art_alloc_method == 4L) { // by lowest CD4
       // Calculate proportion to be initiated in each CD4 category
-      boost1D init_pr(extents[NG]);
-      boost2D current_m(extents[NG][hAG]);
+      dvec init_pr(NG);
       boost3D art_real(extents[NG][hAG][hDS]);
       for (int cd4 = hDS - 1; cd4 > 0; --cd4) { //6->0
-        boost1D elig_hm(extents[NG]);
+        dvec elig_hm(NG);
         for (int sex = 0; sex < NG; sex++)
           for (int age = 0; age < hAG; age++)
             elig_hm[sex] += art_elig[sex][age][cd4];
@@ -703,11 +699,10 @@ boost3D popC::artDist (const boost3D& art_elig, const boost1D& art_need) {
           double x;
           for (int sex = 0; sex < NG; ++sex) {
             x = art_need[sex] / elig_hm[sex];
-            init_pr[sex] = (x < 1) ? x : 1;
+            init_pr[sex] = ( (x > 1) | isnan(x) | isinf(x)) ? 1 : x;
           }
-          replace_na_with(init_pr, 1);
         }
-        current_m = art_elig[ indices[in(0, NG)][in(0, hAG)][cd4] ];
+        boost2D current_m = art_elig[ indices[in(0, NG)][in(0, hAG)][cd4] ];
         for (int sex = 0; sex < NG; ++sex)
           for (int agr = 0; agr < hAG; ++agr)
             art_real[sex][agr][cd4] = current_m[sex][agr] * init_pr[sex];
@@ -716,50 +711,24 @@ boost3D popC::artDist (const boost3D& art_elig, const boost1D& art_need) {
     } 
     else { // Spectrum Manual p168--p169, 
       int A = h_age15plus_idx[0] - 1;
-      boost3D art_real(extents[NG][hAG_15plus][hDS]);
-
-      boost1D artX(extents[NG]);
+      dvec artX(NG), artY(NG);
       for (int sex = 0; sex < NG; sex++)
         for (int agr = A; agr < hAG_15plus; agr++)
-          for (int cd4 = 0; cd4 < hDS; cd4++)
+          for (int cd4 = 0; cd4 < hDS; cd4++) {
             artX[sex] += art_elig[sex][agr][cd4] * p.cd4_mort[sex][agr][cd4];
-      boost3D expect_mort_w(extents[NG][hAG_15plus][hDS]); // 2 9 7
-      for (int sex = 0; sex < NG; sex++)
-        for (int agr = A; agr < hAG_15plus; agr++)
-          for (int cd4 = 0; cd4 < hDS; cd4++)
-            expect_mort_w[sex][agr][cd4] = p.cd4_mort[sex][agr][cd4] / artX[sex];
-      
-      boost3D init_w(extents[NG][hAG_15plus][hDS]);
-      for (int sex = 0; sex < NG; sex++)
-        for (int agr = A; agr < hAG_15plus; agr++)
-          for (int cd4 = 0; cd4 < hDS; cd4++)
-            init_w[sex][agr][cd4] = 
-              expect_mort_w[sex][agr][cd4] * p.art_alloc_mxweight; // scalar
-      boost1D artY(extents[NG]);
-      for (int sex = 0; sex < NG; sex++)
-        for (int agr = A; agr < hAG_15plus; agr++)
-          for (int cd4 = 0; cd4 < hDS; cd4++)
             artY[sex] += art_elig[sex][agr][cd4];
+          }
+      boost3D art_real(extents[NG][hAG_15plus][hDS]);
+      double xx;
       for (int sex = 0; sex < NG; sex++)
         for (int agr = A; agr < hAG_15plus; agr++)
-          for (int cd4 = 0; cd4 < hDS; cd4++)
-            init_w[sex][agr][cd4] += ((1 - p.art_alloc_mxweight) / artY[sex]);
-      
-      for (int sex = 0; sex < NG; sex++)
-        for (int agr = A; agr < hAG_15plus; agr++)
-          for (int cd4 = 0; cd4 < hDS; cd4++)
-            init_w[sex][agr][cd4] *= art_elig[sex][agr][cd4];
-      for (int sex = 0; sex < NG; sex++)
-        for (int agr = A; agr < hAG_15plus; agr++)
-          for (int cd4 = 0; cd4 < hDS; cd4++)
-            init_w[sex][agr][cd4] *= art_need[sex];
-      for (int sex = 0; sex < NG; sex++)
-        for (int agr = A; agr < hAG_15plus; agr++)
-          for (int cd4 = 0; cd4 < hDS; cd4++)
-            art_real[sex][agr][cd4] = 
-              (init_w[sex][agr][cd4] < art_elig[sex][agr][cd4]) ?
-                init_w[sex][agr][cd4] :
-                art_elig[sex][agr][cd4];
+          for (int cd4 = 0; cd4 < hDS; cd4++) {
+            xx = (p.cd4_mort[sex][agr][cd4] / artX[sex] * p.art_alloc_mxweight +
+                  ((1 - p.art_alloc_mxweight) / artY[sex]) ) *
+                art_elig[sex][agr][cd4] * art_need[sex];
+            art_real[sex][agr][cd4] =
+              (xx > art_elig[sex][agr][cd4]) ? art_elig[sex][agr][cd4] : xx;
+          }
       return art_real;
     }
   }
@@ -769,11 +738,11 @@ boost3D popC::artDist (const boost3D& art_elig, const boost1D& art_need) {
     int j = p.med_cd4init_cat[year] - 1; // R to C++
     double pr_below = (p.median_cd4init[year] - CD4_LO[j]) / 
                       (CD4_UP[j] - CD4_LO[j]);
-    boost1D elig_below(extents[NG]);
+    dvec elig_below(NG);
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hAG; agr++)
         elig_below[sex] += art_elig[sex][agr][j] * pr_below;
-    boost1D A(extents[NG]);
+    dvec A(NG);
     if (j < (hDS - 1)) {
       for (int sex = 0; sex < NG; sex++) {
         for (int agr = 0; agr < hAG; agr++)
@@ -782,15 +751,15 @@ boost3D popC::artDist (const boost3D& art_elig, const boost1D& art_need) {
         elig_below[sex] += A[sex];
       }
     }
-    boost1D elig_above(extents[NG]);
-    boost1D B(extents[NG]);
+    dvec elig_above(NG);
+    dvec B(NG);
     for (int sex = 0; sex < NG; sex++) {
       for (int agr = 0; agr < hAG; agr++)
           B[sex] += art_elig[sex][agr][j] * (1.0 - pr_below);
       elig_above[sex] += B[sex];
     }
     if (j > 1) {
-      boost1D C(extents[NG]);
+      dvec C(NG);
       for (int sex = 0; sex < NG; sex++) {
         for (int agr = 0; agr < hAG; agr++)
           for (int cd4 = 0; cd4 < j-1; cd4++)
@@ -798,9 +767,7 @@ boost3D popC::artDist (const boost3D& art_elig, const boost1D& art_need) {
         elig_above[sex] += C[sex];
       }
     }
-    boost1D initpr_below(extents[NG]),
-            initpr_above(extents[NG]),
-            initpr_medcat(extents[NG]);
+    dvec initpr_below(NG), initpr_above(NG), initpr_medcat(NG);
     double x, y;
     for (int sex = 0; sex < NG; ++sex) {
       x = art_need[sex] * 0.5 / elig_below[sex];

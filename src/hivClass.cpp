@@ -108,10 +108,9 @@ void hivC::grad_progress (const boost3D& mortality_rate) { // HIV gradient progr
     for (int agr = 0; agr < hAG; agr++) {
       for (int cd4 = 0; cd4 < hDS - 1; cd4++) {
         nHup = data[year][sex][agr][cd4] * p.cd4_prog[sex][agr][cd4];
-        grad[sex][agr][cd4]   -= nHup;
+        grad[sex][agr][cd4]   -=
+          (nHup + data[year][sex][agr][cd4] * mortality_rate[sex][agr][cd4]);
         grad[sex][agr][cd4+1] += nHup;
-        grad[sex][agr][cd4] -= 
-          data[year][sex][agr][cd4] * mortality_rate[sex][agr][cd4];
       }
       grad[sex][agr][hDS-1] -= 
         data[year][sex][agr][hDS-1] * mortality_rate[sex][agr][hDS-1];
@@ -122,10 +121,9 @@ void hivC::grad_progress (const boost3D& mortality_rate) { // HIV gradient progr
       for (int agr = 0; agr < hAG; agr++) {
         for (int cd4 = 0; cd4 < hDS - 1; cd4++) {
           nHup = data_db[year][sex][agr][cd4] * p.cd4_prog[sex][agr][cd4];
-          grad_db[sex][agr][cd4]   -= nHup;
+          grad_db[sex][agr][cd4]   -= 
+            (nHup + data_db[year][sex][agr][cd4] * mortality_rate[sex][agr][cd4]);
           grad_db[sex][agr][cd4+1] += nHup;
-          grad_db[sex][agr][cd4] -= 
-            data_db[year][sex][agr][cd4] * mortality_rate[sex][agr][cd4];
         }
         grad_db[sex][agr][hDS-1] -= 
           data_db[year][sex][agr][hDS-1] * mortality_rate[sex][agr][hDS-1];        
@@ -134,7 +132,7 @@ void hivC::grad_progress (const boost3D& mortality_rate) { // HIV gradient progr
 }
 
 dvec hivC::eligible_for_art () { // this one does not depend on model state
-                                    // can just do this in fp and have a new par
+                                 // can just do this in fp and have a new par
   dvec A(hDS);
   for (int i = p.artcd4elig_idx[year] - 1; i < hDS; ++i) 
     A[i] = 1;

@@ -43,14 +43,6 @@ typedef multi_array_ref<double, 5> boost5D_ptr;
 
 typedef multi_array_types::index_range in;
 
-typedef boost1D::index i1D; typedef boost1D_ptr::index i1D_ptr;
-typedef boost1D::index i1I; typedef boost1D_ptr::index i1D_ptr;
-typedef boost1D::index i1D; typedef boost1D_ptr::index i1D_ptr;
-typedef boost2D::index i2D; typedef boost2D_ptr::index i2D_ptr;
-typedef boost3D::index i3D; typedef boost3D_ptr::index i3D_ptr;
-typedef boost4D::index i4D; typedef boost4D_ptr::index i4D_ptr;
-typedef boost5D::index i5D; typedef boost5D_ptr::index i5D_ptr;
-
 array<boost2D_ptr::index, 2> get_extents_2D(SEXP array);
 array<boost3D_ptr::index, 3> get_extents_3D(SEXP array);
 array<boost4D_ptr::index, 4> get_extents_4D(SEXP array);

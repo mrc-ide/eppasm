@@ -106,39 +106,33 @@ void artC::grad_progress () {
   // progression and mortality (HARD CODED 6 months duration)
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
+      for (int cd4 = 0; cd4 < hDS; cd4++) {
         for (int dur = 0; dur < hTS - 1; dur++) {
-          gradART[sex][agr][cd4][dur]   -= 2.0 * data[year][sex][agr][cd4][dur];
-          gradART[sex][agr][cd4][dur+1] += 2.0 * data[year][sex][agr][cd4][dur];
+          double n_now = data[year][sex][agr][cd4][dur];
+          gradART[sex][agr][cd4][dur]   -= n_now * (2.0 + 
+              p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur]);
+          gradART[sex][agr][cd4][dur+1] += 2.0 * n_now;
         }
+        gradART[sex][agr][cd4][hTS-1] -=
+          p.art_mort[sex][agr][cd4][hTS-1] * p.artmx_timerr[year][hTS-1] * 
+          data[year][sex][agr][cd4][hTS-1];
+      }
   if (MODEL==2) {
     zeroing(gradART_db); // reset gradient
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hAG; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int cd4 = 0; cd4 < hDS; cd4++) {
           for (int dur = 0; dur < hTS - 1; dur++) {
-            gradART_db[sex][agr][cd4][dur] -=
-               2.0 * data_db[year][sex][agr][cd4][dur];
-            gradART_db[sex][agr][cd4][dur+1] +=
-               2.0 * data_db[year][sex][agr][cd4][dur];
+            double n_now = data_db[year][sex][agr][cd4][dur];
+            gradART_db[sex][agr][cd4][dur] -= (2.0 * n_now + n_now *
+                p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur]);
+            gradART_db[sex][agr][cd4][dur+1] += 2.0 * n_now;
           }
+          gradART_db[sex][agr][cd4][hTS-1] -=
+            data_db[year][sex][agr][cd4][hTS-1] *
+            p.art_mort[sex][agr][cd4][hTS-1] * p.artmx_timerr[year][hTS-1];
+        }
   }
-  // ART mortality
-  for (int sex = 0; sex < NG; sex++)
-    for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
-        for (int dur = 0; dur < hTS; dur++) 
-          gradART[sex][agr][cd4][dur] -= 
-            p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur] * 
-            data[year][sex][agr][cd4][dur];
-  if (MODEL==2)
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++)
-          for (int dur = 0; dur < hTS; dur++) 
-            gradART_db[sex][agr][cd4][dur] -= 
-              p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur] * 
-              data_db[year][sex][agr][cd4][dur];
 }
 
 void artC::art_dropout (hivC& hivpop) {
@@ -150,17 +144,12 @@ void artC::art_dropout (hivC& hivpop) {
           n_dropout = data[year][sex][agr][cd4][dur] * p.art_dropout[year];
           hivpop.grad[sex][agr][cd4]  += n_dropout;
           gradART[sex][agr][cd4][dur] -= n_dropout;
-        }
-  if (MODEL==2) {
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++)
-          for (int dur = 0; dur < hTS; dur++) {
+          if (MODEL==2) {
             n_dropout = data_db[year][sex][agr][cd4][dur] * p.art_dropout[year];
             hivpop.grad_db[sex][agr][cd4]  += n_dropout;
             gradART_db[sex][agr][cd4][dur] -= n_dropout;
           }
-  }
+        }
 }
 
 dvec artC::current_on_art () {
@@ -168,16 +157,13 @@ dvec artC::current_on_art () {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
-        for (int dur = 0; dur < hTS; dur++)
+        for (int dur = 0; dur < hTS; dur++) {
           art_curr[sex] += (data[year][sex][agr][cd4][dur] + 
                                gradART[sex][agr][cd4][dur] * DT);
-  if (MODEL==2)
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++)
-          for (int dur = 0; dur < hTS; dur++)
+          if (MODEL==2)
             art_curr[sex] += (data_db[year][sex][agr][cd4][dur] + 
-                                 gradART_db[sex][agr][cd4][dur] * DT);
+                                 gradART_db[sex][agr][cd4][dur] * DT);          
+        }
   return art_curr;
 }
 
@@ -206,12 +192,9 @@ void artC::adjust_pop (const boost2D& adj_prob) {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
-        for (int dur = 0; dur < hTS; dur++)
+        for (int dur = 0; dur < hTS; dur++) {
           data[year][sex][agr][cd4][dur] *= adj_prob[sex][agr];
-  if (MODEL==2)
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++)
-          for (int dur = 0; dur < hTS; dur++)
+          if (MODEL==2)
             data_db[year][sex][agr][cd4][dur] *= adj_prob[sex][agr];
+        }
 }

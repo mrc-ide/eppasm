@@ -563,54 +563,38 @@ void popC::update_infection (const boost2D& infect) {
 
 void popC::remove_hiv_death (const boost3D& cd4_mx,
                              const hivC& hivpop, const artC& artpop) {
-  // death by age group
-  boost4D artD(extents[NG][hAG][hDS][hTS]); // 3x7x9x2
-  boost3D hivD(extents[NG][hAG][hDS]);
-  for (int sex = 0; sex < NG; sex++)
-    for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++) {
-        hivD[sex][agr][cd4] = 
-          cd4_mx[sex][agr][cd4] * hivpop.data[year][sex][agr][cd4];
-        for (int dur = 0; dur < hTS; dur++)
-          artD[sex][agr][cd4][dur] = artpop.data[year][sex][agr][cd4][dur] * 
-            p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur];
-      }
-  if (MODEL==2) { // add deaths from inactive population
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++) {
-          hivD[sex][agr][cd4] += 
-            cd4_mx[sex][agr][cd4] * hivpop.data_db[year][sex][agr][cd4];
-          for (int dur = 0; dur < hTS; dur++)
-            artD[sex][agr][cd4][dur] += artpop.data_db[year][sex][agr][cd4][dur] * 
-                p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur];
-        }
-  }
-  double hivDbyAG = 0, artDbyAG = 0;
-  boost2D dbyAG(extents[NG][hAG]);
+  boost2D dbyAG(extents[NG][hAG]);  // death by age group
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++) {
+      double hivD = 0, artD = 0, amx;
       for (int cd4 = 0; cd4 < hDS; cd4++) {
-        hivDbyAG += hivD[sex][agr][cd4];
-        for (int dur = 0; dur < hTS; dur++)
-          artDbyAG += artD[sex][agr][cd4][dur];
+        hivD += cd4_mx[sex][agr][cd4] * hivpop.data[year][sex][agr][cd4];
+        if (MODEL==2) // add hiv deaths from inactive population
+          hivD += cd4_mx[sex][agr][cd4] * hivpop.data_db[year][sex][agr][cd4];
+        for (int dur = 0; dur < hTS; dur++) {
+          amx = p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur];
+          artD += artpop.data[year][sex][agr][cd4][dur] * amx;
+          if (MODEL==2) // add art deaths from inactive population
+            artD += artpop.data_db[year][sex][agr][cd4][dur] * amx;
+        }
       }
-      dbyAG[sex][agr] = DT * (hivDbyAG + artDbyAG);
-      hivDbyAG = 0; artDbyAG = 0;
+      dbyAG[sex][agr] = DT * (hivD + artD); // deaths by single-year
     }
-  // deaths by single-year
   boost2D nH =
-    sumByAG(data[ indices[year][hivp_idx][in(0, NG)][in(0, pAG)] ], ag_idx, hAG);
+    sumByAG(data[indices[year][hivp_idx][in(0,NG)][in(0,pAG)]], ag_idx, hAG);
   double pA, dbyA;
   for (int sex = 0; sex < NG; sex++) {
     int agr_count = 0;
     for (int age = 0; age < pAG; age++) {
       agr_count = ((ag_idx[age] - 1) == agr_count) ? agr_count : ++agr_count;
-      pA = data[year][hivp_idx][sex][age] / nH[sex][agr_count];
-      pA = (isnan(pA) | isinf(pA) ) ? 0 : pA;
-      dbyA = dbyAG[sex][agr_count] * pA;
-      data[year][hivp_idx][sex][age] -= dbyA;
-      hivdeaths[year][sex][age] += dbyA;
+      if ( nH[sex][agr_count] == 0 || data[year][hivp_idx][sex][age] == 0 ) { 
+        continue;
+      } else {
+        pA = data[year][hivp_idx][sex][age] / nH[sex][agr_count];
+        dbyA = dbyAG[sex][agr_count] * pA;
+        data[year][hivp_idx][sex][age] -= dbyA;
+        hivdeaths[year][sex][age]      += dbyA;
+      }
     }
   }
 }

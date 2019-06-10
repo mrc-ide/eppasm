@@ -110,8 +110,8 @@ void artC::grad_progress () {
         for (int dur = 0; dur < hTS - 1; dur++) {
           double n_now = data[year][sex][agr][cd4][dur];
           gradART[sex][agr][cd4][dur]   -= n_now * (2.0 + 
-              p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur]);
-          gradART[sex][agr][cd4][dur+1] += 2.0 * n_now;
+            p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur]);
+          gradART[sex][agr][cd4][dur+1] += n_now * 2.0;
         }
         gradART[sex][agr][cd4][hTS-1] -=
           p.art_mort[sex][agr][cd4][hTS-1] * p.artmx_timerr[year][hTS-1] * 

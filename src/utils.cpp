@@ -52,34 +52,34 @@ boost1I array_dim(SEXP array) {
   return dims;
 }
 
-boost::array<boost2D_ptr::index, 2> get_extents_2D(SEXP array) {
-  SEXP r_dims = Rf_protect(Rf_getAttrib(array, R_DimSymbol));
+boost::array<boost2D_ptr::index, 2> get_dim_2D(SEXP r_in, const char *str) {
+  SEXP r_dims = Rf_protect(Rf_getAttrib(get_value(r_in, str), R_DimSymbol));
+  if (r_dims == R_NilValue)
+    Rf_error("%s dimension is wrong! expecting a 2-D", str);
   int *rdims = INTEGER(r_dims);
   UNPROTECT(1);
   boost::array<boost2D_ptr::index, 2> out = {{ rdims[1], rdims[0] }};
   return out;
 }
 
-boost::array<boost3D_ptr::index, 3> get_extents_3D(SEXP array) {
-  SEXP r_dims = Rf_protect(Rf_getAttrib(array, R_DimSymbol));
+boost::array<boost3D_ptr::index, 3> get_dim_3D(SEXP r_in, const char *str) {
+  SEXP r_dims = Rf_protect(Rf_getAttrib(get_value(r_in, str), R_DimSymbol));
+  if (r_dims == R_NilValue || Rf_length(r_dims) != 3)
+    Rf_error("%s dimension is wrong! expecting a 3-D", str);
   int *rdims = INTEGER(r_dims);
   UNPROTECT(1);
   boost::array<boost3D_ptr::index, 3> out = {{ rdims[2], rdims[1], rdims[0] }};
   return out;
 }
 
-boost::array<boost4D_ptr::index, 4> get_extents_4D(SEXP array) {
-  SEXP r_dims = Rf_protect(Rf_getAttrib(array, R_DimSymbol));
+boost::array<boost4D_ptr::index, 4> get_dim_4D(SEXP r_in, const char *str) {
+  SEXP r_dims = Rf_protect(Rf_getAttrib(get_value(r_in, str), R_DimSymbol));
+  if (r_dims == R_NilValue || Rf_length(r_dims) != 4)
+    Rf_error("%s dimension is wrong! expecting a 4-D", str);
   int *rdims = INTEGER(r_dims);
   UNPROTECT(1);
   boost::array<boost4D_ptr::index, 4> 
     out = {{ rdims[3], rdims[2], rdims[1], rdims[0] }};
-  return out;
-}
-
-boost2D_ptr sexp_2D_to_boost(SEXP sexp_mat) {
-  boost1I dimcube = array_dim(sexp_mat);
-  boost2D_ptr out(REAL(sexp_mat), boost::extents[dimcube[1]][dimcube[0]]);
   return out;
 }
 

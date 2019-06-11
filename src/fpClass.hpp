@@ -100,7 +100,7 @@ public:
   bool        logitiota;
   double      rw_start;
   int         incidmod;
-  boost1D_ptr rvec;
+  double *    rvec;
   double      iota;
   double      ancbias;
   double      v_infl;

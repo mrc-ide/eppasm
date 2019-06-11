@@ -32,6 +32,10 @@ prepare_fp_for_Cpp <- function(fp) {
     names(fp) <- gsub('\\.', '_', names(fp))
     if (exists("rt", where=fp)) 
         names(fp$rt) <- gsub('\\.', '_', names(fp$rt))
+    if (!exists("DT", where=fp))
+        fp$DT <- 1 / fp$hiv_steps_per_year 
+    if ( is.integer(fp$ss$time_epi_start) )
+        fp$ss$time_epi_start <- as.numeric(fp$ss$time_epi_start)
     # rhybrid = 0 # rtrend = 1 # directincid =2 
     fp$eppmodInt <- match(fp$eppmod, c("rtrend", "directincid"), nomatch=0)
     fp$incidmodInt <- match(fp$incidmod, c("eppspectrum"))-1L

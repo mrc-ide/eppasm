@@ -43,10 +43,9 @@ typedef multi_array_ref<double, 5> boost5D_ptr;
 
 typedef multi_array_types::index_range in;
 
-array<boost2D_ptr::index, 2> get_extents_2D(SEXP array);
-array<boost3D_ptr::index, 3> get_extents_3D(SEXP array);
-array<boost4D_ptr::index, 4> get_extents_4D(SEXP array);
-boost2D_ptr sexp_2D_to_boost (const SEXP& sexp_obj, bool zeroing=true);
+array<boost2D_ptr::index, 2> get_dim_2D(SEXP array, const char *str);
+array<boost3D_ptr::index, 3> get_dim_3D(SEXP array, const char *str);
+array<boost4D_ptr::index, 4> get_dim_4D(SEXP array, const char *str);
 
 boost2D sumByAG (const boost2D& B, const boost1I& age_of_interest, int new_size);
 boost1D sumByAG (const boost1D& B, const boost1I& age_of_interest, int new_size);

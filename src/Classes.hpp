@@ -180,7 +180,9 @@ public: // inits
   data_db(extents[PROJ_YEARS][NG][hAG][hDS]), // later return this as well
   grad(extents[NG][hAG][hDS]),
   grad_db(extents[NG][hAG][hDS]),
-  data_all(extents[NG][hAG][hDS])
+  data_all(extents[NG][hAG][hDS]),
+  _death(extents[NG][hAG][hDS]),
+  _death_db(extents[NG][hAG][hDS])
   {
     MODEL = inMODEL;
     memset(REAL(hiv_sexp), 0, hDS * hAG * NG * PROJ_YEARS * sizeof(double));
@@ -207,6 +209,8 @@ public: // fields
   boost3D     grad;
   boost3D     grad_db;
   boost3D     data_all; // all populations in the year requested
+  boost3D     _death; // death in this year
+  boost3D     _death_db; // death in this year
 };
 
 // ART class
@@ -217,7 +221,9 @@ public: // Inits
     data(REAL(art_sexp), extents[PROJ_YEARS][NG][hAG][hDS][hTS]),
     data_db(extents[PROJ_YEARS][NG][hAG][hDS][hTS]),
     gradART(extents[NG][hAG][hDS][hTS]),
-    gradART_db(extents[NG][hAG][hDS][hTS])
+    gradART_db(extents[NG][hAG][hDS][hTS]),
+    _death(extents[NG][hAG][hDS][hTS]),
+    _death_db(extents[NG][hAG][hDS][hTS])
   {
     MODEL = inMODEL;
     memset(REAL(art_sexp), 0, hTS * hDS * hAG * NG * PROJ_YEARS * sizeof(double));
@@ -243,4 +249,6 @@ public: // fields
   boost5D     data_db; // debut only population
   boost4D     gradART;
   boost4D     gradART_db;
+  boost4D     _death;
+  boost4D     _death_db;
 };

@@ -584,17 +584,17 @@ void popC::remove_hiv_death (const boost3D& cd4_mx,
     sumByAG(data[indices[year][hivp_idx][in(0,NG)][in(0,pAG)]], ag_idx, hAG);
   double pA, dbyA;
   for (int sex = 0; sex < NG; sex++) {
-    int agr_count = 0;
-    for (int age = 0; age < pAG; age++) {
-      agr_count = ((ag_idx[age] - 1) == agr_count) ? agr_count : ++agr_count;
-      if ( nH[sex][agr_count] == 0 || data[year][hivp_idx][sex][age] == 0 ) { 
-        continue;
-      } else {
-        pA = data[year][hivp_idx][sex][age] / nH[sex][agr_count];
-        dbyA = dbyAG[sex][agr_count] * pA;
-        data[year][hivp_idx][sex][age] -= dbyA;
-        hivdeaths[year][sex][age]      += dbyA;
-      }
+    int age = 0;
+    for (int agr = 0; agr < hAG; agr++) {
+      if (nH[sex][agr] != 0) {
+        pA = dbyAG[sex][agr] / nH[sex][agr];
+        for (int i = 0; i < h_ag_span[agr]; ++i) {
+          hivdeaths[year][sex][age] += data[year][hivp_idx][sex][age] * pA;
+          data[year][hivp_idx][sex][age] *= (1 - pA);
+          age++;
+        }
+      } else 
+        age += h_ag_span[agr] - 1;
     }
   }
 }

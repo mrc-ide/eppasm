@@ -23,7 +23,7 @@ simmod.specfp <- function(fp, VERSION="C", MODEL=1, MIX=FALSE) {
       return(mod)
     }
   }
-  pop <- popEPP$new(fp, MODEL, VERSION, MIX)
+  pop     <- popEPP$new(fp, MODEL, VERSION, MIX)
   hivpop  <- hivEPP$new(fp, MODEL)
   artpop  <- artEPP$new(fp, MODEL)
   for (i in 2:fp$SIM_YEARS) {
@@ -32,26 +32,26 @@ simmod.specfp <- function(fp, VERSION="C", MODEL=1, MIX=FALSE) {
     epp_death(pop, hivpop, artpop)
     epp_migration(pop, hivpop, artpop)
     pop$update_fertile()
-    if (MODEL!=0) { # Disease model simulation: events at dt timestep
+    if (MODEL != 0) { # Disease model simulation: events at dt timestep
       epp_disease_model(pop, hivpop, artpop)
       if (fp$eppmod == "directincid") ## Direct incidence input model
         pop$epp_disease_model_direct(hivpop, artpop)
     }
     if (exists("popadjust", where=fp) && fp$popadjust) { # match target pop
       pop$adjust_pop()
-      if (MODEL!=0) {
+      if (MODEL != 0) {
         hivpop$adjust_pop(pop$adj_prob)
         if (i >= fp$tARTstart)
           artpop$adjust_pop(pop$adj_prob)
       }
     }
-    if (MODEL!=0) {
+    if (MODEL != 0) {
       if (i + fp$ss$AGE_START <= fp$ss$PROJ_YEARS)
         pop$cal_prev_pregant(hivpop, artpop) # prevalence among pregnant women
       pop$save_prev_n_inc() # save prevalence and incidence 15 to 49
     }
   }
-  if (MODEL!=0) {
+  if (MODEL != 0) {
     attr(pop, "hivpop") <- hivpop$data
     attr(pop, "artpop") <- artpop$data
     attr(pop, "debut_pop") <- pop$data_db

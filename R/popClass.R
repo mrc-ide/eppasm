@@ -147,7 +147,7 @@ update_preg = function(art_elig, hivpop, artpop) {
   art_elig
 },
 
-artInit = function(art_curr, art_elig, time_step) {
+art_initiate = function(art_curr, art_elig, time_step) {
   out    <- c(0,0)
   year_w <- if(DT * time_step < 0.5) 0 else 1
   trans  <- DT * time_step + 0.5 - year_w
@@ -163,8 +163,8 @@ artInit = function(art_curr, art_elig, time_step) {
       if (MIX)
         artcov[sex] <<- min(1, cov) # save for infect_mix
       out[sex] <- cov * (sum(art_elig[,,sex]) + art_curr[sex])
-    } 
-    else if (!p$art15plus_isperc[sex, years[1]] & 
+    }
+    else if (!p$art15plus_isperc[sex, years[1]] &
               p$art15plus_isperc[sex, years[2]]) { # transition number > % 
       actual_cov <- art_curr[sex] / (sum(art_elig[,,sex]) + art_curr[sex])
       diff_cov <- p$art15plus_num[sex, years[2]] - actual_cov
@@ -178,7 +178,7 @@ artInit = function(art_curr, art_elig, time_step) {
 }, 
 
 ## calculate ART initiation distribution
-artDist = function(art_elig, art_need) {
+art_distribute = function(art_elig, art_need) {
   if (!p$med_cd4init_input[year]) {
     if (p$art_alloc_method == 4L) { ## by lowest CD4
       ## Calculate proportion to be initiated in each CD4 category

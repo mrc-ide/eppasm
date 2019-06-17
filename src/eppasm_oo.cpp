@@ -25,20 +25,20 @@ extern "C" SEXP eppasmOOpp(SEXP fp, SEXP MODEL, SEXP MIX) {
     epp_death(pop, hivpop, artpop);
     epp_migration(pop, hivpop, artpop);
     pop.update_fertile();
-    if (cMODEL!=0) { // Disease model simulation: events at dt timestep
+    if (cMODEL != 0) { // Disease model simulation: events at dt timestep
       epp_disease_model(pop, hivpop, artpop);
       if (pop.p.eppmod == 2) //// Direct incidence input model
         pop.epp_disease_model_direct(hivpop, artpop);
     }
     if (pop.p.popadjust) { // match target pop
       pop.adjust_pop();
-      if (cMODEL!=0) {
+      if (cMODEL != 0) {
         hivpop.adjust_pop(pop.adj_prob);
         if (i >= pop.p.tARTstart - 1)
           artpop.adjust_pop(pop.adj_prob);
       }
     }
-    if (cMODEL!=0) {
+    if (cMODEL != 0) {
       if (i + pop.AGE_START <= pop.PROJ_YEARS - 1)
         pop.cal_prev_pregant(hivpop, artpop); // prevalence among pregnant women
       pop.save_prev_n_inc(); // save prevalence and incidence 15 to 49

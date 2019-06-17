@@ -37,7 +37,7 @@ epp_aging <- function(pop, hivpop, artpop) {
     if (pop$year > pop$p$tARTstart) {
       artpop$aging(hiv.ag.prob)
       artpop$add_entrants(artYesNo)
-      if (pop$MODEL==2) 
+      if (pop$MODEL == 2) 
         artpop$sexual_debut()
     }
   }
@@ -75,16 +75,16 @@ epp_disease_model <- function(pop, hivpop, artpop) {
   art_elig <- sweep(hivpop$get(year), 1, eligible, "*")
   if (p$pw_artelig[year] & p$artcd4elig_idx[year] > 1)
     art_elig <- update_preg(art_elig, hivpop, artpop) ## add pregnant?
-  if (MODEL==2) # add sexual inactive but eligible for treatment
+  if (MODEL == 2) # add sexual inactive but eligible for treatment
     art_elig <- art_elig + sweep(hivpop$data_db[,,,year], 1, eligible, "*")
   # calculate number to initiate ART and distribute
   art_curr        <- artpop$current_on_art()
-  artnum_ii       <- artInit(art_curr, art_elig, time_step)
+  artnum_ii       <- art_initiate(art_curr, art_elig, time_step)
   art15plus.inits <- pmax(artnum_ii - art_curr, 0)
-  artinit         <- artDist(art_elig, art15plus.inits)
-  if (MODEL==1) 
+  artinit         <- art_distribute(art_elig, art15plus.inits)
+  if (MODEL == 1) 
     artinit <- pmin(artinit, hivpop$get(year) + DT * hivpop$grad)
-  if (MODEL==2) # split the number proportionally for active and idle pop
+  if (MODEL == 2) # split the number proportionally for active and idle pop
     artinit <- hivpop$distribute_artinit(artinit, artpop)
   hivpop$grad <- hivpop$grad - artinit / DT
   artpop$grad_init(artinit)

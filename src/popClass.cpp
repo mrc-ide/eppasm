@@ -30,7 +30,7 @@ void popC::aging () { // open ended
         data[year][ds][sex][age]  = data[year-1][ds][sex][age-1];
       data[year][ds][sex][pAG-1] += data[year-1][ds][sex][pAG-1];
     }
-  if (MODEL==2) { // @debut age the debut pop
+  if (MODEL==2) // age the debut pop
     for (int ds = 0; ds < pDS; ds++)
       for (int sex = 0; sex < NG; sex++) {
         data[year][ds][sex][0] = 0; // clean for adding debut entrant

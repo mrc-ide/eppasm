@@ -18,7 +18,7 @@
 // -----------------------------------------------------------------------------
 void epp_death (popC& pop, hivC& hivpop, artC& artpop) {
   pop.deaths();
-  if (pop.MODEL!=0) {
+  if (pop.MODEL != 0) {
     hivpop.deaths(pop.hiv_sx_prob);
     if (pop.year > pop.p.tARTstart - 1)
       artpop.deaths(pop.hiv_sx_prob);
@@ -29,7 +29,7 @@ void epp_death (popC& pop, hivC& hivpop, artC& artpop) {
 // -----------------------------------------------------------------------------
 void epp_migration (popC& pop, hivC& hivpop, artC& artpop) {
   pop.migration();
-  if (pop.MODEL!=0) {
+  if (pop.MODEL != 0) {
     hivpop.migration(pop.hiv_mr_prob);
     if (pop.year > pop.p.tARTstart - 1)
       artpop.migration(pop.hiv_mr_prob);
@@ -41,19 +41,19 @@ void epp_migration (popC& pop, hivC& hivpop, artC& artpop) {
 void epp_aging (popC& pop, hivC& hivpop, artC& artpop) {
   pop.aging();
   pop.add_entrants();
-  if (pop.MODEL==2)
+  if (pop.MODEL == 2)
     pop.sexual_debut();
-  if (pop.MODEL!=0) {
+  if (pop.MODEL != 0) {
     boost2D hiv_ag_prob = pop.hiv_aging_prob();
     dvec artYesNo = pop.entrant_art();
     hivpop.aging(hiv_ag_prob);
     hivpop.add_entrants(artYesNo);
-    if (pop.MODEL==2)
+    if (pop.MODEL == 2)
       hivpop.sexual_debut();
     if (pop.year > pop.p.tARTstart - 1) {
       artpop.aging(hiv_ag_prob);
       artpop.add_entrants(artYesNo);
-      if (pop.MODEL==2)
+      if (pop.MODEL == 2)
         artpop.sexual_debut();
     }
   }
@@ -86,7 +86,7 @@ void epp_disease_model (popC& pop, hivC& hivpop, artC& artpop) {
 // calculate, distribute eligible for ART, update grad, gradART
 // -----------------------------------------------------------------------------
 void popC::epp_art_init (hivC& hivpop, artC& artpop, int time_step) {
-  artpop.grad_progress(); 
+  artpop.grad_progress();
   artpop.art_dropout(hivpop); // pass hivpop to receive the drop out
   dvec eligible = hivpop.eligible_for_art();
   boost3D art_elig(extents[NG][hAG][hDS]);
@@ -97,34 +97,31 @@ void popC::epp_art_init (hivC& hivpop, artC& artpop, int time_step) {
           hivpop.data[year][sex][agr][cd4] * eligible[cd4];
   if ( (p.pw_artelig[year] == 1) & (p.artcd4elig_idx[year] > 1) )
     update_preg(art_elig, hivpop, artpop); // add pregnant?
-  double x;
-  if (MODEL==2) { // add sexual inactive but eligible for treatment
+  if (MODEL == 2) // add sexual inactive but eligible for treatment
     for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++) {
-          x = hivpop.data_db[year][sex][agr][cd4] * eligible[cd4];
-          art_elig[sex][agr][cd4] += x;
-        }
-  }
+      for (int agr = 0; agr < hDB; agr++)
+        for (int cd4 = 0; cd4 < hDS; cd4++)
+          art_elig[sex][agr][cd4] +=
+            hivpop.data_db[year][sex][agr][cd4] * eligible[cd4];
   // calculate number to initiate ART and distribute
   dvec art_curr = artpop.current_on_art();
   dvec artnum_ii = art_initiate(art_curr, art_elig, time_step);
   dvec art15plus_inits(NG);
   for (int sex = 0; sex < NG; ++sex) {
-    x = artnum_ii[sex] - art_curr[sex];
-    art15plus_inits[sex] = (x > 0) ? x : 0;
+    double n_afford = artnum_ii[sex] - art_curr[sex];
+    art15plus_inits[sex] = (n_afford > 0) ? n_afford : 0;
   }
   boost3D artinit = art_distribute(art_elig, art15plus_inits);
-  if (MODEL==1) {
+  if (MODEL == 1) {
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hAG; agr++)
         for (int cd4 = 0; cd4 < hDS; cd4++) {
-          x = hivpop.data[year][sex][agr][cd4] + DT * hivpop.grad[sex][agr][cd4];
-          artinit[sex][agr][cd4] = (artinit[sex][agr][cd4] > x) ? x :
-                                    artinit[sex][agr][cd4];
+          double x =
+            hivpop.data[year][sex][agr][cd4] + DT * hivpop.grad[sex][agr][cd4];
+          if (artinit[sex][agr][cd4] > x) artinit[sex][agr][cd4] = x;
         }
   }
-  if (MODEL==2) // split the number proportionally for active and idle pop
+  if (MODEL == 2) // split the number proportionally for active and idle pop
     hivpop.distribute_artinit(artinit, artpop);
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)

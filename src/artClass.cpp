@@ -29,14 +29,14 @@ void artC::aging (const boost2D& ag_prob) {
           data[year][sex][agr][cd4][dur]   -= nARTup;
           data[year][sex][agr+1][cd4][dur] += nARTup;
         }
-  if (MODEL==2) {
+  if (MODEL == 2) {
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hAG; agr++)
         for (int cd4 = 0; cd4 < hDS; cd4++)
           for (int dur = 0; dur < hTS; dur++)
             data_db[year][sex][agr][cd4][dur] = data_db[year-1][sex][agr][cd4][dur];
     for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG - 1; agr++)
+      for (int agr = 0; agr < hDB - 1; agr++)
         for (int cd4 = 0; cd4 < hDS; cd4++)
           for (int dur = 0; dur < hTS; dur++)  {
             nARTup = data_db[year-1][sex][agr][cd4][dur] * ag_prob[sex][agr];
@@ -53,7 +53,7 @@ void artC::add_entrants (const dvec& artYesNo) {
         for (int dur = 0; dur < hTS; dur++)
           data[year][sex][0][cd4][dur] += 
             p.paedsurv_artcd4dist[year][sex][cd4][dur] * artYesNo[sex];
-  if (MODEL==2) // add to virgin then debut
+  if (MODEL == 2) // add to virgin then debut
     for (int sex = 0; sex < NG; sex++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
         for (int dur = 0; dur < hTS; dur++)
@@ -64,11 +64,11 @@ void artC::add_entrants (const dvec& artYesNo) {
 void artC::sexual_debut () {
   double debut_art;
   for (int sex = 0; sex < NG; sex++)
-    for (int agr = 0; agr < pDB; agr++)
+    for (int agr = 0; agr < hDB; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
         for (int dur = 0; dur < hTS; dur++) {
           debut_art = data_db[year][sex][agr][cd4][dur] * p.db_pr[sex][agr];
-          data[year][sex][agr][cd4][dur] += debut_art;
+          data[year][sex][agr][cd4][dur]    += debut_art;
           data_db[year][sex][agr][cd4][dur] -= debut_art;
         }
 }
@@ -79,9 +79,9 @@ void artC::deaths (const boost2D& survival_pr) {
       for (int cd4 = 0; cd4 < hDS; cd4++)
         for (int dur = 0; dur < hTS; dur++)
           data[year][sex][agr][cd4][dur] *= survival_pr[sex][agr];
-  if (MODEL==2)
+  if (MODEL == 2)
     for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
+      for (int agr = 0; agr < hDB; agr++)
         for (int cd4 = 0; cd4 < hDS; cd4++)
           for (int dur = 0; dur < hTS; dur++)
             data_db[year][sex][agr][cd4][dur] *= survival_pr[sex][agr];
@@ -93,9 +93,9 @@ void artC::migration (const boost2D& migration_pr) {
       for (int cd4 = 0; cd4 < hDS; cd4++)
         for (int dur = 0; dur < hTS; dur++)
           data[year][sex][agr][cd4][dur] *= migration_pr[sex][agr];
-  if (MODEL==2)
+  if (MODEL == 2)
     for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
+      for (int agr = 0; agr < hDB; agr++)
         for (int cd4 = 0; cd4 < hDS; cd4++)
           for (int dur = 0; dur < hTS; dur++)
             data_db[year][sex][agr][cd4][dur] *= migration_pr[sex][agr];
@@ -174,7 +174,7 @@ void artC::grad_init (const boost3D& artinit) { // 7x9x2
 
 void artC::grad_db_init (const boost3D& artinit_db) {
   for (int sex = 0; sex < NG; sex++)
-    for (int agr = 0; agr < hAG; agr++)
+    for (int agr = 0; agr < hDB; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++) {
         gradART_db[sex][agr][cd4][0] += artinit_db[sex][agr][cd4] / DT;
         for (int dur = 0; dur < hTS; dur++)

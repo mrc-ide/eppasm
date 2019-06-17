@@ -8,6 +8,13 @@ simmod.specfp <- function(fp, VERSION="C", MODEL=1, MIX=FALSE) {
 
   if (MODEL==2) 
     fp <- update_fp_debut(fp, max_debut_age=30)
+  
+  if (MIX && !exists("mat_f", where=fp)) { # add these outside
+    fp$mat_m <- readRDS(system.file("extdata", "contact_matrix_male.rds",
+                                    package="eppasm"))
+    fp$mat_f <- readRDS(system.file("extdata", "contact_matrix_female.rds",
+                                    package="eppasm"))
+  }
 
   if (VERSION != "R") {
     if (VERSION=="K") { # C++ classes

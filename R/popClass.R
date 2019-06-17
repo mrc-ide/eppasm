@@ -392,8 +392,8 @@ infect_mix = function(hivpop, artpop, ii) {
     ir_m <- rowSums(sweep(p$mat_m, 2, transm_prev[, f.idx], "*")) # male
     ir_f <- rowSums(sweep(p$mat_f, 2, transm_prev[, m.idx], "*")) # female
     irmf   <- cbind(ir_m, ir_f)
-    if (exists("f_fun", fp)) # that fun
-      ir <- ir * fp$f_fun
+    # if (exists("f_fun", fp)) # that fun
+    #   ir <- ir * fp$f_fun
     infections.ts <- irmf * data_active[,,hivn.idx]
 
     incrate15to49_ts[,,ts] <<- transm_prev
@@ -484,6 +484,7 @@ epp_disease_model_direct = function(hivpop, artpop) {
 },
 
 calc_rtrend_rt = function(ts, time_step) {
+  stop("Kinh did not fix calc_rtrend_rt")
   rveclast <- rvec[ts-1]
   dtii     <- 1-DT*(time_step-1)
   hivn.ii <- sum(data[p.age15to49.idx,,hivn.idx,year]) - 

@@ -192,6 +192,7 @@ void artC::adjust_pop (const boost2D& adj_prob) {
           if (MODEL==2)
             data_db[year][sex][agr][cd4][dur] *= adj_prob[sex][agr];
         }
+}
 
 void artC::count_death () {
   for (int sex = 0; sex < NG; sex++)

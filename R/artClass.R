@@ -89,16 +89,18 @@ count_death = function() {
 grad_progress = function() {
     gradART[,,,] <<- 0 # reset every time step the gradient
     ## progression and mortality (HARD CODED 6 months duration)
-    gradART[1:2,,,] <<- gradART[1:2,,,] - 2.0 * data[1:2,,,,year]
-    gradART[2:3,,,] <<- gradART[2:3,,,] + 2.0 * data[1:2,,,,year]  
+    art_up <- 2.0 * data[1:2,,,,year]
+    gradART[1:2,,,] <<- gradART[1:2,,,] - art_up
+    gradART[2:3,,,] <<- gradART[2:3,,,] + art_up  
     # ART mortality
-    gradART <<- gradART - p$art_mort * p$artmx_timerr[,year] * data[,,,,year]
+    gradART <<- gradART - f_death
     if (MODEL==2) {
         gradART_db[,,,] <<- 0 # reset every time step the gradient
-        gradART_db[1:2,,,] <<- gradART_db[1:2,,,] - 2.0 * data_db[1:2,,,,year]
-        gradART_db[2:3,,,] <<- gradART_db[2:3,,,] + 2.0 * data_db[1:2,,,,year]  
+        art_up <- 2.0 * data_db[1:2,,,,year]
+        gradART_db[1:2,,,] <<- gradART_db[1:2,,,] - art_up
+        gradART_db[2:3,,,] <<- gradART_db[2:3,,,] + art_up
         # ART mortality
-        gradART_db <<- gradART_db - p$art_mort * p$artmx_timerr[,year] * data_db[,,,,year]
+        gradART_db <<- gradART_db - f_death_db
     }
 },
 

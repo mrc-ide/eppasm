@@ -138,3 +138,16 @@ test_that("Model C++ with and without classes ouputs are equal", {
   expect_equal(attr(mod, "prev15to49_ts"), attr(modK, "prev15to49_ts"))
   expect_equal(attr(mod, "entrantprev"), attr(modK, "entrantprev"))
 })
+
+test_that("Debut model C++ equal R", {
+  testOK = simmod(bw_fp, "K", 2, T)
+  testOR = simmod(bw_fp, "R", 2, T)
+  expect_equal(prev(testOR), prev(testOK))
+  expect_equal(incid(testOR), incid(testOK) )
+  expect_equal(testOR$data[,,,], testOK[,,,])
+  expect_equal(testOR$entrantprev, attr(testOK, "entrantprev") )
+  expect_equal(testOR$infections, attr(testOK, "infections"))
+  expect_equal(attr(testOK, "debut_pop"), attr(testOR, "debut_pop"))
+  expect_equal(attr(testOR, "hivpop"), attr(testOK, "hivpop"))
+  expect_equal(attr(testOR, "artpop"), attr(testOK, "artpop"))
+})

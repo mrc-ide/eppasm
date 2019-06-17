@@ -152,20 +152,19 @@ dvec hivC::eligible_for_art () { // this one does not depend on model state
 }
 
 void hivC::distribute_artinit (boost3D& artinit, artC& artpop) {
-    double debut_now, all_hivpop, pr_weight_db, n_cal, n_artinit_db;
+    double debut_now, all_hivpop, pr_weight_db, n_artinit_db;
     boost3D artinit_db(extents[NG][hAG][hDS]);
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hAG; agr++)
         for (int cd4 = 0; cd4 < hDS; cd4++) {
           debut_now =
             data_db[year][sex][agr][cd4] + DT * grad_db[sex][agr][cd4];
-          all_hivpop = 
+          all_hivpop =
             (data[year][sex][agr][cd4] + DT * grad[sex][agr][cd4]) + debut_now;
-          n_cal = artinit[sex][agr][cd4];
-          if (n_cal > all_hivpop)
-            artinit[sex][agr][cd4] = all_hivpop;
+          if (artinit[sex][agr][cd4] > all_hivpop)
+            artinit[sex][agr][cd4]   = all_hivpop;
           pr_weight_db               = debut_now / all_hivpop;
-          n_artinit_db               = n_cal * pr_weight_db;
+          n_artinit_db               = artinit[sex][agr][cd4] * pr_weight_db;
           artinit_db[sex][agr][cd4]  = n_artinit_db;
           artinit[sex][agr][cd4]    -= n_artinit_db;
           grad_db[sex][agr][cd4]    -= n_artinit_db / DT;

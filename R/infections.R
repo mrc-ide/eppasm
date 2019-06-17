@@ -158,12 +158,18 @@ ageincrr.pr.mean <- c(-1.4, -0.28, 0.3, 0.3, -0.3, -0.6, -0.2, 0.05, -0.4, -0.45
 ageincrr.pr.sd <- c(0.5, 0.4, 0.23, 0.3, 0.3, 0.3, 0.3, 0.3, 0.2, 0.2, 0.2, 0.2)
 
 NPARAM_LININCRR <- 6
+NPARAM_REGINCRR <- 4
 ## incrr_trend_mean <- c(0, 0, 0, 0, 0, 0)
 ## incrr_trend_sd <- c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
 
 ## Informative priors based on estimates for 11 countries with 3+ surveys
 incrr_trend_mean <- c(0.0, 0.035, -0.02, -0.09, -0.016, -0.06)
 incrr_trend_sd <- c(0.07, 0.07, 0.1, 0.1, 0.08, 0.08)
+
+## Incrr regression approach
+## Male intercept, post-2000 slope; female intercept, post-2000 slope
+incrr_reg_mean <- c(-1.295, -0.0031, -0.538, -0.015)
+incrr_reg_sd <- c(0.059, 0.0054, 0.05, 0.0046)
 
 ## Incidence rate ratios for age 50 plus, relative to 15-49
 incrr_50plus_logdiff <- cbind(male   = log(0.493510) - log(c(0.358980, 0.282400, 0.259240, 0.264920, 0.254790, 0.164140, 0.000000)),
@@ -178,6 +184,7 @@ getnparam_incrr <- function(fp){
                   "TRUE" = NPARAM_RW2,
                   cibaincrr = 13,
                   linincrr = NPARAM_RW2+NPARAM_LININCRR,
+                  regincrr = 16,
                   lognorm = 7,
                   relbehav = NPAR_RELBEHAV, NA)
   if(is.na(value))
@@ -189,7 +196,7 @@ transf_incrr <- function(theta_incrr, param, fp){
 
   incrr_nparam <- getnparam_incrr(fp)
   
-  if(fp$incidmod == "eppspectrum" & !fp$fitincrr == 'cibaincrr'){
+  if(fp$incidmod == "eppspectrum" & !fp$fitincrr %in% c('cibaincrr', 'regincrr')){
     param$incrr_sex <- fp$incrr_sex
     param$incrr_sex[] <- exp(theta_incrr[1])
   } else if(fp$incidmod == "transm") {
@@ -270,6 +277,30 @@ transf_incrr <- function(theta_incrr, param, fp){
     # param$incrr_age[1:10,,] <- sweep(param$incrr_age[1:10,,,drop=FALSE], 2:3, adj, "*")      
     
     
+  }else if(fp$fitincrr == 'regincrr'){
+    ## param$sigma_agepen <- exp(theta_incrr[incrr_nparam])
+    param$sigma_agepen <- 0.4
+    
+    param$logincrr_age <- array(0, c(14, 2))
+    param$logincrr_age[c(1:2, 4:7), ] <- theta_incrr[1:12]
+    param$logincrr_age[8:14, ] <- sweep(-incrr_50plus_logdiff, 2,
+                                        param$logincrr_age[7, ], "+")
+    
+    ## Smooth 5-year age group IRRs to 1-year IRRs
+    incrr_age <- beers_Amat %*% exp(param$logincrr_age)
+    incrr_age[incrr_age < 0] <- 0
+    
+    param$incrr_age <- array(incrr_age, c(dim(incrr_age), fp$ss$PROJ_YEARS))
+    
+    years <- with(fp$ss, proj_start+1:PROJ_YEARS-1)
+    par <- theta_incrr[12+1:NPARAM_REGINCRR]
+    param$logincrr_reg <- par
+    m15to24_adjust <-c(rep(par[1], 2000 - fp$ss$proj_start), par[1] + (par[2] * 1:(fp$ss$PROJ_YEARS - (2000 - fp$ss$proj_start))))
+    f15to24_adjust <-c(rep(par[3], 2000 - fp$ss$proj_start), par[3] + (par[4] * 1:(fp$ss$PROJ_YEARS - (2000 - fp$ss$proj_start))))
+    adj <- exp(rbind(m15to24_adjust, f15to24_adjust))
+    param$incrr_age[1:10,,] <- sweep(param$incrr_age[1:10,,,drop=FALSE], 2:3, adj, "*")      
+    
+    
   }
 
 
@@ -287,7 +318,7 @@ lprior_incrr <- function(theta_incrr, fp){
 
   lpr <- 0
   
-  if(fp$incidmod == "eppspectrum" & !fp$fitincrr == 'cibaincrr')
+  if(fp$incidmod == "eppspectrum" & !fp$fitincrr %in% c('cibaincrr', 'regincrr'))
     lpr <- lpr + dnorm(theta_incrr[1], sexincrr.pr.mean, sexincrr.pr.sd, log=TRUE)
   else if(fp$incidmod == "transm")
     lpr <- lpr + dnorm(theta_incrr[1], mf_transm_rr.pr.mean, mf_transm_rr.pr.sd, log=TRUE)
@@ -315,6 +346,9 @@ lprior_incrr <- function(theta_incrr, fp){
       # f.prior <- c(log(unname(fp$f15to24_ratio)[1]), unname(fp$f15to24_ratio[2]))
       # lpr <- lpr + sum(dnorm(theta_incrr[14:15],m.prior, c(0.5, 0.05), log = TRUE))
       # lpr <- lpr + sum(dnorm(theta_incrr[16:17], f.prior, c(0.5, 0.05), log = TRUE))
+    } else if(fp$fitincrr == 'regincrr'){
+      lpr <- lpr + sum(dnorm(theta_incrr[1:12], ageincrr.pr.mean, ageincrr.pr.sd, log=TRUE))
+      lpr <- lpr+sum(dnorm(theta_incrr[12+1:NPARAM_REGINCRR], incrr_reg_mean, incrr_reg_sd, log=TRUE))
     }
 
   return(lpr)
@@ -329,7 +363,7 @@ sample_incrr <- function(n, fp){
   incrr_nparam <- getnparam_incrr(fp)
   mat <- matrix(NA, n, incrr_nparam)
   
-  if(fp$incidmod == "eppspectrum" & ! fp$fitincrr == 'cibaincrr')
+  if(fp$incidmod == "eppspectrum" & ! fp$fitincrr %in% c('cibaincrr', 'regincrr'))
     mat[,1] <- rnorm(n, sexincrr.pr.mean, sexincrr.pr.sd)
   else if(fp$incidmod == "transm")
     mat[,1] <- rnorm(n, mf_transm_rr.pr.mean, mf_transm_rr.pr.sd)
@@ -354,6 +388,9 @@ sample_incrr <- function(n, fp){
     # f15to24 <- t(matrix(rnorm(n*2, c(log(unname(fp$f15to24_ratio)[1]), unname(fp$f15to24_ratio[2])), c(0.5, 0.05)), nrow = 2))
     # mat[,14:15] <- m15to24
     # mat[,16:17] <- f15to24
+  }else if(fp$fitincrr == 'regincrr'){
+    mat[,1:12] <- t(matrix(rnorm(n*12, ageincrr.pr.mean, ageincrr.pr.sd), nrow=12))
+    mat[,12+1:NPARAM_REGINCRR] <- t(matrix(rnorm(n*NPARAM_REGINCRR, incrr_reg_mean, incrr_reg_sd), nrow=NPARAM_REGINCRR))
   }
 
   return(mat)

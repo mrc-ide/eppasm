@@ -8,11 +8,6 @@ ilogistic_theta_sd <- c(5, 5)
 idbllogistic_theta_mean <- c(-1, -1, 1995, -10, -10)
 idbllogistic_theta_sd <- c(5, 5, 10, 5, 5)
 
-## time to diagnosis
-## based on van Sighem 2015
-ttd_mean <- c(6.1,-0.25, -0.15, -0.1)
-ttd_sd <- c(0.5, 0.05, 0.05, 0.05)
-
 logiota_pr_mean <- -13
 logiota_pr_sd <- 5
 
@@ -862,13 +857,9 @@ ll <- function(theta, fp, likdat){
   if (fp$eppmod == "rspline")
     if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) 
       return(-Inf)
-  ##TF
-   if(!(exists('group', where = fp) & fp$group == '2')){
-     mod <- simmod(fp)
-   }else{
-    mod <- simmod(fp, VERSION = 'R')
-  }
-  
+
+  mod <- simmod(fp)
+
   ## VR likelihood
   if(exists('vr', where = likdat)){
     ll.deaths <- ll_deaths(fp, mod, likdat)

@@ -162,6 +162,7 @@ extern "C" {
     int art_alloc_method = *INTEGER(getListElement(s_fp, "art_alloc_method"));
     double art_alloc_mxweight = *REAL(getListElement(s_fp, "art_alloc_mxweight"));
     int scale_cd4_mort = *INTEGER(getListElement(s_fp, "scale_cd4_mort"));
+    // double cd4_mort_adjust = *REAL(getListElement(s_fp, "cd4_mort_adjust"));
 
 
     // incidence model
@@ -547,19 +548,31 @@ extern "C" {
 
         // untreated population
 
+        // tahvi
+        double cd4mx_scale = 1.0;
+        // if(scale_cd4_mort & t >= t_ART_start){
+        //   double artpop_hahm = 0.0;
+        //   double hivpop_yr = 0.0;
+        //   for(int g = 0; g < NG; g++){
+        //     for(int ha = 0; ha < hAG; ha++){
+        //       for(int hm = 0; hm < hDS; hm++){
+        //         hivpop_yr += hivpop[t][g][ha][hm];
+        //         for(int hu = 0; hu < hTS; hu++){
+        //           artpop_hahm += artpop[t][g][ha][hm][hu];
+        //         }
+        //       }
+        //     }
+        //   }
+        // cd4mx_scale = exp(- (artpop_hahm / (hivpop_yr + artpop_hahm)) * cd4_mort_adjust);
+        // }
+        // 
+        
         // disease progression and mortality
         double grad[NG][hAG][hDS];
         for(int g = 0; g < NG; g++)
           for(int ha = 0; ha < hAG; ha++){
             for(int hm = 0; hm < hDS; hm++){
 
-	      double cd4mx_scale = 1.0;
-	      if(scale_cd4_mort & t >= t_ART_start & hm >= everARTelig_idx){
-		double artpop_hahm = 0.0;
-		for(int hu = 0; hu < hTS; hu++)
-		  artpop_hahm += artpop[t][g][ha][hm][hu];
-		cd4mx_scale = hivpop[t][g][ha][hm] / (hivpop[t][g][ha][hm] + artpop_hahm);
-	      }
 	      
               double deaths = cd4mx_scale * cd4_mort[g][ha][hm] * hivpop[t][g][ha][hm];
               hivdeaths_ha[g][ha] += DT*deaths;

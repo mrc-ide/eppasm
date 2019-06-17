@@ -313,13 +313,17 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   }else{fp$ancsitedata <- FALSE}
 
   if(fp$eppmod %in% c("logrw", "rhybrid")) { # THIS IS REALLY MESSY, NEED TO REFACTOR CODE
-    
+    vr_sim_years <- 0
+    if(!is.null(likdat$vr)){
+      vr_sim_years <- max(as.integer(colnames(likdat$vr))) - min(as.integer(colnames(likdat$vr))) + 1
+    }
     fp$SIM_YEARS <- as.integer(max(likdat$ancsite.dat$df$yidx,
                                    likdat$hhs.dat$yidx,
                                    likdat$ancrtcens.dat$yidx,
                                    likdat$hhsincid.dat$idx,
                                    likdat$sibmx.dat$idx,
-                                   max(as.integer(colnames(likdat$vr))) - min(as.integer(colnames(likdat$vr))) + 1))
+                                   vr_sim_years
+                                   ))
       
     fp$proj.steps <- seq(fp$ss$proj_start+0.5, fp$ss$proj_start-1+fp$SIM_YEARS+0.5, by=1/fp$ss$hiv_steps_per_year)
   } else

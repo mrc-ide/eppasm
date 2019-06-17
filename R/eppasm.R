@@ -136,6 +136,12 @@ simmod.specfp <- function(fp, VERSION="C"){
       
       fp$entrantartcov[,i] <- ifelse(hivp_entrants == 0, 0, artpop15/hivp_entrants)
       
+      if(exists("popadjust", where=fp) & fp$popadjust){
+        entrant_prev <- popu15[10,,2,i] / (popu15[10,,2,i] + popu15[10,,1,i])
+        hivn_entrants <- fp$paedtargetpop[15,,i-1]*(1-entrant_prev)
+        hivp_entrants <- fp$paedtargetpop[15,,i-1]*entrant_prev
+      }
+      
     }else{
       ## Add lagged births into youngest age group
       entrant_prev <- fp$entrantprev[,i]
@@ -286,7 +292,7 @@ simmod.specfp <- function(fp, VERSION="C"){
         cd4mx_scale <- hivpop[,,,i] / (hivpop[,,,i] + colSums(artpop[,,,,i]))
         cd4mx_scale[!is.finite(cd4mx_scale)] <- 1.0
         cd4_mort_ts <- fp$cd4_mort * cd4mx_scale
-      }else if(fp$mortadjust == 'simple'){
+      }else if(exists('mortadjust', where = fp)){
         art.not.cov <- sum(hivpop[,,,i]) / sum(hivpop[,,,i] + colSums(artpop[,,,,i]))
         art.not.cov[!is.finite(art.not.cov)] <- 1.0
         if(fp$mort_scalar_type == 'exp'){
@@ -302,7 +308,7 @@ simmod.specfp <- function(fp, VERSION="C"){
       hivdeaths.ts <- DT*(colSums(cd4_mort_ts * hivpop[,,,i]) + colSums(fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i],,2))
       calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
       hivdeaths_est.ts <- apply(hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
-      # if(any(hivdeaths_est.ts < 0)){browser()}
+
       if(exists('deaths_dt', where = fp)){
         ag.idx.5 <- c(unlist(lapply(1:13, function(x){rep(x, 5)})), 14)
         hivdeaths_est[,,i] <- hivdeaths_est[,,i] + apply(hivdeaths_est.ts, 2, ctapply, ag.idx.5, sum)
@@ -500,7 +506,19 @@ simmod.specfp <- function(fp, VERSION="C"){
       hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.popadj.prob, "*")
       if(i >= fp$tARTstart)
         artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.popadj.prob, "*")
+      
+      u5.adj <- fp$paedtargetpop[1:5,,i] / rowSums(popu5[,,,i],,2)
+      popu5[,,,i] <- sweep(popu5[,,,i], 1:2, u5.adj, "*")
+      hivpopu5[,,,,i] <- sweep(hivpopu5[,,,,i], 3:4, u5.adj, "*")
+      if(i >= fp$tARTstart)
+        artpopu5[,,,,i] <- sweep(artpopu5[,,,,i], 3:4, u5.adj, "*")
 
+      u15.adj <- fp$paedtargetpop[6:15,,i] / rowSums(popu15[,,,i],,2)
+      popu15[,,,i] <- sweep(popu15[,,,i], 1:2, u15.adj, "*")
+      hivpopu15[,,,,i] <- sweep(hivpopu15[,,,,i], 3:4, u15.adj, "*")
+      if(i >= fp$tARTstart)
+        artpopu15[,,,,i] <- sweep(artpopu15[,,,,i], 3:4, u15.adj, "*")
+      
     }
 
     ## prevalence among pregnant women
@@ -517,7 +535,7 @@ simmod.specfp <- function(fp, VERSION="C"){
       ## Calculate percent of women by treatment option
       ## Default is no treatment
       ##TODO: if popadjust == true, we want births to align with GBD demographics births
-      pregprev.num <- pregprev * sum(births)
+      pregprev.num <- pregprev * ifelse(popadjust, fp$paedtargetpop[1,,i], sum(births))
       needPMTCT <- pregprev.num
       treat.opt <- list('no_proph' = 1)
       

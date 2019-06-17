@@ -64,7 +64,8 @@ public: // Pop inits
     
     data_all(extents[pDS][NG][pAG]), // 1 year only
     data_db_sexp(PROTECT(NEW_NUMERIC(pDB * NG * pDS * PROJ_YEARS))),
-    data_db(REAL(data_db_sexp), extents[PROJ_YEARS][pDS][NG][pDB])
+    data_db(REAL(data_db_sexp), extents[PROJ_YEARS][pDS][NG][pDB]),
+    data_active(extents[pDS][NG][pAG]) // 1 year only
   {
 // Non class init
     MODEL = inMODEL;
@@ -97,6 +98,8 @@ public: // Pop inits
   }
 // Pop methods 
   void my_all (int when) ;
+  void update_active_pop_to (int year) ;
+  boost3D get_active_pop_in (int year) ;
   void aging () ;
   void add_entrants () ;
   void sexual_debut () ;
@@ -166,6 +169,7 @@ public: // Pop fields
   boost3D     data_all; // all populations in the year requested
   SEXP        data_db_sexp; // debut only population
   boost4D_ptr data_db; // debut only population
+  boost3D     data_active;
   double      artcov[2] = {0.0, 0.0}; // initially no one on treatment
   double      prev_last = 0.0; // = 0 last time step prevalence
 };

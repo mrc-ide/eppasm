@@ -29,8 +29,8 @@ popEPP <- R6::R6Class("popepp", class=F, cloneable=F, portable=F, inherit=eppFP,
         hivdeaths         = "array",   natdeaths         = "array",
         popadjust         = "array",   hivp_entrants_out = "array",
         incrate15to49_ts  = "vector",  prev15to49_ts     = "vector", # can be array
-        data_db           = "array",    # debut only population
-        data_all          = 0,          # all populations
+        data_db           = "array",    # virgin population
+        data_active       = "array",
         artcov            = numeric(2), # initially no one on treatment
         prev_last         = 0, # last time step prevalence
         hiv_sx_prob       = "array",
@@ -41,15 +41,15 @@ popEPP <- R6::R6Class("popepp", class=F, cloneable=F, portable=F, inherit=eppFP,
 
 setMembers(popEPP, "public", "initialize",
 function(fp, MODEL=1, VERSION="R", MIX=F) {
-    super$initialize(fp)
-
+    super$initialize(fp) 
     # 'Initialize pop array'
     MODEL       <<- MODEL
     VERSION     <<- VERSION
     MIX         <<- MIX
     data        <<- array(0, c(pAG, NG, pDS, PROJ_YEARS))
+    data_active <<- array(0, c(pAG, NG, pDS))
     data[,,1,1] <<- p$basepop
-
+    
     # Outputs
     entrantprev   <<- numeric(PROJ_YEARS)
     prev15to49    <<- incid15to49  <<- pregprevlag <<- entrantprev
@@ -63,10 +63,8 @@ function(fp, MODEL=1, VERSION="R", MIX=F) {
     if (p$eppmod != "directincid")
       rvec <<- if (p$eppmod=="rtrend") rep(NA, length(p$proj.steps)) else p$rvec
 
-    if (MODEL==2) {# @debut empty pop, all inactive starts from new entrants
+    if (MODEL==2) # @debut empty pop, all inactive starts from new entrants
         data_db  <<- array(0, c(pDB, NG, pDS, PROJ_YEARS)) # debut ages only
-        data_all <<- array(0, c(pAG, NG, pDS)) # 1 year only
-    }
     if (MIX)
       prev15to49_ts <<- incrate15to49_ts  <<- array(0, c(pAG, NG, length(p$rvec)))
 
@@ -92,10 +90,17 @@ get = function(YEAR=NULL, AG=T, NG=T, DS=T) {
         data[AG, NG, DS, YEAR]
 },
 
-my_all = function(when) { # get all data when there are extra pops
-    data_all <<- data[,,,when]
+update_active_pop_to = function(when) {
+    data_active <<- data[,,,when]
     if (MODEL==2)
-        data_all[db_aid,,] <<- data_all[db_aid,,] + data_db[,,,when]
+        data_active[db_aid,,] <<- data_active[db_aid,,] - data_db[,,,when]
+},
+
+get_active_pop_in = function(when) {
+    out <- data[,,,when]
+    if (MODEL==2)
+        out[db_aid,,] <- out[db_aid,,] - data_db[,,,when]
+    return(out)
 },
 
 update_rvec = function(time_step) {
@@ -138,7 +143,8 @@ remove_hiv_death = function(cd4_mx, hivpop, artpop) {
 
 update_preg = function(art_elig, hivpop, artpop) {
   hivp <- hivpop$data[, h.fert.idx, f.idx, year] * p$frr_cd4[,, year]
-  hivn <- sumByAG(data[p.fert.idx, f.idx, hivn.idx, year], ag.idx, T, p.fert.idx)
+  update_active_pop_to(year)
+  hivn <- sumByAG(data_active[p.fert.idx, f.idx, hivn.idx], ag.idx, T, p.fert.idx)
   art <- colSums(artpop$data[,,h.fert.idx, f.idx, year] * p$frr_art[,,,year],,2)
   birthdist <- sweep(hivp, 2, birth_agrp / (hivn + colSums(hivp) + art), "*")
   elDS <- 1:(p$artcd4elig_idx[year] - 1)
@@ -233,11 +239,10 @@ art_distribute = function(art_elig, art_need) {
 },
 
 adjust_pop = function() {
-  my_all(year)
-  popadjust[,,year] <<- p$targetpop[,,year] / rowSums(data_all[,,],,2)
+  popadjust[,,year] <<- p$targetpop[,,year] / rowSums(data[,,,year],,2)
   if (MODEL!=0) {
-    adj_prob <<- sumByAGs(popadjust[,,year] * data_all[,,hivp.idx], ag.idx)/
-                 sumByAGs(data_all[,,hivp.idx], ag.idx)
+    adj_prob <<- sumByAGs(popadjust[,,year] * data[,,hivp.idx,year], ag.idx)/
+                 sumByAGs(data[,,hivp.idx,year], ag.idx)
     adj_prob[is.nan(adj_prob)] <<- 0
   }
   data[,,,year] <<- sweep(data[,,,year], 1:2, popadjust[,,year], "*")
@@ -248,11 +253,8 @@ adjust_pop = function() {
 aging = function() {
     data[-c(1,pAG),,,year] <<- data[-(pAG-1:0),,,year-1]
     data[pAG,,,year] <<- data[pAG,,,year-1] + data[pAG-1,,,year-1] # open ended
-    if (MODEL==2) { # @debut age the debut pop
-        data[  1,,,year]   <<- 0 # clean for adding debut entrant
+    if (MODEL==2)  # @debut age the debut pop
         data_db[-1,,,year] <<- data_db[-pDB,,,year-1]
-        data_db[ 1,,,year] <<- 0 # clean for adding debut entrant
-    }
 },
 
 add_entrants = function() {
@@ -279,13 +281,12 @@ add_entrants = function() {
         }
     }
     # save and update pop        
-    if (MODEL==0)
-        data[1,, hivn.idx, year] <<- healthy
-    if (MODEL==1) {
+    data[1,, hivn.idx, year] <<- healthy
+    if (MODEL != 0) {
         data[1,, hivn.idx, year] <<- healthy
         data[1,, hivp.idx, year] <<- positiv
     }
-    if (MODEL==2) { # add to virgin then debut
+    if (MODEL==2) {  # this is unwise
         data_db[1,,hivn.idx,year] <<- healthy
         data_db[1,,hivp.idx,year] <<- positiv
     }
@@ -297,70 +298,56 @@ add_entrants = function() {
 
 sexual_debut = function() {
     debut_now            <- sweep(data_db[,,,year], 1:2, p$db_pr, "*")
-    data[db_aid,,,year] <<- data[db_aid,,,year] + debut_now
     data_db[,,,year]     <<- data_db[,,,year]     - debut_now
 },
 
 hiv_aging_prob = function() {
-    my_all(year-1) # now data_all refers to total pop: debut+not
-    hiv.ag.prob <-          data_all[aglast.idx,,hivp.idx] /
-                   sumByAGs(data_all[          ,,hivp.idx], ag.idx)
+    update_active_pop_to(year-1) # now data_all refers to total pop: debut+not
+    hiv.ag.prob <-          data_active[aglast.idx,,hivp.idx] /
+                   sumByAGs(data_active[          ,,hivp.idx], ag.idx)
     hiv.ag.prob[is.nan(hiv.ag.prob)] <- 0
     hiv.ag.prob
 },
 
 entrant_art = function() { # return these for updating HIV and ART pop
-    my_all(year) # now data_all refers to total pop: debut+not
     yesno <- c(p$entrantartcov[,year], 1 - p$entrantartcov[,year])
-    out <- data_all[1,, hivp.idx] * yesno
+    out <- data[1,, hivp.idx, year] * yesno
     out # 1:2 ART+, 3:4 ART-
 },
 
 deaths = function() {
     death_now <- sweep(data[,,,year], 1:2, 1 - p$Sx[,,year], "*")
-    if (MODEL==1) {
+    if (MODEL != 0) {
       hiv_sx_prob <<- 1 - sumByAGs(death_now[,,hivp.idx], ag.idx) / 
                           sumByAGs(data[,,hivp.idx,year], ag.idx)
       hiv_sx_prob[is.nan(hiv_sx_prob)] <<- 0
     }
     if (MODEL==2) {
-      my_all(year)
-      death_all    <- sweep(data_all[,,], 1:2, 1 - p$Sx[,,year], "*")
-      hiv_sx_prob <<- 1 - sumByAGs(death_all[,,2], ag.idx) / 
-                          sumByAGs( data_all[,,2], ag.idx)
-      hiv_sx_prob[is.nan(hiv_sx_prob)] <<- 0
       death_db <- sweep(data_db[,,,year], 1:2, 1 - p$Sx[db_aid,,year], "*")
       data_db[,,,year] <<- data_db[,,,year] - death_db
     }
     data[,,,year] <<- data[,,,year] - death_now
-    if (MODEL!=2)
-      natdeaths[,,year] <<- rowSums(death_now,,2)
-    else
-      natdeaths[,,year] <<- rowSums(death_all,,2)
+    natdeaths[,,year] <<- rowSums(death_now,,2)
 },
 
 migration = function() {
     netmigsurv <- p$netmigr[,,year] * (1 + p$Sx[,,year]) / 2
-    if (MODEL!=2)
-      mr.prob <- 1 + netmigsurv / rowSums(data[,,,year],,2)
-    if (MODEL==1) {
+    mr.prob <- 1 + netmigsurv / rowSums(data[,,,year],,2)
+    if (MODEL != 0) {
       hiv_mr_prob <<- sumByAGs(mr.prob * data[,,hivp.idx,year], ag.idx) / 
                       sumByAGs(          data[,,hivp.idx,year], ag.idx)
       hiv_mr_prob[is.nan(hiv_mr_prob)] <<- 0
     }
-    if (MODEL==2) {
-      my_all(year)
-      mr.prob <- 1 + netmigsurv / rowSums(data_all[,,],,2)
-      hiv_mr_prob <<- sumByAGs(mr.prob * data_all[,,hivp.idx], ag.idx) / 
-                      sumByAGs(          data_all[,,hivp.idx], ag.idx)
-      hiv_mr_prob[is.nan(hiv_mr_prob)] <<- 0
+    if (MODEL == 2)
       data_db[,,,year] <<- sweep(data_db[,,,year], 1:2, mr.prob[db_aid,], "*")
-    }
     data[,,,year] <<- sweep(data[,,,year], 1:2, mr.prob, "*")
 },
 
 update_fertile = function() { # only on active pop
-    birth_age  <<- rowSums(data[p.fert.idx, f.idx,, year-1:0])/2 * p$asfr[,year]
+    update_active_pop_to(year)
+    two_years  <- data_active + get_active_pop_in(year-1)
+    birth_age  <<- rowSums(two_years[p.fert.idx, f.idx,])/2 * p$asfr[,year]
+    birth_age  <<- rowSums(two_years[p.fert.idx, f.idx,])/2 * p$asfr[,year]
     birth_agrp <<- sumByAG(birth_age, ag.idx, TRUE, p.fert.idx)
     births     <- p$srb[,year] * sum(birth_agrp)
     if (year + AGE_START <= PROJ_YEARS)
@@ -369,7 +356,9 @@ update_fertile = function() { # only on active pop
 
 cal_prev_pregant = function(hivpop, artpop) { # only on active pop
     years   <- year - 1:0
-    meanWomen <- rowMeans(data[p.fert.idx, f.idx, hivn.idx, years])
+    update_active_pop_to(year)
+    two_years  <- data_active + get_active_pop_in(year-1)
+    meanWomen <- two_years[p.fert.idx, f.idx, hivn.idx] / 2
     hivn <- sumByAG(meanWomen, ag.idx, TRUE, p.fert.idx)
     hivp <- rowMeans(hivpop$get(AG=h.fert.idx, NG=f.idx, YEAR=years),,2)
     art  <- rowMeans(artpop$get(AG=h.fert.idx, NG=f.idx, YEAR=years),,3)
@@ -380,21 +369,22 @@ cal_prev_pregant = function(hivpop, artpop) { # only on active pop
 },
 
 save_prev_n_inc = function() {
-    my_all(year)
-    prev15to49[year]  <<- sum(data_all[p.age15to49.idx,, hivp.idx]) / 
-                          sum(data_all[p.age15to49.idx,,         ])
+    prev15to49[year]  <<- sum(data[p.age15to49.idx,, hivp.idx, year]) / 
+                          sum(data[p.age15to49.idx,,         , year])
+    update_active_pop_to(year-1)
     incid15to49[year] <<- incid15to49[year] /
-                          sum(data[p.age15to49.idx,,hivn.idx,year-1])
-    prev[year]  <<- sum(data_all[,,hivp.idx]) / sum(data_all[,,])
-    incid[year] <<- incid15to49[year] / sum(data[,,hivn.idx,year-1]) # toBfixed
+                          sum(data_active[p.age15to49.idx,,hivn.idx])
+    prev[year]  <<- sum(data[,,hivp.idx,year]) / sum(data[,,,year])
+    incid[year] <<- incid15to49[year] / sum(data_active[,,hivn.idx]) # toBfixed
 }, 
 
 infect_mix = function(hivpop, artpop, ii) {
     ts <- (year-2)/DT + ii
-    hiv_treated       <- sweep(data[,,hivp.idx,year], 2, artcov, '*')
-    hiv_not_treated   <- data[,,hivp.idx,year] - hiv_treated
+    update_active_pop_to(year)
+    hiv_treated       <- sweep(data_active[,,hivp.idx], 2, artcov, '*')
+    hiv_not_treated   <- data_active[,,hivp.idx] - hiv_treated
     transm_prev <- (hiv_not_treated + hiv_treated * (1 - p$relinfectART)) / 
-                    rowSums(data[,,,year],,2) # prevalence adjusted for art
+                    rowSums(data_active,,2) # prevalence adjusted for art
     # +intervention effects and time epidemic start
     w  <- p$iota * (p$proj.steps[ts] == p$tsEpidemicStart)
     transm_prev <- rvec[ts] * transm_prev + w
@@ -404,7 +394,7 @@ infect_mix = function(hivpop, artpop, ii) {
     irmf   <- cbind(ir_m, ir_f)
     if (exists("f_fun", fp)) # that fun
       ir <- ir * fp$f_fun
-    infections.ts <- irmf * data[,,hivn.idx,year]
+    infections.ts <- irmf * data_active[,,hivn.idx]
 
     incrate15to49_ts[,,ts] <<- transm_prev
     prev15to49_ts[ts] <<- prevlast <<- sum(data[,,hivp.idx,year])/sum(data[,,,year])
@@ -418,26 +408,26 @@ infect_spec = function(hivpop, artpop, time_step) {
     first_agrp <- h.age15to49.idx[1]
     last_age   <- tail(p.age15to49.idx, 1) + 1
     last_agrp  <- tail(h.age15to49.idx, 1) + 1
-    now <- data[,,,year]
-    hivn.ii <- sum(now[p.age15to49.idx,,hivn.idx]) - 
-               sum(now[first_age,,hivn.idx]) * dt_ii + 
-               sum(now[last_age,,hivn.idx]) * dt_ii
-    hivp.ii <- sum(now[p.age15to49.idx,,hivp.idx]) - 
-               sum(now[first_age,,hivp.idx]) * dt_ii + 
-               sum(now[last_age,,hivp.idx]) * dt_ii
+    update_active_pop_to(year)
+    hivn.ii <- sum(data_active[p.age15to49.idx,,hivn.idx]) - 
+               sum(data_active[first_age,,hivn.idx]) * dt_ii + 
+               sum(data_active[last_age,,hivn.idx]) * dt_ii
+    hivp.ii <- sum(data_active[p.age15to49.idx,,hivp.idx]) - 
+               sum(data_active[first_age,,hivp.idx]) * dt_ii + 
+               sum(data_active[last_age,,hivp.idx]) * dt_ii
     art.ii <- sum(artpop$get(AG = h.age15to49.idx, YEAR = year))
     if (sum(hivpop$get(AG = first_agrp, YEAR = year)) + 
         sum(artpop$get(AG = first_agrp, YEAR = year)) > 0) {
       art_first <- colSums(artpop$data[,,first_agrp,,year],,2)
       hiv_first <- colSums(hivpop$data[ ,first_agrp,,year],,1)
-      art.ii  <- art.ii - sum( now[first_age,,hivp.idx] * 
+      art.ii  <- art.ii - sum(data_active[first_age,,hivp.idx] * 
         art_first / (hiv_first + art_first) ) * dt_ii
     }
     if (sum(hivpop$data[ ,last_agrp,,year]) + 
         sum(artpop$data[,,last_agrp,,year]) > 0) {
       art_last <- colSums(artpop$data[,,last_agrp,,year],,2)
       hiv_last <- colSums(hivpop$data[ ,last_agrp,,year],,1)
-      art.ii <- art.ii + sum(now[last_age,,hivp.idx] * 
+      art.ii <- art.ii + sum(data_active[last_age,,hivp.idx] * 
         art_last / (hiv_last + art_last) ) * dt_ii
     }
     transm_prev <- (hivp.ii - art.ii*(1 - p$relinfectART)) / (hivn.ii+hivp.ii)
@@ -446,10 +436,10 @@ infect_spec = function(hivpop, artpop, time_step) {
     
     # Incidence: male = negative / female negative * sexratio + male negative; 
     #          female = male * sexratio
-    sus_by_age_sex <- now[p.age15to49.idx,,hivn.idx]
+    sus_by_age_sex <- data_active[p.age15to49.idx,,hivn.idx]
     adj_sex <- sum(sus_by_age_sex) /
-      ( sum(now[p.age15to49.idx,m.idx,hivn.idx]) +
-        sum(now[p.age15to49.idx,f.idx,hivn.idx]) * 
+      ( sum(data_active[p.age15to49.idx,m.idx,hivn.idx]) +
+        sum(data_active[p.age15to49.idx,f.idx,hivn.idx]) * 
         p$incrr_sex[year] )
     sexinc15to49.ts <- incrate15to49.ts * c(1, p$incrr_sex[year]) * adj_sex
 
@@ -462,7 +452,7 @@ infect_spec = function(hivpop, artpop, time_step) {
     ## Adjust age-specific incidence among men for circumcision coverage
     agesex.inc[, m.idx] <- agesex.inc[, m.idx] * 
                            (1 - p$circ_incid_rr * p$circ_prop[,year])
-    infections.ts <- agesex.inc * now[,,hivn.idx]
+    infections.ts <- agesex.inc * data_active[,,hivn.idx]
     # saving
     incrate15to49_ts[ts] <<- incrate15to49.ts
     prev15to49_ts[ts] <<- prevlast <<- hivp.ii / (hivn.ii+hivp.ii)
@@ -474,14 +464,15 @@ epp_disease_model_direct = function(hivpop, artpop) {
     age_id <- p.age15plus.idx # incidence for 15+ population
   else 
     age_id <- p.age15to49.idx # incidence for 15 -49 population
-  num <- c(1, p$incrr_sex[year]) * sum(data[age_id,, hivn.idx, year-1])
-  den <- sum(data[age_id, m.idx, hivn.idx, year-1]) + 
-         sum(data[age_id, f.idx, hivn.idx, year-1]) * 
+  update_active_pop_to(year-1)
+  num <- c(1, p$incrr_sex[year]) * sum(data_active[age_id,, hivn.idx])
+  den <- sum(data_active[age_id, m.idx, hivn.idx]) + 
+         sum(data_active[age_id, f.idx, hivn.idx]) * 
          p$incrr_sex[year]
   sexinc <- p$incidinput[year] * num / den
-  ageinc <- colSums( data[age_id,,hivn.idx,year-1] * 
+  ageinc <- colSums( data_active[age_id,,hivn.idx] * 
                      p$incrr_age[age_id,,year] ) /
-            colSums(data[age_id,,hivn.idx,year-1])
+            colSums(data_active[age_id,,hivn.idx])
   agesex.inc <- sweep(p$incrr_age[,,year], 2, sexinc / ageinc, "*")
   infections[,,year]     <<- agesex.inc * data[,,hivn.idx,year-1]
   data[,,hivn.idx,year]  <<- data[,,hivn.idx,year] - infections[,,year]

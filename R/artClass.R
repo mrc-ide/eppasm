@@ -23,14 +23,18 @@ artEPP <- R6::R6Class("artepp", class=F, cloneable=F, portable=F, inherit=eppFP,
         data_db = "array",
         gradART = "array",
         gradART_db = "array",
+        f_death     = "array",
+        f_death_db  = "array",
         initialize = function(fp, MODEL) {
             super$initialize(fp)
             MODEL <<- MODEL
             data <<- array(0, c(hTS, hDS, hAG, NG, PROJ_YEARS))            
             gradART <<- array(0, c(hTS, hDS, hAG, NG))
+            f_death  <<- array(0, c(hTS, hDS, hAG, NG))
             if (MODEL==2) {
                 data_db <<- data
                 gradART_db <<- gradART
+                f_death_db  <<- array(0, c(hTS, hDS, hAG, NG))
             }
         }
     )
@@ -74,6 +78,12 @@ migration = function(migration_pr) {
     data[,,,,year] <<- sweep(data[,,,,year], 3:4, migration_pr, "*")
     if (MODEL==2)
         data_db[,,,,year] <<- sweep(data_db[,,,,year], 3:4, migration_pr, "*")
+},
+
+count_death = function() {
+    f_death <<- p$art_mort * p$artmx_timerr[,year] * data[,,,,year]
+    if (MODEL==2)
+        f_death_db <<- p$art_mort * p$artmx_timerr[,year] * data_db[,,,,year]
 },
 
 grad_progress = function() {

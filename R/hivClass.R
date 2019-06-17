@@ -9,15 +9,17 @@ hivEPP <- R6::R6Class("hivepp", class=F, cloneable=F, portable=F, inherit=eppFP,
         data_db = "array",
         grad = "array",
         grad_db = "array",
-        data_all = "array",
+        f_death = "array",
+        f_death_db = "array",
         initialize = function(fp, MODEL) {
             super$initialize(fp)
             MODEL <<- MODEL
             data <<- array(0, c(hDS, hAG, NG, PROJ_YEARS))
-            grad <<- array(0, c(hDS, hAG, NG))
+            f_death <<- grad <<- array(0, c(hDS, hAG, NG))
             if (MODEL==2) {
-                data_all <<- data_db <<- data
+                data_db <<- data
                 grad_db <<- grad
+                f_death_db <<- f_death
             }
         })
 )
@@ -76,13 +78,15 @@ grad_progress = function(mortality_rate) { # HIV gradient progress
     nARTup <- p$cd4_prog * data[-hDS,,,year]
     grad[-hDS,,] <<- grad[-hDS,,] - nARTup
     grad[-1,,]   <<- grad[-1,,]   + nARTup # add 
-    grad <<- grad - mortality_rate * data[,,,year] # HIV mortality, untreated
+    f_death <<- mortality_rate * data[,,,year]
+    grad <<- grad - f_death # HIV mortality, untreated
     if (MODEL==2) {
         grad_db[,,] <<- 0 # reset every time, this's the 1st time grad_db is used
         nARTup <- p$cd4_prog * data_db[-hDS,,,year]
         grad_db[-hDS,,] <<- grad_db[-hDS,,] - nARTup
         grad_db[-1,,]   <<- grad_db[-1,,]   + nARTup 
-        grad_db <<- grad_db - mortality_rate * data_db[,,,year]
+        f_death_db <<- mortality_rate * data_db[,,,year]
+        grad_db <<- grad_db - f_death_db
     }
 },
 

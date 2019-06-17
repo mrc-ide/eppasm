@@ -170,8 +170,10 @@ CeppFP::CeppFP(SEXP fp) :
   hDS                = (int) *REAL(get_value(fp_ss, "hDS"));
   hTS                = (int) *REAL(get_value(fp_ss, "hTS"));
   DT                 = *REAL(get_value(fp_ss, "DT"));
-  if (has_value(fp_ss, "pDB"))
+  if (has_value(fp_ss, "pDB")) {
     pDB            = *INTEGER(get_value(fp_ss, "pDB"));
+    hDB            = pDB; // single-year sexual debut pop
+  }
   n_steps          = (PROJ_YEARS-1) * hiv_steps_per_year;
   pAG_FERT         = (p_fert_idx[0] - 1) + p_fert_idx.num_elements();
   hAG_FERT         = (h_fert_idx[0] - 1) + h_fert_idx.num_elements();

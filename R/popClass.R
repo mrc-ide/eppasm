@@ -116,20 +116,24 @@ update_infection = function(infect) {
 
 remove_hiv_death = function(cd4_mx, hivpop, artpop) {
     # death by age group
-    artmx_now <- p$art_mort * p$artmx_timerr[, year]
-    artD <- artpop$get(year) * artmx_now
-    hivD <- cd4_mx * hivpop$get(year)
+    artD <- artpop$f_death
+    hivD <- hivpop$f_death
     if (MODEL==2) { # add deaths from inactive population
-      artD <- artD + artpop$data_db[,,,,year] * artmx_now
-      hivD <- hivD + cd4_mx * hivpop$data_db[,,,year]
+      artD <- artD + artpop$f_death_db
+      hivD <- hivD + hivpop$f_death_db
     }
     dbyAG <- DT * (colSums(hivD) + colSums(artD,,2))
     # deaths by single-year
-    pA <- apply(data[,, hivp.idx, year], 2, calc.agdist,
-                ag.idx=ag.idx, h.ag.span=h.ag.span)
-    dbyA <- apply(dbyAG, 2, rep, h.ag.span) * pA
-    data[,, hivp.idx, year] <<- data[,, hivp.idx, year] - dbyA
-    hivdeaths[,,year]       <<- hivdeaths[,,year] + dbyA
+    hiv_mx <- dbyAG / sumByAGs(data[,, hivp.idx, year], ag.idx)
+    hiv_mx[is.nan(hiv_mx)] <- 0
+    dbyA_pr <- apply(hiv_mx, 2, rep, h.ag.span)
+    hivdeaths[,,year] <<- hivdeaths[,,year] + data[,, hivp.idx, year] * dbyA_pr
+    data[,, hivp.idx, year] <<- data[,, hivp.idx, year] * (1 - dbyA_pr)
+    if (MODEL == 2) {
+      hivdeaths[1:pDB,,year] <<- hivdeaths[1:pDB,,year] +
+        data_db[,, hivp.idx, year] * dbyA_pr[1:pDB, ]
+      data_db[,,hivp.idx,year] <<- data_db[,,hivp.idx,year] * (1 - dbyA_pr[1:pDB,])
+    }
 },
 
 update_preg = function(art_elig, hivpop, artpop) {

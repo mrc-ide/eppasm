@@ -145,6 +145,7 @@ public:
   boost1I_ptr  h_age15plus_idx;
   double       DT;
   int          pDB;
+  int          hDB;
   fp_main      p;
   int          n_steps;
   // 

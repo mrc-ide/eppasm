@@ -75,6 +75,7 @@ void epp_disease_model (popC& pop, hivC& hivpop, artC& artpop) {
     }
     boost3D cd4_mort = pop.scale_cd4_mort(hivpop, artpop);
     hivpop.grad_progress(cd4_mort); // cd4 disease progression and mortality
+    artpop.count_death(); // cd4 disease progression and mortality
     pop.remove_hiv_death(cd4_mort, hivpop, artpop); // Remove hivdeaths from pop
     if (pop.year >= pop.p.tARTstart - 1) // ART initiation
       pop.epp_art_init(hivpop, artpop, time_step);

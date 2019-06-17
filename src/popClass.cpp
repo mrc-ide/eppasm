@@ -566,31 +566,32 @@ void popC::remove_hiv_death (const boost3D& cd4_mx,
   boost2D dbyAG(extents[NG][hAG]);  // death by age group
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++) {
-      double hivD = 0, artD = 0, amx;
+      double hivD = 0, artD = 0;
       for (int cd4 = 0; cd4 < hDS; cd4++) {
-        hivD += cd4_mx[sex][agr][cd4] * hivpop.data[year][sex][agr][cd4];
+        hivD += hivpop._death[sex][agr][cd4];
         if (MODEL==2) // add hiv deaths from inactive population
-          hivD += cd4_mx[sex][agr][cd4] * hivpop.data_db[year][sex][agr][cd4];
+          hivD += hivpop._death_db[sex][agr][cd4];
         for (int dur = 0; dur < hTS; dur++) {
-          amx = p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur];
-          artD += artpop.data[year][sex][agr][cd4][dur] * amx;
+          artD += artpop._death[sex][agr][cd4][dur];
           if (MODEL==2) // add art deaths from inactive population
-            artD += artpop.data_db[year][sex][agr][cd4][dur] * amx;
+            artD += artpop._death_db[sex][agr][cd4][dur];
         }
       }
       dbyAG[sex][agr] = DT * (hivD + artD); // deaths by single-year
     }
-  boost2D nH =
+  boost2D n_hiv =
     sumByAG(data[indices[year][hivp_idx][in(0,NG)][in(0,pAG)]], ag_idx, hAG);
-  double pA, dbyA;
+  double hiv_mx;
   for (int sex = 0; sex < NG; sex++) {
     int age = 0;
     for (int agr = 0; agr < hAG; agr++) {
-      if (nH[sex][agr] != 0) {
-        pA = dbyAG[sex][agr] / nH[sex][agr];
+      if (n_hiv[sex][agr] != 0) {
+        hiv_mx = dbyAG[sex][agr] / n_hiv[sex][agr];
         for (int i = 0; i < h_ag_span[agr]; ++i) {
-          hivdeaths[year][sex][age] += data[year][hivp_idx][sex][age] * pA;
-          data[year][hivp_idx][sex][age] *= (1 - pA);
+          hivdeaths[year][sex][age] += data[year][hivp_idx][sex][age] * hiv_mx;
+          data[year][hivp_idx][sex][age] *= (1 - hiv_mx);
+          if (age < pDB)
+            data_db[year][hivp_idx][sex][age] *= (1 - hiv_mx);
           age++;
         }
       } else 

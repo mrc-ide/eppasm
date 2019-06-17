@@ -58,6 +58,7 @@ epp_disease_model <- function(pop, hivpop, artpop) {
     }
     cd4_mort <- scale_cd4_mort(hivpop, artpop)
     hivpop$grad_progress(cd4_mort) # cd4 disease progression and mortality
+    artpop$count_death()
     pop$remove_hiv_death(cd4_mort, hivpop, artpop) # Remove hivdeaths from pop
     if (pop$year >= pop$p$tARTstart) # ART initiation
       pop$epp_art_init(hivpop, artpop, time_step)

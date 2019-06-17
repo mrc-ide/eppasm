@@ -108,25 +108,29 @@ void hivC::grad_progress (const boost3D& mortality_rate) { // HIV gradient progr
     for (int agr = 0; agr < hAG; agr++) {
       for (int cd4 = 0; cd4 < hDS - 1; cd4++) {
         nHup = data[year][sex][agr][cd4] * p.cd4_prog[sex][agr][cd4];
-        grad[sex][agr][cd4]   -=
-          (nHup + data[year][sex][agr][cd4] * mortality_rate[sex][agr][cd4]);
+        _death[sex][agr][cd4] = 
+          data[year][sex][agr][cd4] * mortality_rate[sex][agr][cd4];
+        grad[sex][agr][cd4]   -= (nHup + _death[sex][agr][cd4]);
         grad[sex][agr][cd4+1] += nHup;
       }
-      grad[sex][agr][hDS-1] -= 
+      _death[sex][agr][hDS-1] = 
         data[year][sex][agr][hDS-1] * mortality_rate[sex][agr][hDS-1];
+      grad[sex][agr][hDS-1] -= _death[sex][agr][hDS-1];
     }
   if (MODEL==2) {
     zeroing(grad_db); // reset, this's the 1st time grad_db is used
     for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++) {
+      for (int agr = 0; agr < hDB; agr++) {
         for (int cd4 = 0; cd4 < hDS - 1; cd4++) {
           nHup = data_db[year][sex][agr][cd4] * p.cd4_prog[sex][agr][cd4];
-          grad_db[sex][agr][cd4]   -= 
-            (nHup + data_db[year][sex][agr][cd4] * mortality_rate[sex][agr][cd4]);
+          _death_db[sex][agr][cd4] =
+            data_db[year][sex][agr][cd4] * mortality_rate[sex][agr][cd4];
+          grad_db[sex][agr][cd4]   -= (nHup + _death_db[sex][agr][cd4]);
           grad_db[sex][agr][cd4+1] += nHup;
         }
-        grad_db[sex][agr][hDS-1] -= 
-          data_db[year][sex][agr][hDS-1] * mortality_rate[sex][agr][hDS-1];        
+        _death_db[sex][agr][hDS-1] =
+          data_db[year][sex][agr][hDS-1] * mortality_rate[sex][agr][hDS-1];
+        grad_db[sex][agr][hDS-1] -= _death_db[sex][agr][hDS-1];
       }
   }
 }

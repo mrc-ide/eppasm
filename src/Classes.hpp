@@ -241,6 +241,7 @@ public: // Inits
   void grad_init (const boost3D& artinit) ;
   void grad_db_init (const boost3D& artinit_db) ;
   void adjust_pop (const boost2D& adj_prob) ;
+  void count_death () ;
 public: // fields
   int         year = 1;
   int         MODEL;

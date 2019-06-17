@@ -108,29 +108,24 @@ void artC::grad_progress () {
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++) {
         for (int dur = 0; dur < hTS - 1; dur++) {
-          double n_now = data[year][sex][agr][cd4][dur];
-          gradART[sex][agr][cd4][dur]   -= n_now * (2.0 + 
-            p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur]);
-          gradART[sex][agr][cd4][dur+1] += n_now * 2.0;
+          double art_up = 2.0 * data[year][sex][agr][cd4][dur];
+          gradART[sex][agr][cd4][dur] -= (art_up + _death[sex][agr][cd4][dur]);
+          gradART[sex][agr][cd4][dur+1] += art_up;
         }
-        gradART[sex][agr][cd4][hTS-1] -=
-          p.art_mort[sex][agr][cd4][hTS-1] * p.artmx_timerr[year][hTS-1] * 
-          data[year][sex][agr][cd4][hTS-1];
+        gradART[sex][agr][cd4][hTS-1] -= _death[sex][agr][cd4][hTS-1];
       }
-  if (MODEL==2) {
+  if (MODEL == 2) {
     zeroing(gradART_db); // reset gradient
     for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
+      for (int agr = 0; agr < hDB; agr++)
         for (int cd4 = 0; cd4 < hDS; cd4++) {
           for (int dur = 0; dur < hTS - 1; dur++) {
-            double n_now = data_db[year][sex][agr][cd4][dur];
-            gradART_db[sex][agr][cd4][dur] -= (2.0 * n_now + n_now *
-                p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur]);
-            gradART_db[sex][agr][cd4][dur+1] += 2.0 * n_now;
+            double art_up = 2.0 * data_db[year][sex][agr][cd4][dur];
+            gradART_db[sex][agr][cd4][dur] -=
+              (art_up + _death_db[sex][agr][cd4][dur]);
+            gradART_db[sex][agr][cd4][dur+1] += art_up;
           }
-          gradART_db[sex][agr][cd4][hTS-1] -=
-            data_db[year][sex][agr][cd4][hTS-1] *
-            p.art_mort[sex][agr][cd4][hTS-1] * p.artmx_timerr[year][hTS-1];
+          gradART_db[sex][agr][cd4][hTS-1] -= _death_db[sex][agr][cd4][hTS-1];
         }
   }
 }
@@ -197,4 +192,19 @@ void artC::adjust_pop (const boost2D& adj_prob) {
           if (MODEL==2)
             data_db[year][sex][agr][cd4][dur] *= adj_prob[sex][agr];
         }
+
+void artC::count_death () {
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++)
+        for (int dur = 0; dur < hTS; dur++)
+          _death[sex][agr][cd4][dur] = data[year][sex][agr][cd4][dur] * 
+            p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur];
+  if (MODEL == 2)
+    for (int sex = 0; sex < NG; sex++)
+      for (int agr = 0; agr < hDB; agr++)
+        for (int cd4 = 0; cd4 < hDS; cd4++)
+          for (int dur = 0; dur < hTS; dur++)
+            _death_db[sex][agr][cd4][dur] = data_db[year][sex][agr][cd4][dur] *
+              p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur];
 }

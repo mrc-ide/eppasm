@@ -631,7 +631,7 @@ boost3D popC::art_distribute (const boost3D& art_elig, const dvec& art_need) {
           double x;
           for (int sex = 0; sex < NG; ++sex) {
             x = art_need[sex] / elig_hm[sex];
-            init_pr[sex] = ( (x > 1) | isnan(x) | isinf(x)) ? 1 : x;
+            init_pr[sex] = ( (x > 1) | std::isnan(x) | std::isinf(x)) ? 1 : x;
           }
         }
         boost2D current_m = art_elig[ indices[in(0, NG)][in(0, hAG)][cd4] ];

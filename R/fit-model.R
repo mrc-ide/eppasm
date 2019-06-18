@@ -124,7 +124,7 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
                else subpop  # bloody French...
     demp.subpop[[subpop]] <- demp
     if (popadjust) {
-      demp.subpop[[subpop]]$basepop <- subp[[grep(paste0("^", country_code, "_"), names(subp))]][[strsubp]][,,dimnames(demp$basepop)[[3]]]
+      demp.subpop[[subpop]]$basepop <- subp[[grep(paste0("\\_", country_code, "$"), names(subp))]][[strsubp]][,,dimnames(demp$basepop)[[3]]]
       demp.subpop[[subpop]]$netmigr[] <- 0
 
       ## Record GFR for each subpop
@@ -290,37 +290,19 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
   ## Prepare likelihood data
   eppd <- attr(obj, "eppd")
-
-  has_ancrtsite <- exists("ancsitedat", eppd) && any(eppd$ancsitedat$type == "ancrt")
-  has_ancrtcens <- !is.null(eppd$ancrtcens) && nrow(eppd$ancrtcens)
-  
-  if(!has_ancrtsite)
-    fp$ancrtsite.beta <- 0
-
-  if(has_ancrtsite & has_ancrtcens)
-    fp$ancrt <- "both"
-  else if(has_ancrtsite & !has_ancrtcens)
-    fp$ancrt <- "site"
-  else if(!has_ancrtsite & has_ancrtcens)
-    fp$ancrt <- "census"
-  else
-    fp$ancrt <- "none"
-
-  if(epp)
-    eppd$hhsage <- eppd$sibmx <- NULL
-
+  fp <- prepare_anc_model(fp, eppd)
   likdat <- prepare_likdat(eppd, fp)
-  fp$ancsitedata <- as.logical(nrow(likdat$ancsite.dat$df))
 
   if(fp$eppmod %in% c("logrw", "rhybrid")) { # THIS IS REALLY MESSY, NEED TO REFACTOR CODE
     
     fp$SIM_YEARS <- as.integer(max(likdat$ancsite.dat$df$yidx,
                                    likdat$hhs.dat$yidx,
                                    likdat$ancrtcens.dat$yidx,
-                                   likdat$hhsincid.dat$idx,
-                                   likdat$sibmx.dat$idx))
+                                   likdat$hhsincid.dat$idx))
       
-    fp$proj.steps <- seq(fp$ss$proj_start+0.5, fp$ss$proj_start-1+fp$SIM_YEARS+0.5, by=1/fp$ss$hiv_steps_per_year)
+    fp$proj.steps <- seq(fp$ss$proj_start+0.5,
+                         fp$ss$proj_start-1+fp$SIM_YEARS+0.5, 
+                         by = 1/fp$ss$hiv_steps_per_year)
   } else
     fp$SIM_YEARS <- fp$ss$PROJ_YEARS
 
@@ -340,13 +322,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   fp$logitiota <- TRUE
 
   ## Prepare the incidence model
-  if(exists("incidmod", where=fp) && fp$incidmod == "transm"){
-    if(!exists("relsexact_cd4cat", where=fp))
-      fp$relsexact_cd4cat <- c(1.0, 0.92, 0.76, 0.76, 0.55, 0.55, 0.55)
-  } else
-    fp$incidmod <- "eppspectrum"
-
-  fp <- prepare_irr_model(fp)
+  fp$incidmod <- "eppspectrum"
 
   ## Fit using optimization
   if(optfit){
@@ -410,14 +386,12 @@ get_likdat_range <- function(likdat) {
   firstdata.idx <- as.integer(min(likdat$ancsite.dat$df$yidx,
                                   likdat$hhs.dat$yidx,
                                   likdat$ancrtcens.dat$yidx,
-                                  likdat$hhsincid.dat$idx,
-                                  likdat$sibmx.dat$idx))
+                                  likdat$hhsincid.dat$idx))
 
   lastdata.idx <- as.integer(max(likdat$ancsite.dat$df$yidx,
                                  likdat$hhs.dat$yidx,
                                  likdat$ancrtcens.dat$yidx,
-                                 likdat$hhsincid.dat$idx,
-                                 likdat$sibmx.dat$idx))
+                                 likdat$hhsincid.dat$idx))
 
   c(firstdata.idx, lastdata.idx)
 }
@@ -600,8 +574,7 @@ simfit.eppfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", pregprev=TRUE)
     lastdata.idx <- as.integer(max(fit$likdat$ancsite.dat$df$yidx,
                                    fit$likdat$hhs.dat$yidx,
                                    fit$likdat$ancrtcens.dat$yidx,
-                                   fit$likdat$hhsincid.dat$idx,
-                                   fit$likdat$sibmx.dat$idx))
+                                   fit$likdat$hhsincid.dat$idx))
 
     fit$rvec.spline <- sapply(fit$param, "[[", "rvec")
     firstidx <- which(fit$fp$proj.steps == fit$fp$tsEpidemicStart)
@@ -639,8 +612,7 @@ sim_mod_list <- function(fit, rwproj=fit$fp$eppmod == "rspline"){
     lastdata.idx <- as.integer(max(fit$likdat$ancsite.dat$df$yidx,
                                    fit$likdat$hhs.dat$yidx,
                                    fit$likdat$ancrtcens.dat$yidx,
-                                   fit$likdat$hhsincid.dat$idx,
-                                   fit$likdat$sibmx.dat$idx))
+                                   fit$likdat$hhsincid.dat$idx))
     
     fit$rvec.spline <- sapply(fit$param, "[[", "rvec")
     firstidx <- which(fit$fp$proj.steps == fit$fp$tsEpidemicStart)

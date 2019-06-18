@@ -17,42 +17,34 @@
 void hivC::aging(const boost2D& ag_prob) {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
+      for (int cd4 = 0; cd4 < hDS; cd4++) {
         data[year][sex][agr][cd4] = data[year-1][sex][agr][cd4];
-  double nHup;
+        if (MODEL == 2 && agr < hDB)
+          data_db[year][sex][agr][cd4] = data_db[year-1][sex][agr][cd4];
+      }
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG - 1; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++) {
-        nHup = data[year-1][sex][agr][cd4] * ag_prob[sex][agr];
+        double nHup = data[year-1][sex][agr][cd4] * ag_prob[sex][agr];
         data[year][sex][agr][cd4]   -= nHup;
         data[year][sex][agr+1][cd4] += nHup;
-      }
-  if (MODEL == 2) {
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hDB; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++)
-          data_db[year][sex][agr][cd4] = data_db[year-1][sex][agr][cd4];
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hDB - 1; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++) {
+        if (MODEL == 2 && agr < hDB - 1) {
           nHup = data_db[year-1][sex][agr][cd4] * ag_prob[sex][agr];
           data_db[year][sex][agr][cd4]   -= nHup;
           data_db[year][sex][agr+1][cd4] += nHup;
         }
-  }
+      }
 }
 
 void hivC::add_entrants(const dvec& artYesNo) { // see pop.entrant_art
-  if (MODEL == 1)
-    for (int sex = 0; sex < NG; sex++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
-        data[year][sex][0][cd4] +=
-          p.paedsurv_cd4dist[year][sex][cd4] * artYesNo[sex+2];
-  if (MODEL == 2) // add to virgin then debut
-    for (int sex = 0; sex < NG; sex++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
-        data_db[year][sex][0][cd4] +=
-          p.paedsurv_cd4dist[year][sex][cd4] * artYesNo[sex+2];
+  for (int sex = 0; sex < NG; sex++)
+    for (int cd4 = 0; cd4 < hDS; cd4++) {
+      double add = p.paedsurv_cd4dist[year][sex][cd4] * artYesNo[sex+2];
+      if (MODEL == 1)
+        data[year][sex][0][cd4] += add;
+      if (MODEL == 2) // add to virgin then debut
+        data_db[year][sex][0][cd4] += add;
+    }
 }
 
 void hivC::sexual_debut() {
@@ -68,25 +60,21 @@ void hivC::sexual_debut() {
 void hivC::deaths (const boost2D& survival_pr) {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
+      for (int cd4 = 0; cd4 < hDS; cd4++) {
         data[year][sex][agr][cd4] *= survival_pr[sex][agr];
-  if (MODEL == 2)
-    for (int sex = 0; sex < NG; sex++)
-      for (int adb = 0; adb < hDB; adb++)
-        for (int cd4 = 0; cd4 < hDS; cd4++)
-          data_db[year][sex][adb][cd4] *= survival_pr[sex][adb];
+        if (MODEL == 2 && agr < hDB)
+          data_db[year][sex][agr][cd4] *= survival_pr[sex][agr];
+      }
 }
 
 void hivC::migration (const boost2D& migration_pr) {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
+      for (int cd4 = 0; cd4 < hDS; cd4++) {
         data[year][sex][agr][cd4] *= migration_pr[sex][agr];
-  if (MODEL == 2)
-    for (int sex = 0; sex < NG; sex++)
-      for (int adb = 0; adb < hDB; adb++)
-        for (int cd4 = 0; cd4 < hDS; cd4++)
-          data_db[year][sex][adb][cd4] *= migration_pr[sex][adb];
+        if (MODEL == 2 && agr < hDB)
+          data_db[year][sex][agr][cd4] *= migration_pr[sex][agr];
+      }
 }
 
 void hivC::update_infection (const boost2D& new_infect) {
@@ -102,37 +90,35 @@ void hivC::update_infection (const boost2D& new_infect) {
 void hivC::grad_progress (const boost3D& mortality_rate) { // HIV gradient progress
   if (p.eppmod == 2)
     zeroing(grad); // reset every time step
+  if (MODEL == 2)
+    zeroing(grad_db); // reset, this's the 1st time grad_db is used
+
   // remove cd4 stage progression (untreated)
-  double nHup;
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++) {
       for (int cd4 = 0; cd4 < hDS - 1; cd4++) {
-        nHup = data[year][sex][agr][cd4] * p.cd4_prog[sex][agr][cd4];
+        double nHup = data[year][sex][agr][cd4] * p.cd4_prog[sex][agr][cd4];
         _death[sex][agr][cd4] = 
           data[year][sex][agr][cd4] * mortality_rate[sex][agr][cd4];
         grad[sex][agr][cd4]   -= (nHup + _death[sex][agr][cd4]);
         grad[sex][agr][cd4+1] += nHup;
-      }
-      _death[sex][agr][hDS-1] = 
-        data[year][sex][agr][hDS-1] * mortality_rate[sex][agr][hDS-1];
-      grad[sex][agr][hDS-1] -= _death[sex][agr][hDS-1];
-    }
-  if (MODEL == 2) {
-    zeroing(grad_db); // reset, this's the 1st time grad_db is used
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hDB; agr++) {
-        for (int cd4 = 0; cd4 < hDS - 1; cd4++) {
+        if (MODEL == 2 && agr < hDB) {
           nHup = data_db[year][sex][agr][cd4] * p.cd4_prog[sex][agr][cd4];
           _death_db[sex][agr][cd4] =
             data_db[year][sex][agr][cd4] * mortality_rate[sex][agr][cd4];
           grad_db[sex][agr][cd4]   -= (nHup + _death_db[sex][agr][cd4]);
           grad_db[sex][agr][cd4+1] += nHup;
         }
+      }
+      _death[sex][agr][hDS-1] = 
+        data[year][sex][agr][hDS-1] * mortality_rate[sex][agr][hDS-1];
+      grad[sex][agr][hDS-1] -= _death[sex][agr][hDS-1];
+      if (MODEL == 2 && agr < hDB) {
         _death_db[sex][agr][hDS-1] =
           data_db[year][sex][agr][hDS-1] * mortality_rate[sex][agr][hDS-1];
         grad_db[sex][agr][hDS-1] -= _death_db[sex][agr][hDS-1];
       }
-  }
+    }
 }
 
 dvec hivC::eligible_for_art () { // this one does not depend on model state
@@ -175,23 +161,19 @@ void hivC::distribute_artinit (boost3D& artinit, artC& artpop) {
 void hivC::add_grad_to_pop () { // this is over-extraction
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
+      for (int cd4 = 0; cd4 < hDS; cd4++) {
         data[year][sex][agr][cd4] += DT * grad[sex][agr][cd4];
-  if (MODEL == 2)
-    for (int sex = 0; sex < NG; sex++)
-      for (int adb = 0; adb < hDB; adb++)
-        for (int cd4 = 0; cd4 < hDS; cd4++)
-          data_db[year][sex][adb][cd4] += DT * grad_db[sex][adb][cd4];
+        if (MODEL == 2 && agr < hDB)
+          data_db[year][sex][agr][cd4] += DT * grad_db[sex][agr][cd4];
+      }
 }
 
 void hivC::adjust_pop (const boost2D& adj_prob) {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
-      for (int cd4 = 0; cd4 < hDS; cd4++)
+      for (int cd4 = 0; cd4 < hDS; cd4++) {
         data[year][sex][agr][cd4] *= adj_prob[sex][agr];
-  if (MODEL == 2)
-    for (int sex = 0; sex < NG; sex++)
-      for (int adb = 0; adb < hDB; adb++)
-        for (int cd4 = 0; cd4 < hDS; cd4++)
-          data_db[year][sex][adb][cd4] *= adj_prob[sex][adb];
+        if (MODEL == 2 && agr < hDB)
+          data_db[year][sex][agr][cd4] *= adj_prob[sex][agr];
+      }
 }

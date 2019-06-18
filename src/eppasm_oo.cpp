@@ -16,9 +16,10 @@
 
 extern "C" SEXP eppasmOOpp(SEXP fp, SEXP MODEL, SEXP MIX) {
   int cMODEL = INTEGER_VALUE(MODEL); bool cMIX = LOGICAL_VALUE(MIX);
-  popC pop(fp, cMODEL, cMIX);
-  hivC hivpop(fp, cMODEL);
-  artC artpop(fp, cMODEL);
+  oSEXP O(fp);
+  popC pop(O, fp, cMIX);
+  hivC hivpop(O, fp);
+  artC artpop(O, fp);
   for (int i = 1; i < pop.p.SIM_YEARS; ++i) {
     pop.year = i; hivpop.year = i; artpop.year = i;
     epp_aging(pop, hivpop, artpop);
@@ -44,6 +45,6 @@ extern "C" SEXP eppasmOOpp(SEXP fp, SEXP MODEL, SEXP MIX) {
       pop.save_prev_n_inc(); // save prevalence and incidence 15 to 49
     }
   }
-  pop.finalize(hivpop, artpop);
-  return pop.pop_sexp;
+  O.finalize();
+  return O.pop;
 }

@@ -27,7 +27,11 @@ ldinvlogit <- function(x){v <- invlogit(x); log(v) + log(1-v)}
 #' set default value for mixing model
 #' 
 #' @param fp Fix parameters
-prepare_fp_for_Cpp <- function(fp) {
+prepare_fp_for_Cpp <- function(fp, MODEL=1L) {
+    if (is.null(fp$ss$MODEL)) {
+        fp$ss$MODEL <- MODEL
+        message("Model 1 is run, specify other models in fp$ss$MODEL")
+    }
     names(fp$ss) <- gsub('\\.', '_', names(fp$ss))
     names(fp) <- gsub('\\.', '_', names(fp))
     if (exists("rt", where=fp)) 

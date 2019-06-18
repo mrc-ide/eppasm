@@ -152,6 +152,7 @@ CeppFP::CeppFP(SEXP fp) :
   p(fp)
   { // all .names --> _names
 // Non class model state space
+  MODEL              = *INTEGER(get_value(fp_ss, "MODEL"));
   proj_start         = *INTEGER(get_value(fp_ss, "proj_start"));
   PROJ_YEARS         = *INTEGER(get_value(fp_ss, "PROJ_YEARS"));
   AGE_START          = *INTEGER(get_value(fp_ss, "AGE_START"));

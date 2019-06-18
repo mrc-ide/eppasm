@@ -116,6 +116,7 @@ class CeppFP {
 public:
   CeppFP(SEXP fp);
 public:
+  int          MODEL;
   SEXP         fp_ss;
   int          proj_start;
   int          PROJ_YEARS;

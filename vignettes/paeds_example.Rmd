@@ -93,7 +93,8 @@ mod <- simmod(fp, VERSION = 'R')
 Load in gbd_outputs script in order to format outputs in easy-to-use data table and plot age-specific results.
 
 ```{r, fig.width = 8, fig.height = 8}
-source('../gbd/gbd_outputs.R')
+devtools::install_github("tfrank14/gbdeppaiml")
+devtools::load_all()
 library(data.table)
 output.dt <- get_gbd_outputs(mod, attr(dt, 'specfp'), paediatric = TRUE)
 output.dt[, age_5 := age - age%%5]

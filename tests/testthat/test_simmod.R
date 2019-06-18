@@ -140,6 +140,7 @@ test_that("Model C++ with and without classes ouputs are equal", {
 })
 
 test_that("Debut model C++ equal R", {
+  bw_fp$ss$MODEL <- 2L
   testOK = simmod(bw_fp, "K", 2, T)
   testOR = simmod(bw_fp, "R", 2, T)
   expect_equal(prev(testOR), prev(testOK))

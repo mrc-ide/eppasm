@@ -154,17 +154,19 @@ simmod.specfp <- function(fp, VERSION="C"){
     ## net migration
     netmigsurv <- fp$netmigr[,,i]*(1+fp$Sx[,,i])/2
     mr.prob <- 1+netmigsurv / rowSums(pop[,,,i],,2)
+    ## setting a limit of 50% migration
+    mr.prob[mr.prob < 0.5] <- 0.5
     hiv.mr.prob <- apply(mr.prob * pop[,,2,i], 2, ctapply, ag.idx, sum) /  apply(pop[,,2,i], 2, ctapply, ag.idx, sum)
+
     hiv.mr.prob[is.nan(hiv.mr.prob)] <- 0
     pop[,,,i] <- sweep(pop[,,,i], 1:2, mr.prob, "*")
     
     hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")
     if(i > fp$tARTstart)
       artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.mr.prob, "*")
-    
     ## fertility
     births.by.age <- rowSums(pop[p.fert.idx, f.idx,,i-1:0])/2 * fp$asfr[,i]
-    if(popadjust){
+    if(exists("popadjust", where=fp) & fp$popadjust){
       adj <- sum(births.by.age)/fp$births[i]
       births.by.age <- births.by.age / adj
       }
@@ -176,7 +178,7 @@ simmod.specfp <- function(fp, VERSION="C"){
     if(exists('paedbasepop', where = fp)){
       pop5 <- popu5[pAGu5,,,i-1]
       popu5[-1,,,i] <- popu5[-(pAGu5),,,i-1]
-      popu5[1,,1,i] <- ifelse(popadjust, fp$paedtargetpop[1,,i], births)
+      popu5[1,,1,i] <- births
       hivn_entrants <- popu15[pAGu15,,hivn.idx,i-1]
       hivp_entrants <- popu15[pAGu15,,hivp.idx,i-1]
       popu15[-1,,,i] <- popu15[-(pAGu15),,,i-1]
@@ -212,6 +214,7 @@ simmod.specfp <- function(fp, VERSION="C"){
       popu5[,,,i] <- popu5[,,,i] - u5deaths
       
       hivpopu5[,,,,i] <- sweep(hivpopu5[,,,,i], 3:4, hiv.sx.prob, "*")
+      
       if(i > fp$tARTstart){
         artpopu5[,,,,i] <- sweep(artpopu5[,,,,i], 3:4, hiv.sx.prob, "*")
       }
@@ -228,9 +231,11 @@ simmod.specfp <- function(fp, VERSION="C"){
       ## paediatric migration
       netmigsurv <- fp$paed_mig[,,i]*(1+fp$paed_Sx[,,i])/2
       mr.prob.u5 <- 1+netmigsurv[1:5] / rowSums(popu5[,,,i],,2)
-      mr.prob.u5[!is.finite(mr.prob.u5)] <- 0
+      mr.prob.u5[!is.finite(mr.prob.u5)] <- 1
+      ## setting a limit of 50% migration
+      mr.prob.u5[mr.prob.u5 < 0.5] <- 0.5
       hiv.mr.prob <- (mr.prob.u5 * popu5[,,hivp.idx,i]) /popu5[,,hivp.idx,i]
-      hiv.mr.prob[!is.finite(hiv.mr.prob)] <- 0
+      hiv.mr.prob[!is.finite(hiv.mr.prob)] <- 1
       popu5[,,,i] <- sweep(popu5[,,,i], 1:2, mr.prob.u5, "*")
       
       hivpopu5[,,,,i] <- sweep(hivpopu5[,,,,i], 3:4, hiv.mr.prob, "*")
@@ -238,9 +243,11 @@ simmod.specfp <- function(fp, VERSION="C"){
         artpopu5[,,,,i] <- sweep(artpopu5[,,,,i], 3:4, hiv.mr.prob, "*")
       }
       mr.prob.u15 <- 1+netmigsurv[6:15] / rowSums(popu15[,,,i],,2)
-      mr.prob.u15[!is.finite(mr.prob.u5)] <- 0
+      mr.prob.u15[!is.finite(mr.prob.u15)] <- 1
+      ## setting a limit of 50% migration
+      mr.prob.u15[mr.prob.u15 < 0.5] <- 0.5
       hiv.mr.prob <- (mr.prob.u15 * popu15[,,hivp.idx,i]) /popu15[,,hivp.idx,i]
-      hiv.mr.prob[!is.finite(hiv.mr.prob)] <- 0
+      hiv.mr.prob[!is.finite(hiv.mr.prob)] <- 1
       popu15[,,,i] <- sweep(popu15[,,,i], 1:2, mr.prob.u15, "*")
       
       hivpopu15[,,,,i] <- sweep(hivpopu15[,,,,i], 3:4, hiv.mr.prob, "*")
@@ -256,7 +263,6 @@ simmod.specfp <- function(fp, VERSION="C"){
     ## ########################## ##
     ##  Disease model simulation  ##
     ## ########################## ##
-
     ## events at dt timestep
     for(ii in seq_len(hiv_steps_per_year)){
       
@@ -843,7 +849,7 @@ simmod.specfp <- function(fp, VERSION="C"){
       }else{
         CTXcoverage <- 0
       }
-      
+      CTXcoverage <- min(CTXcoverage, 1)
       ## Calculate child HIV/AIDS deaths and progression
       ## U15 deaths, with accounting for cotrim
       u15hivdeaths <- (1 - as.numeric((fp$childCTXeffect[fp$childCTXeffect$ART_status == 'noART', 'hivmort_reduction']) * CTXcoverage)) * hivpopu15[,,,,i] * fp$cd4_mort_u15
@@ -940,6 +946,8 @@ simmod.specfp <- function(fp, VERSION="C"){
       hivpopu15[hivpopu15 < 0] <- 0
       popu5[popu5 < 0] <- 0
       popu15[popu15 < 0] <- 0
+      artpopu5[artpopu5 < 0] <- 0
+      artpopu15[artpopu15 < 0] <- 0
       
       u15hivdeaths.out[1:5,,i] <- apply(u5hivdeaths, 2:3, sum)
       u15hivdeaths.out[6:15,,i] <- apply(u15hivdeaths, 2:3, sum)

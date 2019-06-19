@@ -15,18 +15,18 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
              time_epi_start=time_epi_start)
              
   ## populuation projection state-space
-  ss$NG <- 2
-  ss$pDS <- 2               # Disease stratification for population projection (HIV-, and HIV+)
+  ss$NG <- 2L
+  ss$pDS <- 2L               # Disease stratification for population projection (HIV-, and HIV+)
 
   ## macros
-  ss$m.idx <- 1
-  ss$f.idx <- 2
+  ss$m.idx <- 1L
+  ss$f.idx <- 2L
 
-  ss$hivn.idx <- 1
-  ss$hivp.idx <- 2
+  ss$hivn.idx <- 1L
+  ss$hivp.idx <- 2L
 
-  ss$pAG <- 81 - AGE_START
-  ss$ag.rate <- 1
+  ss$pAG <- 81L - AGE_START
+  ss$ag.rate <- 1L
   ss$p.fert.idx <- 16:50 - AGE_START
   ss$p.age15to49.idx <- 16:50 - AGE_START
   ss$p.age15plus.idx <- (16-AGE_START):ss$pAG
@@ -35,8 +35,8 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ## HIV model state-space
   ss$h.ag.span <- as.integer(c(2,3, rep(5, 6), 31))   # Number of population age groups spanned by each HIV age group [sum(h.ag.span) = pAG]
   ss$hAG <- length(ss$h.ag.span)          # Number of age groups
-  ss$hDS <- 7                             # Number of CD4 stages (Disease Stages)
-  ss$hTS <- 3                             # number of treatment stages (including untreated)
+  ss$hDS <- 7L                            # Number of CD4 stages (Disease Stages)
+  ss$hTS <- 3L                            # number of treatment stages (including untreated)
 
   ss$ag.idx <- rep(1:ss$hAG, ss$h.ag.span)
   ss$agfirst.idx <- which(!duplicated(ss$ag.idx))

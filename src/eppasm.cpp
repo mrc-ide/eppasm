@@ -61,13 +61,13 @@ using namespace boost;
 SEXP getListElement(SEXP list, const char *str);
 int checkListElement(SEXP list, const char *str);
 
-double calc_rtrend_rt(const multi_array_ref<double, 4> pop, double rtrend_tstab, const double *rtrend_beta, double rtrend_r0,
+double calc_rtrend_rt(const multi_array_ref<double, 4> &pop, double rtrend_tstab, const double *rtrend_beta, double rtrend_r0,
                       double projstep, double tsEpidemicStart, double DT, int t, int hts, double rveclast,
                       double *prevlast, double *prevcurr);
 
-void calc_infections_eppspectrum(const multi_array_ref<double, 4> pop, const multi_array_ref<double, 4> hivpop, const multi_array_ref<double, 5> artpop,
+void calc_infections_eppspectrum(const multi_array_ref<double, 4> &pop, const multi_array_ref<double, 4> &hivpop, const multi_array_ref<double, 5> &artpop,
                                  double r_ts, double relinfectART, double iota,
-                                 double *incrr_sex, const multi_array_ref<double, 3> incrr_age,
+                                 double *incrr_sex, const multi_array_ref<double, 3> &incrr_age,
                                  int t_ART_start, double DT, int t, int hts, int *hAG_START, int *hAG_SPAN,
                                  double *prevcurr, double *incrate15to49_ts, double infections_ts[NG][pAG]);
 
@@ -927,35 +927,7 @@ extern "C" {
   }
 }
 
-
-
-SEXP getListElement(SEXP list, const char *str)
-{
-  SEXP elmt = R_NilValue, names = getAttrib(list, R_NamesSymbol);
-  int i;
-  for ( i = 0; i < length(list); i++ )
-    if ( strcmp(CHAR(STRING_ELT(names, i)), str) == 0 ) {
-      elmt = VECTOR_ELT(list, i);
-      break;
-    }
-
-  if ( elmt == R_NilValue )
-    error("%s missing from list", str);
-
-  return elmt;
-}
-
-int checkListElement(SEXP list, const char *str)
-{
-  SEXP names = getAttrib(list, R_NamesSymbol);
-  for (int i = 0; i < length(list); i++ )
-    if (strcmp(CHAR(STRING_ELT(names, i)), str) == 0 )
-      return 1;
-
-  return 0;
-}
-
-double calc_rtrend_rt(const multi_array_ref<double, 4> pop, double rtrend_tstab, const double *rtrend_beta, double rtrend_r0,
+double calc_rtrend_rt(const multi_array_ref<double, 4> &pop, double rtrend_tstab, const double *rtrend_beta, double rtrend_r0,
                       double projstep, double tsEpidemicStart, double DT, int t, int hts, double rveclast,
                       double *prevlast, double *prevcurr)
 {
@@ -991,9 +963,9 @@ double calc_rtrend_rt(const multi_array_ref<double, 4> pop, double rtrend_tstab,
 }
 
 
-void calc_infections_eppspectrum(const multi_array_ref<double, 4> pop, const multi_array_ref<double, 4> hivpop, const multi_array_ref<double, 5> artpop,
+void calc_infections_eppspectrum(const multi_array_ref<double, 4> &pop, const multi_array_ref<double, 4> &hivpop, const multi_array_ref<double, 5> &artpop,
                                  double r_ts, double relinfectART, double iota,
-                                 double *incrr_sex, const multi_array_ref<double, 3> incrr_age,
+                                 double *incrr_sex, const multi_array_ref<double, 3> &incrr_age,
                                  int t_ART_start, double DT, int t, int hts, int *hAG_START, int *hAG_SPAN,
                                  double *prevcurr, double *incrate15to49_ts, double infections_ts[NG][pAG])
 {

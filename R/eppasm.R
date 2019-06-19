@@ -1,4 +1,4 @@
-simmod.specfp <- function(fp, VERSION="C"){
+simmod.specfp <- function(fp, VERSION="C5"){
 
   if(!exists("popadjust", where=fp))
     fp$popadjust <- FALSE
@@ -9,7 +9,10 @@ simmod.specfp <- function(fp, VERSION="C"){
   if(VERSION != "R"){
     fp$eppmodInt <- match(fp$eppmod, c("rtrend", "directincid"), nomatch=0) # 0: r-spline;
     fp$incidmodInt <- match(fp$incidmod, c("eppspectrum"))-1L  # -1 for 0-based indexing
-    mod <- .Call(eppasmC, fp)
+    if(VERSION == "C")
+      mod <- .Call(eppasmC, fp)
+    else
+      mod <- .Call(eppasmR, fp, as.integer(substr(VERSION, 2, 2)))  # default version
     class(mod) <- "spec"
     return(mod)
   }

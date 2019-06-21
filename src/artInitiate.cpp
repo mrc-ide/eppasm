@@ -12,76 +12,7 @@
 
 // You should have received a copy of the GNU General Public License along
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
-#include "progression.hpp"
-
-// Natural deaths
-// -----------------------------------------------------------------------------
-void epp_death (popC& pop, hivC& hivpop, artC& artpop, const Parameters& p) {
-  pop.deaths(p);
-  if (pop.MODEL != 0) {
-    hivpop.deaths(pop.hiv_sx_prob);
-    if (pop.year > p.tARTstart - 1)
-      artpop.deaths(pop.hiv_sx_prob);
-  }
-}
-
-// Migration at year i
-// -----------------------------------------------------------------------------
-void epp_migration (popC& pop, hivC& hivpop, artC& artpop, const Parameters& p) {
-  pop.migration(p);
-  if (pop.MODEL != 0) {
-    hivpop.migration(pop.hiv_mr_prob);
-    if (pop.year > p.tARTstart - 1)
-      artpop.migration(pop.hiv_mr_prob);
-  }
-}
-
-// EPP populations aging
-// -----------------------------------------------------------------------------
-void epp_aging (popC& pop, hivC& hivpop, artC& artpop, const Parameters& p) {
-  pop.aging();
-  pop.add_entrants(p);
-  if (pop.MODEL == 2)
-    pop.sexual_debut(p);
-  if (pop.MODEL != 0) {
-    boost2D hiv_ag_prob = pop.hiv_aging_prob();
-    dvec artYesNo = pop.entrant_art(p);
-    hivpop.aging(hiv_ag_prob);
-    hivpop.add_entrants(artYesNo, p);
-    if (pop.MODEL == 2)
-      hivpop.sexual_debut(p);
-    if (pop.year > p.tARTstart - 1) {
-      artpop.aging(hiv_ag_prob);
-      artpop.add_entrants(artYesNo, p);
-      if (pop.MODEL == 2)
-        artpop.sexual_debut(p);
-    }
-  }
-}
-
-// Disease model
-// -----------------------------------------------------------------------------
-void epp_disease_model (popC& pop, hivC& hivpop, artC& artpop, const Parameters& p) {
-  for (int time_step = 0; time_step < pop.hiv_steps_per_year; ++time_step) {
-    if (p.eppmod != 2) { // != "directincid"
-      pop.update_rvec(time_step, p);
-      if (pop.MIX)
-        pop.infect_mix(time_step, p);
-      else
-        pop.infect_spec(hivpop, artpop, time_step, p);
-      pop.update_infection();
-      hivpop.update_infection(pop.infections_, p);
-    }
-    hivpop.scale_cd4_mort(artpop, p);
-    hivpop.grad_progress(p); // cd4 disease progression and mortality
-    if (pop.year >= p.tARTstart - 1)
-      artpop.count_death(p);
-    pop.remove_hiv_death(hivpop, artpop, p); // Remove hivdeaths from pop
-    if (pop.year >= p.tARTstart - 1) // ART initiation
-      pop.epp_art_init(hivpop, artpop, time_step, p);
-    hivpop.add_grad_to_pop();
-  } // end time step
-}
+#include "Classes.hpp"
 
 // calculate, distribute eligible for ART, update grad, gradART
 // -----------------------------------------------------------------------------

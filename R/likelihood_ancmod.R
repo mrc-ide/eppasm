@@ -158,17 +158,6 @@ ancrtsite.beta.pr.sd <- 1.0
 #'
 #' @param ancsite_df data.frame of site-level ANC design for predictions
 #' @param fp fixed parameter input list
-#'
-#' @examples
-#' pjnz <- system.file("extdata/testpjnz", "Botswana2017.PJNZ", package="eppasm")
-#' bw <- prepare_spec_fit(pjnz, proj.end=2021.5)
-#'
-#' 
-#' bw_u_ancsite <- attr(bw$Urban, "eppd")$ancsitedat
-#' fp <- attr(bw$Urban, "specfp")
-#'
-#' ancsite_pred_df(bw_u_ancsite, fp)
-#' 
 ancsite_pred_df <- function(ancsite_df, fp) {
 
   df <- ancsite_df

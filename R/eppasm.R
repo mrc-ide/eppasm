@@ -6,7 +6,7 @@ simmod.specfp <- function(fp, VERSION="C", MODEL=1L, MIX=FALSE) {
   if (!exists("incidmod", where=fp))
     fp$incidmod <- "eppspectrum"
 
-  if (MODEL==2) 
+  if (MODEL == 2) 
     fp <- update_fp_debut(fp, max_debut_age=30)
   
   if (MIX && !exists("mat_f", where=fp)) { # add these outside

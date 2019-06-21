@@ -14,14 +14,15 @@
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Classes.hpp"
 
-void popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step) {
+void popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step,
+                        const Parameters& p) {
   int ts = (year-1)/ DT + time_step,
       p_lo = p_age15to49_idx[0] - 1, h_lo = h_age15to49_idx[0] - 1;
   double dt_ii = 1 - DT * time_step, // transition of population in 1 year
          n_neg_mf = 0, n_pos_mf = 0, 
          n_pos_lo = 0, n_pos_up = 0, n_neg_lo = 0, n_neg_up = 0,
          n_hiv_lo = 0, n_art_lo = 0, n_hiv_up = 0, n_art_up = 0, art_ii = 0;
-  update_active_pop_to(year);
+  update_active_pop_to(year); // substract virgin when needed
   for (int sex = 0; sex < NG; sex++) {
     for (int age = p_lo; age < pAG_1549; age++) {
       n_neg_mf += data_active[hivn_idx][sex][age];
@@ -34,7 +35,7 @@ void popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step) {
     for (int agr = h_lo; agr < hAG_1549; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
         for (int dur = 0; dur < hTS; dur++) {
-          art_ii += artpop.data[year][sex][agr][cd4][dur];
+          art_ii   += artpop.data[year][sex][agr][cd4][dur];
           n_art_lo += artpop.data[year][sex][h_lo][cd4][dur];
           n_art_up += artpop.data[year][sex][hAG_1549][cd4][dur];
         }
@@ -105,7 +106,7 @@ void popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step) {
   prev15to49_ts[ts] = prev_last;
 }
 
-void popC::infect_mix (int ii) {
+void popC::infect_mix (int ii, const Parameters& p) {
   update_active_pop_to(year);
   int ts = (year-1)/DT + ii;
   boost2D transm_prev(extents[NG][pAG]);
@@ -143,7 +144,8 @@ void popC::infect_mix (int ii) {
   prev_last = prev15to49_ts[ts];
 }
 
-void popC::epp_disease_model_direct  (hivC& hivpop, artC& artpop) {
+void popC::epp_disease_model_direct  (hivC& hivpop, artC& artpop,
+                                      const Parameters& p) {
   int a_l, a_r;
   if (p.incidpopage) { // incidence for 15+ population
     a_l = p_age15plus_idx[0] - 1;

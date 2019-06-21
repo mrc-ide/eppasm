@@ -40,7 +40,7 @@ void artC::aging (const boost2D& ag_prob) {
         }
 }
 
-void artC::add_entrants (const dvec& artYesNo) {
+void artC::add_entrants (const dvec& artYesNo, const Parameters& p) {
   for (int sex = 0; sex < NG; sex++)
     for (int cd4 = 0; cd4 < hDS; cd4++)
       for (int dur = 0; dur < hTS; dur++) {
@@ -52,7 +52,7 @@ void artC::add_entrants (const dvec& artYesNo) {
       }
 }
 
-void artC::sexual_debut () {
+void artC::sexual_debut (const Parameters& p) {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hDB; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
@@ -109,7 +109,7 @@ void artC::grad_progress () {
       }
 }
 
-void artC::art_dropout (hivC& hivpop) {
+void artC::art_dropout (hivC& hivpop, const Parameters& p) {
   double n_dropout;
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
@@ -126,19 +126,19 @@ void artC::art_dropout (hivC& hivpop) {
         }
 }
 
-dvec artC::current_on_art () {
-  dvec art_curr(NG);
-  for (int sex = 0; sex < NG; sex++)
+void artC::update_current_on_art () {
+  for (int sex = 0; sex < NG; sex++) {
+    art_by_sex_[sex] = .0; // reset when call
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
         for (int dur = 0; dur < hTS; dur++) {
-          art_curr[sex] += (data[year][sex][agr][cd4][dur] + 
+          art_by_sex_[sex] += (data[year][sex][agr][cd4][dur] + 
                                gradART[sex][agr][cd4][dur] * DT);
           if (MODEL == 2 && agr < hDB)  // add art from virgin pop
-            art_curr[sex] += (data_db[year][sex][agr][cd4][dur] + 
+            art_by_sex_[sex] += (data_db[year][sex][agr][cd4][dur] + 
                                  gradART_db[sex][agr][cd4][dur] * DT);          
         }
-  return art_curr;
+  }
 }
 
 void artC::grad_init (const boost3D& artinit) { // 7x9x2
@@ -173,7 +173,7 @@ void artC::adjust_pop (const boost2D& adj_prob) {
         }
 }
 
-void artC::count_death () {
+void artC::count_death (const Parameters& p) {
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)

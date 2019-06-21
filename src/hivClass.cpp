@@ -36,7 +36,7 @@ void hivC::aging(const boost2D& ag_prob) {
       }
 }
 
-void hivC::add_entrants(const dvec& artYesNo) { // see pop.entrant_art
+void hivC::add_entrants(const dvec& artYesNo, const Parameters& p) { // see pop.entrant_art
   for (int sex = 0; sex < NG; sex++)
     for (int cd4 = 0; cd4 < hDS; cd4++) {
       double add = p.paedsurv_cd4dist[year][sex][cd4] * artYesNo[sex+2];
@@ -47,7 +47,7 @@ void hivC::add_entrants(const dvec& artYesNo) { // see pop.entrant_art
     }
 }
 
-void hivC::sexual_debut() {
+void hivC::sexual_debut(const Parameters& p) {
   for (int sex = 0; sex < NG; sex++)
     for (int adb = 0; adb < hDB; adb++)
       for (int cd4 = 0; cd4 < hDS; cd4++) {
@@ -77,17 +77,25 @@ void hivC::migration (const boost2D& migration_pr) {
       }
 }
 
-void hivC::update_infection (const boost2D& new_infect) {
+void hivC::update_infection (const boost2D& new_infect, const Parameters& p) {
   zeroing(grad); // reset every time step
-  boost2D infectAG = sumByAG(new_infect, ag_idx, hAG);
+  zeroing(infect_by_agrp_);
+  for (int sex = 0; sex < NG; ++sex) {
+    int current_age_group = ag_idx[0]; // first age group
+    for (int age = 0; age < pAG; ++age) {
+      if ( ag_idx[age] != current_age_group)
+        ++current_age_group;
+      infect_by_agrp_[sex][current_age_group-1] += new_infect[sex][age];
+    } // end age-groups
+  }
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
         grad[sex][agr][cd4] += 
-          p.cd4_initdist[sex][agr][cd4] * infectAG[sex][agr];
+          p.cd4_initdist[sex][agr][cd4] * infect_by_agrp_[sex][agr];
 }
 
-void hivC::scale_cd4_mort (artC& artpop) {
+void hivC::scale_cd4_mort (artC& artpop, const Parameters& p) {
   if (p.scale_cd4_mort && year >= p.tARTstart - 1) {
     double num, den = 0;
     for (int sex = 0; sex < NG; sex++)
@@ -106,7 +114,7 @@ void hivC::scale_cd4_mort (artC& artpop) {
   }
 }
 
-void hivC::grad_progress () { // HIV gradient progress
+void hivC::grad_progress (const Parameters& p) { // HIV gradient progress
   if (p.eppmod == 2)
     zeroing(grad); // reset every time step
   if (MODEL == 2)
@@ -139,7 +147,7 @@ void hivC::grad_progress () { // HIV gradient progress
     }
 }
 
-dvec hivC::eligible_for_art () { // this one does not depend on model state
+dvec hivC::eligible_for_art (const Parameters& p) { // this one does not depend on model state
                                  // can just do this in fp and have a new par
   dvec A(hDS);
   for (int i = p.artcd4elig_idx[year] - 1; i < hDS; ++i) 

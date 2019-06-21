@@ -34,9 +34,9 @@ public:
   double * rw_transition;
 };
 
-class fp_main {
+class Parameters {
 public:
-  fp_main(SEXP fp);
+  Parameters(SEXP fp);
 public:
   int         SIM_YEARS;
   double *    proj_steps;
@@ -110,11 +110,12 @@ public:
 };
 
 // Master parameters class
-class CeppFP {
+class StateSpace {
 public:
-  CeppFP(SEXP fp);
+  StateSpace(SEXP fp);
 public:
   int          MODEL;
+  bool         MIX;
   SEXP         fp_ss;
   int          proj_start;
   int          PROJ_YEARS;
@@ -145,7 +146,6 @@ public:
   double       DT;
   int          pDB;
   int          hDB;
-  fp_main      p;
   int          n_steps;
   // 
   int pAG_FERT, hAG_FERT, pAG_1549, hAG_1549, pAG_15plus, hAG_15plus;

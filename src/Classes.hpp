@@ -17,9 +17,9 @@
 #include "Rdefines.h"
 class artC;
 class hivC;
-class oSEXP : public CeppFP { // outputs for R
+class oSEXP : public StateSpace { // outputs for R
 public:
-  oSEXP(SEXP fp) : CeppFP(fp) {
+  oSEXP(SEXP fp) : StateSpace(fp) {
     pop           = PROTECT(NEW_NUMERIC(pAG * NG * pDS * PROJ_YEARS)); ++np;
     prev15to49    = PROTECT(NEW_NUMERIC(PROJ_YEARS)); ++np;
     incid15to49   = PROTECT(NEW_NUMERIC(PROJ_YEARS)); ++np;
@@ -76,9 +76,9 @@ public:
 };
 
 // Pop class
-class popC : public CeppFP {
+class popC : public StateSpace {
 public: // Pop inits
-  popC(oSEXP& O, SEXP fp, bool inMIX) : CeppFP(fp),
+  popC(oSEXP& O, SEXP fp) : StateSpace(fp),
 // boost array class inits
     data(REAL(O.pop), extents[PROJ_YEARS][pDS][NG][pAG]),
     birth_age(pAG_FERT),
@@ -90,7 +90,7 @@ public: // Pop inits
     incrate15to49_ts(REAL(O.inci15to49_ts), extents[n_steps]),
     prev15to49_ts(REAL(O.prev15to49_ts), extents[n_steps]),
     rvec(REAL(O.rvec), extents[n_steps]),
-    birthslag(p.birthslag),
+    birthslag(extents[PROJ_YEARS][NG]),
     hivp_entrants_out(extents[PROJ_YEARS][NG]),
     hiv_sx_prob(extents[NG][hAG]),
     hiv_mr_prob(extents[NG][hAG]),
@@ -105,51 +105,49 @@ public: // Pop inits
     active_last_year_(extents[pDS][NG][pAG]), // 1 year only
     infections_(extents[NG][pAG]), // avoid repeated allocations
     art_elig_(extents[NG][hAG][hDS]),
-    art_init_(extents[NG][hAG][hDS])
+    art_init_(extents[NG][hAG][hDS]),
+    hiv_by_agrp_(extents[NG][hAG]),
+    death_by_agrp_(extents[NG][hAG])
   {
 // Non class init
-    MIX = inMIX;
-
-    for (int sex = 0; sex < NG; sex++)
-      for (int age = 0; age < pAG; age++)
-        data[0][hivn_idx][sex][age] = p.basepop[sex][age];
-
-    if (p.eppmod == 0)
-      for (int i = 0; i < n_steps; ++i)
-        rvec[i] = p.rvec[i];
-
     if (MODEL == 2 && pDB == 1)
       Rf_warning("Debut model state-space not exist, see update_fp_debut()");
   }
 // Pop methods 
+  void initiate (const Parameters& p) ;
   void update_active_pop_to (int year) ;
   boost3D get_active_pop_in (int year) ;
   void update_active_last_year () ;
   void aging () ;
-  void add_entrants () ;
-  void sexual_debut () ;
+  void add_entrants (const Parameters& p) ;
+  void sexual_debut (const Parameters& p) ;
   boost2D hiv_aging_prob () ;
-  dvec entrant_art () ;
-  void deaths () ;
-  void migration () ;
-  void update_fertile () ;
-  void adjust_pop () ;
-  void cal_prev_pregant (const hivC& hivpop, const artC& artpop); // only on active pop
+  dvec entrant_art (const Parameters& p) ;
+  void deaths (const Parameters& p) ;
+  void migration (const Parameters& p) ;
+  void update_fertile (const Parameters& p) ;
+  void adjust_pop (const Parameters& p) ;
+  void cal_prev_pregant (const hivC& hivpop, const artC& artpop,
+                         const Parameters& p); // only on active pop
   void save_prev_n_inc () ;
-  void infect_mix (int ii);
-  void infect_spec (const hivC& hivpop, const artC& artpop, int time_step);
-  void epp_disease_model_direct (hivC& hivpop, artC& artpop) ;
+  void infect_mix (int ii, const Parameters& p);
+  void infect_spec (const hivC& hivpop, const artC& artpop, int time_step,
+                    const Parameters& p);
+  void epp_disease_model_direct (hivC& hivpop, artC& artpop,
+                                 const Parameters& p) ;
   double calc_rtrend_rt (int ts, double time_step) ;
-  void update_rvec (double time_step) ;
+  void update_rvec (double time_step, const Parameters& p) ;
   void update_infection () ;
-  void remove_hiv_death (const hivC& hivpop, const artC& artpop);
-  void update_preg (const hivC& hivpop, const artC& artpop);
-  dvec art_initiate (const dvec& art_curr, int time_step);
-  void art_distribute (const dvec& art_need);
-  void epp_art_init (hivC& hivpop, artC& artpop, int time_step);
-  void finalize (hivC& hivpop, artC& artpop);
+  void remove_hiv_death (const hivC& hivpop, const artC& artpop,
+                         const Parameters& p);
+  void update_preg (const hivC& hivpop, const artC& artpop,
+                    const Parameters& p);
+  dvec art_initiate (const dvec& art_curr, int time_step,
+                     const Parameters& p);
+  void art_distribute (const dvec& art_need, const Parameters& p);
+  void epp_art_init (hivC& hivpop, artC& artpop, int time_step,
+                     const Parameters& p);
 public: // Pop fields
-  bool        MIX;
   int         year = 1;
   boost4D_ptr data; // pointer to pop_data_sexp, the same for others
   dvec        birth_age;
@@ -183,12 +181,14 @@ public: // Pop fields
   boost2D     infections_;
   boost3D     art_elig_;
   boost3D     art_init_;
+  boost2D     hiv_by_agrp_;
+  boost2D     death_by_agrp_;
 };
 
 // HIV class
-class hivC : public CeppFP {
+class hivC : public StateSpace {
 public: // inits
-  hivC(oSEXP& O, SEXP fp) : CeppFP(fp),
+  hivC(oSEXP& O, SEXP fp) : StateSpace(fp),
 // Boost array class init
   data(REAL(O.hivpop), extents[PROJ_YEARS][NG][hAG][hDS]),
   data_db(extents[PROJ_YEARS][NG][hAG][hDS]), // later return this as well
@@ -197,20 +197,21 @@ public: // inits
   data_all(extents[NG][hAG][hDS]),
   _death(extents[NG][hAG][hDS]),
   _death_db(extents[NG][hAG][hDS]),
-  cd4_mort_(extents[NG][hAG][hDS]) {};
+  cd4_mort_(extents[NG][hAG][hDS]),
+  infect_by_agrp_(extents[NG][hAG]) {};
 // methods
   void aging(const boost2D& ag_prob);
-  void add_entrants(const dvec& artYesNo) ;
-  void sexual_debut() ;
+  void add_entrants(const dvec& artYesNo, const Parameters& p) ;
+  void sexual_debut(const Parameters& p) ;
   void deaths (const boost2D& survival_pr) ;
   void migration (const boost2D& migration_pr) ;
-  void update_infection (const boost2D& new_infect) ;
-  void grad_progress () ;
-  dvec eligible_for_art () ;
+  void update_infection (const boost2D& new_infect, const Parameters& p) ;
+  void scale_cd4_mort (artC& artpop, const Parameters& p);
+  void grad_progress (const Parameters& p) ;
+  dvec eligible_for_art (const Parameters& p) ;
   void distribute_artinit (boost3D& artinit, artC& artpop);
   void add_grad_to_pop () ;
   void adjust_pop (const boost2D& adj_prob) ;
-  void scale_cd4_mort (artC& artpop);
 public: // fields
   int         year = 1;
   boost4D_ptr data;
@@ -221,12 +222,13 @@ public: // fields
   boost3D     _death; // death in this year
   boost3D     _death_db; // death in this year
   boost3D     cd4_mort_;
+  boost2D     infect_by_agrp_;
 };
 
 // ART class
-class artC : public CeppFP {
+class artC : public StateSpace {
 public: // Inits
-  artC(oSEXP& O, SEXP fp) : CeppFP(fp),
+  artC(oSEXP& O, SEXP fp) : StateSpace(fp),
     data(REAL(O.artpop), extents[PROJ_YEARS][NG][hAG][hDS][hTS]),
     data_db(extents[PROJ_YEARS][NG][hAG][hDS][hTS]),
     gradART(extents[NG][hAG][hDS][hTS]),
@@ -235,17 +237,17 @@ public: // Inits
     _death_db(extents[NG][hAG][hDS][hTS]) {}
 // Methods
   void aging (const boost2D& ag_prob) ;
-  void add_entrants (const dvec& artYesNo) ;
-  void sexual_debut () ;
+  void add_entrants (const dvec& artYesNo, const Parameters& p) ;
+  void sexual_debut (const Parameters& p) ;
   void deaths (const boost2D& survival_pr) ;
   void migration (const boost2D& migration_pr) ;
   void grad_progress () ;
-  void art_dropout (hivC& hivpop) ;
-  dvec current_on_art () ;
+  void art_dropout (hivC& hivpop, const Parameters& p) ;
+  void update_current_on_art () ;
   void grad_init (const boost3D& artinit) ;
   void grad_db_init (const boost3D& artinit_db) ;
   void adjust_pop (const boost2D& adj_prob) ;
-  void count_death () ;
+  void count_death (const Parameters& p) ;
 public: // fields
   int         year = 1;
   boost5D_ptr data;
@@ -254,4 +256,32 @@ public: // fields
   boost4D     gradART_db;
   boost4D     death_;
   boost4D     _death_db;
+  dvec        art_by_sex_ = {0.0, 0.0};
+};
+
+class Model
+{
+public:
+  Model(oSEXP& O, SEXP fp) : 
+    p(fp),
+    pop(O, fp),
+    hivpop(O, fp),
+    artpop(O, fp)
+    {}
+  // ~Model();
+  void initiate();
+  void run(int t);
+  void aging();
+  void death();
+  void migration();
+  void adjust_pop();
+  void infection_process();
+  void save_outputs();
+public:
+  // int  year = 1;
+  // StateSpace ss;
+  Parameters p;
+  popC pop;
+  hivC hivpop;
+  artC artpop;
 };

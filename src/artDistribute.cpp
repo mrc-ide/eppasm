@@ -15,7 +15,7 @@
 #include "Classes.hpp"
 
 // calculate ART initiation distribution
-void popC::art_distribute (const dvec& art_need) {
+void popC::art_distribute (const dvec& art_need, const Parameters& p) {
   if (!p.med_cd4init_input[year]) {
     if (p.art_alloc_method == 4L) { // by lowest CD4
       // Calculate proportion to be initiated in each CD4 category
@@ -41,7 +41,7 @@ void popC::art_distribute (const dvec& art_need) {
     } 
     else { // Spectrum Manual p168--p169, 
       int A = h_age15plus_idx[0] - 1;
-      dvec artX(NG), artY(NG);
+      boost1D artX(extents[NG]), artY(extents[NG]);
       for (int sex = 0; sex < NG; sex++)
         for (int agr = A; agr < hAG_15plus; agr++)
           for (int cd4 = 0; cd4 < hDS; cd4++) {

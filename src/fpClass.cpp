@@ -29,7 +29,7 @@ void fp_rt::init_me(SEXP fp) {
   rw_transition   = REAL(get_value(fp_rt, "rw_transition"));
 }
 
-fp_main::fp_main(SEXP fp) :
+Parameters::Parameters(SEXP fp) :
 // init list for boost array class
   basepop(REAL(get_value(fp, "basepop")), get_dim_2D(fp, "basepop")),
   asfr(REAL(get_value(fp, "asfr")), get_dim_2D(fp, "asfr")),
@@ -126,7 +126,7 @@ fp_main::fp_main(SEXP fp) :
       rt.init_me(fp);
 }
 
-CeppFP::CeppFP(SEXP fp) : 
+StateSpace::StateSpace(SEXP fp) : 
 // Boost array class init
   fp_ss(get_value(fp, "ss")),
   p_fert_idx(INTEGER(get_value(fp_ss, "p_fert_idx")),
@@ -148,11 +148,11 @@ CeppFP::CeppFP(SEXP fp) :
   h_age15to49_idx(INTEGER(get_value(fp_ss, "h_age15to49_idx")),
       extents[GET_LENGTH(get_value(fp_ss, "h_age15to49_idx"))]),
   h_age15plus_idx(INTEGER(get_value(fp_ss, "h_age15plus_idx")),
-      extents[GET_LENGTH(get_value(fp_ss, "h_age15plus_idx"))]),
-  p(fp)
+      extents[GET_LENGTH(get_value(fp_ss, "h_age15plus_idx"))])
   { // all .names --> _names
 // Non class model state space
   MODEL              = *INTEGER(get_value(fp_ss, "MODEL"));
+  MIX                = *LOGICAL(get_value(fp_ss, "MIX"));
   proj_start         = *INTEGER(get_value(fp_ss, "proj_start"));
   PROJ_YEARS         = *INTEGER(get_value(fp_ss, "PROJ_YEARS"));
   AGE_START          = *INTEGER(get_value(fp_ss, "AGE_START"));

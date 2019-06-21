@@ -1,5 +1,5 @@
 #' @useDynLib eppasm eppasmC eppasmOOpp
-simmod.specfp <- function(fp, VERSION="C", MODEL=1, MIX=FALSE) {
+simmod.specfp <- function(fp, VERSION="C", MODEL=1L, MIX=FALSE) {
   if (!exists("popadjust", where=fp))
     fp$popadjust <- FALSE
 
@@ -18,8 +18,8 @@ simmod.specfp <- function(fp, VERSION="C", MODEL=1, MIX=FALSE) {
 
   if (VERSION != "R") {
     if (VERSION=="K") { # C++ classes
-      fp <- prepare_fp_for_Cpp(fp)
-      mod <- .Call(eppasmOOpp, fp, MODEL, MIX)
+      fp  <- prepare_fp_for_Cpp(fp, MODEL, MIX)
+      mod <- .Call(eppasmOOpp, fp)
       return(mod)
     } 
     else { # keep this for tests

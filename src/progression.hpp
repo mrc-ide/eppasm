@@ -16,16 +16,16 @@
 
 // Natural deaths
 // -----------------------------------------------------------------------------
-void epp_death (popC& pop, hivC& hivpop, artC& artpop) ;
+void epp_death (popC& pop, hivC& hivpop, artC& artpop, const Parameters& p) ;
 
 // Migration at year i
 // -----------------------------------------------------------------------------
-void epp_migration (popC& pop, hivC& hivpop, artC& artpop) ;
+void epp_migration (popC& pop, hivC& hivpop, artC& artpop, const Parameters& p) ;
 
 // EPP populations aging
 // -----------------------------------------------------------------------------
-void epp_aging (popC& pop, hivC& hivpop, artC& artpop) ;
+void epp_aging (popC& pop, hivC& hivpop, artC& artpop, const Parameters& p) ;
 
 // Disease model
 // -----------------------------------------------------------------------------
-void epp_disease_model (popC& pop, hivC& hivpop, artC& artpop) ;
+void epp_disease_model (popC& pop, hivC& hivpop, artC& artpop, const Parameters& p);

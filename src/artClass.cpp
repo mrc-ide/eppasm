@@ -94,7 +94,7 @@ void artC::grad_progress () {
       for (int cd4 = 0; cd4 < hDS; cd4++) {
         for (int dur = 0; dur < hTS - 1; dur++) {
           double art_up = 2.0 * data[year][sex][agr][cd4][dur];
-          gradART[sex][agr][cd4][dur] -= (art_up + _death[sex][agr][cd4][dur]);
+          gradART[sex][agr][cd4][dur] -= (art_up + death_[sex][agr][cd4][dur]);
           gradART[sex][agr][cd4][dur+1] += art_up;
           if (MODEL == 2 && agr < hDB) {
             art_up = 2.0 * data_db[year][sex][agr][cd4][dur];
@@ -103,7 +103,7 @@ void artC::grad_progress () {
             gradART_db[sex][agr][cd4][dur+1] += art_up;
           }
         }
-        gradART[sex][agr][cd4][hTS-1] -= _death[sex][agr][cd4][hTS-1];
+        gradART[sex][agr][cd4][hTS-1] -= death_[sex][agr][cd4][hTS-1];
         if (MODEL == 2 && agr < hDB)
           gradART_db[sex][agr][cd4][hTS-1] -= _death_db[sex][agr][cd4][hTS-1];
       }
@@ -179,7 +179,7 @@ void artC::count_death () {
       for (int cd4 = 0; cd4 < hDS; cd4++)
         for (int dur = 0; dur < hTS; dur++) {
           double x = p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur];
-          _death[sex][agr][cd4][dur] = data[year][sex][agr][cd4][dur] * x;
+          death_[sex][agr][cd4][dur] = data[year][sex][agr][cd4][dur] * x;
           if (MODEL == 2 && agr < hDB)
             _death_db[sex][agr][cd4][dur] = data_db[year][sex][agr][cd4][dur] * x;
         }

@@ -87,35 +87,53 @@ void hivC::update_infection (const boost2D& new_infect) {
           p.cd4_initdist[sex][agr][cd4] * infectAG[sex][agr];
 }
 
-void hivC::grad_progress (const boost3D& mortality_rate) { // HIV gradient progress
+void hivC::scale_cd4_mort (artC& artpop) {
+  if (p.scale_cd4_mort && year >= p.tARTstart - 1) {
+    double num, den = 0;
+    for (int sex = 0; sex < NG; sex++)
+      for (int agr = 0; agr < hAG; agr++)
+        for (int cd4 = 0; cd4 < hDS; cd4++) {
+          num = data[year][sex][agr][cd4] + data_db[year][sex][agr][cd4];
+          for (int dur = 0; dur < hTS; dur++)
+            den += artpop.data[year][sex][agr][cd4][dur] +
+                   artpop.data_db[year][sex][agr][cd4][dur];
+          num = (num + den == 0.0) ? 1 : num / (num + den);
+          cd4_mort_[sex][agr][cd4] = num * p.cd4_mort[sex][agr][cd4];
+          den = 0;
+        }
+  } else {
+    cd4_mort_ = p.cd4_mort;
+  }
+}
+
+void hivC::grad_progress () { // HIV gradient progress
   if (p.eppmod == 2)
     zeroing(grad); // reset every time step
   if (MODEL == 2)
     zeroing(grad_db); // reset, this's the 1st time grad_db is used
-
   // remove cd4 stage progression (untreated)
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++) {
       for (int cd4 = 0; cd4 < hDS - 1; cd4++) {
         double nHup = data[year][sex][agr][cd4] * p.cd4_prog[sex][agr][cd4];
         _death[sex][agr][cd4] = 
-          data[year][sex][agr][cd4] * mortality_rate[sex][agr][cd4];
+          data[year][sex][agr][cd4] * cd4_mort_[sex][agr][cd4];
         grad[sex][agr][cd4]   -= (nHup + _death[sex][agr][cd4]);
         grad[sex][agr][cd4+1] += nHup;
         if (MODEL == 2 && agr < hDB) {
           nHup = data_db[year][sex][agr][cd4] * p.cd4_prog[sex][agr][cd4];
           _death_db[sex][agr][cd4] =
-            data_db[year][sex][agr][cd4] * mortality_rate[sex][agr][cd4];
+            data_db[year][sex][agr][cd4] * cd4_mort_[sex][agr][cd4];
           grad_db[sex][agr][cd4]   -= (nHup + _death_db[sex][agr][cd4]);
           grad_db[sex][agr][cd4+1] += nHup;
         }
       }
       _death[sex][agr][hDS-1] = 
-        data[year][sex][agr][hDS-1] * mortality_rate[sex][agr][hDS-1];
+        data[year][sex][agr][hDS-1] * cd4_mort_[sex][agr][hDS-1];
       grad[sex][agr][hDS-1] -= _death[sex][agr][hDS-1];
       if (MODEL == 2 && agr < hDB) {
         _death_db[sex][agr][hDS-1] =
-          data_db[year][sex][agr][hDS-1] * mortality_rate[sex][agr][hDS-1];
+          data_db[year][sex][agr][hDS-1] * cd4_mort_[sex][agr][hDS-1];
         grad_db[sex][agr][hDS-1] -= _death_db[sex][agr][hDS-1];
       }
     }

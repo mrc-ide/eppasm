@@ -14,7 +14,7 @@
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Classes.hpp"
 
-boost2D popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step) {
+void popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step) {
   int ts = (year-1)/ DT + time_step,
       p_lo = p_age15to49_idx[0] - 1, h_lo = h_age15to49_idx[0] - 1;
   double dt_ii = 1 - DT * time_step, // transition of population in 1 year
@@ -85,7 +85,6 @@ boost2D popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step
   double sex_inc[2] = {inc_rate * adj_sex, 
                        inc_rate * adj_sex * p.incrr_sex[year]};
   // New infections distributed by age: ratio age_i/ 25-29 age
-  boost2D infections_ts(extents[NG][pAG]);
   for (int sex = 0; sex < NG; sex++) {
     double n_neg = 0, n_neg_rr = 0, adj_age;
     for (int age = p_lo; age < pAG_1549; age++) {
@@ -96,7 +95,7 @@ boost2D popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step
     for (int age = 0; age < pAG; age++) {
       if (sex==m_idx) // age-specific incidence among circumcised men
         adj_age *= (1 - p.circ_incid_rr * p.circ_prop[year][age]);
-      infections_ts[sex][age] = p.incrr_age[year][sex][age] * adj_age * 
+      infections_[sex][age] = p.incrr_age[year][sex][age] * adj_age * 
         data_active[hivn_idx][sex][age];
     }
   }
@@ -104,10 +103,9 @@ boost2D popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step
   incrate15to49_ts[ts] = inc_rate;
   prev_last = hivp_ii / (hivn_ii + hivp_ii);
   prev15to49_ts[ts] = prev_last;
-  return infections_ts;
 }
 
-boost2D popC::infect_mix (int ii) {
+void popC::infect_mix (int ii) {
   update_active_pop_to(year);
   int ts = (year-1)/DT + ii;
   boost2D transm_prev(extents[NG][pAG]);
@@ -125,25 +123,24 @@ boost2D popC::infect_mix (int ii) {
   add_to_each_inplace(transm_prev, w);
 
   // sweep over sexual mixing matrices
-  boost2D infections_ts(extents[NG][pAG]);
+  zeroing(infections_);
   for (int my_age = 0; my_age < pAG; ++my_age)
     for (int partner_age = 0; partner_age < pAG; ++partner_age) {
-      infections_ts[m_idx][my_age] +=
+      infections_[m_idx][my_age] +=
         p.mat_m[partner_age][my_age] * transm_prev[f_idx][partner_age];
-      infections_ts[f_idx][my_age] +=
+      infections_[f_idx][my_age] +=
         p.mat_f[partner_age][my_age] * transm_prev[m_idx][partner_age];
     }
   // if (exists("f_fun", fp)) // that fun
   //   ir = ir * fp.f_fun
   for (int sex = 0; sex < NG; sex++)
     for (int age = 0; age < pAG; age++)
-      infections_ts[sex][age] *= data_active[hivn_idx][sex][age];
+      infections_[sex][age] *= data_active[hivn_idx][sex][age];
   // incrate15to49_ts_m.slice(ts) = ir_mf;
   // prev15to49_ts_m should use this one! now just store as below
   boost2D n_pos = data_active[ indices[hivp_idx][in(0, NG)][in(0, pAG)] ];
   prev15to49_ts[ts] = sumArray(n_pos) / sumArray(data_active);
   prev_last = prev15to49_ts[ts];
-  return infections_ts;
 }
 
 void popC::epp_disease_model_direct  (hivC& hivpop, artC& artpop) {
@@ -156,11 +153,11 @@ void popC::epp_disease_model_direct  (hivC& hivpop, artC& artpop) {
     a_l = p_age15to49_idx[0] - 1;
     a_r = pAG_1549;
   }
-  boost3D last_year = get_active_pop_in(year-1);
+  update_active_last_year();
   double n_m = 0, n_f = 0;
   for (int age = a_l; age < a_r; ++age) {
-    n_m += last_year[hivn_idx][m_idx][age];
-    n_f += last_year[hivn_idx][f_idx][age];
+    n_m += active_last_year_[hivn_idx][m_idx][age];
+    n_f += active_last_year_[hivn_idx][f_idx][age];
   }
   dvec sex_inc(NG); 
   sex_inc[m_idx] = (n_m + n_f) * p.incidinput[year] / 
@@ -171,8 +168,8 @@ void popC::epp_disease_model_direct  (hivC& hivpop, artC& artpop) {
   for (int sex = 0; sex < NG; sex++) {
     double neg_sa = 0, inc_sa = 0;
     for (int age = a_l; age < a_r; age++) {
-      neg_sa += last_year[hivn_idx][sex][age];
-      inc_sa += last_year[hivn_idx][sex][age] * p.incrr_age[year][sex][age];
+      neg_sa += active_last_year_[hivn_idx][sex][age];
+      inc_sa += active_last_year_[hivn_idx][sex][age] * p.incrr_age[year][sex][age];
     }
     ageinc[sex] = inc_sa / neg_sa;
   }
@@ -180,7 +177,7 @@ void popC::epp_disease_model_direct  (hivC& hivpop, artC& artpop) {
   for (int sex = 0; sex < NG; sex++)
     for (int age = 0; age < pAG; age++) {
       new_infect = p.incrr_age[year][sex][age] * ( sex_inc[sex] / ageinc[sex]) *
-                   last_year[hivn_idx][sex][age];
+                   active_last_year_[hivn_idx][sex][age];
       infections[year][sex][age]      = new_infect;
       data[year][hivn_idx][sex][age] -= new_infect;
       data[year][hivp_idx][sex][age] += new_infect;

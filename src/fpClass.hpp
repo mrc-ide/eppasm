@@ -22,18 +22,16 @@ public:
   fp_rt() {};
 public:
   double * proj_steps;
-  double rw_start;
-  double rw_trans;
+  double   rw_start;
+  double   rw_trans;
   double * rlogistic_steps;
   double * rw_steps;
-  double n_rw;
-  double rw_dk;
+  double   n_rw;
+  double   rw_dk;
   double * rw_knots;
-  int * rw_idx;
-  double n_param;
+  int    * rw_idx;
+  double   n_param;
   double * rw_transition;
-  // dt             : num 0.1
-  // eppmod         : chr "rhybrid"
 };
 
 class fp_main {

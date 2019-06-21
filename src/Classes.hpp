@@ -101,7 +101,11 @@ public: // Pop inits
     popadjust(REAL(O.popadjust ), extents[PROJ_YEARS][NG][pAG]),
     data_all(extents[pDS][NG][pAG]), // 1 year only
     data_db(REAL(O.data_db), extents[PROJ_YEARS][pDS][NG][pDB]),
-    data_active(extents[pDS][NG][pAG]) // 1 year only
+    data_active(extents[pDS][NG][pAG]), // 1 year only
+    active_last_year_(extents[pDS][NG][pAG]), // 1 year only
+    infections_(extents[NG][pAG]), // avoid repeated allocations
+    art_elig_(extents[NG][hAG][hDS]),
+    art_init_(extents[NG][hAG][hDS])
   {
 // Non class init
     MIX = inMIX;
@@ -118,9 +122,9 @@ public: // Pop inits
       Rf_warning("Debut model state-space not exist, see update_fp_debut()");
   }
 // Pop methods 
-  void my_all (int when) ;
   void update_active_pop_to (int year) ;
   boost3D get_active_pop_in (int year) ;
+  void update_active_last_year () ;
   void aging () ;
   void add_entrants () ;
   void sexual_debut () ;
@@ -132,20 +136,16 @@ public: // Pop inits
   void adjust_pop () ;
   void cal_prev_pregant (const hivC& hivpop, const artC& artpop); // only on active pop
   void save_prev_n_inc () ;
-  boost2D infect_mix (int ii);
-  boost2D infect_spec (const hivC& hivpop, const artC& artpop, int time_step);
+  void infect_mix (int ii);
+  void infect_spec (const hivC& hivpop, const artC& artpop, int time_step);
   void epp_disease_model_direct (hivC& hivpop, artC& artpop) ;
   double calc_rtrend_rt (int ts, double time_step) ;
   void update_rvec (double time_step) ;
-  void update_infection (const boost2D& infect) ;
-  void remove_hiv_death (const boost3D& cd4_mx,
-                         const hivC& hivpop, const artC& artpop);
-  void update_preg (boost3D& art_elig,
-                    const hivC& hivpop, const artC& artpop);
-  dvec art_initiate (const dvec& art_curr, const boost3D& art_elig,
-                   int time_step);
-  boost3D art_distribute (const boost3D& art_elig, const dvec& art_need);
-  boost3D scale_cd4_mort (hivC& hivpop, artC& artpop);
+  void update_infection () ;
+  void remove_hiv_death (const hivC& hivpop, const artC& artpop);
+  void update_preg (const hivC& hivpop, const artC& artpop);
+  dvec art_initiate (const dvec& art_curr, int time_step);
+  void art_distribute (const dvec& art_need);
   void epp_art_init (hivC& hivpop, artC& artpop, int time_step);
   void finalize (hivC& hivpop, artC& artpop);
 public: // Pop fields
@@ -177,8 +177,12 @@ public: // Pop fields
   boost3D     data_all; // all populations in the year requested
   boost4D_ptr data_db; // debut only population
   boost3D     data_active;
+  boost3D     active_last_year_;
   double      artcov[2] = {0.0, 0.0}; // initially no one on treatment
   double      prev_last = 0.0; // = 0 last time step prevalence
+  boost2D     infections_;
+  boost3D     art_elig_;
+  boost3D     art_init_;
 };
 
 // HIV class
@@ -192,7 +196,8 @@ public: // inits
   grad_db(extents[NG][hAG][hDS]),
   data_all(extents[NG][hAG][hDS]),
   _death(extents[NG][hAG][hDS]),
-  _death_db(extents[NG][hAG][hDS]) {};
+  _death_db(extents[NG][hAG][hDS]),
+  cd4_mort_(extents[NG][hAG][hDS]) {};
 // methods
   void aging(const boost2D& ag_prob);
   void add_entrants(const dvec& artYesNo) ;
@@ -200,11 +205,12 @@ public: // inits
   void deaths (const boost2D& survival_pr) ;
   void migration (const boost2D& migration_pr) ;
   void update_infection (const boost2D& new_infect) ;
-  void grad_progress (const boost3D& mortality_rate) ;
+  void grad_progress () ;
   dvec eligible_for_art () ;
   void distribute_artinit (boost3D& artinit, artC& artpop);
   void add_grad_to_pop () ;
   void adjust_pop (const boost2D& adj_prob) ;
+  void scale_cd4_mort (artC& artpop);
 public: // fields
   int         year = 1;
   boost4D_ptr data;
@@ -214,6 +220,7 @@ public: // fields
   boost3D     data_all; // all populations in the year requested
   boost3D     _death; // death in this year
   boost3D     _death_db; // death in this year
+  boost3D     cd4_mort_;
 };
 
 // ART class
@@ -224,7 +231,7 @@ public: // Inits
     data_db(extents[PROJ_YEARS][NG][hAG][hDS][hTS]),
     gradART(extents[NG][hAG][hDS][hTS]),
     gradART_db(extents[NG][hAG][hDS][hTS]),
-    _death(extents[NG][hAG][hDS][hTS]),
+    death_(extents[NG][hAG][hDS][hTS]),
     _death_db(extents[NG][hAG][hDS][hTS]) {}
 // Methods
   void aging (const boost2D& ag_prob) ;
@@ -245,6 +252,6 @@ public: // fields
   boost5D     data_db; // debut only population
   boost4D     gradART;
   boost4D     gradART_db;
-  boost4D     _death;
+  boost4D     death_;
   boost4D     _death_db;
 };

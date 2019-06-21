@@ -63,20 +63,20 @@ void epp_aging (popC& pop, hivC& hivpop, artC& artpop) {
 // -----------------------------------------------------------------------------
 void epp_disease_model (popC& pop, hivC& hivpop, artC& artpop) {
   for (int time_step = 0; time_step < pop.hiv_steps_per_year; ++time_step) {
-    boost2D infect(extents[pop.NG][pop.pAG]);
     if (pop.p.eppmod != 2) { // != "directincid"
       pop.update_rvec(time_step);
       if (pop.MIX)
-        infect = pop.infect_mix(time_step);
+        pop.infect_mix(time_step);
       else
-        infect = pop.infect_spec(hivpop, artpop, time_step);
-      pop.update_infection(infect);
-      hivpop.update_infection(infect);
+        pop.infect_spec(hivpop, artpop, time_step);
+      pop.update_infection();
+      hivpop.update_infection(pop.infections_);
     }
-    boost3D cd4_mort = pop.scale_cd4_mort(hivpop, artpop);
-    hivpop.grad_progress(cd4_mort); // cd4 disease progression and mortality
-    artpop.count_death(); // cd4 disease progression and mortality
-    pop.remove_hiv_death(cd4_mort, hivpop, artpop); // Remove hivdeaths from pop
+    hivpop.scale_cd4_mort(artpop);
+    hivpop.grad_progress(); // cd4 disease progression and mortality
+    if (pop.year >= pop.p.tARTstart - 1)
+      artpop.count_death();
+    pop.remove_hiv_death(hivpop, artpop); // Remove hivdeaths from pop
     if (pop.year >= pop.p.tARTstart - 1) // ART initiation
       pop.epp_art_init(hivpop, artpop, time_step);
     hivpop.add_grad_to_pop();
@@ -89,43 +89,43 @@ void popC::epp_art_init (hivC& hivpop, artC& artpop, int time_step) {
   artpop.grad_progress();
   artpop.art_dropout(hivpop); // pass hivpop to receive the drop out
   dvec eligible = hivpop.eligible_for_art();
-  boost3D art_elig(extents[NG][hAG][hDS]);
+  zeroing(art_elig_);
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
-        art_elig[sex][agr][cd4] =
+        art_elig_[sex][agr][cd4] =
           hivpop.data[year][sex][agr][cd4] * eligible[cd4];
   if ( (p.pw_artelig[year] == 1) & (p.artcd4elig_idx[year] > 1) )
-    update_preg(art_elig, hivpop, artpop); // add pregnant?
+    update_preg(hivpop, artpop); // add pregnant?
   if (MODEL == 2) // add sexual inactive but eligible for treatment
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hDB; agr++)
         for (int cd4 = 0; cd4 < hDS; cd4++)
-          art_elig[sex][agr][cd4] +=
+          art_elig_[sex][agr][cd4] +=
             hivpop.data_db[year][sex][agr][cd4] * eligible[cd4];
   // calculate number to initiate ART and distribute
   dvec art_curr = artpop.current_on_art();
-  dvec artnum_ii = art_initiate(art_curr, art_elig, time_step);
+  dvec artnum_ii = art_initiate(art_curr, time_step);
   dvec art15plus_inits(NG);
   for (int sex = 0; sex < NG; ++sex) {
     double n_afford = artnum_ii[sex] - art_curr[sex];
     art15plus_inits[sex] = (n_afford > 0) ? n_afford : 0;
   }
-  boost3D artinit = art_distribute(art_elig, art15plus_inits);
+  art_distribute(art15plus_inits);
   if (MODEL == 1) {
     for (int sex = 0; sex < NG; sex++)
       for (int agr = 0; agr < hAG; agr++)
         for (int cd4 = 0; cd4 < hDS; cd4++) {
           double x =
             hivpop.data[year][sex][agr][cd4] + DT * hivpop.grad[sex][agr][cd4];
-          if (artinit[sex][agr][cd4] > x) artinit[sex][agr][cd4] = x;
+          if (art_init_[sex][agr][cd4] > x) art_init_[sex][agr][cd4] = x;
         }
   }
   if (MODEL == 2) // split the number proportionally for active and idle pop
-    hivpop.distribute_artinit(artinit, artpop);
+    hivpop.distribute_artinit(art_init_, artpop);
   for (int sex = 0; sex < NG; sex++)
     for (int agr = 0; agr < hAG; agr++)
       for (int cd4 = 0; cd4 < hDS; cd4++)
-        hivpop.grad[sex][agr][cd4] -= artinit[sex][agr][cd4] / DT;
-  artpop.grad_init(artinit);
+        hivpop.grad[sex][agr][cd4] -= art_init_[sex][agr][cd4] / DT;
+  artpop.grad_init(art_init_);
 }

@@ -96,22 +96,18 @@ void hivC::update_infection (const boost2D& new_infect, const Parameters& p) {
 }
 
 void hivC::scale_cd4_mort (artC& artpop, const Parameters& p) {
-  if (p.scale_cd4_mort && year >= p.tARTstart - 1) {
-    double num, den = 0;
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
-        for (int cd4 = 0; cd4 < hDS; cd4++) {
-          num = data[year][sex][agr][cd4] + data_db[year][sex][agr][cd4];
-          for (int dur = 0; dur < hTS; dur++)
-            den += artpop.data[year][sex][agr][cd4][dur] +
-                   artpop.data_db[year][sex][agr][cd4][dur];
-          num = (num + den == 0.0) ? 1 : num / (num + den);
-          cd4_mort_[sex][agr][cd4] = num * p.cd4_mort[sex][agr][cd4];
-          den = 0;
-        }
-  } else {
-    cd4_mort_ = p.cd4_mort;
-  }
+  double num, den = 0;
+  for (int sex = 0; sex < NG; sex++)
+    for (int agr = 0; agr < hAG; agr++)
+      for (int cd4 = 0; cd4 < hDS; cd4++) {
+        num = data[year][sex][agr][cd4] + data_db[year][sex][agr][cd4];
+        for (int dur = 0; dur < hTS; dur++)
+          den += artpop.data[year][sex][agr][cd4][dur] +
+                 artpop.data_db[year][sex][agr][cd4][dur];
+        num = (num + den == 0.0) ? 1 : num / (num + den);
+        cd4_mort_[sex][agr][cd4] = num * p.cd4_mort[sex][agr][cd4];
+        den = 0;
+      }
 }
 
 void hivC::grad_progress (const Parameters& p) { // HIV gradient progress
@@ -124,42 +120,37 @@ void hivC::grad_progress (const Parameters& p) { // HIV gradient progress
     for (int agr = 0; agr < hAG; agr++) {
       for (int cd4 = 0; cd4 < hDS - 1; cd4++) {
         double nHup = data[year][sex][agr][cd4] * p.cd4_prog[sex][agr][cd4];
-        _death[sex][agr][cd4] = 
+        death_[sex][agr][cd4] = 
           data[year][sex][agr][cd4] * cd4_mort_[sex][agr][cd4];
-        grad[sex][agr][cd4]   -= (nHup + _death[sex][agr][cd4]);
+        grad[sex][agr][cd4]   -= (nHup + death_[sex][agr][cd4]);
         grad[sex][agr][cd4+1] += nHup;
         if (MODEL == 2 && agr < hDB) {
           nHup = data_db[year][sex][agr][cd4] * p.cd4_prog[sex][agr][cd4];
-          _death_db[sex][agr][cd4] =
+          death_db_[sex][agr][cd4] =
             data_db[year][sex][agr][cd4] * cd4_mort_[sex][agr][cd4];
-          grad_db[sex][agr][cd4]   -= (nHup + _death_db[sex][agr][cd4]);
+          grad_db[sex][agr][cd4]   -= (nHup + death_db_[sex][agr][cd4]);
           grad_db[sex][agr][cd4+1] += nHup;
         }
       }
-      _death[sex][agr][hDS-1] = 
+      death_[sex][agr][hDS-1] = 
         data[year][sex][agr][hDS-1] * cd4_mort_[sex][agr][hDS-1];
-      grad[sex][agr][hDS-1] -= _death[sex][agr][hDS-1];
+      grad[sex][agr][hDS-1] -= death_[sex][agr][hDS-1];
       if (MODEL == 2 && agr < hDB) {
-        _death_db[sex][agr][hDS-1] =
+        death_db_[sex][agr][hDS-1] =
           data_db[year][sex][agr][hDS-1] * cd4_mort_[sex][agr][hDS-1];
-        grad_db[sex][agr][hDS-1] -= _death_db[sex][agr][hDS-1];
+        grad_db[sex][agr][hDS-1] -= death_db_[sex][agr][hDS-1];
       }
     }
 }
 
 dvec hivC::eligible_for_art (const Parameters& p) { // this one does not depend on model state
                                  // can just do this in fp and have a new par
-  dvec A(hDS);
-  for (int i = p.artcd4elig_idx[year] - 1; i < hDS; ++i) 
-    A[i] = 1;
-  dvec B(hDS);
-  for (int i = 2; i < hDS; ++i) 
-    B[i] = p.who34percelig;
-  boost1D C(extents[hDS]);
-  C = add_to_each(C, p.specpop_percelig[year]);
   dvec D(hDS);
-  for (int i = 0; i < hDS; ++i) 
-    D[i] = 1 - (1 - A[i]) * (1 - B[i]) * (1 - C[i]);
+  for (int i = 0; i < hDS; ++i) {
+    double A = (i >= p.artcd4elig_idx[year] - 1) ? 1 : 0;
+    double B = (i >= 2) ? p.who34percelig : 0;
+    D[i] = 1 - (1 - A) * (1 - B) * (1 - p.specpop_percelig[year]);
+  }
   return D;
 }
 

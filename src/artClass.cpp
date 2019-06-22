@@ -1,17 +1,3 @@
-// Copyright (C) 2019  Kinh Nguyen
-
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU General Public License as published by the Free
-// Software Foundation, either version 3 of the License, or (at your option)
-// any later version.
-
-// This program is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-// more details.
-
-// You should have received a copy of the GNU General Public License along
-// with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Classes.hpp"
 
 void artC::aging (const boost2D& ag_prob) {
@@ -99,13 +85,13 @@ void artC::grad_progress () {
           if (MODEL == 2 && agr < hDB) {
             art_up = 2.0 * data_db[year][sex][agr][cd4][dur];
             gradART_db[sex][agr][cd4][dur] -=
-              (art_up + _death_db[sex][agr][cd4][dur]);
+              (art_up + death_db_[sex][agr][cd4][dur]);
             gradART_db[sex][agr][cd4][dur+1] += art_up;
           }
         }
         gradART[sex][agr][cd4][hTS-1] -= death_[sex][agr][cd4][hTS-1];
         if (MODEL == 2 && agr < hDB)
-          gradART_db[sex][agr][cd4][hTS-1] -= _death_db[sex][agr][cd4][hTS-1];
+          gradART_db[sex][agr][cd4][hTS-1] -= death_db_[sex][agr][cd4][hTS-1];
       }
 }
 
@@ -181,6 +167,6 @@ void artC::count_death (const Parameters& p) {
           double x = p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[year][dur];
           death_[sex][agr][cd4][dur] = data[year][sex][agr][cd4][dur] * x;
           if (MODEL == 2 && agr < hDB)
-            _death_db[sex][agr][cd4][dur] = data_db[year][sex][agr][cd4][dur] * x;
+            death_db_[sex][agr][cd4][dur] = data_db[year][sex][agr][cd4][dur] * x;
         }
 }

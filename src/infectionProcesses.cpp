@@ -71,8 +71,8 @@ void popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step,
     }
   }
   double
-  transm_prev = (hivp_ii - art_ii * (1 - p.relinfectART)) / (hivn_ii + hivp_ii);
-  double w = (p.proj_steps[ts] == p.tsEpidemicStart) ? p.iota : 0.0;
+  transm_prev = (hivp_ii - art_ii * (1 - p.ic.relinfectART)) / (hivn_ii + hivp_ii);
+  double w = (p.ic.proj_steps[ts] == p.ic.tsEpidemicStart) ? p.ic.iota : 0.0;
   double inc_rate = rvec[ts] * transm_prev + w;
 
   // Incidence: male = negative / female negative * sexratio + male negative; 
@@ -82,21 +82,21 @@ void popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step,
     n_neg_m += data_active[s.hivn_idx][s.m_idx][age];
     n_neg_f += data_active[s.hivn_idx][s.f_idx][age];
   }
-  double adj_sex = (n_neg_m + n_neg_f) / (n_neg_m + n_neg_f * p.incrr_sex[s.year]);
+  double adj_sex = (n_neg_m + n_neg_f) / (n_neg_m + n_neg_f * p.ic.incrr_sex[s.year]);
   double sex_inc[2] = {inc_rate * adj_sex, 
-                       inc_rate * adj_sex * p.incrr_sex[s.year]};
+                       inc_rate * adj_sex * p.ic.incrr_sex[s.year]};
   // New infections distributed by age: ratio age_i/ 25-29 age
   for (int sex = 0; sex < s.NG; sex++) {
     double n_neg = 0, n_neg_rr = 0, adj_age;
     for (int age = p_lo; age < s.pAG_1549; age++) {
       n_neg += data_active[s.hivn_idx][sex][age]; 
-      n_neg_rr += p.incrr_age[s.year][sex][age] * data_active[s.hivn_idx][sex][age];
+      n_neg_rr += p.ic.incrr_age[s.year][sex][age] * data_active[s.hivn_idx][sex][age];
     }
     adj_age = sex_inc[sex] / ( n_neg_rr / n_neg );
     for (int age = 0; age < s.pAG; age++) {
       if (sex == s.m_idx) // age-specific incidence among circumcised men
-        adj_age *= (1 - p.circ_incid_rr * p.circ_prop[s.year][age]);
-      infections_[sex][age] = p.incrr_age[s.year][sex][age] * adj_age * 
+        adj_age *= (1 - p.ic.circ_incid_rr * p.ic.circ_prop[s.year][age]);
+      infections_[sex][age] = p.ic.incrr_age[s.year][sex][age] * adj_age * 
         data_active[s.hivn_idx][sex][age];
     }
   }
@@ -115,11 +115,11 @@ void popC::infect_mix (int ii, const Parameters& p, const StateSpace& s) {
     for (int age = 0; age < s.pAG; age++) {
       N_hivp = data_active[s.hivp_idx][sex][age];
       transm_prev[sex][age] = ((N_hivp * (1 - artcov[sex])) + 
-                               (N_hivp * artcov[sex] * (1 - p.relinfectART)))/
+                               (N_hivp * artcov[sex] * (1 - p.ic.relinfectART)))/
                                (data_active[s.hivn_idx][sex][age] + N_hivp);
       }
   //+intervention effects and time epidemic start
-  double w = (p.proj_steps[ts] == p.tsEpidemicStart) ? p.iota : 0.0;
+  double w = (p.ic.proj_steps[ts] == p.ic.tsEpidemicStart) ? p.ic.iota : 0.0;
   multiply_with_inplace(transm_prev, rvec[ts]);
   add_to_each_inplace(transm_prev, w);
 
@@ -128,9 +128,9 @@ void popC::infect_mix (int ii, const Parameters& p, const StateSpace& s) {
   for (int my_age = 0; my_age < s.pAG; ++my_age)
     for (int partner_age = 0; partner_age < s.pAG; ++partner_age) {
       infections_[s.m_idx][my_age] +=
-        p.mat_m[partner_age][my_age] * transm_prev[s.f_idx][partner_age];
+        p.ic.mat_m[partner_age][my_age] * transm_prev[s.f_idx][partner_age];
       infections_[s.f_idx][my_age] +=
-        p.mat_f[partner_age][my_age] * transm_prev[s.m_idx][partner_age];
+        p.ic.mat_f[partner_age][my_age] * transm_prev[s.m_idx][partner_age];
     }
   // if (exists("f_fun", fp)) // that fun
   //   ir = ir * fp.f_fun
@@ -147,11 +147,10 @@ void popC::infect_mix (int ii, const Parameters& p, const StateSpace& s) {
 void popC::epp_disease_model_direct(hivC& hivpop, artC& artpop,
                                     const Parameters& p, const StateSpace& s) {
   int a_l, a_r;
-  if (p.incidpopage) { // incidence for 15+ population
+  if (p.ic.incidpopage) { // incidence for 15+ population
     a_l = s.p_age15plus_idx[0] - 1;
     a_r = s.pAG_15plus;
-  }
-  else { // incidence for 15 -49 population
+  } else { // incidence for 15 -49 population
     a_l = s.p_age15to49_idx[0] - 1;
     a_r = s.pAG_1549;
   }
@@ -161,26 +160,26 @@ void popC::epp_disease_model_direct(hivC& hivpop, artC& artpop,
     n_m += active_last_year_[s.hivn_idx][s.m_idx][age];
     n_f += active_last_year_[s.hivn_idx][s.f_idx][age];
   }
-  dvec sex_inc(s.NG); 
-  sex_inc[s.m_idx] = (n_m + n_f) * p.incidinput[s.year] / 
-                   (n_m + n_f  * p.incrr_sex[s.year]);
-  sex_inc[s.f_idx] = (n_m + n_f) * p.incidinput[s.year] * p.incrr_sex[s.year] /
-                   (n_m + n_f  * p.incrr_sex[s.year]);
+  dvec sex_inc(s.NG);
+  sex_inc[s.m_idx] = (n_m + n_f) * p.ic.incidinput[s.year] / 
+                     (n_m + n_f  * p.ic.incrr_sex[s.year]);
+  sex_inc[s.f_idx] = (n_m + n_f) * p.ic.incidinput[s.year] * p.ic.incrr_sex[s.year] /
+                     (n_m + n_f  * p.ic.incrr_sex[s.year]);
   dvec ageinc(s.NG);
   for (int sex = 0; sex < s.NG; sex++) {
     double neg_sa = 0, inc_sa = 0;
     for (int age = a_l; age < a_r; age++) {
       neg_sa += active_last_year_[s.hivn_idx][sex][age];
-      inc_sa += active_last_year_[s.hivn_idx][sex][age] * p.incrr_age[s.year][sex][age];
+      inc_sa += active_last_year_[s.hivn_idx][sex][age] * p.ic.incrr_age[s.year][sex][age];
     }
     ageinc[sex] = inc_sa / neg_sa;
   }
   double new_infect = 0;
   for (int sex = 0; sex < s.NG; sex++)
     for (int age = 0; age < s.pAG; age++) {
-      new_infect = p.incrr_age[s.year][sex][age] * ( sex_inc[sex] / ageinc[sex]) *
+      new_infect = p.ic.incrr_age[s.year][sex][age] * ( sex_inc[sex] / ageinc[sex]) *
                    active_last_year_[s.hivn_idx][sex][age];
-      infections[s.year][sex][age]      = new_infect;
+      infections[s.year][sex][age]        = new_infect;
       data[s.year][s.hivn_idx][sex][age] -= new_infect;
       data[s.year][s.hivp_idx][sex][age] += new_infect;
     }
@@ -190,7 +189,7 @@ void popC::epp_disease_model_direct(hivC& hivpop, artC& artpop,
     for (int agr = 0; agr < s.hAG; agr++)
       for (int cd4 = 0; cd4 < s.hDS; cd4++)
         hivpop.data[s.year][sex][agr][cd4] +=
-          p.cd4_initdist[sex][agr][cd4] * infect_agrp[sex][agr];
+          p.nh.cd4_initdist[sex][agr][cd4] * infect_agrp[sex][agr];
   for (int sex = 0; sex < s.NG; sex++)
     for (int age = s.p_age15to49_idx[0] - 1; age < s.pAG_1549; age++)
       incid15to49[s.year] += infections[s.year][sex][age];

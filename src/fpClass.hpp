@@ -14,106 +14,134 @@
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "utils.hpp"
 #pragma once
-// Keep the same order as in R to keep track
-// 
-class fp_rt {
-public:
-  void init_me(SEXP& fp);
-  fp_rt() {};
-public:
-  double * proj_steps;
-  double   rw_start;
-  double   rw_trans;
-  double * rlogistic_steps;
-  double * rw_steps;
-  double   n_rw;
-  double   rw_dk;
-  double * rw_knots;
-  int    * rw_idx;
-  double   n_param;
-  double * rw_transition;
-};
 
-class Parameters {
+class DemogParam {
 public:
-  Parameters(SEXP& fp);
-public:
-  int         SIM_YEARS;
-  double *    proj_steps;
   boost2D_ptr basepop;
+  double *    births;
+  boost3D_ptr Sx;
+  boost3D_ptr netmigr;
   boost2D_ptr asfr;
   boost2D_ptr srb;
   boost2D_ptr birthslag;
   boost2D_ptr cumsurv;
   boost2D_ptr cumnetmigr;
-  boost2D_ptr entrantpop;
-  boost2D_ptr artmx_timerr;
-  boost2D_ptr art15plus_num;
-  boost2D_ptr art15plus_isperc;
-  boost2D_ptr entrantprev;
-  boost2D_ptr entrantartcov;
-  boost2D_ptr circ_prop;
-  boost2D_ptr mat_m;
-  boost2D_ptr mat_f;
-  boost2D_ptr db_pr;
-  boost3D_ptr Sx;
-  boost3D_ptr netmigr;
   boost3D_ptr targetpop;
-  boost3D_ptr incrr_age;
+  boost2D_ptr entrantpop;
+  const bool  flag_popadjust;
+  DemogParam(const SEXP& fp);
+};
+
+class NaturalHistoryParam {
+public:
+  boost2D_ptr artmx_timerr;
   boost3D_ptr cd4_initdist;
   boost3D_ptr cd4_prog;
   boost3D_ptr cd4_mort;
   boost3D_ptr frr_cd4;
-  boost3D_ptr paedsurv_cd4dist;
   boost4D_ptr art_mort;
   boost4D_ptr frr_art;
-  boost4D_ptr paedsurv_artcd4dist;
-  bool        popadjust;
-  double *    births;
-  double      relinfectART;
-  double *    incrr_sex;
-  double *    specpop_percelig;
-  int *       artcd4elig_idx;
-  double *    pw_artelig;
-  double      who34percelig;
-  double *    art_dropout;
-  double *    median_cd4init;
-  int *       med_cd4init_input;
-  int *       med_cd4init_cat;
-  int         tARTstart;
-  int         art_alloc_method;
-  double      art_alloc_mxweight;
-  int         scale_cd4_mort;
-  double *    verttrans_lag;
-  double *    paedsurv_lag;
-  double      netmig_hivprob;
-  double      netmighivsurv;
-  double      circ_incid_rr;
-  double      tsEpidemicStart;
-  int         eppmod;
-  double *    incidinput;
-  int         incidpopage = 0;
-  bool        ancsitedata;
-  int         ancrt;
-  bool        logitiota;
-  double      rw_start;
-  int         incidmod;
-  double *    rvec;
-  double      iota;
-  double      ancbias;
-  double      v_infl;
-  double      log_frr_adjust;
-  double      ancrtcens_vinfl;
-  double      ancrtsite_beta;
-  // rt parameters
-  fp_rt       rt;
+  NaturalHistoryParam(const SEXP& fp);
+};
+
+class ArtData {
+public:
+  boost2D_ptr art15plus_num;
+  boost2D_ptr art15plus_isperc;
+  const int    * artcd4elig_idx;  // NOTE: 1-based indexing
+  const double * specpop_percelig;
+  const double * pw_artelig;
+  const double   who34percelig;
+  const double * art_dropout;
+  const double * median_cd4init;
+  const int * med_cd4init_cat;
+  const int * med_cd4init_input;
+  const int art_alloc_method;
+  const double art_alloc_mxweight;
+  const int scale_cd4_mort;
+  ArtData(const SEXP& fp);
+};
+
+class RtrendParam {
+public:
+  const double * proj_steps;
+  const double * rw_start;
+  const double * rw_trans;
+  const double * rlogistic_steps;
+  const double * rw_steps;
+  const double * n_rw;
+  const double * rw_dk;
+  const double * rw_knots;
+  const int    * rw_idx;
+  const double * n_param;
+  const double * rw_transition;
+  RtrendParam() {};
+  void init_me(const SEXP& fp);
+};
+
+class IncidenceParam {
+public:
+  const int      eppmod; 
+  const int      incidmod;
+  boost3D_ptr    incrr_age;
+  boost2D_ptr    circ_prop;
+  boost2D_ptr    mat_m;
+  boost2D_ptr    mat_f;
+  boost2D_ptr    db_pr;
+  const double   relinfectART;
+  const double * incrr_sex;
+  double         circ_incid_rr;
+  const double * incidinput;
+  int            incidpopage;
+  double         tsEpidemicStart; //ts_epidemic_start;
+  double       * proj_steps;
+  double         iota;
+  const int    * logitiota;
+  const double * rvec;
+  double         rw_start;
+  RtrendParam    rt;
+  IncidenceParam(const SEXP& fp);
+};
+
+class PaediatricHivParam {
+public:
+  const double * verttrans_lag;
+  const double * paedsurv_lag;
+  const double   netmighivsurv;
+  const double   netmig_hivprob;
+  boost2D_ptr    entrantprev;
+  boost2D_ptr    entrantartcov;
+  boost3D_ptr    paedsurv_cd4dist;
+  boost4D_ptr    paedsurv_artcd4dist;
+  PaediatricHivParam(const SEXP& fp);
+};
+
+class AncParam {
+public:
+  const int    * ancsitedata;
+  const int    * ancrt;
+  const double * ancbias;
+  const double * v_infl;
+  const double * ancrtcens_vinfl;
+  const double * ancrtsite_beta;
+  const double * log_frr_adjust;
+  AncParam(const SEXP& fp);
+};
+
+class Parameters {
+public:
+  DemogParam          dm;
+  NaturalHistoryParam nh;
+  ArtData             ad;
+  IncidenceParam      ic;
+  PaediatricHivParam  ph;
+  Parameters(const SEXP& fp);
 };
 
 // Master parameters class
 class StateSpace {
 public:
-  StateSpace(SEXP& fp);
-public:
+  int          SIM_YEARS;
   int          year = 1; // simulation year
   int          MODEL;
   bool         MIX;
@@ -122,7 +150,7 @@ public:
   int          PROJ_YEARS;
   int          AGE_START;
   int          hiv_steps_per_year;
-  double       time_epi_start;
+  // double       time_epi_start;
   int          NG;
   int          pDS;
   int          m_idx;
@@ -148,6 +176,8 @@ public:
   int          pDB;
   int          hDB;
   int          n_steps;
+  int          tARTstart;
   // 
   int pAG_FERT, hAG_FERT, pAG_1549, hAG_1549, pAG_15plus, hAG_15plus;
+  StateSpace(const SEXP& fp);
 };

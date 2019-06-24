@@ -10,7 +10,7 @@ SEXP get_value(SEXP list, const char *str) {
     }
   }
   if ( out == R_NilValue )
-    Rf_warning("%s missing from list, check ?prepare_fp_for_Cpp", str);
+    Rf_warning("%s is NULL, check ?prepare_fp_for_Cpp", str);
   return out;
 }
 

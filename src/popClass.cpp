@@ -3,13 +3,13 @@
 void popC::initiate (const Parameters& p, const StateSpace& s) {
   for (int sex = 0; sex < s.NG; sex++)
     for (int age = 0; age < s.pAG; age++)
-      data[0][s.hivn_idx][sex][age] = p.basepop[sex][age];
+      data[0][s.hivn_idx][sex][age] = p.dm.basepop[sex][age];
 
-  birthslag = p.birthslag;
+  birthslag = p.dm.birthslag;
 
-  if (p.eppmod == 0)
+  if (p.ic.eppmod == 0)
     for (int i = 0; i < s.n_steps; ++i)
-      rvec[i] = p.rvec[i];
+      rvec[i] = p.ic.rvec[i];
 }
 
 void popC::update_active_pop_to (int when, const StateSpace& s) {
@@ -45,28 +45,28 @@ void popC::aging (const StateSpace& s) { // open ended
 void popC::add_entrants (const Parameters& p, const StateSpace& s) { // Add lagged births into youngest age group
   double healthy[2], positiv[2];
   // if (exists("popadjust", where=p) & p.popadjust) {
-  if (p.popadjust) {
+  if (p.dm.flag_popadjust) {
     if (s.MODEL==0) {
       for (int sex = 0; sex < s.NG; ++sex)
-        healthy[sex] = p.entrantpop[s.year-1][sex];
+        healthy[sex] = p.dm.entrantpop[s.year-1][sex];
     } else {
       for (int sex = 0; sex < s.NG; ++sex) {
-        healthy[sex] = p.entrantpop[s.year-1][sex] * (1-p.entrantprev[s.year][sex]);
-        positiv[sex] = p.entrantpop[s.year-1][sex] *    p.entrantprev[s.year][sex];
+        healthy[sex] = p.dm.entrantpop[s.year-1][sex] * (1-p.ph.entrantprev[s.year][sex]);
+        positiv[sex] = p.dm.entrantpop[s.year-1][sex] *    p.ph.entrantprev[s.year][sex];
       }
     }
   } else {
     if (s.MODEL==0) {
       for (int sex = 0; sex < s.NG; ++sex)
-        healthy[sex] = birthslag[s.year-1][sex] * p.cumsurv[s.year-1][sex] / 
-                       p.paedsurv_lag[s.year-1] + p.cumnetmigr[s.year-1][sex];
+        healthy[sex] = birthslag[s.year-1][sex] * p.dm.cumsurv[s.year-1][sex] / 
+                       p.ph.paedsurv_lag[s.year-1] + p.dm.cumnetmigr[s.year-1][sex];
     } else {
       for (int sex = 0; sex < s.NG; ++sex) {
-        healthy[sex] = birthslag[s.year-1][sex] * p.cumsurv[s.year-1][sex] * 
-          (1 - p.entrantprev[s.year][sex] / p.paedsurv_lag[s.year-1]) +
-          p.cumnetmigr[s.year-1][sex] * (1 - pregprevlag[s.year-1] * p.netmig_hivprob);
-        positiv[sex] = (birthslag[s.year-1][sex] * p.cumsurv[s.year-1][sex] + 
-          p.cumnetmigr[s.year-1][sex]) * p.entrantprev[s.year][sex];
+        healthy[sex] = birthslag[s.year-1][sex] * p.dm.cumsurv[s.year-1][sex] * 
+          (1 - p.ph.entrantprev[s.year][sex] / p.ph.paedsurv_lag[s.year-1]) +
+          p.dm.cumnetmigr[s.year-1][sex] * (1 - pregprevlag[s.year-1] * p.ph.netmig_hivprob);
+        positiv[sex] = (birthslag[s.year-1][sex] * p.dm.cumsurv[s.year-1][sex] + 
+          p.dm.cumnetmigr[s.year-1][sex]) * p.ph.entrantprev[s.year][sex];
       }
     }
   }
@@ -79,8 +79,8 @@ void popC::add_entrants (const Parameters& p, const StateSpace& s) { // Add lagg
       sum_p += positiv[sex]; sum_h += healthy[sex];
       hivp_entrants_out[s.year][sex] = positiv[sex];
       // 1:2 ART+, 3:4 ART-
-      entrant_art_[sex]   = positiv[sex] *      p.entrantartcov[s.year][sex];
-      entrant_art_[sex+2] = positiv[sex] * (1 - p.entrantartcov[s.year][sex]);
+      entrant_art_[sex]   = positiv[sex] *      p.ph.entrantartcov[s.year][sex];
+      entrant_art_[sex+2] = positiv[sex] * (1 - p.ph.entrantartcov[s.year][sex]);
     }
     if (s.MODEL==2) { // add to virgin to record
       data_db[s.year][s.hivn_idx][sex][0] = healthy[sex];
@@ -96,7 +96,7 @@ void popC::sexual_debut (const Parameters& p, const StateSpace& s) {
   for (int ds = 0; ds < s.pDS; ds++)
     for (int sex = 0; sex < s.NG; sex++)
       for (int age = 0; age < s.pDB; age++)
-        data_db[s.year][ds][sex][age] *= (1 - p.db_pr[sex][age]);
+        data_db[s.year][ds][sex][age] *= (1 - p.ic.db_pr[sex][age]);
 }
 
 void popC::update_hiv_aging_prob (const StateSpace& s) {
@@ -130,10 +130,10 @@ void popC::deaths (const Parameters& p, const StateSpace& s) {
     for (int sex = 0; sex < s.NG; sex++)
       for (int age = 0; age < s.pAG; age++) {
         num_death_[ds][sex][age] =
-          data[s.year][ds][sex][age] * (1 - p.Sx[s.year][sex][age]);
-        data[s.year][ds][sex][age] *= p.Sx[s.year][sex][age];
+          data[s.year][ds][sex][age] * (1 - p.dm.Sx[s.year][sex][age]);
+        data[s.year][ds][sex][age] *= p.dm.Sx[s.year][sex][age];
         if (s.MODEL == 2 && age < s.pDB)
-          data_db[s.year][ds][sex][age] *= p.Sx[s.year][sex][age];
+          data_db[s.year][ds][sex][age] *= p.dm.Sx[s.year][sex][age];
       }
   // calculate survival prob for hivpop and artpop
   zeroing(death_by_agrp_);
@@ -160,7 +160,7 @@ void popC::migration (const Parameters& p, const StateSpace& s) {
   for (int sex = 0; sex < s.NG; ++sex)
     for (int age = 0; age < s.pAG; ++age) {
       double netmigsurv =
-        p.netmigr[s.year][sex][age] * (1 + p.Sx[s.year][sex][age]) / 2;
+        p.dm.netmigr[s.year][sex][age] * (1 + p.dm.Sx[s.year][sex][age]) / 2;
       migrate_prob_[sex][age] = 1 + netmigsurv /
         ( data[s.year][s.hivn_idx][sex][age] + data[s.year][s.hivp_idx][sex][age] );
       num_migrate_[sex][age] =
@@ -206,19 +206,19 @@ void popC::update_fertile (const Parameters& p, const StateSpace& s) { // only o
       ((data_active[s.hivp_idx][s.f_idx][age] + data_active[s.hivn_idx][s.f_idx][age] +
         active_last_year_[s.hivp_idx][s.f_idx][age] +
         active_last_year_[s.hivn_idx][s.f_idx][age]) /
-      2) * p.asfr[s.year][age];
+      2) * p.dm.asfr[s.year][age];
   ivec sub_id(s.ag_idx.begin() + s.p_fert_idx[0] - 1, s.ag_idx.begin() + s.pAG_FERT);
   birth_agrp = sumByAG(birth_age, sub_id, s.hAG_FERT);
   double n_births = sum_vector(birth_agrp);
   if ( (s.year + s.AGE_START) <= (s.PROJ_YEARS - 1) )
     for (int sex = 0; sex < s.NG; ++sex)
-      birthslag[s.year + s.AGE_START - 1][sex] = p.srb[s.year][sex] * n_births;
+      birthslag[s.year + s.AGE_START - 1][sex] = p.dm.srb[s.year][sex] * n_births;
 }
 
 void popC::adjust_pop (const Parameters& p, const StateSpace& s) {
   for (int sex = 0; sex < s.NG; sex++)
     for (int age = 0; age < s.pAG; age++)
-      popadjust[s.year][sex][age] = p.targetpop[s.year][sex][age] / 
+      popadjust[s.year][sex][age] = p.dm.targetpop[s.year][sex][age] / 
         ( data[s.year][s.hivn_idx][sex][age] + data[s.year][s.hivp_idx][sex][age] );
   if (s.MODEL!=0) {  // calculate asjust prob for hiv and art pops
     for (int sex = 0; sex < s.NG; sex++)
@@ -274,12 +274,12 @@ void popC::cal_prev_pregant (const hivC& hivpop, const artC& artpop,
     for (int cd4 = 0; cd4 < s.hDS; ++cd4) {
       frp += (hivpop.data[s.year-1][s.f_idx][agr][cd4] +
               hivpop.data[s.year  ][s.f_idx][agr][cd4] ) / 2 * 
-              p.frr_cd4[s.year][agr][cd4];
-      if (s.year >= p.tARTstart - 1)
+              p.nh.frr_cd4[s.year][agr][cd4];
+      if (s.year >= s.tARTstart - 1)
         for (int dur = 0; dur < s.hTS; dur++)
           fra += (artpop.data[s.year-1][s.f_idx][agr][cd4][dur] +
                   artpop.data[s.year  ][s.f_idx][agr][cd4][dur]) / 2 *
-                  p.frr_art[s.year][agr][cd4][dur];
+                  p.nh.frr_art[s.year][agr][cd4][dur];
     }
     frap += birth_agrp[agr] * (1 - hivn[agr] / (hivn[agr] + frp + fra));
   }
@@ -337,7 +337,7 @@ double popC::calc_rtrend_rt (int ts, double time_step, const StateSpace& s) {
 void popC::update_rvec (double time_step, const Parameters& p, const StateSpace& s) {
   int ts = (s.year-1) / s.DT + time_step;
   // if (p.eppmod %in% c("rtrend", "rtrend_rw")) <<- need to be fixed in FP
-  if (p.eppmod == 1) // rtrend see prepare_fp_for_Cpp
+  if (p.ic.eppmod == 1) // rtrend see prepare_fp_for_Cpp
     rvec[ts] = calc_rtrend_rt(ts, time_step, s);
 }
 
@@ -363,7 +363,7 @@ void popC::remove_hiv_death (const hivC& hivpop, const artC& artpop,
         hivD += hivpop.death_[sex][agr][cd4];
         if (s.MODEL==2) // add hiv deaths from inactive population
           hivD += hivpop.death_db_[sex][agr][cd4];
-        if (s.year >= p.tARTstart - 1) {
+        if (s.year >= s.tARTstart - 1) {
           for (int dur = 0; dur < s.hTS; dur++) {
             artD += artpop.death_[sex][agr][cd4][dur];
             if (s.MODEL==2) // add art deaths from inactive population
@@ -416,14 +416,14 @@ void popC::update_preg (const hivC& hivpop, const artC& artpop,
     for (int cd4 = 0; cd4 < s.hDS; cd4++) {
       for (int dur = 0; dur < s.hTS; dur++)
         all_art[agr] += artpop.data[s.year][s.f_idx][agr][cd4][dur] * 
-          p.frr_art[s.year][agr][cd4][dur];
+          p.nh.frr_art[s.year][agr][cd4][dur];
       all_art[agr] +=
-        hivpop.data[s.year][s.f_idx][agr][cd4] * p.frr_cd4[s.year][agr][cd4];
+        hivpop.data[s.year][s.f_idx][agr][cd4] * p.nh.frr_cd4[s.year][agr][cd4];
     }
   for (int agr = h_lo; agr < s.hAG_FERT; agr++)
-    for (int cd4 = 0; cd4 < (p.artcd4elig_idx[s.year] - 1); cd4++)
+    for (int cd4 = 0; cd4 < (p.ad.artcd4elig_idx[s.year] - 1); cd4++)
       art_elig_[s.f_idx][agr][cd4] += 
-        hivpop.data[s.year][s.f_idx][agr][cd4] * p.frr_cd4[s.year][agr][cd4] *
+        hivpop.data[s.year][s.f_idx][agr][cd4] * p.nh.frr_cd4[s.year][agr][cd4] *
           (birth_agrp[agr] / (hivn[agr] + all_art[agr]));
 }
 
@@ -434,31 +434,31 @@ dvec popC::art_initiate (const dvec& art_curr, int time_step,
   double trans = s.DT * (time_step + 1) + 0.5 - year_w;
   int year_l = s.year - (2 - year_w), year_r = s.year - (1 - year_w);
   for (int sex = 0; sex < s.NG; ++sex) {
-    if( (p.art15plus_isperc[year_l][sex] == 0) & 
-        (p.art15plus_isperc[year_r][sex] == 0) ) { // both number
-      out[sex] = p.art15plus_num[year_l][sex] * (1 - trans) + 
-                 p.art15plus_num[year_r][sex] *      trans;
+    if( (p.ad.art15plus_isperc[year_l][sex] == 0) & 
+        (p.ad.art15plus_isperc[year_r][sex] == 0) ) { // both number
+      out[sex] = p.ad.art15plus_num[year_l][sex] * (1 - trans) + 
+                 p.ad.art15plus_num[year_r][sex] *      trans;
       if (s.MIX) {
         boost2D art_elig_sex = art_elig_[ indices[sex][_all][_all] ];
         double cov = out[sex] / (sumArray(art_elig_sex) + art_curr[sex]);
         artcov[sex] = (cov <= 1) ? cov : 1;
       }
     } 
-    else if ( (p.art15plus_isperc[year_l][sex] == 1) &
-              (p.art15plus_isperc[year_r][sex] == 1) ) { // both percentage
-      double cov = p.art15plus_num[year_l][sex] * (1 - trans) +
-                   p.art15plus_num[year_r][sex] *      trans;
+    else if ( (p.ad.art15plus_isperc[year_l][sex] == 1) &
+              (p.ad.art15plus_isperc[year_r][sex] == 1) ) { // both percentage
+      double cov = p.ad.art15plus_num[year_l][sex] * (1 - trans) +
+                   p.ad.art15plus_num[year_r][sex] *      trans;
       if (s.MIX)
         artcov[sex] = (cov <= 1) ? cov : 1;
       boost2D art_elig_sex = art_elig_[ indices[sex][_all][_all] ];
       out[sex] = cov * (sumArray(art_elig_sex) + art_curr[sex]);
     }
-    else if ( (p.art15plus_isperc[year_l][sex] == 0) & 
-              (p.art15plus_isperc[year_r][sex] == 1) ) { // transition number to percentage
+    else if ( (p.ad.art15plus_isperc[year_l][sex] == 0) & 
+              (p.ad.art15plus_isperc[year_r][sex] == 1) ) { // transition number to percentage
       boost2D art_elig_sex = art_elig_[ indices[sex][_all][_all] ];
       double actual_cov =
         art_curr[sex] / (sumArray(art_elig_sex) + art_curr[sex]);
-      double diff_cov = p.art15plus_num[year_r][sex] - actual_cov;
+      double diff_cov = p.ad.art15plus_num[year_r][sex] - actual_cov;
       double cov = actual_cov + diff_cov * s.DT / (0.5 + year_w - s.DT * time_step);
       if (s.MIX)
         artcov[sex] = (cov < 1) ? cov : 1;

@@ -7,7 +7,9 @@ class hivC;
 class outputSEXP { // outputs for R
 public:
   outputSEXP(StateSpace& s) {
-    pop           = PROTECT(NEW_NUMERIC(s.pAG * s.NG * s.pDS * s.PROJ_YEARS)); ++np;
+    pop = PROTECT(NEW_NUMERIC(s.pAG * s.NG * s.pDS * s.PROJ_YEARS)); ++np;
+    memset(REAL(pop), 0, s.pAG * s.NG * s.pDS * s.PROJ_YEARS * sizeof(double));
+
     prev15to49    = PROTECT(NEW_NUMERIC(s.PROJ_YEARS)); ++np;
     incid15to49   = PROTECT(NEW_NUMERIC(s.PROJ_YEARS)); ++np;
     entrantprev   = PROTECT(NEW_NUMERIC(s.PROJ_YEARS)); ++np;
@@ -19,21 +21,23 @@ public:
     hivdeaths     = PROTECT(NEW_NUMERIC(s.pAG * s.NG * s.PROJ_YEARS)); ++np;
     natdeaths     = PROTECT(NEW_NUMERIC(s.pAG * s.NG * s.PROJ_YEARS)); ++np;
     popadjust     = PROTECT(NEW_NUMERIC(s.pAG * s.NG * s.PROJ_YEARS)); ++np;
-    data_db       = PROTECT(NEW_NUMERIC(s.pDB * s.NG * s.pDS * s.PROJ_YEARS)); ++np;
 
-    memset(REAL(pop          ), 0, s.pAG * s.NG * s.pDS * s.PROJ_YEARS * sizeof(double));
-    memset(REAL(prev15to49   ), 0, s.PROJ_YEARS                  * sizeof(double));
-    memset(REAL(incid15to49  ), 0, s.PROJ_YEARS                  * sizeof(double));
-    memset(REAL(pregprevlag  ), 0, s.PROJ_YEARS                  * sizeof(double));
-    memset(REAL(entrantprev  ), 0, s.PROJ_YEARS                  * sizeof(double));
-    memset(REAL(inci15to49_ts), 0, s.n_steps                     * sizeof(double));
-    memset(REAL(prev15to49_ts), 0, s.n_steps                     * sizeof(double));
-    memset(REAL(rvec         ), 0, s.n_steps                     * sizeof(double));
-    memset(REAL(infections   ), 0, s.pAG * s.NG * s.PROJ_YEARS       * sizeof(double));
-    memset(REAL(hivdeaths    ), 0, s.pAG * s.NG * s.PROJ_YEARS       * sizeof(double));
-    memset(REAL(natdeaths    ), 0, s.pAG * s.NG * s.PROJ_YEARS       * sizeof(double));
-    memset(REAL(popadjust    ), 0, s.pAG * s.NG * s.PROJ_YEARS       * sizeof(double));
-    memset(REAL(data_db      ), 0, s.pDB * s.NG * s.pDS * s.PROJ_YEARS * sizeof(double));
+    memset(REAL(prev15to49   ), 0, s.PROJ_YEARS * sizeof(double));
+    memset(REAL(incid15to49  ), 0, s.PROJ_YEARS * sizeof(double));
+    memset(REAL(pregprevlag  ), 0, s.PROJ_YEARS * sizeof(double));
+    memset(REAL(entrantprev  ), 0, s.PROJ_YEARS * sizeof(double));
+    
+    memset(REAL(inci15to49_ts), 0, s.n_steps    * sizeof(double));
+    memset(REAL(prev15to49_ts), 0, s.n_steps    * sizeof(double));
+    memset(REAL(rvec         ), 0, s.n_steps    * sizeof(double));
+
+    memset(REAL(infections), 0, s.pAG * s.NG * s.PROJ_YEARS * sizeof(double));
+    memset(REAL(hivdeaths ), 0, s.pAG * s.NG * s.PROJ_YEARS * sizeof(double));
+    memset(REAL(natdeaths ), 0, s.pAG * s.NG * s.PROJ_YEARS * sizeof(double));
+    memset(REAL(popadjust ), 0, s.pAG * s.NG * s.PROJ_YEARS * sizeof(double));
+    
+    data_db = PROTECT(NEW_NUMERIC(s.pDB * s.NG * s.pDS * s.PROJ_YEARS)); ++np;
+    memset(REAL(data_db), 0, s.pDB * s.NG * s.pDS * s.PROJ_YEARS * sizeof(double));
     
     hivpop = PROTECT(NEW_NUMERIC(s.hDS * s.hAG * s.NG * s.PROJ_YEARS)); ++np;
     memset(REAL(hivpop), 0, s.hDS * s.hAG * s.NG * s.PROJ_YEARS * sizeof(double));
@@ -105,7 +109,7 @@ public: // Pop inits
   {
 // Non class init
     if (s.MODEL == 2 && s.pDB == 1)
-      Rf_warning("Debut model state-space not exist, see update_fp_debut()");
+      Rf_error("Debut model state-space not exist, see update_fp_debut()");
   }
 // Pop methods 
   void initiate(const Parameters& p, const StateSpace& s);

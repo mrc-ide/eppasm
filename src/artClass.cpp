@@ -30,7 +30,7 @@ void artC::add_entrants(const dvec& artYesNo, const Parameters& p, const StateSp
   for (int sex = 0; sex < s.NG; sex++)
     for (int cd4 = 0; cd4 < s.hDS; cd4++)
       for (int dur = 0; dur < s.hTS; dur++) {
-        double add = p.paedsurv_artcd4dist[s.year][sex][cd4][dur] * artYesNo[sex];
+        double add = p.ph.paedsurv_artcd4dist[s.year][sex][cd4][dur] * artYesNo[sex];
         if (s.MODEL == 1)
           data[s.year][sex][0][cd4][dur] += add;
         if (s.MODEL == 2) // add to virgin then debut
@@ -43,7 +43,7 @@ void artC::sexual_debut(const Parameters& p, const StateSpace& s) {
     for (int agr = 0; agr < s.hDB; agr++)
       for (int cd4 = 0; cd4 < s.hDS; cd4++)
         for (int dur = 0; dur < s.hTS; dur++) {
-          double n_db = data_db[s.year][sex][agr][cd4][dur] * p.db_pr[sex][agr];
+          double n_db = data_db[s.year][sex][agr][cd4][dur] * p.ic.db_pr[sex][agr];
           data[s.year][sex][agr][cd4][dur]    += n_db;
           data_db[s.year][sex][agr][cd4][dur] -= n_db;
         }
@@ -101,11 +101,11 @@ void artC::art_dropout(hivC& hivpop, const Parameters& p, const StateSpace& s) {
     for (int agr = 0; agr < s.hAG; agr++)
       for (int cd4 = 0; cd4 < s.hDS; cd4++)
         for (int dur = 0; dur < s.hTS; dur++) {
-          n_dropout = data[s.year][sex][agr][cd4][dur] * p.art_dropout[s.year];
+          n_dropout = data[s.year][sex][agr][cd4][dur] * p.ad.art_dropout[s.year];
           hivpop.grad[sex][agr][cd4]  += n_dropout;
           gradART[sex][agr][cd4][dur] -= n_dropout;
           if (s.MODEL == 2 && agr < s.hDB) {
-            n_dropout = data_db[s.year][sex][agr][cd4][dur] * p.art_dropout[s.year];
+            n_dropout = data_db[s.year][sex][agr][cd4][dur] * p.ad.art_dropout[s.year];
             hivpop.grad_db[sex][agr][cd4]  += n_dropout;
             gradART_db[sex][agr][cd4][dur] -= n_dropout;
           }
@@ -164,9 +164,11 @@ void artC::count_death(const Parameters& p, const StateSpace& s) {
     for (int agr = 0; agr < s.hAG; agr++)
       for (int cd4 = 0; cd4 < s.hDS; cd4++)
         for (int dur = 0; dur < s.hTS; dur++) {
-          double x = p.art_mort[sex][agr][cd4][dur] * p.artmx_timerr[s.year][dur];
+          double x = p.nh.art_mort[sex][agr][cd4][dur] *
+                     p.nh.artmx_timerr[s.year][dur];
           death_[sex][agr][cd4][dur] = data[s.year][sex][agr][cd4][dur] * x;
           if (s.MODEL == 2 && agr < s.hDB)
-            death_db_[sex][agr][cd4][dur] = data_db[s.year][sex][agr][cd4][dur] * x;
+            death_db_[sex][agr][cd4][dur] =
+              data_db[s.year][sex][agr][cd4][dur] * x;
         }
 }

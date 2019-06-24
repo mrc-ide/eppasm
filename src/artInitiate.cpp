@@ -13,7 +13,7 @@ void popC::epp_art_init (hivC& hivpop, artC& artpop, int time_step,
       for (int cd4 = 0; cd4 < s.hDS; cd4++)
         art_elig_[sex][agr][cd4] =
           hivpop.data[s.year][sex][agr][cd4] * eligible[cd4];
-  if ( (p.pw_artelig[s.year] == 1) && (p.artcd4elig_idx[s.year] > 1) )
+  if ( (p.ad.pw_artelig[s.year] == 1) && (p.ad.artcd4elig_idx[s.year] > 1) )
     update_preg(hivpop, artpop, p, s); // add pregnant?
   if (s.MODEL == 2) // add sexual inactive but eligible for treatment
     for (int sex = 0; sex < s.NG; sex++)

@@ -462,7 +462,7 @@ infect_spec = function(hivpop, artpop, time_step) {
 epp_disease_model_direct = function(hivpop, artpop) {
   if (p$incidpopage) 
     age_id <- p.age15plus.idx # incidence for 15+ population
-  else 
+  else
     age_id <- p.age15to49.idx # incidence for 15 -49 population
   update_active_pop_to(year-1)
   num <- c(1, p$incrr_sex[year]) * sum(data_active[age_id,, hivn.idx])

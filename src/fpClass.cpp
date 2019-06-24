@@ -1,138 +1,131 @@
 #include "fpClass.hpp"
 
-void fp_rt::init_me(SEXP& fp) {
+Parameters::Parameters(const SEXP& fp) :
+  dm(fp), // DemogParam 
+  nh(fp), // NaturalHistoryParam
+  ad(fp), // ArtData
+  ic(fp), // IncidenceParam
+  ph(fp) // PaediatricHivParam
+  {}
+
+DemogParam::DemogParam(const SEXP& fp) :
+  basepop   (REAL(get_value(fp, "basepop")), get_dim_2D(fp, "basepop")),
+  births    (REAL(get_value(fp, "births"))),
+  Sx        (REAL(get_value(fp, "Sx")), get_dim_3D(fp, "Sx")),
+  netmigr   (REAL(get_value(fp, "netmigr")), get_dim_3D(fp, "netmigr")),
+  asfr      (REAL(get_value(fp, "asfr")), get_dim_2D(fp, "asfr")),
+  srb       (REAL(get_value(fp, "srb")), get_dim_2D(fp, "srb")),
+  birthslag (REAL(get_value(fp, "birthslag")), get_dim_2D(fp, "birthslag")),
+  cumsurv   (REAL(get_value(fp, "cumsurv")), get_dim_2D(fp, "cumsurv")),
+  cumnetmigr(REAL(get_value(fp, "cumnetmigr")), get_dim_2D(fp, "cumnetmigr")),
+  targetpop (REAL(get_value(fp, "targetpop")), get_dim_3D(fp, "targetpop")),
+  entrantpop(REAL(get_value(fp, "entrantpop")), get_dim_2D(fp, "entrantpop")),
+  flag_popadjust (*LOGICAL(get_value(fp, "popadjust")))
+  {}
+
+NaturalHistoryParam::NaturalHistoryParam(const SEXP& fp) :
+  artmx_timerr(REAL(get_value(fp, "artmx_timerr")), get_dim_2D(fp, "artmx_timerr")),
+  cd4_initdist(REAL(get_value(fp, "cd4_initdist")), get_dim_3D(fp, "cd4_initdist")),
+  cd4_prog    (REAL(get_value(fp, "cd4_prog")), get_dim_3D(fp, "cd4_prog")),
+  cd4_mort    (REAL(get_value(fp, "cd4_mort")), get_dim_3D(fp, "cd4_mort")),
+  frr_cd4     (REAL(get_value(fp, "frr_cd4")), get_dim_3D(fp, "frr_cd4")),
+  art_mort    (REAL(get_value(fp, "art_mort")), get_dim_4D(fp, "art_mort")),
+  frr_art     (REAL(get_value(fp, "frr_art")), get_dim_4D(fp, "frr_art"))
+  {}
+
+ArtData::ArtData(const SEXP& fp) :
+  art15plus_num      (REAL(get_value(fp, "art15plus_num")),
+                      get_dim_2D(fp, "art15plus_num")),
+  art15plus_isperc   (REAL(get_value(fp, "art15plus_isperc")),
+                      get_dim_2D(fp, "art15plus_isperc")),
+  artcd4elig_idx     (INTEGER(get_value(fp, "artcd4elig_idx"))),
+  specpop_percelig   (REAL(get_value(fp, "specpop_percelig"))),
+  pw_artelig         (REAL(get_value(fp, "pw_artelig"))),
+  who34percelig      (*REAL(get_value(fp, "who34percelig"))),
+  art_dropout        (REAL(get_value(fp, "art_dropout"))),
+  median_cd4init     (REAL(get_value(fp, "median_cd4init"))),
+  med_cd4init_cat    (INTEGER(get_value(fp, "med_cd4init_cat"))),
+  med_cd4init_input  (INTEGER(get_value(fp, "med_cd4init_input"))),
+  art_alloc_method   (*INTEGER(get_value(fp, "art_alloc_method"))),
+  art_alloc_mxweight (*REAL(get_value(fp, "art_alloc_mxweight"))),
+  scale_cd4_mort     (*INTEGER(get_value(fp, "scale_cd4_mort")))
+  {}
+
+void RtrendParam::init_me(const SEXP& fp) {
   SEXP fp_rt      = get_value(fp, "rt");
   proj_steps      = REAL(get_value(fp_rt, "proj_steps"));
-  rw_start        = *REAL(get_value(fp_rt, "rw_start"));
-  rw_trans        = *REAL(get_value(fp_rt, "rw_trans"));
+  rw_start        = REAL(get_value(fp_rt, "rw_start"));
+  rw_trans        = REAL(get_value(fp_rt, "rw_trans"));
   rlogistic_steps = REAL(get_value(fp_rt, "rlogistic_steps"));
   rw_steps        = REAL(get_value(fp_rt, "rw_steps"));
-  n_rw            = *REAL(get_value(fp_rt, "n_rw"));
-  rw_dk           = *REAL(get_value(fp_rt, "rw_dk"));
+  n_rw            = REAL(get_value(fp_rt, "n_rw"));
+  rw_dk           = REAL(get_value(fp_rt, "rw_dk"));
   rw_knots        = REAL(get_value(fp_rt, "rw_knots"));
   rw_idx          = INTEGER(get_value(fp_rt, "rw_idx"));
-  n_param         = *REAL(get_value(fp_rt, "n_param"));
+  n_param         = REAL(get_value(fp_rt, "n_param"));
   rw_transition   = REAL(get_value(fp_rt, "rw_transition"));
 }
 
-Parameters::Parameters(SEXP& fp) :
-// init list for boost array class
-  basepop             (REAL(get_value(fp, "basepop")),
-                           get_dim_2D(fp, "basepop")),
-  asfr                (REAL(get_value(fp, "asfr")),
-                           get_dim_2D(fp, "asfr")),
-  srb                 (REAL(get_value(fp, "srb")),
-                           get_dim_2D(fp, "srb")),
-  birthslag           (REAL(get_value(fp, "birthslag")),
-                           get_dim_2D(fp, "birthslag")),
-  cumsurv             (REAL(get_value(fp, "cumsurv")),
-                           get_dim_2D(fp, "cumsurv")),
-  cumnetmigr          (REAL(get_value(fp, "cumnetmigr")),
-                           get_dim_2D(fp, "cumnetmigr")),
-  entrantpop          (REAL(get_value(fp, "entrantpop")),
-                           get_dim_2D(fp, "entrantpop")),
-  artmx_timerr        (REAL(get_value(fp, "artmx_timerr")),
-                           get_dim_2D(fp, "artmx_timerr")),
-  art15plus_num       (REAL(get_value(fp, "art15plus_num")),
-                           get_dim_2D(fp, "art15plus_num")),
-  art15plus_isperc    (REAL(get_value(fp, "art15plus_isperc")),
-                           get_dim_2D(fp, "art15plus_isperc")),
-  entrantprev         (REAL(get_value(fp, "entrantprev")),
-                           get_dim_2D(fp, "entrantprev")),
-  entrantartcov       (REAL(get_value(fp, "entrantartcov")),
-                           get_dim_2D(fp, "entrantartcov")),
-  circ_prop           (REAL(get_value(fp, "circ_prop")),
-                           get_dim_2D(fp, "circ_prop")),
-  mat_m               (REAL(get_value(fp, "mat_m")),
-                           get_dim_2D(fp, "mat_m")),
-  mat_f               (REAL(get_value(fp, "mat_f")),
-                           get_dim_2D(fp, "mat_f")),
-  db_pr               (REAL(get_value(fp, "db_pr")),
-                           get_dim_2D(fp, "db_pr")),
-  Sx                  (REAL(get_value(fp, "Sx")),
-                           get_dim_3D(fp, "Sx")),
-  netmigr             (REAL(get_value(fp, "netmigr")),
-                           get_dim_3D(fp, "netmigr")),
-  targetpop           (REAL(get_value(fp, "targetpop")),
-                           get_dim_3D(fp, "targetpop")),
-  incrr_age           (REAL(get_value(fp, "incrr_age")),
-                           get_dim_3D(fp, "incrr_age")),
-  cd4_initdist        (REAL(get_value(fp, "cd4_initdist")),
-                           get_dim_3D(fp, "cd4_initdist")),
-  cd4_prog            (REAL(get_value(fp, "cd4_prog")),
-                           get_dim_3D(fp, "cd4_prog")),
-  cd4_mort            (REAL(get_value(fp, "cd4_mort")),
-                           get_dim_3D(fp, "cd4_mort")),
-  frr_cd4             (REAL(get_value(fp, "frr_cd4")),
-                           get_dim_3D(fp, "frr_cd4")),
-  paedsurv_cd4dist    (REAL(get_value(fp, "paedsurv_cd4dist")),
-                           get_dim_3D(fp, "paedsurv_cd4dist")),
-  art_mort            (REAL(get_value(fp, "art_mort")),
-                           get_dim_4D(fp, "art_mort")),
-  frr_art             (REAL(get_value(fp, "frr_art")),
-                           get_dim_4D(fp, "frr_art")),
-  paedsurv_artcd4dist (REAL(get_value(fp, "paedsurv_artcd4dist")),
-                           get_dim_4D(fp, "paedsurv_artcd4dist"))
+IncidenceParam::IncidenceParam(const SEXP& fp) :
+    eppmod    (*INTEGER(get_value(fp, "eppmodInt"))),
+    incidmod  (*INTEGER(get_value(fp, "incidmodInt"))),
+    incrr_age (REAL(get_value(fp, "incrr_age")), get_dim_3D(fp, "incrr_age")),
+    circ_prop (REAL(get_value(fp, "circ_prop")), get_dim_2D(fp, "circ_prop")),
+    mat_m     (REAL(get_value(fp, "mat_m")), get_dim_2D(fp, "mat_m")),
+    mat_f     (REAL(get_value(fp, "mat_f")), get_dim_2D(fp, "mat_f")),
+    db_pr     (REAL(get_value(fp, "db_pr")), get_dim_2D(fp, "db_pr")),
+    relinfectART(*REAL(get_value(fp, "relinfectART"))),
+    incrr_sex(REAL(get_value(fp, "incrr_sex"))),
+    circ_incid_rr(*REAL(get_value(fp, "circ_incid_rr")))
   {
-// Non class init
-    SIM_YEARS          = *INTEGER(get_value(fp, "SIM_YEARS"));
-    proj_steps         = REAL(get_value(fp, "proj_steps"));
-    popadjust          = *LOGICAL(get_value(fp, "popadjust"));
-    births             = REAL(get_value(fp, "births"));
-    relinfectART       = *REAL(get_value(fp, "relinfectART"));
-    incrr_sex          = REAL(get_value(fp, "incrr_sex"));         
-    specpop_percelig   = REAL(get_value(fp, "specpop_percelig"));         
-    artcd4elig_idx     = INTEGER(get_value(fp, "artcd4elig_idx"));         
-    pw_artelig         = REAL(get_value(fp, "pw_artelig"));         
-    who34percelig      = *REAL(get_value(fp, "who34percelig"));      
-    art_dropout        = REAL(get_value(fp, "art_dropout"));         
-    median_cd4init     = REAL(get_value(fp, "median_cd4init"));         
-    med_cd4init_input  = INTEGER(get_value(fp, "med_cd4init_input"));
-    med_cd4init_cat    = INTEGER(get_value(fp, "med_cd4init_cat"));
-    tARTstart          = *INTEGER(get_value(fp, "tARTstart"));
-    art_alloc_method   = *INTEGER(get_value(fp, "art_alloc_method"));
-    art_alloc_mxweight = *REAL(get_value(fp, "art_alloc_mxweight"));
-    scale_cd4_mort     = *INTEGER(get_value(fp, "scale_cd4_mort"));
-    verttrans_lag      = REAL(get_value(fp, "verttrans_lag"));
-    paedsurv_lag       = REAL(get_value(fp, "paedsurv_lag"));
-    netmig_hivprob     = *REAL(get_value(fp, "netmig_hivprob"));
-    netmighivsurv      = *REAL(get_value(fp, "netmighivsurv"));
-    circ_incid_rr      = *REAL(get_value(fp, "circ_incid_rr"));
-    if (has_value(fp, "tsEpidemicStart"))
+    if (eppmod == 2) {  // direct incidence input
+      incidinput     = REAL(get_value(fp, "incidinput"));
+      incidpopage    = *INTEGER(get_value(fp, "incidpopage"));
+    }
+    if (eppmod != 2) {  // != direct incidence input
       tsEpidemicStart  = *REAL(get_value(fp, "tsEpidemicStart"));
-    eppmod             = *INTEGER(get_value(fp, "eppmodInt"));
-    if (eppmod==2) {  // direct incidence input
-      if (has_value(fp, "incidpopage")) {
-        incidinput     = REAL(get_value(fp, "incidinput"));
-        incidpopage    = *INTEGER(get_value(fp, "incidpopage"));
-      }
+      iota             = *REAL(get_value(fp, "iota"));
+      logitiota        = LOGICAL(get_value(fp, "logitiota"));
+      proj_steps       = REAL(get_value(fp, "proj_steps"));
     }
-    if (has_value(fp, "ancsitedata")) {
-      ancsitedata      = *LOGICAL(get_value(fp, "ancsitedata"));
-      ancrt            = *INTEGER(get_value(fp, "ancrtInt"));
-    }
-    if (has_value(fp, "logitiota")) 
-      logitiota        = *LOGICAL(get_value(fp, "logitiota"));
-    if (has_value(fp, "rw_start")) 
-      rw_start         = *REAL(get_value(fp, "rw_start"));
-    incidmod           = *INTEGER(get_value(fp, "incidmodInt"));
     if (has_value(fp, "rvec"))
       rvec             = REAL(get_value(fp, "rvec"));
-    if (has_value(fp, "iota"))
-      iota             = *REAL(get_value(fp, "iota"));
-    if (has_value(fp, "ancbias")) {// double
-      ancbias          = *REAL(get_value(fp, "ancbias"));      
-      v_infl           = *REAL(get_value(fp, "v_infl"));      
-      log_frr_adjust   = *REAL(get_value(fp, "log_frr_adjust"));      
-      ancrtcens_vinfl  = *REAL(get_value(fp, "ancrtcens_vinfl"));      
-      ancrtsite_beta   = *REAL(get_value(fp, "ancrtsite_beta"));
-    }
-    // rt parameters
-    if (has_value(fp, "rt")) // direct incidence model does not have rt
+    if (eppmod == 0)  // rhybrid
+      rw_start         = *REAL(get_value(fp, "rw_start"));
+    if (eppmod == 1)  // rtrend
       rt.init_me(fp);
-}
+  }
 
-StateSpace::StateSpace(SEXP& fp) :
+PaediatricHivParam::PaediatricHivParam(const SEXP& fp) :
+    verttrans_lag  (REAL(get_value(fp, "verttrans_lag"))),
+    paedsurv_lag   (REAL(get_value(fp, "paedsurv_lag"))),
+    netmighivsurv  (*REAL(get_value(fp, "netmighivsurv"))),
+    netmig_hivprob (*REAL(get_value(fp, "netmig_hivprob"))),
+    entrantprev         (REAL(get_value(fp, "entrantprev")),
+                         get_dim_2D(fp, "entrantprev")),
+    entrantartcov       (REAL(get_value(fp, "entrantartcov")),
+                         get_dim_2D(fp, "entrantartcov")),
+    paedsurv_cd4dist    (REAL(get_value(fp, "paedsurv_cd4dist")),
+                         get_dim_3D(fp, "paedsurv_cd4dist")),
+    paedsurv_artcd4dist (REAL(get_value(fp, "paedsurv_artcd4dist")),
+                         get_dim_4D(fp, "paedsurv_artcd4dist"))
+  {}
+
+AncParam::AncParam(const SEXP& fp) {
+    if (has_value(fp, "ancsitedata")) {
+      ancsitedata      = LOGICAL(get_value(fp, "ancsitedata"));
+      ancrt            = INTEGER(get_value(fp, "ancrtInt"));
+    }
+    if (has_value(fp, "ancbias")) {// double
+      ancbias          = REAL(get_value(fp, "ancbias"));      
+      v_infl           = REAL(get_value(fp, "v_infl"));      
+      ancrtcens_vinfl  = REAL(get_value(fp, "ancrtcens_vinfl"));      
+      ancrtsite_beta   = REAL(get_value(fp, "ancrtsite_beta"));
+      log_frr_adjust   = REAL(get_value(fp, "log_frr_adjust"));
+    }    
+  }
+
+StateSpace::StateSpace(const SEXP& fp) :
 // Boost array class init
   fp_ss           (get_value(fp, "ss")),
   p_fert_idx      (INTEGER(get_value(fp_ss, "p_fert_idx")),
@@ -177,6 +170,8 @@ StateSpace::StateSpace(SEXP& fp) :
   hDS                = (int) *REAL(get_value(fp_ss, "hDS"));
   hTS                = (int) *REAL(get_value(fp_ss, "hTS"));
   DT                 = *REAL(get_value(fp_ss, "DT"));
+  SIM_YEARS          = *INTEGER(get_value(fp, "SIM_YEARS"));
+  tARTstart          = *INTEGER(get_value(fp, "tARTstart"));
   if (has_value(fp_ss, "pDB")) {
     pDB            = *INTEGER(get_value(fp_ss, "pDB"));
     hDB            = pDB; // single-year sexual debut pop

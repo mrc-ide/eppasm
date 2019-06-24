@@ -267,14 +267,12 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   return(fp)
 }
 
-
 prepare_rtrend_model <- function(fp, iota=0.0025){
   fp$iota <- iota
   fp$tsEpidemicStart <- NULL
   fp$eppmod <- "rtrend"
   return(fp)
 }
-
 
 prepare_rspline_model <- function(fp, numKnots=NULL, tsEpidemicStart=fp$ss$time_epi_start+0.5){
 
@@ -296,7 +294,6 @@ prepare_rspline_model <- function(fp, numKnots=NULL, tsEpidemicStart=fp$ss$time_
 
   return(fp)
 }
-
 
 update.specfp <- function (fp, ..., keep.attr = TRUE, list = vector("list")){
   dots <- substitute(list(...))[-1]
@@ -356,16 +353,11 @@ calc_prev15to49 <- function(mod, fp){
 
 calc_prev15to49_db <- function(mod, fp){
   dim_db <- dim(attr(mod, "debut_pop"))[1]
-  mod[1:dim_db,,,] = mod[1:dim_db,,,] + attr(mod, "debut_pop")
   colSums(mod[fp$ss$p.age15to49.idx,,2,],,2) / 
   colSums(mod[fp$ss$p.age15to49.idx,,,],,3)
 }
 
 calc_prev_by_age_year <- function(mod, fp){ # 66 x 52
-  if ( !is.null(dim(attr(mod, "debut_pop"))) ) {
-    dim_db <- dim(attr(mod, "debut_pop"))[1]
-    mod[1:dim_db,,,] = mod[1:dim_db,,,] + attr(mod, "debut_pop")
-  }
   out = sapply(1:dim(mod)[4], function(x) {
     rowSums(mod[,,2,x]) / rowSums(mod[,,,x],,)
   })
@@ -380,8 +372,6 @@ calc_incid15to49 <- function(mod, fp){
 calc_pregprev <- function(mod, fp){
   warning("not yet implemented")
 }
-
-
 
 #' Age-specific mortality
 #'
@@ -409,7 +399,6 @@ agemx.spec <- function(mod, nonhiv=FALSE){
 
   return(mx)
 }
-
 
 #' Non-HIV age-specific mortality
 #'
@@ -443,8 +432,6 @@ hivagemx.spec <- function(mod){
 
   return(mx)
 }
-
-
 
 #' Prevalene by arbitrary age groups
 #'
@@ -543,7 +530,6 @@ ageincid <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL
     incid <- array(incid, c(length(aidx), length(sidx), length(yidx)))
   return(incid)
 }
-
 
 ageinfections <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL) {
 
@@ -664,8 +650,6 @@ agepregprev <- function(mod, fp,
   fastmatch::ctapply(pregprev_a * births_a, id_idx, sum) / fastmatch::ctapply(births_a, id_idx, sum)
 }
 
-
-
 #' Age-specific ART coverage among pregnant women
 #' 
 #' @param mod Model simulation output
@@ -721,8 +705,6 @@ agepregartcov <- function(mod, fp,
   
   fastmatch::ctapply(artcov_a * pregprev_a * births_a, id_idx, sum) / fastmatch::ctapply(pregprev_a * births_a, id_idx, sum)
 }
-
-
 
 incid_sexratio.spec <- function(mod){
   inc <- ageincid(mod, 1, 1:2, seq_len(dim(mod)[4]), 35)[,,]

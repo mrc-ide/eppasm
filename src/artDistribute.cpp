@@ -17,8 +17,8 @@
 // calculate ART initiation distribution
 void popC::art_distribute (const dvec& art_need, const Parameters& p,
                            const StateSpace& s) {
-  if (!p.med_cd4init_input[s.year]) {
-    if (p.art_alloc_method == 4L) { // by lowest CD4
+  if (!p.ad.med_cd4init_input[s.year]) {
+    if (p.ad.art_alloc_method == 4L) { // by lowest CD4
       // Calculate proportion to be initiated in each CD4 category
       dvec init_pr(s.NG);
       for (int cd4 = s.hDS - 1; cd4 > 0; --cd4) { //6->0
@@ -46,15 +46,16 @@ void popC::art_distribute (const dvec& art_need, const Parameters& p,
       for (int sex = 0; sex < s.NG; sex++)
         for (int agr = A; agr < s.hAG_15plus; agr++)
           for (int cd4 = 0; cd4 < s.hDS; cd4++) {
-            artX[sex] += art_elig_[sex][agr][cd4] * p.cd4_mort[sex][agr][cd4];
+            artX[sex] += art_elig_[sex][agr][cd4] * p.nh.cd4_mort[sex][agr][cd4];
             artY[sex] += art_elig_[sex][agr][cd4];
           }
       double xx;
       for (int sex = 0; sex < s.NG; sex++)
         for (int agr = A; agr < s.hAG_15plus; agr++)
           for (int cd4 = 0; cd4 < s.hDS; cd4++) {
-            xx = (p.cd4_mort[sex][agr][cd4] / artX[sex] * p.art_alloc_mxweight +
-                  ((1 - p.art_alloc_mxweight) / artY[sex]) ) *
+            xx = (p.nh.cd4_mort[sex][agr][cd4] / artX[sex] *
+                  p.ad.art_alloc_mxweight +
+                  ((1 - p.ad.art_alloc_mxweight) / artY[sex]) ) *
                 art_elig_[sex][agr][cd4] * art_need[sex];
             art_init_[sex][agr][cd4] =
               (xx > art_elig_[sex][agr][cd4]) ? art_elig_[sex][agr][cd4] : xx;
@@ -64,8 +65,8 @@ void popC::art_distribute (const dvec& art_need, const Parameters& p,
   else {
     int CD4_LO[] = {500,  350, 250, 200, 100, 50,  0 };
     int CD4_UP[] = {1000, 500, 350, 250, 200, 100, 50};
-    int j = p.med_cd4init_cat[s.year] - 1; // R to C++
-    double pr_below = (p.median_cd4init[s.year] - CD4_LO[j]) / 
+    int j = p.ad.med_cd4init_cat[s.year] - 1; // R to C++
+    double pr_below = (p.ad.median_cd4init[s.year] - CD4_LO[j]) / 
                       (CD4_UP[j] - CD4_LO[j]);
     dvec elig_below(s.NG);
     for (int sex = 0; sex < s.NG; sex++)

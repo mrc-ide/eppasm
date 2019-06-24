@@ -1,20 +1,6 @@
-// Copyright (C) 2019  Kinh Nguyen
-
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU General Public License as published by the Free
-// Software Foundation, either version 3 of the License, or (at your option)
-// any later version.
-
-// This program is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-// more details.
-
-// You should have received a copy of the GNU General Public License along
-// with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "fpClass.hpp"
 
-void fp_rt::init_me(SEXP fp) {
+void fp_rt::init_me(SEXP& fp) {
   SEXP fp_rt      = get_value(fp, "rt");
   proj_steps      = REAL(get_value(fp_rt, "proj_steps"));
   rw_start        = *REAL(get_value(fp_rt, "rw_start"));
@@ -29,44 +15,64 @@ void fp_rt::init_me(SEXP fp) {
   rw_transition   = REAL(get_value(fp_rt, "rw_transition"));
 }
 
-Parameters::Parameters(SEXP fp) :
+Parameters::Parameters(SEXP& fp) :
 // init list for boost array class
-  basepop(REAL(get_value(fp, "basepop")), get_dim_2D(fp, "basepop")),
-  asfr(REAL(get_value(fp, "asfr")), get_dim_2D(fp, "asfr")),
-  srb(REAL(get_value(fp, "srb")), get_dim_2D(fp, "srb")),
-  birthslag(REAL(get_value(fp, "birthslag")), get_dim_2D(fp, "birthslag")),
-  cumsurv(REAL(get_value(fp, "cumsurv")), get_dim_2D(fp, "cumsurv")),
-  cumnetmigr(REAL(get_value(fp, "cumnetmigr")), get_dim_2D(fp, "cumnetmigr")),
-  entrantpop(REAL(get_value(fp, "entrantpop")), get_dim_2D(fp, "entrantpop")),
-  artmx_timerr(REAL(get_value(fp, "artmx_timerr")),
-               get_dim_2D(fp, "artmx_timerr")),
-  art15plus_num(REAL(get_value(fp, "art15plus_num")),
-                get_dim_2D(fp, "art15plus_num")), 
-  art15plus_isperc(REAL(get_value(fp, "art15plus_isperc")),
-                   get_dim_2D(fp, "art15plus_isperc")), 
-  entrantprev(REAL(get_value(fp, "entrantprev")),
-              get_dim_2D(fp, "entrantprev")), 
-  entrantartcov(REAL(get_value(fp, "entrantartcov")),
-                get_dim_2D(fp, "entrantartcov")), 
-  circ_prop(REAL(get_value(fp, "circ_prop")), get_dim_2D(fp, "circ_prop")),
-  mat_m(REAL(get_value(fp, "mat_m")), get_dim_2D(fp, "mat_m")),
-  mat_f(REAL(get_value(fp, "mat_f")), get_dim_2D(fp, "mat_f")),
-  db_pr(REAL(get_value(fp, "db_pr")), get_dim_2D(fp, "db_pr")),
-  Sx(REAL(get_value(fp, "Sx")), get_dim_3D(fp, "Sx")),
-  netmigr(REAL(get_value(fp, "netmigr")), get_dim_3D(fp, "netmigr")),
-  targetpop(REAL(get_value(fp, "targetpop")), get_dim_3D(fp, "targetpop")),
-  incrr_age(REAL(get_value(fp, "incrr_age")), get_dim_3D(fp, "incrr_age")),
-  cd4_initdist(REAL(get_value(fp, "cd4_initdist")),
-               get_dim_3D(fp, "cd4_initdist")),
-  cd4_prog(REAL(get_value(fp, "cd4_prog")), get_dim_3D(fp, "cd4_prog")),
-  cd4_mort(REAL(get_value(fp, "cd4_mort")), get_dim_3D(fp, "cd4_mort")),
-  frr_cd4(REAL(get_value(fp, "frr_cd4")), get_dim_3D(fp, "frr_cd4")),
-  paedsurv_cd4dist(REAL(get_value(fp, "paedsurv_cd4dist")),
-                   get_dim_3D(fp, "paedsurv_cd4dist")),
-  art_mort(REAL(get_value(fp, "art_mort")), get_dim_4D(fp, "art_mort")),
-  frr_art(REAL(get_value(fp, "frr_art")), get_dim_4D(fp, "frr_art")),
-  paedsurv_artcd4dist(REAL(get_value(fp, "paedsurv_artcd4dist")),
-                      get_dim_4D(fp, "paedsurv_artcd4dist"))
+  basepop             (REAL(get_value(fp, "basepop")),
+                           get_dim_2D(fp, "basepop")),
+  asfr                (REAL(get_value(fp, "asfr")),
+                           get_dim_2D(fp, "asfr")),
+  srb                 (REAL(get_value(fp, "srb")),
+                           get_dim_2D(fp, "srb")),
+  birthslag           (REAL(get_value(fp, "birthslag")),
+                           get_dim_2D(fp, "birthslag")),
+  cumsurv             (REAL(get_value(fp, "cumsurv")),
+                           get_dim_2D(fp, "cumsurv")),
+  cumnetmigr          (REAL(get_value(fp, "cumnetmigr")),
+                           get_dim_2D(fp, "cumnetmigr")),
+  entrantpop          (REAL(get_value(fp, "entrantpop")),
+                           get_dim_2D(fp, "entrantpop")),
+  artmx_timerr        (REAL(get_value(fp, "artmx_timerr")),
+                           get_dim_2D(fp, "artmx_timerr")),
+  art15plus_num       (REAL(get_value(fp, "art15plus_num")),
+                           get_dim_2D(fp, "art15plus_num")),
+  art15plus_isperc    (REAL(get_value(fp, "art15plus_isperc")),
+                           get_dim_2D(fp, "art15plus_isperc")),
+  entrantprev         (REAL(get_value(fp, "entrantprev")),
+                           get_dim_2D(fp, "entrantprev")),
+  entrantartcov       (REAL(get_value(fp, "entrantartcov")),
+                           get_dim_2D(fp, "entrantartcov")),
+  circ_prop           (REAL(get_value(fp, "circ_prop")),
+                           get_dim_2D(fp, "circ_prop")),
+  mat_m               (REAL(get_value(fp, "mat_m")),
+                           get_dim_2D(fp, "mat_m")),
+  mat_f               (REAL(get_value(fp, "mat_f")),
+                           get_dim_2D(fp, "mat_f")),
+  db_pr               (REAL(get_value(fp, "db_pr")),
+                           get_dim_2D(fp, "db_pr")),
+  Sx                  (REAL(get_value(fp, "Sx")),
+                           get_dim_3D(fp, "Sx")),
+  netmigr             (REAL(get_value(fp, "netmigr")),
+                           get_dim_3D(fp, "netmigr")),
+  targetpop           (REAL(get_value(fp, "targetpop")),
+                           get_dim_3D(fp, "targetpop")),
+  incrr_age           (REAL(get_value(fp, "incrr_age")),
+                           get_dim_3D(fp, "incrr_age")),
+  cd4_initdist        (REAL(get_value(fp, "cd4_initdist")),
+                           get_dim_3D(fp, "cd4_initdist")),
+  cd4_prog            (REAL(get_value(fp, "cd4_prog")),
+                           get_dim_3D(fp, "cd4_prog")),
+  cd4_mort            (REAL(get_value(fp, "cd4_mort")),
+                           get_dim_3D(fp, "cd4_mort")),
+  frr_cd4             (REAL(get_value(fp, "frr_cd4")),
+                           get_dim_3D(fp, "frr_cd4")),
+  paedsurv_cd4dist    (REAL(get_value(fp, "paedsurv_cd4dist")),
+                           get_dim_3D(fp, "paedsurv_cd4dist")),
+  art_mort            (REAL(get_value(fp, "art_mort")),
+                           get_dim_4D(fp, "art_mort")),
+  frr_art             (REAL(get_value(fp, "frr_art")),
+                           get_dim_4D(fp, "frr_art")),
+  paedsurv_artcd4dist (REAL(get_value(fp, "paedsurv_artcd4dist")),
+                           get_dim_4D(fp, "paedsurv_artcd4dist"))
   {
 // Non class init
     SIM_YEARS          = *INTEGER(get_value(fp, "SIM_YEARS"));
@@ -126,29 +132,29 @@ Parameters::Parameters(SEXP fp) :
       rt.init_me(fp);
 }
 
-StateSpace::StateSpace(SEXP fp) : 
+StateSpace::StateSpace(SEXP& fp) :
 // Boost array class init
-  fp_ss(get_value(fp, "ss")),
-  p_fert_idx(INTEGER(get_value(fp_ss, "p_fert_idx")),
-      extents[GET_LENGTH(get_value(fp_ss, "p_fert_idx"))]),
-  p_age15to49_idx(INTEGER(get_value(fp_ss, "p_age15to49_idx")),
-      extents[GET_LENGTH(get_value(fp_ss, "p_age15to49_idx"))]),
-  p_age15plus_idx(INTEGER(get_value(fp_ss, "p_age15plus_idx")),
-      extents[GET_LENGTH(get_value(fp_ss, "p_age15plus_idx"))]),
-  h_ag_span(REAL(get_value(fp_ss, "h_ag_span")),
-      extents[GET_LENGTH(get_value(fp_ss, "h_ag_span"))]),
-  ag_idx(INTEGER(get_value(fp_ss, "ag_idx")),
-      extents[GET_LENGTH(get_value(fp_ss, "ag_idx"))]),
-  agfirst_idx(INTEGER(get_value(fp_ss, "agfirst_idx")),
-      extents[GET_LENGTH(get_value(fp_ss, "agfirst_idx"))]),
-  aglast_idx(INTEGER(get_value(fp_ss, "aglast_idx")),
-      extents[GET_LENGTH(get_value(fp_ss, "aglast_idx"))]),
-  h_fert_idx(INTEGER(get_value(fp_ss, "h_fert_idx")),
-      extents[GET_LENGTH(get_value(fp_ss, "h_fert_idx"))]),
-  h_age15to49_idx(INTEGER(get_value(fp_ss, "h_age15to49_idx")),
-      extents[GET_LENGTH(get_value(fp_ss, "h_age15to49_idx"))]),
-  h_age15plus_idx(INTEGER(get_value(fp_ss, "h_age15plus_idx")),
-      extents[GET_LENGTH(get_value(fp_ss, "h_age15plus_idx"))])
+  fp_ss           (get_value(fp, "ss")),
+  p_fert_idx      (INTEGER(get_value(fp_ss, "p_fert_idx")),
+                   extents[GET_LENGTH(get_value(fp_ss, "p_fert_idx"))]),
+  p_age15to49_idx (INTEGER(get_value(fp_ss, "p_age15to49_idx")),
+                   extents[GET_LENGTH(get_value(fp_ss, "p_age15to49_idx"))]),
+  p_age15plus_idx (INTEGER(get_value(fp_ss, "p_age15plus_idx")),
+                   extents[GET_LENGTH(get_value(fp_ss, "p_age15plus_idx"))]),
+  h_ag_span       (REAL(get_value(fp_ss, "h_ag_span")),
+                   extents[GET_LENGTH(get_value(fp_ss, "h_ag_span"))]),
+  ag_idx          (INTEGER(get_value(fp_ss, "ag_idx")),
+                   extents[GET_LENGTH(get_value(fp_ss, "ag_idx"))]),
+  agfirst_idx     (INTEGER(get_value(fp_ss, "agfirst_idx")),
+                   extents[GET_LENGTH(get_value(fp_ss, "agfirst_idx"))]),
+  aglast_idx      (INTEGER(get_value(fp_ss, "aglast_idx")),
+                   extents[GET_LENGTH(get_value(fp_ss, "aglast_idx"))]),
+  h_fert_idx      (INTEGER(get_value(fp_ss, "h_fert_idx")),
+                   extents[GET_LENGTH(get_value(fp_ss, "h_fert_idx"))]),
+  h_age15to49_idx (INTEGER(get_value(fp_ss, "h_age15to49_idx")),
+                   extents[GET_LENGTH(get_value(fp_ss, "h_age15to49_idx"))]),
+  h_age15plus_idx (INTEGER(get_value(fp_ss, "h_age15plus_idx")),
+                   extents[GET_LENGTH(get_value(fp_ss, "h_age15plus_idx"))])
   { // all .names --> _names
 // Non class model state space
   MODEL              = *INTEGER(get_value(fp_ss, "MODEL"));

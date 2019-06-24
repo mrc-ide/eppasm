@@ -18,7 +18,7 @@
 // 
 class fp_rt {
 public:
-  void init_me(SEXP fp);
+  void init_me(SEXP& fp);
   fp_rt() {};
 public:
   double * proj_steps;
@@ -36,7 +36,7 @@ public:
 
 class Parameters {
 public:
-  Parameters(SEXP fp);
+  Parameters(SEXP& fp);
 public:
   int         SIM_YEARS;
   double *    proj_steps;
@@ -112,8 +112,9 @@ public:
 // Master parameters class
 class StateSpace {
 public:
-  StateSpace(SEXP fp);
+  StateSpace(SEXP& fp);
 public:
+  int          year = 1; // simulation year
   int          MODEL;
   bool         MIX;
   SEXP         fp_ss;

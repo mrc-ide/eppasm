@@ -15,43 +15,44 @@
 #include "Classes.hpp"
 
 // calculate ART initiation distribution
-void popC::art_distribute (const dvec& art_need, const Parameters& p) {
-  if (!p.med_cd4init_input[year]) {
+void popC::art_distribute (const dvec& art_need, const Parameters& p,
+                           const StateSpace& s) {
+  if (!p.med_cd4init_input[s.year]) {
     if (p.art_alloc_method == 4L) { // by lowest CD4
       // Calculate proportion to be initiated in each CD4 category
-      dvec init_pr(NG);
-      for (int cd4 = hDS - 1; cd4 > 0; --cd4) { //6->0
-        dvec elig_hm(NG);
-        for (int sex = 0; sex < NG; sex++)
-          for (int age = 0; age < hAG; age++)
+      dvec init_pr(s.NG);
+      for (int cd4 = s.hDS - 1; cd4 > 0; --cd4) { //6->0
+        dvec elig_hm(s.NG);
+        for (int sex = 0; sex < s.NG; sex++)
+          for (int age = 0; age < s.hAG; age++)
             elig_hm[sex] += art_elig_[sex][age][cd4];
-        if ( elig_hm[m_idx] == 0 & elig_hm[f_idx] == 0 )
+        if ( (elig_hm[s.m_idx] == 0) && (elig_hm[s.f_idx] == 0) )
           init_pr = elig_hm;
         else {
           double x;
-          for (int sex = 0; sex < NG; ++sex) {
+          for (int sex = 0; sex < s.NG; ++sex) {
             x = art_need[sex] / elig_hm[sex];
             init_pr[sex] = ( (x > 1) | std::isnan(x) | std::isinf(x)) ? 1 : x;
           }
         }
-        for (int sex = 0; sex < NG; ++sex)
-          for (int agr = 0; agr < hAG; ++agr)
+        for (int sex = 0; sex < s.NG; ++sex)
+          for (int agr = 0; agr < s.hAG; ++agr)
             art_init_[sex][agr][cd4] = art_elig_[sex][agr][cd4] * init_pr[sex];
       }
     } 
     else { // Spectrum Manual p168--p169, 
-      int A = h_age15plus_idx[0] - 1;
-      boost1D artX(extents[NG]), artY(extents[NG]);
-      for (int sex = 0; sex < NG; sex++)
-        for (int agr = A; agr < hAG_15plus; agr++)
-          for (int cd4 = 0; cd4 < hDS; cd4++) {
+      int A = s.h_age15plus_idx[0] - 1;
+      boost1D artX(extents[s.NG]), artY(extents[s.NG]);
+      for (int sex = 0; sex < s.NG; sex++)
+        for (int agr = A; agr < s.hAG_15plus; agr++)
+          for (int cd4 = 0; cd4 < s.hDS; cd4++) {
             artX[sex] += art_elig_[sex][agr][cd4] * p.cd4_mort[sex][agr][cd4];
             artY[sex] += art_elig_[sex][agr][cd4];
           }
       double xx;
-      for (int sex = 0; sex < NG; sex++)
-        for (int agr = A; agr < hAG_15plus; agr++)
-          for (int cd4 = 0; cd4 < hDS; cd4++) {
+      for (int sex = 0; sex < s.NG; sex++)
+        for (int agr = A; agr < s.hAG_15plus; agr++)
+          for (int cd4 = 0; cd4 < s.hDS; cd4++) {
             xx = (p.cd4_mort[sex][agr][cd4] / artX[sex] * p.art_alloc_mxweight +
                   ((1 - p.art_alloc_mxweight) / artY[sex]) ) *
                 art_elig_[sex][agr][cd4] * art_need[sex];
@@ -63,41 +64,41 @@ void popC::art_distribute (const dvec& art_need, const Parameters& p) {
   else {
     int CD4_LO[] = {500,  350, 250, 200, 100, 50,  0 };
     int CD4_UP[] = {1000, 500, 350, 250, 200, 100, 50};
-    int j = p.med_cd4init_cat[year] - 1; // R to C++
-    double pr_below = (p.median_cd4init[year] - CD4_LO[j]) / 
+    int j = p.med_cd4init_cat[s.year] - 1; // R to C++
+    double pr_below = (p.median_cd4init[s.year] - CD4_LO[j]) / 
                       (CD4_UP[j] - CD4_LO[j]);
-    dvec elig_below(NG);
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
+    dvec elig_below(s.NG);
+    for (int sex = 0; sex < s.NG; sex++)
+      for (int agr = 0; agr < s.hAG; agr++)
         elig_below[sex] += art_elig_[sex][agr][j] * pr_below;
-    dvec A(NG);
-    if (j < (hDS - 1)) {
-      for (int sex = 0; sex < NG; sex++) {
-        for (int agr = 0; agr < hAG; agr++)
-          for (int cd4 = j+1; cd4 < hDS; cd4++)
+    dvec A(s.NG);
+    if (j < (s.hDS - 1)) {
+      for (int sex = 0; sex < s.NG; sex++) {
+        for (int agr = 0; agr < s.hAG; agr++)
+          for (int cd4 = j+1; cd4 < s.hDS; cd4++)
             A[sex] += art_elig_[sex][agr][cd4];
         elig_below[sex] += A[sex];
       }
     }
-    dvec elig_above(NG);
-    dvec B(NG);
-    for (int sex = 0; sex < NG; sex++) {
-      for (int agr = 0; agr < hAG; agr++)
+    dvec elig_above(s.NG);
+    dvec B(s.NG);
+    for (int sex = 0; sex < s.NG; sex++) {
+      for (int agr = 0; agr < s.hAG; agr++)
           B[sex] += art_elig_[sex][agr][j] * (1.0 - pr_below);
       elig_above[sex] += B[sex];
     }
     if (j > 1) {
-      dvec C(NG);
-      for (int sex = 0; sex < NG; sex++) {
-        for (int agr = 0; agr < hAG; agr++)
+      dvec C(s.NG);
+      for (int sex = 0; sex < s.NG; sex++) {
+        for (int agr = 0; agr < s.hAG; agr++)
           for (int cd4 = 0; cd4 < j-1; cd4++)
             C[sex] = art_elig_[sex][agr][cd4];
         elig_above[sex] += C[sex];
       }
     }
-    dvec initpr_below(NG), initpr_above(NG), initpr_medcat(NG);
+    dvec initpr_below(s.NG), initpr_above(s.NG), initpr_medcat(s.NG);
     double x, y;
-    for (int sex = 0; sex < NG; ++sex) {
+    for (int sex = 0; sex < s.NG; ++sex) {
       x = art_need[sex] * 0.5 / elig_below[sex];
       y = art_need[sex] * 0.5 / elig_above[sex];
       initpr_below[sex] = (x < 1) ? x : 1;
@@ -105,20 +106,20 @@ void popC::art_distribute (const dvec& art_need, const Parameters& p) {
       initpr_medcat[sex] = initpr_below[sex] *      pr_below + 
                            initpr_above[sex] * (1 - pr_below);
     }
-    if (j < (hDS - 1)) {
-      for (int sex = 0; sex < NG; sex++)
-        for (int agr = 0; agr < hAG; agr++)
-          for (int cd4 = j + 1; cd4 < hDS; cd4++)
+    if (j < (s.hDS - 1)) {
+      for (int sex = 0; sex < s.NG; sex++)
+        for (int agr = 0; agr < s.hAG; agr++)
+          for (int cd4 = j + 1; cd4 < s.hDS; cd4++)
             art_init_[sex][agr][cd4] = 
               art_elig_[sex][agr][cd4] * initpr_below[sex];
     }
-    for (int sex = 0; sex < NG; sex++)
-      for (int agr = 0; agr < hAG; agr++)
+    for (int sex = 0; sex < s.NG; sex++)
+      for (int agr = 0; agr < s.hAG; agr++)
         art_init_[sex][agr][j] =
           art_elig_[sex][agr][j] * initpr_medcat[sex];
     if (j > 0) {
-      for (int sex = 0; sex < NG; sex++)
-        for (int agr = 0; agr < hAG; agr++)
+      for (int sex = 0; sex < s.NG; sex++)
+        for (int agr = 0; agr < s.hAG; agr++)
           for (int cd4 = 0; cd4 < j - 1; cd4++)
             art_init_[sex][agr][cd4] = 
               art_elig_[sex][agr][cd4] * initpr_above[sex];

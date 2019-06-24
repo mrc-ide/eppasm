@@ -1,22 +1,9 @@
-// Copyright (C) 2019  Kinh Nguyen
-
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU General Public License as published by the Free
-// Software Foundation, either version 3 of the License, or (at your option)
-// any later version.
-
-// This program is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-// more details.
-
-// You should have received a copy of the GNU General Public License along
-// with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "utils.hpp"
 
 SEXP get_value(SEXP list, const char *str) {
   SEXP out = R_NilValue, names = GET_NAMES(list);
-  for (int i = 0; i < GET_LENGTH(list); i++ ) {
+  int l_len = GET_LENGTH(list);
+  for (int i = 0; i < l_len; i++ ) {
     if ( strcmp(CHAR(STRING_ELT(names, i)), str) == 0 ) {
       out = VECTOR_ELT(list, i);
         break;
@@ -29,7 +16,8 @@ SEXP get_value(SEXP list, const char *str) {
 
 bool has_value(SEXP list, const char *str) {
   SEXP names = GET_NAMES(list);
-  for (int i = 0; i < GET_LENGTH(list); i++ )
+  int l_len = GET_LENGTH(list);
+  for (int i = 0; i < l_len; i++ )
     if ( strcmp(CHAR(STRING_ELT(names, i)), str) == 0 ) {
       if (VECTOR_ELT(list, i) == R_NilValue) {
         Rf_warning("%s is NULL", str);
@@ -56,7 +44,7 @@ boost::array<boost2D_ptr::index, 2> get_dim_2D(SEXP r_in, const char *str) {
   SEXP r_dims = Rf_protect(Rf_getAttrib(get_value(r_in, str), R_DimSymbol));
   if (r_dims == R_NilValue)
     Rf_error("%s dimension is wrong! expecting a 2-D", str);
-  int *rdims = INTEGER(r_dims);
+  int * rdims = INTEGER(r_dims);
   UNPROTECT(1);
   boost::array<boost2D_ptr::index, 2> out = {{ rdims[1], rdims[0] }};
   return out;

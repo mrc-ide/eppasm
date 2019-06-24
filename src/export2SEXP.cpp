@@ -14,38 +14,38 @@
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Classes.hpp"
 
-void oSEXP::finalize() {
+void outputSEXP::finalize(const StateSpace& s) {
 
   SEXP pop_sexp_dim = PROTECT(NEW_INTEGER(4)); ++np;
-  INTEGER(pop_sexp_dim)[0] = pAG;
-  INTEGER(pop_sexp_dim)[1] = NG;
-  INTEGER(pop_sexp_dim)[2] = pDS;
-  INTEGER(pop_sexp_dim)[3] = PROJ_YEARS;
+  INTEGER(pop_sexp_dim)[0] = s.pAG;
+  INTEGER(pop_sexp_dim)[1] = s.NG;
+  INTEGER(pop_sexp_dim)[2] = s.pDS;
+  INTEGER(pop_sexp_dim)[3] = s.PROJ_YEARS;
   SET_DIM(pop, pop_sexp_dim);
 
-  if (MODEL!=0) {
+  if (s.MODEL!=0) {
     SEXP age_sex_year_dim = PROTECT(NEW_INTEGER(3)); ++np;
-    INTEGER(age_sex_year_dim)[0] = pAG;
-    INTEGER(age_sex_year_dim)[1] = NG;
-    INTEGER(age_sex_year_dim)[2] = PROJ_YEARS;
+    INTEGER(age_sex_year_dim)[0] = s.pAG;
+    INTEGER(age_sex_year_dim)[1] = s.NG;
+    INTEGER(age_sex_year_dim)[2] = s.PROJ_YEARS;
     SET_DIM(infections, age_sex_year_dim);
     SET_DIM(hivdeaths, age_sex_year_dim);
     SET_DIM(natdeaths, age_sex_year_dim);
     SET_DIM(popadjust, age_sex_year_dim);
 
     SEXP hiv_sexp_dim = PROTECT(NEW_INTEGER(4)); ++np;
-    INTEGER(hiv_sexp_dim)[0] = hDS;
-    INTEGER(hiv_sexp_dim)[1] = hAG;
-    INTEGER(hiv_sexp_dim)[2] = NG;
-    INTEGER(hiv_sexp_dim)[3] = PROJ_YEARS;
+    INTEGER(hiv_sexp_dim)[0] = s.hDS;
+    INTEGER(hiv_sexp_dim)[1] = s.hAG;
+    INTEGER(hiv_sexp_dim)[2] = s.NG;
+    INTEGER(hiv_sexp_dim)[3] = s.PROJ_YEARS;
     SET_DIM(hivpop, hiv_sexp_dim);
 
     SEXP art_sexp_dim = PROTECT(NEW_INTEGER(5)); ++np;
-    INTEGER(art_sexp_dim)[0] = hTS;
-    INTEGER(art_sexp_dim)[1] = hDS;
-    INTEGER(art_sexp_dim)[2] = hAG;
-    INTEGER(art_sexp_dim)[3] = NG;
-    INTEGER(art_sexp_dim)[4] = PROJ_YEARS;
+    INTEGER(art_sexp_dim)[0] = s.hTS;
+    INTEGER(art_sexp_dim)[1] = s.hDS;
+    INTEGER(art_sexp_dim)[2] = s.hAG;
+    INTEGER(art_sexp_dim)[3] = s.NG;
+    INTEGER(art_sexp_dim)[4] = s.PROJ_YEARS;
     SET_DIM(artpop, art_sexp_dim);
 
     SET_ATTR(pop, Rf_install("infections"), infections);
@@ -62,12 +62,12 @@ void oSEXP::finalize() {
     SET_ATTR(pop, Rf_install("artpop"), artpop);
     SET_ATTR(pop, Rf_install("hivpop"), hivpop);
     SET_CLASS(pop, Rf_mkString("spec"));
-    if (MODEL == 2) {
+    if (s.MODEL == 2) {
       SEXP pop_db_sexp_dim = PROTECT(NEW_INTEGER(4)); ++np;
-      INTEGER(pop_db_sexp_dim)[0] = pDB;
-      INTEGER(pop_db_sexp_dim)[1] = NG;
-      INTEGER(pop_db_sexp_dim)[2] = pDS;
-      INTEGER(pop_db_sexp_dim)[3] = PROJ_YEARS;
+      INTEGER(pop_db_sexp_dim)[0] = s.pDB;
+      INTEGER(pop_db_sexp_dim)[1] = s.NG;
+      INTEGER(pop_db_sexp_dim)[2] = s.pDS;
+      INTEGER(pop_db_sexp_dim)[3] = s.PROJ_YEARS;
       SET_DIM(data_db, pop_db_sexp_dim);
 
       SET_ATTR(pop, Rf_install("debut_pop"), data_db);

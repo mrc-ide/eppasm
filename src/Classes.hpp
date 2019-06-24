@@ -4,7 +4,7 @@
 class artC;
 class hivC;
 
-class outputSEXP { // outputs for R
+struct outputSEXP { // outputs for R
 public:
   outputSEXP(StateSpace& s) {
     pop = PROTECT(NEW_NUMERIC(s.pAG * s.NG * s.pDS * s.PROJ_YEARS)); ++np;

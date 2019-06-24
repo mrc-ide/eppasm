@@ -156,8 +156,8 @@ StateSpace::StateSpace(const SEXP& fp) :
   PROJ_YEARS         = *INTEGER(get_value(fp_ss, "PROJ_YEARS"));
   AGE_START          = *INTEGER(get_value(fp_ss, "AGE_START"));
   hiv_steps_per_year = *INTEGER(get_value(fp_ss, "hiv_steps_per_year"));
-  if (has_value(fp_ss, "time_epi_start"))
-    time_epi_start     = *REAL(get_value(fp_ss, "time_epi_start"));
+  // if (has_value(fp_ss, "time_epi_start"))
+  //   time_epi_start     = *REAL(get_value(fp_ss, "time_epi_start"));
   NG                 = (int) *REAL(get_value(fp_ss, "NG"));
   pDS                = (int) *REAL(get_value(fp_ss, "pDS"));
   m_idx              = (int) *REAL(get_value(fp_ss, "m_idx")) - 1;

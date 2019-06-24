@@ -42,7 +42,7 @@ void popC::art_distribute (const dvec& art_need, const Parameters& p,
     } 
     else { // Spectrum Manual p168--p169, 
       int A = s.h_age15plus_idx[0] - 1;
-      boost1D artX(extents[s.NG]), artY(extents[s.NG]);
+      dvec artX(s.NG), artY(s.NG);
       for (int sex = 0; sex < s.NG; sex++)
         for (int agr = A; agr < s.hAG_15plus; agr++)
           for (int cd4 = 0; cd4 < s.hDS; cd4++) {

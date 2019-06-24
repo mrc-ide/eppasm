@@ -407,10 +407,13 @@ void popC::update_preg (const hivC& hivpop, const artC& artpop,
   int h_lo = s.h_fert_idx[0] - 1, // 0 9
       p_lo = s.p_fert_idx[0] - 1; // 0 35
   update_active_pop_to(s.year, s);
-  boost1I sub_id = s.ag_idx[indices[in(p_lo, s.pAG_FERT)]];
-  boost1D hivn =
-    sumByAG(data_active[indices[s.hivn_idx][s.f_idx][in(p_lo, s.pAG_FERT)]],
-            sub_id, s.hAG_FERT); // 1 x 8
+  dvec hivn(s.hAG_FERT);
+  int current_age_group = s.ag_idx[p_lo]; // first age group
+  for (int age = p_lo; age < s.pAG_FERT; ++age) {
+    if ( s.ag_idx[age] != current_age_group)
+      ++current_age_group;
+    hivn[current_age_group - 1] += data_active[s.hivn_idx][s.f_idx][age];
+  } // end age-groups
   dvec all_art(s.hAG_FERT);
   for (int agr = h_lo; agr < s.hAG_FERT; agr++)
     for (int cd4 = 0; cd4 < s.hDS; cd4++) {

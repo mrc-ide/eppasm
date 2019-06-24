@@ -75,6 +75,7 @@ void artC::grad_progress(const StateSpace& s) {
   zeroing(gradART); // reset gradient
   if (s.MODEL == 2)
     zeroing(gradART_db); // reset gradient
+  double art_up;
   for (int sex = 0; sex < s.NG; sex++)
     for (int agr = 0; agr < s.hAG; agr++)
       for (int cd4 = 0; cd4 < s.hDS; cd4++) {

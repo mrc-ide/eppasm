@@ -15,7 +15,7 @@
 #include "utils.hpp"
 #pragma once
 
-class DemogParam {
+struct DemogParam {
 public:
   boost2D_ptr basepop;
   double *    births;
@@ -32,7 +32,7 @@ public:
   DemogParam(const SEXP& fp);
 };
 
-class NaturalHistoryParam {
+struct NaturalHistoryParam {
 public:
   boost2D_ptr artmx_timerr;
   boost3D_ptr cd4_initdist;
@@ -44,7 +44,7 @@ public:
   NaturalHistoryParam(const SEXP& fp);
 };
 
-class ArtData {
+struct ArtData {
 public:
   boost2D_ptr art15plus_num;
   boost2D_ptr art15plus_isperc;
@@ -62,7 +62,7 @@ public:
   ArtData(const SEXP& fp);
 };
 
-class RtrendParam {
+struct RtrendParam {
 public:
   const double * proj_steps;
   const double * rw_start;
@@ -79,7 +79,7 @@ public:
   void init_me(const SEXP& fp);
 };
 
-class IncidenceParam {
+struct IncidenceParam {
 public:
   const int      eppmod; 
   const int      incidmod;
@@ -103,7 +103,7 @@ public:
   IncidenceParam(const SEXP& fp);
 };
 
-class PaediatricHivParam {
+struct PaediatricHivParam {
 public:
   const double * verttrans_lag;
   const double * paedsurv_lag;
@@ -116,7 +116,7 @@ public:
   PaediatricHivParam(const SEXP& fp);
 };
 
-class AncParam {
+struct AncParam {
 public:
   const int    * ancsitedata;
   const int    * ancrt;
@@ -128,7 +128,7 @@ public:
   AncParam(const SEXP& fp);
 };
 
-class Parameters {
+struct Parameters {
 public:
   DemogParam          dm;
   NaturalHistoryParam nh;
@@ -139,7 +139,7 @@ public:
 };
 
 // Master parameters class
-class StateSpace {
+struct StateSpace {
 public:
   int          SIM_YEARS;
   int          year = 1; // simulation year

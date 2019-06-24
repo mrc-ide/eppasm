@@ -100,7 +100,7 @@ Parameters::Parameters(SEXP& fp) :
     circ_incid_rr      = *REAL(get_value(fp, "circ_incid_rr"));
     if (has_value(fp, "tsEpidemicStart"))
       tsEpidemicStart  = *REAL(get_value(fp, "tsEpidemicStart"));
-    eppmod             = *INTEGER(get_value(fp, "eppmodInt")); // char to int
+    eppmod             = *INTEGER(get_value(fp, "eppmodInt"));
     if (eppmod==2) {  // direct incidence input
       if (has_value(fp, "incidpopage")) {
         incidinput     = REAL(get_value(fp, "incidinput"));
@@ -109,13 +109,13 @@ Parameters::Parameters(SEXP& fp) :
     }
     if (has_value(fp, "ancsitedata")) {
       ancsitedata      = *LOGICAL(get_value(fp, "ancsitedata"));
-      ancrt            = *INTEGER(get_value(fp, "ancrtInt")); // char to int
+      ancrt            = *INTEGER(get_value(fp, "ancrtInt"));
     }
     if (has_value(fp, "logitiota")) 
       logitiota        = *LOGICAL(get_value(fp, "logitiota"));
     if (has_value(fp, "rw_start")) 
       rw_start         = *REAL(get_value(fp, "rw_start"));
-    incidmod           = *INTEGER(get_value(fp, "incidmodInt")); // char to int
+    incidmod           = *INTEGER(get_value(fp, "incidmodInt"));
     if (has_value(fp, "rvec"))
       rvec             = REAL(get_value(fp, "rvec"));
     if (has_value(fp, "iota"))

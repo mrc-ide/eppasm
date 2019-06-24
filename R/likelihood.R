@@ -169,14 +169,16 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
 #' @param dat Output data from prepare_likdat
 #' @param pointwise Point-wise likelihood
 ll_hhsage <- function(mod, dat, pointwise = FALSE){
-
-  qM.age <- suppressWarnings(qnorm(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan)))
-  
+  qM.age <- suppressWarnings(qnorm(ageprev(mod,
+                                           aidx = dat$aidx,
+                                           sidx = dat$sidx, 
+                                           yidx = dat$yidx, 
+                                           agspan = dat$agspan)))
   if(any(is.na(qM.age)))
     val <- rep(-Inf, nrow(dat))
   else
     val <- dnorm(dat$W.hhs, qM.age, dat$sd.W.hhs, log=TRUE)
-
+  
   if(pointwise)
     return(val)
   sum(val)
@@ -326,7 +328,7 @@ lprior <- function(theta, fp){
 }
 
 #' @importFrom stats aggregate approx cov cov.wt density dexp dlnorm dnorm dunif ecdf mahalanobis median model.matrix na.omit optim optimHess pnorm qnorm quantile relevel rexp rgamma rnorm runif sd setNames update var
-ll <- function(theta, fp, likdat){
+ll <- function(theta, fp, likdat) {
   theta.last <<- theta
   fp <- update(fp, list=fnCreateParam(theta, fp))
 
@@ -339,7 +341,8 @@ ll <- function(theta, fp, likdat){
     if (fp$is_debut_model)
       settings[1] <- 2L
   }
-  if (exists("is_debut_model", where=fp)) {
+  
+  if (exists("is_debut_model", where = fp)) {
     if (fp$is_mixing_model)
       settings[2] <- TRUE
   }
@@ -347,7 +350,8 @@ ll <- function(theta, fp, likdat){
 
   ## ANC likelihood
   if(exists("ancsite.dat", likdat))
-    ll.anc <- ll_ancsite(mod, fp, coef=c(fp$ancbias, fp$ancrtsite.beta), vinfl=fp$v.infl, likdat$ancsite.dat)
+    ll.anc <- ll_ancsite(mod, fp, coef=c(fp$ancbias, fp$ancrtsite.beta),
+                         vinfl=fp$v.infl, likdat$ancsite.dat)
   else
     ll.anc <- 0
 
@@ -390,7 +394,7 @@ ll <- function(theta, fp, likdat){
       if(!is.null(fp$prior_args$equil.rprior.sd))
         equil.rprior.sd <- fp$prior_args$equil.rprior.sd
       else
-        equil.rprior.sd <- sqrt(mean((epp:::muSS/(1-pnorm(qM.all[lastdata.idx - 9:0])) - rvec.ann[lastdata.idx - 9:0])^2))  # empirical sd based on 10 previous years
+        equil.rprior.sd <- sqrt(mean((epp:::muSS / (1-pnorm(qM.all[lastdata.idx - 9:0])) - rvec.ann[lastdata.idx - 9:0])^2))  # empirical sd based on 10 previous years
       
       ll.rprior <- sum(dnorm(rvec.ann[(lastdata.idx+1L):length(qM.all)], equil.rprior.mean, equil.rprior.sd, log=TRUE))  # prior starts year after last data
     }

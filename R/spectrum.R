@@ -350,12 +350,31 @@ fnPregPrev.spec <- function(mod, fp) {
 # fnPregPrev.spec <- function(mod, fp) { attr(mod, "pregprev") }
 
 calc_prev15to49 <- function(mod, fp){
-  colSums(mod[fp$ss$p.age15to49.idx,,2,],,2)/colSums(mod[fp$ss$p.age15to49.idx,,,],,3)
+  colSums(mod[fp$ss$p.age15to49.idx,,2,],,2) / 
+  colSums(mod[fp$ss$p.age15to49.idx,,,],,3)
+}
+
+calc_prev15to49_db <- function(mod, fp){
+  dim_db <- dim(attr(mod, "debut_pop"))[1]
+  mod[1:dim_db,,,] = mod[1:dim_db,,,] + attr(mod, "debut_pop")
+  colSums(mod[fp$ss$p.age15to49.idx,,2,],,2) / 
+  colSums(mod[fp$ss$p.age15to49.idx,,,],,3)
+}
+
+calc_prev_by_age_year <- function(mod, fp){ # 66 x 52
+  if ( !is.null(dim(attr(mod, "debut_pop"))) ) {
+    dim_db <- dim(attr(mod, "debut_pop"))[1]
+    mod[1:dim_db,,,] = mod[1:dim_db,,,] + attr(mod, "debut_pop")
+  }
+  out = sapply(1:dim(mod)[4], function(x) {
+    rowSums(mod[,,2,x]) / rowSums(mod[,,,x],,)
+  })
+  out
 }
 
 calc_incid15to49 <- function(mod, fp){
-  c(0, colSums(attr(mod, "infections")[fp$ss$p.age15to49.idx,,-1],,2)/
-        colSums(mod[fp$ss$p.age15to49.idx,,1,-fp$ss$PROJ_YEARS],,2))
+  c(0, colSums(attr(mod, "infections")[fp$ss$p.age15to49.idx,,-1],,2) /
+    colSums(mod[fp$ss$p.age15to49.idx,,1,-fp$ss$PROJ_YEARS],,2))
 }
 
 calc_pregprev <- function(mod, fp){
@@ -467,7 +486,9 @@ ageprev <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, expand=FALSE
     ## This is probably a pretty inefficient way of doing this...
     
     if(any(idx$sidx == 0)){
-      idx <- rbind(idx[idx$sidx != 0,], transform(idx[idx$sidx == 0,], sidx = 1), transform(idx[idx$sidx == 0,], sidx = 2))
+      idx <- rbind(idx[idx$sidx != 0,],
+                   transform(idx[idx$sidx == 0,], sidx = 1),
+                   transform(idx[idx$sidx == 0,], sidx = 2))
       idx <- idx[order(idx$gidx, idx$sidx),]
     }
     
@@ -524,7 +545,7 @@ ageincid <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL
 }
 
 
-ageinfections <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL){
+ageinfections <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL) {
 
   if(is.null(arridx)){
     if(length(agspan)==1)
@@ -553,7 +574,7 @@ ageinfections <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx
 ageartcov <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL,
                       h.ag.span=c(2, 3, 5, 5, 5, 5, 5, 5, 31)){
   
-  if(is.null(arridx)){
+  if (is.null(arridx)) {
     if(length(agspan)==1)
       agspan <- rep(agspan, length(aidx))
     

@@ -126,61 +126,44 @@ AncParam::AncParam(const SEXP& fp) {
   }
 
 StateSpace::StateSpace(const SEXP& fp) :
-// Boost array class init
-  fp_ss           (get_value(fp, "ss")),
-  p_fert_idx      (INTEGER(get_value(fp_ss, "p_fert_idx")),
-                   extents[GET_LENGTH(get_value(fp_ss, "p_fert_idx"))]),
-  p_age15to49_idx (INTEGER(get_value(fp_ss, "p_age15to49_idx")),
-                   extents[GET_LENGTH(get_value(fp_ss, "p_age15to49_idx"))]),
-  p_age15plus_idx (INTEGER(get_value(fp_ss, "p_age15plus_idx")),
-                   extents[GET_LENGTH(get_value(fp_ss, "p_age15plus_idx"))]),
-  h_ag_span       (REAL(get_value(fp_ss, "h_ag_span")),
-                   extents[GET_LENGTH(get_value(fp_ss, "h_ag_span"))]),
-  ag_idx          (INTEGER(get_value(fp_ss, "ag_idx")),
-                   extents[GET_LENGTH(get_value(fp_ss, "ag_idx"))]),
-  agfirst_idx     (INTEGER(get_value(fp_ss, "agfirst_idx")),
-                   extents[GET_LENGTH(get_value(fp_ss, "agfirst_idx"))]),
-  aglast_idx      (INTEGER(get_value(fp_ss, "aglast_idx")),
-                   extents[GET_LENGTH(get_value(fp_ss, "aglast_idx"))]),
-  h_fert_idx      (INTEGER(get_value(fp_ss, "h_fert_idx")),
-                   extents[GET_LENGTH(get_value(fp_ss, "h_fert_idx"))]),
-  h_age15to49_idx (INTEGER(get_value(fp_ss, "h_age15to49_idx")),
-                   extents[GET_LENGTH(get_value(fp_ss, "h_age15to49_idx"))]),
-  h_age15plus_idx (INTEGER(get_value(fp_ss, "h_age15plus_idx")),
-                   extents[GET_LENGTH(get_value(fp_ss, "h_age15plus_idx"))])
-  { // all .names --> _names
-// Non class model state space
-  MODEL              = *INTEGER(get_value(fp_ss, "MODEL"));
-  MIX                = *LOGICAL(get_value(fp_ss, "MIX"));
-  proj_start         = *INTEGER(get_value(fp_ss, "proj_start"));
-  PROJ_YEARS         = *INTEGER(get_value(fp_ss, "PROJ_YEARS"));
-  AGE_START          = *INTEGER(get_value(fp_ss, "AGE_START"));
-  hiv_steps_per_year = *INTEGER(get_value(fp_ss, "hiv_steps_per_year"));
-  // if (has_value(fp_ss, "time_epi_start"))
-  //   time_epi_start     = *REAL(get_value(fp_ss, "time_epi_start"));
-  NG                 = (int) *REAL(get_value(fp_ss, "NG"));
-  pDS                = (int) *REAL(get_value(fp_ss, "pDS"));
-  m_idx              = (int) *REAL(get_value(fp_ss, "m_idx")) - 1;
-  f_idx              = (int) *REAL(get_value(fp_ss, "f_idx")) - 1;
-  hivn_idx           = (int) *REAL(get_value(fp_ss, "hivn_idx")) - 1;
-  hivp_idx           = (int) *REAL(get_value(fp_ss, "hivp_idx")) - 1;
-  pAG                = (int) *REAL(get_value(fp_ss, "pAG"));
-  ag_rate            = *REAL(get_value(fp_ss, "ag_rate"));
-  hAG                = *INTEGER(get_value(fp_ss, "hAG"));
-  hDS                = (int) *REAL(get_value(fp_ss, "hDS"));
-  hTS                = (int) *REAL(get_value(fp_ss, "hTS"));
-  DT                 = *REAL(get_value(fp_ss, "DT"));
-  SIM_YEARS          = *INTEGER(get_value(fp, "SIM_YEARS"));
-  tARTstart          = *INTEGER(get_value(fp, "tARTstart"));
-  if (has_value(fp_ss, "pDB")) {
-    pDB            = *INTEGER(get_value(fp_ss, "pDB"));
-    hDB            = pDB; // single-year sexual debut pop
-  }
-  n_steps          = (PROJ_YEARS-1) * hiv_steps_per_year;
-  pAG_FERT         = (p_fert_idx[0] - 1) + p_fert_idx.num_elements();
-  hAG_FERT         = (h_fert_idx[0] - 1) + h_fert_idx.num_elements();
-  pAG_1549         = (p_age15to49_idx[0] - 1) + p_age15to49_idx.num_elements();
-  hAG_1549         = (h_age15to49_idx[0] - 1) + h_age15to49_idx.num_elements();
-  pAG_15plus       = (p_age15plus_idx[0] - 1) + p_age15plus_idx.num_elements();
-  hAG_15plus       = (h_age15plus_idx[0] - 1) + h_age15plus_idx.num_elements();
-}
+  SIM_YEARS      (*INTEGER(get_value(fp, "SIM_YEARS"))),
+  fp_ss          (get_value(fp, "ss")),
+  MODEL          (*INTEGER(get_value(fp_ss, "MODEL"))),
+  MIX            (*LOGICAL(get_value(fp_ss, "MIX"))),
+  proj_start     (*INTEGER(get_value(fp_ss, "proj_start"))),
+  PROJ_YEARS     (*INTEGER(get_value(fp_ss, "PROJ_YEARS"))),
+  AGE_START      (*INTEGER(get_value(fp_ss, "AGE_START"))),
+  steps_per_year (*INTEGER(get_value(fp_ss, "hiv_steps_per_year"))),
+  NG             ((int) *REAL(get_value(fp_ss, "NG"))),
+  pDS            ((int) *REAL(get_value(fp_ss, "pDS"))),
+  M              ((int) *REAL(get_value(fp_ss, "m_idx")) - 1),
+  F              ((int) *REAL(get_value(fp_ss, "f_idx")) - 1),
+  P              ((int) *REAL(get_value(fp_ss, "hivp_idx")) - 1),
+  N              ((int) *REAL(get_value(fp_ss, "hivn_idx")) - 1),
+  pAG            ((int) *REAL(get_value(fp_ss, "pAG"))),
+  ag_rate        (*REAL(get_value(fp_ss, "ag_rate"))),
+  hAG            (*INTEGER(get_value(fp_ss, "hAG"))),
+  hDS            ((int) *REAL(get_value(fp_ss, "hDS"))),
+  hTS            ((int) *REAL(get_value(fp_ss, "hTS"))),
+  DT             (*REAL(get_value(fp_ss, "DT"))),
+  pDB            (*INTEGER(get_value(fp_ss, "pDB"))),
+  hDB            (pDB),
+  n_steps        ((PROJ_YEARS-1) * steps_per_year),
+  tARTstart      (*INTEGER(get_value(fp, "tARTstart"))),
+  p_fert_        (INTEGER(get_value(fp_ss, "p_fert_idx")), get_dim_1D(fp_ss, "p_fert_idx")),
+  p_age15to49_   (INTEGER(get_value(fp_ss, "p_age15to49_idx")), get_dim_1D(fp_ss, "p_age15to49_idx")),
+  p_age15plus_   (INTEGER(get_value(fp_ss, "p_age15plus_idx")), get_dim_1D(fp_ss, "p_age15plus_idx")),
+  h_ag_span      (REAL(get_value(fp_ss, "h_ag_span")), get_dim_1D(fp_ss, "h_ag_span")),
+  ag_            (INTEGER(get_value(fp_ss, "ag_idx")), get_dim_1D(fp_ss, "ag_idx")),
+  agfirst_       (INTEGER(get_value(fp_ss, "agfirst_idx")), get_dim_1D(fp_ss, "agfirst_idx")),
+  aglast_        (INTEGER(get_value(fp_ss, "aglast_idx")), get_dim_1D(fp_ss, "aglast_idx")),
+  h_fert_        (INTEGER(get_value(fp_ss, "h_fert_idx")), get_dim_1D(fp_ss, "h_fert_idx")),
+  h_age15to49_   (INTEGER(get_value(fp_ss, "h_age15to49_idx")), get_dim_1D(fp_ss, "h_age15to49_idx")),
+  h_age15plus_   (INTEGER(get_value(fp_ss, "h_age15plus_idx")), get_dim_1D(fp_ss, "h_age15plus_idx")),
+  pAG_FERT       ((p_fert_[0]      - 1) + p_fert_.num_elements()),
+  hAG_FERT       ((h_fert_[0]      - 1) + h_fert_.num_elements()),
+  pAG_1549       ((p_age15to49_[0] - 1) + p_age15to49_.num_elements()),
+  hAG_1549       ((h_age15to49_[0] - 1) + h_age15to49_.num_elements()),
+  pAG_15plus     ((p_age15plus_[0] - 1) + p_age15plus_.num_elements()),
+  hAG_15plus     ((h_age15plus_[0] - 1) + h_age15plus_.num_elements())
+  {}

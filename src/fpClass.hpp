@@ -46,19 +46,19 @@ public:
 
 struct ArtData {
 public:
-  boost2D_ptr art15plus_num;
-  boost2D_ptr art15plus_isperc;
+  boost2D_ptr    art15plus_num;
+  boost2D_ptr    art15plus_isperc;
   const int    * artcd4elig_idx;  // NOTE: 1-based indexing
   const double * specpop_percelig;
   const double * pw_artelig;
   const double   who34percelig;
   const double * art_dropout;
   const double * median_cd4init;
-  const int * med_cd4init_cat;
-  const int * med_cd4init_input;
-  const int art_alloc_method;
-  const double art_alloc_mxweight;
-  const int scale_cd4_mort;
+  const int    * med_cd4init_cat;
+  const int    * med_cd4init_input;
+  const int      art_alloc_method;
+  const double   art_alloc_mxweight;
+  const int      scale_cd4_mort;
   ArtData(const SEXP& fp);
 };
 
@@ -140,44 +140,45 @@ public:
 
 // Master parameters class
 struct StateSpace {
-public:
-  int          SIM_YEARS;
-  int          year = 1; // simulation year
-  int          MODEL;
-  bool         MIX;
+  const int    SIM_YEARS;
   SEXP         fp_ss;
-  int          proj_start;
-  int          PROJ_YEARS;
-  int          AGE_START;
-  int          hiv_steps_per_year;
-  // double       time_epi_start;
-  int          NG;
-  int          pDS;
-  int          m_idx;
-  int          f_idx;
-  int          hivn_idx;
-  int          hivp_idx;
-  int          pAG;
-  double       ag_rate;
-  boost1I_ptr  p_fert_idx;
-  boost1I_ptr  p_age15to49_idx;
-  boost1I_ptr  p_age15plus_idx;
+  int          year = 1; // simulation year
+  const int    MODEL;
+  const bool   MIX;
+  const int    proj_start;
+  const int    PROJ_YEARS;
+  const int    AGE_START;
+  const int    steps_per_year;
+  const int    NG;
+  const int    pDS;
+  const int    M;
+  const int    F;
+  const int    P; // positive
+  const int    N; // negative
+  const int    pAG;
+  const double ag_rate;
+  const int    hAG;
+  const int    hDS;
+  const int    hTS;
+  const double DT;
+  const int    pDB;
+  const int    hDB;
+  const int    n_steps;
+  const int    tARTstart;
+  boost1I_ptr  p_fert_;
+  boost1I_ptr  p_age15to49_;
+  boost1I_ptr  p_age15plus_;
   boost1D_ptr  h_ag_span;
-  int          hAG;
-  int          hDS;
-  int          hTS;
-  boost1I_ptr  ag_idx;
-  boost1I_ptr  agfirst_idx;
-  boost1I_ptr  aglast_idx;
-  boost1I_ptr  h_fert_idx;
-  boost1I_ptr  h_age15to49_idx;
-  boost1I_ptr  h_age15plus_idx;
-  double       DT;
-  int          pDB;
-  int          hDB;
-  int          n_steps;
-  int          tARTstart;
+  boost1I_ptr  ag_;
+  boost1I_ptr  agfirst_;
+  boost1I_ptr  aglast_;
+  boost1I_ptr  h_fert_;
+  boost1I_ptr  h_age15to49_;
+  boost1I_ptr  h_age15plus_;
+  const int pAG_FERT, hAG_FERT, pAG_1549, hAG_1549, pAG_15plus, hAG_15plus;
   // 
-  int pAG_FERT, hAG_FERT, pAG_1549, hAG_1549, pAG_15plus, hAG_15plus;
   StateSpace(const SEXP& fp);
+  int art_dim() {return hTS * hDS * hAG * NG;};
+  int hiv_dim() {return hDS * hAG * NG;};
+  int pop_dim() {return pDS * pAG * NG;};
 };

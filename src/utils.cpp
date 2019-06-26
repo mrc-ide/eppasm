@@ -40,6 +40,12 @@ boost1I array_dim(SEXP array) {
   return dims;
 }
 
+boost::array<boost1D_ptr::index, 1> get_dim_1D(SEXP r_in, const char *str) {
+  int len = GET_LENGTH(get_value(r_in, str));
+  boost::array<boost1D_ptr::index, 1> out = {{ len }};
+  return out;
+}
+
 boost::array<boost2D_ptr::index, 2> get_dim_2D(SEXP r_in, const char *str) {
   SEXP r_dims = Rf_protect(Rf_getAttrib(get_value(r_in, str), R_DimSymbol));
   if (r_dims == R_NilValue)

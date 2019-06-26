@@ -26,7 +26,7 @@ void popC::art_distribute (const dvec& art_need, const Parameters& p,
         for (int sex = 0; sex < s.NG; sex++)
           for (int age = 0; age < s.hAG; age++)
             elig_hm[sex] += art_elig_[sex][age][cd4];
-        if ( (elig_hm[s.m_idx] == 0) && (elig_hm[s.f_idx] == 0) )
+        if ( (elig_hm[s.M] == 0) && (elig_hm[s.F] == 0) )
           init_pr = elig_hm;
         else {
           double x;
@@ -41,7 +41,7 @@ void popC::art_distribute (const dvec& art_need, const Parameters& p,
       }
     } 
     else { // Spectrum Manual p168--p169, 
-      int A = s.h_age15plus_idx[0] - 1;
+      int A = s.h_age15plus_[0] - 1;
       dvec artX(s.NG), artY(s.NG);
       for (int sex = 0; sex < s.NG; sex++)
         for (int agr = A; agr < s.hAG_15plus; agr++)
@@ -56,7 +56,7 @@ void popC::art_distribute (const dvec& art_need, const Parameters& p,
             xx = (p.nh.cd4_mort[sex][agr][cd4] / artX[sex] *
                   p.ad.art_alloc_mxweight +
                   ((1 - p.ad.art_alloc_mxweight) / artY[sex]) ) *
-                art_elig_[sex][agr][cd4] * art_need[sex];
+                  art_elig_[sex][agr][cd4] * art_need[sex];
             art_init_[sex][agr][cd4] =
               (xx > art_elig_[sex][agr][cd4]) ? art_elig_[sex][agr][cd4] : xx;
           }

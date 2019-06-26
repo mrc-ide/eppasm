@@ -44,6 +44,7 @@ typedef multi_array_ref<double, 5> boost5D_ptr;
 typedef multi_array_types::index_range in;
 const in _all = in(); // All elements in this dimension
 
+array<boost1D_ptr::index, 1> get_dim_1D(SEXP array, const char *str);
 array<boost2D_ptr::index, 2> get_dim_2D(SEXP array, const char *str);
 array<boost3D_ptr::index, 3> get_dim_3D(SEXP array, const char *str);
 array<boost4D_ptr::index, 4> get_dim_4D(SEXP array, const char *str);

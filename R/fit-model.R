@@ -65,45 +65,68 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
 #' Melt ANC-SS and site-level ANC-RT to long dataset
 melt_ancsite_data <- function(eppd){
   
+  eppd2 <- eppd
+
+  ancsitedat <- do.call(rbind,lapply(eppd2,function(eppd){
   anc.used <- data.frame(site=rownames(eppd$anc.prev), used=eppd$anc.used)
   anc.prev <- subset(reshape2::melt(eppd$anc.prev, varnames=c("site", "year"), value.name="prev"), !is.na(prev))
   anc.n <- subset(reshape2::melt(eppd$anc.n, varnames=c("site", "year"), value.name="n"), !is.na(n))
-  
   ancsitedat <- merge(anc.used, anc.prev)
   ancsitedat <- merge(ancsitedat, anc.n)
+  ancsitedat$subpop <- attr(eppd,"subpop")
   ancsitedat$type <- "ancss"
-
+  
+  
   if(exists("ancrtsite.prev", eppd) && !is.null(eppd$ancrtsite.prev)){
     ancrtsite.prev <- subset(reshape2::melt(eppd$ancrtsite.prev, varnames=c("site", "year"), value.name="prev"), !is.na(prev))
     ancrtsite.n <- subset(reshape2::melt(eppd$ancrtsite.n, varnames=c("site", "year"), value.name="n"), !is.na(n))
-  
+    
     ancrtsite <- merge(anc.used, ancrtsite.prev)
     ancrtsite <- merge(ancrtsite, ancrtsite.n)
     ancrtsite$type <- rep("ancrt", nrow(ancrtsite))
+    ancrtsite$subpop <- rep(attr(eppd,"subpop"), nrow(ancrtsite)) 
     
     ancsitedat <- rbind(ancsitedat, ancrtsite)
   }
+  
+  return(ancsitedat)
+  }))
+  
+  # ancsitedat <- merge(anc.used, anc.prev)
+  # ancsitedat <- merge(ancsitedat, anc.n)
+  # ancsitedat$type <- "ancss"
+
 
   ancsitedat <- subset(ancsitedat, used)
   ancsitedat$agegr <- rep("15-49", nrow(ancsitedat))
   ancsitedat$age <- rep(15, nrow(ancsitedat))
   ancsitedat$agspan <- rep(35, nrow(ancsitedat))
 
+  rownames(ancsitedat) <- NULL
   ancsitedat
 }
 
 tidy_hhs_data <- function(eppd){
+  
+  eppd2 <- eppd
 
+  hhs <- do.call(rbind,lapply(eppd2,function(eppd){
   hhs <- eppd$hhs
-
   hhs$deff <- hhs$deff_approx <- rep(2.0, nrow(hhs)) # irrelevant assumption 
   hhs$n <- hhs$deff * hhs$prev * (1-hhs$prev) / hhs$se^2
   hhs$agegr <- rep("15-49", nrow(hhs))
   hhs$sex <- rep("both", nrow(hhs))
+  hhs$subpop <- rep(attr(eppd,"subpop"),nrow(hhs))
   
   hhs <- hhs[c("year", "sex", "agegr", "n", "prev", "se", "deff", "deff_approx", "used")]
   
+  return(hhs)
+  }))
+  
+  rownames(hhs) <- NULL
+  hhs <- hhs[hhs$used==TRUE,]
   hhs
+  
 }
 
 create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, length(eppd)), names(eppd)), ..., popadjust=TRUE, popupdate=TRUE, perc_urban=NULL){

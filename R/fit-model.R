@@ -63,14 +63,19 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
 }
 
 #' Melt ANC-SS and site-level ANC-RT to long dataset
-melt_ancsite_data <- function(eppd){
+melt_ancsite_data <- function(eppd, add_index=FALSE){
   
   eppd2 <- eppd
+  
 
   ancsitedat <- do.call(rbind,lapply(eppd2,function(eppd){
-  anc.used <- data.frame(site=rownames(eppd$anc.prev), used=eppd$anc.used)
-  anc.prev <- subset(reshape2::melt(eppd$anc.prev, varnames=c("site", "year"), value.name="prev"), !is.na(prev))
-  anc.n <- subset(reshape2::melt(eppd$anc.n, varnames=c("site", "year"), value.name="n"), !is.na(n))
+  eppd_x <- eppd
+    if(add_index){
+      eppd_x <- eppd[[1]] 
+    }
+  anc.used <- data.frame(site=rownames( eppd_x$anc.prev), used= eppd_x$anc.used)
+  anc.prev <- subset(reshape2::melt( eppd_x$anc.prev, varnames=c("site", "year"), value.name="prev"), !is.na(prev))
+  anc.n <- subset(reshape2::melt( eppd_x$anc.n, varnames=c("site", "year"), value.name="n"), !is.na(n))
   ancsitedat <- merge(anc.used, anc.prev)
   ancsitedat <- merge(ancsitedat, anc.n)
   ancsitedat$subpop <- attr(eppd,"subpop")
@@ -106,12 +111,15 @@ melt_ancsite_data <- function(eppd){
   ancsitedat
 }
 
-tidy_hhs_data <- function(eppd){
+tidy_hhs_data <- function(eppd, add_index=FALSE){
   
-  eppd2 <- eppd
+  eppd2 <- eppd$hhs
 
   hhs <- do.call(rbind,lapply(eppd2,function(eppd){
-  hhs <- eppd$hhs
+    hhs <- eppd
+    if(add_index){
+      hhs <- eppd[[1]]$hhs
+    }
   hhs$deff <- hhs$deff_approx <- rep(2.0, nrow(hhs)) # irrelevant assumption 
   hhs$n <- hhs$deff * hhs$prev * (1-hhs$prev) / hhs$se^2
   hhs$agegr <- rep("15-49", nrow(hhs))

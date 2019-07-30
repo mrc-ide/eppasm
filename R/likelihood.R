@@ -91,8 +91,8 @@ rtrend.beta.pr.sd <- c(0.12, 0.07, 0.24, 0.009)
 ####                                   ####
 ###########################################
 
-ancbias.pr.mean <- 0.15
-ancbias.pr.sd <- 1.0
+# ancbias.pr.mean <- 0.15
+# ancbias.pr.sd <- 1
 vinfl.prior.rate <- 1/0.015
 
 ancrtsite.beta.pr.mean <- 0
@@ -761,6 +761,7 @@ lprior <- function(theta, fp){
     }
   
     if(fp$ancsitedata){
+
       lpr <- lpr + dnorm(theta[epp_nparam+1], ancbias.pr.mean, ancbias.pr.sd, log=TRUE)
       if(!exists("v.infl", where=fp)){
         anclik_nparam <- 2
@@ -1113,6 +1114,8 @@ sample.prior <- function(n, fp){
 
   ## sample ANC bias paramters
   if(fp$ancsitedata){
+
+    
     mat[,epp_nparam+1] <- rnorm(n, ancbias.pr.mean, ancbias.pr.sd)   # ancbias parameter
     if(!exists("v.infl", where=fp))
       mat[,epp_nparam+2] <- log(rexp(n, vinfl.prior.rate))
@@ -1189,7 +1192,7 @@ ldsamp <- function(theta, fp){
     } else if(fp$eppmod == "rlogistic") {
       epp_nparam <- 5
       lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE))
-      lpr <- lpr + ldsamp_iota(theta[5], fp)
+      # lpr <- lpr + ldsamp_iota(theta[5], fp)
     } else if(fp$eppmod == "rtrend"){ # rtrend
   
       epp_nparam <- 7
@@ -1206,6 +1209,8 @@ ldsamp <- function(theta, fp){
     }
   
     if(fp$ancsitedata){
+   
+      
       lpr <- lpr + dnorm(theta[epp_nparam+1], ancbias.pr.mean, ancbias.pr.sd, log=TRUE)
       if(!exists("v.infl", where=fp)){
         anclik_nparam <- 2

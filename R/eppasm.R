@@ -951,11 +951,13 @@ simmod.specfp <- function(fp, VERSION="C"){
       
       u15hivdeaths.out[1:5,,i] <- apply(u5hivdeaths, 2:3, sum)
       u15hivdeaths.out[6:15,,i] <- apply(u15hivdeaths, 2:3, sum)
-      u15deaths.out[1:5,,i] <- apply(u5deaths, 1:2, sum)
-      u15deaths.out[6:15,,i] <- apply(u15deaths, 1:2, sum)
+      # u15deaths.out[1:5,,i] <- apply(u5deaths, 1:2, sum)
+      # u15deaths.out[6:15,,i] <- apply(u15deaths, 1:2, sum)
 
      }
-      
+    
+    u15deaths.out[1:5,,i] <- apply(u5deaths, 1:2, sum)
+    u15deaths.out[6:15,,i] <- apply(u15deaths, 1:2, sum)
     ## prevalence and incidence 15 to 49
     prev15to49[i] <- sum(pop[p.age15to49.idx,,hivp.idx,i]) / sum(pop[p.age15to49.idx,,,i])
     incid15to49[i] <- sum(incid15to49[i]) / sum(pop[p.age15to49.idx,,hivn.idx,i-1])

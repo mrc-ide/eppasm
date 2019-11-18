@@ -20,7 +20,7 @@ update_hiv_ss <- function(max_debut_age, fp) {
   tt$h.age15to49.idx <- as.integer(which((tt$AGE_START-1 + cumsum(tt$h.ag.span)) %in% 15:49))
   tt$h.age15plus.idx <- as.integer(which((tt$AGE_START-1 + cumsum(tt$h.ag.span)) >= 15))
 
-  # Expanding fp for the new added age because of sexual debut model
+  # Expanding fp for the newly added age for sexual debut model
   fp$cd4_initdist <- fp$cd4_initdist[, tt$ag.idx_bk, ][, tt$agfirst.idx, ]
   fp$cd4_prog     <- fp$cd4_prog[, tt$ag.idx_bk, ][, tt$agfirst.idx, ]
   fp$cd4_mort     <- fp$cd4_mort[, tt$ag.idx_bk, ][, tt$agfirst.idx, ]

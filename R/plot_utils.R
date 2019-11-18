@@ -1,18 +1,6 @@
 #' @importFrom grDevices adjustcolor dev.new palette
 #' @importFrom graphics abline axis barplot boxplot layout legend lines 
 #' @importFrom graphics mtext par plot points polygon rect segments text
-showPch <- function() {
-    dev.new()
-    plot(0:25, pch=0:25, col=1:25)
-    text(0:25, labels=0:25, pos=3, xpd=T)
-    text(0:25, labels=0:25, pos=3, xpd=T)
-}
-
-solarized <- c("#002b36", "#dc322f", "#b58900", "#268bd2", "#859900", "#6c71c4", "#d33682", "#2aa198")
-harvard <- c(cod.gray="#0b0b09", vivid.burgundy="#961b36", medium.champagne="#f6eeab", tulip.tree="#eba938", monte.carlo="#7dc4ba", red.damask="#d96043", wattle="#d4d849", wheat="#f7deb2", light.blue="#b2dbde", fern.frond="#64821c", swans.down="#d8e9dc", chocolate="#d46619", allports="#206b87", red.damask="#d76340", boston.blue="#4683a8", aluminum="#989897", silver="#c2c2c1")
-gruvstd <- c("#282828", "#CD3B27", "#98971B", "#D7992A", "#458588", "#B16286", "#689D6A", "#A89984")
-gruvlt <- c("#928374", "#ED4631", "#B8BB26", "#F8BD32", "#83A598", "#D3869B", "#8EC07C", "#EBDBB2")
-
 #' @importFrom grDevices col2rgb rgb
 AddAlpha <- function (plotclr, alpha = 0.5, verbose = 0) {
     tmp <- col2rgb(plotclr, alpha = alpha)

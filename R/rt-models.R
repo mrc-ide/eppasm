@@ -1,4 +1,4 @@
-prepare_logrw <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5){
+prepare_logrw <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5) {
 
   fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - tsEpidemicStart))]
   rw_steps <- fp$proj.steps[fp$proj.steps >= fp$tsEpidemicStart]
@@ -6,7 +6,7 @@ prepare_logrw <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5){
   rt <- list()
   rt$nsteps_preepi <- length(fp$proj.steps[fp$proj.steps < tsEpidemicStart])
 
-  if(!exists("n_rw", fp))
+  if (!exists("n_rw", fp))
     rt$n_rw <- ceiling(diff(range(rw_steps)))  ##
   else
     rt$n_rw <- fp$n_rw
@@ -22,18 +22,17 @@ prepare_logrw <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5){
 
   fp$rvec.spldes <- rbind(matrix(0, rt$nsteps_preepi, fp$numKnots), rt$rwX)
                                 
-  if(!exists("eppmod", fp))
+  if (!exists("eppmod", fp))
     fp$eppmod <- "logrw"
   fp$iota <- NULL
   
   return(fp)
 }
 
-
 rlog_pr_mean <- c(log(0.35), log(0.09), log(0.2), 1993)
 rlog_pr_sd <- c(0.5, 0.3, 0.5, 5)
                 
-rlogistic <- function(t, p){
+rlogistic <- function(t, p) {
   ## p[1] = log r(0)    : log r(t) at the start of the epidemic (exponential growth)
   ## p[2] = log r(Inf)  : endemic value for log r(t)
   ## p[3] = alpha       : rate of change in log r(t)
@@ -54,15 +53,15 @@ prepare_rhybrid <- function(fp,
                             tsEpidemicStart = fp$ss$time_epi_start+0.5,
                             rw_start = fp$rw_start,
                             rw_trans = fp$rw_trans,
-                            rw_dk = fp$rw_dk){
+                            rw_dk = fp$rw_dk) {
 
-  if(is.null(rw_start))
+  if (is.null(rw_start))
     rw_start <- 2003
 
-  if(is.null(rw_trans))
+  if (is.null(rw_trans))
     rw_trans <- 5
 
-  if(is.null(rw_dk))
+  if (is.null(rw_dk))
     rw_dk <- 5
 
   fp$tsEpidemicStart <- fp$proj.steps[which.min(abs(fp$proj.steps - tsEpidemicStart))]
@@ -94,15 +93,15 @@ prepare_rhybrid <- function(fp,
   rt$eppmod <- "rhybrid"
   fp$rt <- rt
 
-  if(!exists("eppmod", fp))
+  if (!exists("eppmod", fp))
     fp$eppmod <- "rhybrid"
   fp$iota <- NULL
   
   return(fp)
 }
 
-create_rvec <- function(theta, rt){
-  if(rt$eppmod == "rhybrid"){
+create_rvec <- function(theta, rt) {
+  if (rt$eppmod == "rhybrid") {
 
     par <- theta[1:4]
     par[3] <- exp(par[3])
@@ -123,36 +122,34 @@ create_rvec <- function(theta, rt){
     stop(paste(rt$eppmod, "is not impmented in create_rvec()"))
 }
 
-
 #' Sample from conditional posterior distribution for variance parameter
 #' 
 #' @param x x
 #' @param prior_shape prior_shape
 #' @param prior_rate prior_rate
-sample_invgamma_post <- function(x, prior_shape, prior_rate){
+sample_invgamma_post <- function(x, prior_shape, prior_rate) {
   ## x: n_samples, n_knots
-  if(is.vector(x)) x <- matrix(x, 1)
+  if (is.vector(x)) x <- matrix(x, 1)
   1/rgamma(nrow(x), shape=prior_shape + ncol(x)/2,
            rate=prior_rate + 0.5*rowSums(x^2))
 }
 
-extend_projection <- function(fit, proj_years){
-
-
-  if(proj_years > fit$fp$ss$PROJ_YEARS)
+extend_projection <- function(fit, proj_years) {
+  if (proj_years > fit$fp$ss$PROJ_YEARS)
     stop("Cannot extend projection beyond duration of projection file")
   
   fp <- fit$fp
   fpnew <- fp
 
   fpnew$SIM_YEARS <- as.integer(proj_years)
-  fpnew$proj.steps <- with(fpnew$ss, seq(proj_start+0.5, proj_start-1+fpnew$SIM_YEARS+0.5, by=1/hiv_steps_per_year))
+  fpnew$proj.steps <- with(fpnew$ss,
+    seq(proj_start+0.5, proj_start-1+fpnew$SIM_YEARS+0.5, by=1/hiv_steps_per_year))
 
-  if(fp$eppmod == "rhybrid"){
+  if (fp$eppmod == "rhybrid") {
     idx1 <- 5  # start of random walk parameters
     idx2 <- 4+fp$rt$n_rw
     fpnew <- prepare_rhybrid(fpnew)
-  } else if(fp$eppmod == "logrw") {
+  } else if (fp$eppmod == "logrw") {
     idx1 <- 1L
     idx2 <- fp$rt$n_rw
     fpnew <- prepare_logrw(fpnew)
@@ -160,20 +157,21 @@ extend_projection <- function(fit, proj_years){
 
   theta <- fit$resample[,idx1:idx2, drop=FALSE]
 
-  if(!is.null(fp$prior_args$rw_prior_sd))
+  if (!is.null(fp$prior_args$rw_prior_sd))
      fit$rw_sigma <- fp$prior_args$rw_prior_sd
   else
     fit$rw_sigma <- rw_prior_sd
   
   nsteps <- fpnew$rt$n_rw - fp$rt$n_rw
 
-  if(nsteps > 0){
+  if (nsteps > 0) {
     thetanew <- matrix(nrow=nrow(theta), ncol=fpnew$rt$n_rw)
     thetanew[,1:ncol(theta)] <- theta
     thetanew[,ncol(theta)+1:nsteps] <- rnorm(nrow(theta)*nsteps, sd=fit$rw_sigma)
 
-    if(idx1 > 1)
-      fit$resample <- cbind(fit$resample[,1:(idx1-1), drop=FALSE], thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
+    if (idx1 > 1)
+      fit$resample <- cbind(fit$resample[,1:(idx1-1), drop=FALSE], thetanew, 
+                            fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
     else
       fit$resample <- cbind(thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
   } else {
@@ -193,42 +191,42 @@ extend_projection <- function(fit, proj_years){
 logiota.unif.prior <- log(c(1e-13, 0.0025))
 r0logiotaratio.unif.prior <- c(-25, -5)
 
-transf_iota <- function(par, fp){
+transf_iota <- function(par, fp) {
 
-  if(exists("prior_args", where = fp)){
+  if (exists("prior_args", where = fp)) {
     for(i in seq_along(fp$prior_args))
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
 
-  if(exists("logitiota", fp) && fp$logitiota)
+  if (exists("logitiota", fp) && fp$logitiota)
     exp(invlogit(par)*diff(logiota.unif.prior) + logiota.unif.prior[1])
   else
     exp(par)  
 }
 
-lprior_iota <- function(par, fp){
+lprior_iota <- function(par, fp) {
 
-  if(exists("prior_args", where = fp)){
+  if (exists("prior_args", where = fp)) {
     for(i in seq_along(fp$prior_args))
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
 
 
-  if(exists("logitiota", fp) && fp$logitiota)
+  if (exists("logitiota", fp) && fp$logitiota)
     ldinvlogit(par)  # Note: parameter is defined on range logiota.unif.prior, so no need to check bound
   else
-    dunif(par, logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
+    dunif (par, logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
 }
 
-sample_iota <- function(n, fp){
-  if(exists("prior_args", where = fp)){
+sample_iota <- function(n, fp) {
+  if (exists("prior_args", where = fp)) {
     for(i in seq_along(fp$prior_args))
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
-  if(exists("logitiota", fp) && fp$logitiota)
-    return(logit(runif(n)))
+  if (exists("logitiota", fp) && fp$logitiota)
+    return(logit(runif (n)))
   else
-    runif(n, logiota.unif.prior[1], logiota.unif.prior[2])
+    runif (n, logiota.unif.prior[1], logiota.unif.prior[2])
 }
 
 ldsamp_iota <- lprior_iota

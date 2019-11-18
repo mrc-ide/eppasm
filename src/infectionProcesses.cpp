@@ -1,17 +1,3 @@
-// Copyright (C) 2019  Kinh Nguyen
-
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU General Public License as published by the Free
-// Software Foundation, either version 3 of the License, or (at your option)
-// any later version.
-
-// This program is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-// more details.
-
-// You should have received a copy of the GNU General Public License along
-// with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Classes.hpp"
 
 void popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step,
@@ -22,8 +8,9 @@ void popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step,
          n_neg_mf = 0, n_pos_mf = 0, 
          n_pos_lo = 0, n_pos_up = 0, n_neg_lo = 0, n_neg_up = 0,
          n_hiv_lo = 0, n_art_lo = 0, n_hiv_up = 0, n_art_up = 0, art_ii = 0;
-  // boost3D_ptr now(at_this, xtents);
+
   update_active_pop_to(s.year, v, s); // substract virgin when needed
+
   for (int sex = 0; sex < s.NG; sex++) {
     for (int age = p_lo; age < s.pAG_1549; age++) {
       n_neg_mf += data_active[s.N][sex][age];
@@ -84,8 +71,7 @@ void popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step,
     n_neg_f += data_active[s.N][s.F][age];
   }
   double adj_sex = (n_neg_m + n_neg_f) / (n_neg_m + n_neg_f * p.ic.incrr_sex[s.year]);
-  double sex_inc[2] = {inc_rate * adj_sex, 
-                       inc_rate * adj_sex * p.ic.incrr_sex[s.year]};
+  double sex_inc[2] = {inc_rate * adj_sex, inc_rate * adj_sex * p.ic.incrr_sex[s.year]};
   // New infections distributed by age: ratio age_i/ 25-29 age
   for (int sex = 0; sex < s.NG; sex++) {
     double n_neg = 0, n_neg_rr = 0, adj_age;

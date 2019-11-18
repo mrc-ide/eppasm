@@ -16,7 +16,6 @@
 #pragma once
 
 struct DemogParam {
-public:
   boost2D_ptr basepop;
   double *    births;
   boost3D_ptr Sx;
@@ -33,7 +32,6 @@ public:
 };
 
 struct NaturalHistoryParam {
-public:
   boost2D_ptr artmx_timerr;
   boost3D_ptr cd4_initdist;
   boost3D_ptr cd4_prog;
@@ -45,7 +43,6 @@ public:
 };
 
 struct ArtData {
-public:
   boost2D_ptr    art15plus_num;
   boost2D_ptr    art15plus_isperc;
   const int    * artcd4elig_idx;  // NOTE: 1-based indexing
@@ -63,7 +60,6 @@ public:
 };
 
 struct RtrendParam {
-public:
   const double * proj_steps;
   const double * rw_start;
   const double * rw_trans;
@@ -80,7 +76,6 @@ public:
 };
 
 struct IncidenceParam {
-public:
   const int      eppmod; 
   const int      incidmod;
   boost3D_ptr    incrr_age;
@@ -104,7 +99,6 @@ public:
 };
 
 struct PaediatricHivParam {
-public:
   const double * verttrans_lag;
   const double * paedsurv_lag;
   const double   netmighivsurv;
@@ -117,7 +111,6 @@ public:
 };
 
 struct AncParam {
-public:
   const int    * ancsitedata;
   const int    * ancrt;
   const double * ancbias;
@@ -129,7 +122,6 @@ public:
 };
 
 struct Parameters {
-public:
   DemogParam          dm;
   NaturalHistoryParam nh;
   ArtData             ad;

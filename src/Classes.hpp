@@ -145,40 +145,32 @@ public: // Pop inits
       Rf_error("Debut model state-space not exist, see update_fp_debut()");
   }
 // Pop methods 
-  void initiate(const Parameters& p, const StateSpace& s);
-  void update_active_pop_to(int year, Views& v, const StateSpace& s);
-  void update_active_last_year(Views& v, const StateSpace& s);
-  void aging(Views& v, const StateSpace& s);
-  dvec entrant_art(Views& v, const Parameters& p, const StateSpace& s);
-  void add_entrants(Views& v, const Parameters& p, const StateSpace& s);
-  void sexual_debut(const Parameters& p, const StateSpace& s);
-  void update_hiv_aging_prob(Views& v, const StateSpace& s);
-  void deaths(Views& v, const Parameters& p, const StateSpace& s);
-  void migration(Views& v, const Parameters& p, const StateSpace& s);
-  void update_fertile(Views& v, const Parameters& p, const StateSpace& s);
-  void adjust_pop(Views& v, const Parameters& p, const StateSpace& s);
-  void cal_prev_pregant (const hivC& hivpop, const artC& artpop, Views& v, 
-                         const Parameters& p, const StateSpace& s);
-  void save_prev_n_inc (Views& v, const StateSpace& s);
-  void infect_mix (int ii, Views& v, const Parameters& p, const StateSpace& s);
-  void infect_spec (const hivC& hivpop, const artC& artpop, int time_step,
-                    Views& v, const Parameters& p, const StateSpace& s);
-  void epp_disease_model_direct (hivC& hivpop, artC& artpop, Views& v,
-                                 const Parameters& p, const StateSpace& s);
-  double calc_rtrend_rt (int ts, double time_step, const StateSpace& s);
-  void update_rvec (double time_step, const Parameters& p, const StateSpace& s);
-  void update_infection (Views& v, const StateSpace& s);
-  void remove_hiv_death (const hivC& hivpop, const artC& artpop, Views& v,
-                         const Parameters& p, const StateSpace& s);
-  void update_preg (const hivC& hivpop, const artC& artpop, Views& v,
-                    const Parameters& p, const StateSpace& s);
-  void art_initiate(const dvec& art_curr, int time_step,
-                    const Parameters& p, const StateSpace& s);
-  void art_distribute(const dvec& art_need,
-                      const Parameters& p, const StateSpace& s);
-  void epp_art_init(hivC& hivpop, artC& artpop, int time_step, Views& v,
-                    const Parameters& p, const StateSpace& s);
-  void update_eligible_for_art(const Parameters& p, const StateSpace& s);
+  void initiate                  (const Parameters& p, const StateSpace& s);
+  void update_active_pop_to      (int year, Views& v, const StateSpace& s);
+  void update_active_last_year   (Views& v, const StateSpace& s);
+  void aging                     (Views& v, const StateSpace& s);
+  dvec entrant_art               (Views& v, const Parameters& p, const StateSpace& s);
+  void add_entrants              (Views& v, const Parameters& p, const StateSpace& s);
+  void sexual_debut              (const Parameters& p, const StateSpace& s);
+  void update_hiv_aging_prob     (Views& v, const StateSpace& s);
+  void deaths                    (Views& v, const Parameters& p, const StateSpace& s);
+  void migration                 (Views& v, const Parameters& p, const StateSpace& s);
+  void update_fertile            (Views& v, const Parameters& p, const StateSpace& s);
+  void adjust_pop                (Views& v, const Parameters& p, const StateSpace& s);
+  void cal_prev_pregant          (const hivC& hivpop, const artC& artpop, Views& v, const Parameters& p, const StateSpace& s);
+  void save_prev_n_inc           (Views& v, const StateSpace& s);
+  void infect_mix                (int ii, Views& v, const Parameters& p, const StateSpace& s);
+  void infect_spec               (const hivC& hivpop, const artC& artpop, int time_step, Views& v, const Parameters& p, const StateSpace& s);
+  void epp_disease_model_direct  (hivC& hivpop, artC& artpop, Views& v, const Parameters& p, const StateSpace& s);
+  double calc_rtrend_rt          (int ts, double time_step, const StateSpace& s);
+  void update_rvec               (double time_step, const Parameters& p, const StateSpace& s);
+  void update_infection          (Views& v, const StateSpace& s);
+  void remove_hiv_death          (const hivC& hivpop, const artC& artpop, Views& v, const Parameters& p, const StateSpace& s);
+  void update_preg               (const hivC& hivpop, const artC& artpop, Views& v, const Parameters& p, const StateSpace& s);
+  void art_initiate              (const dvec& art_curr, int time_step, const Parameters& p, const StateSpace& s);
+  void art_distribute            (const dvec& art_need, const Parameters& p, const StateSpace& s);
+  void epp_art_init              (hivC& hivpop, artC& artpop, int time_step, Views& v, const Parameters& p, const StateSpace& s);
+  void update_eligible_for_art   (const Parameters& p, const StateSpace& s);
 public: // Pop fields
   double    * at_this;
   double    * at_prev;
@@ -242,21 +234,17 @@ public: // inits
   cd4_mort_      (xtents),
   infect_by_agrp_(extents[s.NG][s.hAG]) {};
 // methods
-  void aging(const boost2D& ag_prob, Views& v, const StateSpace& s);
-  void add_entrants(const dvec& artYesNo, Views& v,
-                    const Parameters& p, const StateSpace& s);
-  void sexual_debut(Views& v, const Parameters& p, const StateSpace& s);
-  void deaths(const boost2D& survival_pr, Views& v, const StateSpace& s);
-  void migration(const boost2D& migration_pr, Views& v, const StateSpace& s);
-  void update_infection(const boost2D& new_infect,
-                        const Parameters& p, const StateSpace& s);
-  void scale_cd4_mort(artC& artpop, Views& v,
-                      const Parameters& p, const StateSpace& s);
-  void grad_progress(Views& v, const Parameters& p, const StateSpace& s);
-  void distribute_artinit(boost3D& artinit, artC& artpop,
-                          Views& v, const StateSpace& s);
-  void add_grad_to_pop(Views& v, const StateSpace& s);
-  void adjust_pop(const boost2D& adj_prob, Views& v, const StateSpace& s);
+  void aging             (const boost2D& ag_prob, Views& v, const StateSpace& s);
+  void add_entrants      (const dvec& artYesNo, Views& v, const Parameters& p, const StateSpace& s);
+  void sexual_debut      (Views& v, const Parameters& p, const StateSpace& s);
+  void deaths            (const boost2D& survival_pr, Views& v, const StateSpace& s);
+  void migration         (const boost2D& migration_pr, Views& v, const StateSpace& s);
+  void update_infection  (const boost2D& new_infect, const Parameters& p, const StateSpace& s);
+  void scale_cd4_mort    (artC& artpop, Views& v, const Parameters& p, const StateSpace& s);
+  void grad_progress     (Views& v, const Parameters& p, const StateSpace& s);
+  void distribute_artinit(boost3D& artinit, artC& artpop, Views& v, const StateSpace& s);
+  void add_grad_to_pop   (Views& v, const StateSpace& s);
+  void adjust_pop        (const boost2D& adj_prob, Views& v, const StateSpace& s);
 public: // fields
   // boost4D_ptr data;
   int         N;
@@ -289,20 +277,18 @@ public: // Inits
     death_db_ (xtents) 
     {}
 // Methods
-  void aging(const boost2D& ag_prob, Views& v, const StateSpace& s);
-  void add_entrants(const dvec& artYesNo, Views& v, const Parameters& p,
-                    const StateSpace& s);
-  void sexual_debut(Views& v, const Parameters& p, const StateSpace& s);
-  void deaths(const boost2D& survival_pr, Views& v, const StateSpace& s);
-  void migration(const boost2D& migration_pr, Views& v, const StateSpace& s);
-  void grad_progress(Views& v, const StateSpace& s);
-  void art_dropout(hivC& hivpop, Views& v,
-                   const Parameters& p, const StateSpace& s);
+  void aging                (const boost2D& ag_prob, Views& v, const StateSpace& s);
+  void add_entrants         (const dvec& artYesNo, Views& v, const Parameters& p, const StateSpace& s);
+  void sexual_debut         (Views& v, const Parameters& p, const StateSpace& s);
+  void deaths               (const boost2D& survival_pr, Views& v, const StateSpace& s);
+  void migration            (const boost2D& migration_pr, Views& v, const StateSpace& s);
+  void grad_progress        (Views& v, const StateSpace& s);
+  void art_dropout          (hivC& hivpop, Views& v, const Parameters& p, const StateSpace& s);
   void update_current_on_art(Views& v, const StateSpace& s);
-  void grad_init(const boost3D& artinit, Views& v, const StateSpace& s);
-  void grad_db_init(const boost3D& artinit_db, const StateSpace& s);
-  void adjust_pop(const boost2D& adj_prob, Views& v, const StateSpace& s);
-  void count_death(Views& v, const Parameters& p, const StateSpace& s);
+  void grad_init            (const boost3D& artinit, Views& v, const StateSpace& s);
+  void grad_db_init         (const boost3D& artinit_db, const StateSpace& s);
+  void adjust_pop           (const boost2D& adj_prob, Views& v, const StateSpace& s);
+  void count_death          (Views& v, const Parameters& p, const StateSpace& s);
 public: // fields
   int         N;
   boost::array<boost4D_ptr::index, 4> xtents;

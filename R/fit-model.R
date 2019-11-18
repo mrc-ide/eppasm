@@ -123,7 +123,7 @@ create_subpop_specfp <- function(projp, demp, eppd,
   ## Update demp for subpopulation 
   demp.subpop <- list()
   gfr_subpop <- list()
-  for(subpop in names(eppd)){
+  for(subpop in names(eppd)) {
     ## if(country != "Malawi")
     strsubp <- if(subpop %in% c("Urbain", "Urbaine", "Urban")) "U"
                else if(subpop %in%  c("Rural", "Rurale")) "R"
@@ -219,7 +219,7 @@ create_subpop_specfp <- function(projp, demp, eppd,
 
   ## Apportion age 14 HIV population
   ## Allocate relative to HIV prevalence and population size, same as ART population
-  for(subpop in names(eppd)){
+  for (subpop in names(eppd)) {
     projp.subpop[[subpop]]$age15hivpop <- projp.subpop[[subpop]]$age15hivpop * art.dist[subpop]
   }
   

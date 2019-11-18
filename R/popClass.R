@@ -1,4 +1,4 @@
-# EPP parameter super class: later improve the generating of fp as well
+# EPP parameter super class: TODO: fp as an R6?
 #' @importFrom methods new
 eppFP <- R6::R6Class("eppfp", class=F, cloneable=F, portable=F, lock_objects=F,
     public = list(
@@ -391,7 +391,7 @@ infect_mix = function(hivpop, artpop, ii) {
     # sweep over sexual mixing matrices
     ir_m <- rowSums(sweep(p$mat_m, 2, transm_prev[, f.idx], "*")) # male
     ir_f <- rowSums(sweep(p$mat_f, 2, transm_prev[, m.idx], "*")) # female
-    irmf   <- cbind(ir_m, ir_f)
+    irmf <- cbind(ir_m, ir_f)
     # if (exists("f_fun", fp)) # that fun
     #   ir <- ir * fp$f_fun
     infections.ts <- irmf * data_active[,,hivn.idx]

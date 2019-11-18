@@ -57,18 +57,18 @@ rtrend.beta.pr.sd <- c(0.12, 0.07, 0.24, 0.009)
 
 fnCreateParam <- function(theta, fp){
 
-  if(exists("prior_args", where = fp)){
+  if (exists("prior_args", where = fp)){
     for(i in seq_along(fp$prior_args))
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
   
-  if(fp$eppmod %in% c("rspline", "logrw")){
+  if (fp$eppmod %in% c("rspline", "logrw")){
 
     epp_nparam <- fp$numKnots+1
 
-    if(fp$eppmod == "rspline"){
+    if (fp$eppmod == "rspline"){
       u <- theta[1:fp$numKnots]
-      if(fp$rtpenord == 2){
+      if (fp$rtpenord == 2){
         beta <- numeric(fp$numKnots)
         beta[1] <- u[1]
         beta[2] <- u[1]+u[2]
@@ -76,28 +76,27 @@ fnCreateParam <- function(theta, fp){
           beta[i] <- -beta[i-2] + 2*beta[i-1] + u[i]
       } else # first order penalty
         beta <- cumsum(u)
-    } else if(fp$eppmod %in% "logrw")
+    } else if (fp$eppmod %in% "logrw")
       beta <- theta[1:fp$numKnots]
 
     param <- list(beta = beta,
                   rvec = as.vector(fp$rvec.spldes %*% beta))
     
-    if(fp$eppmod %in% "logrw")
+    if (fp$eppmod %in% "logrw")
       param$rvec <- exp(param$rvec)
 
-    if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
+    if (exists("r0logiotaratio", fp) && fp$r0logiotaratio)
       param$iota <- exp(param$rvec[fp$proj.steps == fp$tsEpidemicStart] * theta[fp$numKnots+1])
     else
       param$iota <- transf_iota(theta[fp$numKnots+1], fp)
-
-  } else if(fp$eppmod == "rlogistic") {
+  } else if (fp$eppmod == "rlogistic") {
     epp_nparam <- 5
     par <- theta[1:4]
     par[3] <- exp(theta[3])
     param <- list()
     param$rvec <- exp(rlogistic(fp$proj.steps, par))
     param$iota <- transf_iota(theta[5], fp)
-  } else if(fp$eppmod == "rtrend"){ # rtrend
+  } else if (fp$eppmod == "rtrend"){ # rtrend
     epp_nparam <- 7
     param <- list(tsEpidemicStart = fp$proj.steps[which.min(abs(fp$proj.steps - (round(theta[1]-0.5)+0.5)))], # t0
                   rtrend = list(tStabilize = round(theta[1]-0.5)+0.5+round(theta[2]),  # t0 + t1
@@ -110,7 +109,7 @@ fnCreateParam <- function(theta, fp){
     param$iota <- transf_iota(theta[fp$rt$n_param+1], fp)
   }
 
-  if(exists("ancmod", fp) && fp$ancmod$nparam > 0) {
+  if (exists("ancmod", fp) && fp$ancmod$nparam > 0) {
     theta_anc <- theta[epp_nparam+1:fp$ancmod$nparam]
     param <- update_par(param, list = create_ancmod_param(theta_anc, fp$ancmod))
     param$frr_cd4 <- fp$frr_cd4 * exp(param$log_frr_adjust)
@@ -174,16 +173,15 @@ ll_hhsage <- function(mod, dat, pointwise = FALSE){
                                            sidx = dat$sidx, 
                                            yidx = dat$yidx, 
                                            agspan = dat$agspan)))
-  if(any(is.na(qM.age)))
+  if (any(is.na(qM.age)))
     val <- rep(-Inf, nrow(dat))
   else
     val <- dnorm(dat$W.hhs, qM.age, dat$sd.W.hhs, log=TRUE)
-  
-  if(pointwise)
+
+  if (pointwise)
     return(val)
   sum(val)
 }
-
 
 #' Log likelihood for age-specific household survey prevalence using binomial approximation
 #' 
@@ -192,15 +190,15 @@ ll_hhsage <- function(mod, dat, pointwise = FALSE){
 #' @param pointwise Point-wise likelihood
 ll_hhsage_binom <- function(mod, dat, pointwise = FALSE){
 
-  prevM.age <- suppressWarnings(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan))
+  prevM.age <- suppressWarnings(ageprev(mod, dat$aidx, dat$sidx, dat$yidx, dat$agspan))
 
-  if(any(is.na(prevM.age)) || any(prevM.age >= 1))
+  if (any(is.na(prevM.age)) || any(prevM.age >= 1))
     val <- rep(-Inf, nrow(dat))
   else
     val <- ldbinom(dat$x_eff, dat$n_eff, prevM.age)
   val[is.na(val)] <- -Inf
 
-  if(pointwise)
+  if (pointwise)
     return(val)
 
   sum(val)
@@ -252,74 +250,69 @@ prepare_likdat <- function(eppd, fp){
   
   likdat$hhs.dat <- prepare_hhsageprev_likdat(eppd$hhs, fp)
 
-  if(exists("ancsitedat", where=eppd)){
+  if (exists("ancsitedat", where=eppd)){
 
     ancsitedat <- eppd$ancsitedat
     
-    if(exists("ancmod", fp) && !fp$ancmod$has_ancrtsite)
+    if (exists("ancmod", fp) && !fp$ancmod$has_ancrtsite)
       ancsitedat <- subset(ancsitedat, type == "ancss")
     
     likdat$ancsite.dat <- prepare_ancsite_likdat(ancsitedat, fp)
   }
  
-  if(exists("ancrtcens", where=eppd)){
-    if(exists("ancmod", fp) && !fp$ancmod$has_ancrtcens)
+  if (exists("ancrtcens", where=eppd)){
+    if (exists("ancmod", fp) && !fp$ancmod$has_ancrtcens)
       eppd$ancrtcens <- NULL
     else
       likdat$ancrtcens.dat <- prepare_ancrtcens_likdat(eppd$ancrtcens, fp)
   }
 
-  if(exists("hhsincid", where=eppd))
+  if (exists("hhsincid", where=eppd))
     likdat$hhsincid.dat <- prepare_hhsincid_likdat(eppd$hhsincid, fp)
 
   return(likdat)
 }
 
-
-
-
 lprior <- function(theta, fp){
 
-  if(exists("prior_args", where = fp)){
+  if (exists("prior_args", where = fp)){
     for(i in seq_along(fp$prior_args))
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
 
-  if(fp$eppmod %in% c("rspline", "logrw")){
+  if (fp$eppmod %in% c("rspline", "logrw")){
     epp_nparam <- fp$numKnots+1
 
     nk <- fp$numKnots
 
-    if(fp$eppmod == "logrw")
+    if (fp$eppmod == "logrw")
       lpr <- bayes_lmvt(theta[2:fp$numKnots], rw_prior_shape, rw_prior_rate)
     else
       lpr <- bayes_lmvt(theta[(1+fp$rtpenord):nk], tau2_prior_shape, tau2_prior_rate)
 
-    if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
-      lpr <- lpr + dunif(theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
+    if (exists("r0logiotaratio", fp) && fp$r0logiotaratio)
+      lpr <- lpr + dunif (theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
     else
       lpr <- lpr + lprior_iota(theta[nk+1], fp)
-
-  } else if(fp$eppmod == "rlogistic") {
+  } else if (fp$eppmod == "rlogistic") {
     epp_nparam <- 5
     lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE))
     lpr <- lpr + lprior_iota(theta[5], fp)
-  } else if(fp$eppmod == "rtrend"){ # rtrend
-    
+  } else if (fp$eppmod == "rtrend"){ # rtrend    
     epp_nparam <- 7
     
-    lpr <- dunif(round(theta[1]), t0.unif.prior[1], t0.unif.prior[2], log=TRUE) +
+    lpr <- dunif (round(theta[1]), t0.unif.prior[1], t0.unif.prior[2], log=TRUE) +
       dnorm(round(theta[2]), t1.pr.mean, t1.pr.sd, log=TRUE) +
       dnorm(theta[3], logr0.pr.mean, logr0.pr.sd, log=TRUE) +
       sum(dnorm(theta[4:7], rtrend.beta.pr.mean, rtrend.beta.pr.sd, log=TRUE))
-  } else if(fp$eppmod == "rhybrid"){
+  } else if (fp$eppmod == "rhybrid"){
     epp_nparam <- fp$rt$n_param+1
     lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE)) +
       sum(dnorm(theta[4+1:fp$rt$n_rw], 0, rw_prior_sd, log=TRUE))
     lpr <- lpr + lprior_iota(theta[fp$rt$n_param+1], fp)
   }
 
-  if(exists("ancmod", fp) && fp$ancmod$nparam > 0) {
+  if (exists("ancmod", fp) && fp$ancmod$nparam > 0) {
     theta_anc <- theta[epp_nparam+1:fp$ancmod$nparam]
     lpr <- lpr + lprior_ancmod(theta_anc, fp$ancmod, fp$prior_args)
   }
@@ -415,19 +408,19 @@ ll <- function(theta, fp, likdat) {
 
 sample.prior <- function(n, fp){
 
-  if(exists("prior_args", where = fp)){
+  if (exists("prior_args", where = fp)){
     for(i in seq_along(fp$prior_args))
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
 
   ## Calculate number of parameters
-  if(fp$eppmod %in% c("rspline", "logrw"))
+  if (fp$eppmod %in% c("rspline", "logrw"))
     epp_nparam <- fp$numKnots+1L
-  else if(fp$eppmod == "rlogistic")
+  else if (fp$eppmod == "rlogistic")
     epp_nparam <- 5
-  else if(fp$eppmod == "rtrend")
+  else if (fp$eppmod == "rtrend")
     epp_nparam <- 7
-  else if(fp$eppmod == "rhybrid")
+  else if (fp$eppmod == "rhybrid")
     epp_nparam <- fp$rt$n_param+1
 
   nparam <- epp_nparam + fp$ancmod$nparam 
@@ -435,40 +428,40 @@ sample.prior <- function(n, fp){
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
 
-  if(fp$eppmod %in% c("rspline", "logrw")){
+  if (fp$eppmod %in% c("rspline", "logrw")){
     epp_nparam <- fp$numKnots+1
 
-    if(fp$eppmod == "rspline")
+    if (fp$eppmod == "rspline")
       mat[,1] <- rnorm(n, 1.5, 1)                                                   # u[1]
     else # logrw
       mat[,1] <- rnorm(n, 0.2, 1)                                                   # u[1]
-    if(fp$eppmod == "logrw"){
+    if (fp$eppmod == "logrw"){
       mat[,2:fp$rt$n_rw] <- bayes_rmvt(n, fp$rt$n_rw-1, rw_prior_shape, rw_prior_rate)  # u[2:numKnots]
     } else {
       mat[,2:fp$numKnots] <- bayes_rmvt(n, fp$numKnots-1,tau2_init_shape, tau2_init_rate)  # u[2:numKnots]
     }
 
-    if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
-      mat[,fp$numKnots+1] <-  runif(n, r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2])  # ratio r0 / log(iota)
+    if (exists("r0logiotaratio", fp) && fp$r0logiotaratio)
+      mat[,fp$numKnots+1] <-  runif (n, r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2])  # ratio r0 / log(iota)
     else
       mat[,fp$numKnots+1] <- sample_iota(n, fp)
-  } else if(fp$eppmod == "rlogistic"){
+  } else if (fp$eppmod == "rlogistic"){
     mat[,1:4] <- t(matrix(rnorm(4*n, rlog_pr_mean, rlog_pr_sd), 4))
     mat[,5] <- sample_iota(n, fp)
-  } else if(fp$eppmod == "rtrend"){ # r-trend
+  } else if (fp$eppmod == "rtrend"){ # r-trend
 
-    mat[,1] <- runif(n, t0.unif.prior[1], t0.unif.prior[2])           # t0
+    mat[,1] <- runif (n, t0.unif.prior[1], t0.unif.prior[2])           # t0
     mat[,2] <- rnorm(n, t1.pr.mean, t1.pr.sd)
     mat[,3] <- rnorm(n, logr0.pr.mean, logr0.pr.sd)  # r0
     mat[,4:7] <- t(matrix(rnorm(4*n, rtrend.beta.pr.mean, rtrend.beta.pr.sd), 4, n))  # beta
-  } else if(fp$eppmod == "rhybrid") {
+  } else if (fp$eppmod == "rhybrid") {
     mat[,1:4] <- t(matrix(rnorm(4*n, rlog_pr_mean, rlog_pr_sd), 4))
     mat[,4+1:fp$rt$n_rw] <- rnorm(n*fp$rt$n_rw, 0, rw_prior_sd)  # u[2:numKnots]
     mat[,fp$rt$n_param+1] <- sample_iota(n, fp)
   }
 
   ## sample ANC model parameters
-  if(exists("ancmod", fp) && fp$ancmod$nparam > 0)
+  if (exists("ancmod", fp) && fp$ancmod$nparam > 0)
     mat[ , epp_nparam + 1:fp$ancmod$nparam] <- sample_prior_ancmod(n, fp$ancmod, fp$prior_args)
   
   return(mat)
@@ -476,52 +469,52 @@ sample.prior <- function(n, fp){
 
 ldsamp <- function(theta, fp){
 
-  if(exists("prior_args", where = fp)){
+  if (exists("prior_args", where = fp)){
     for(i in seq_along(fp$prior_args))
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
 
-  if(fp$eppmod %in% c("rspline", "logrw")){
+  if (fp$eppmod %in% c("rspline", "logrw")){
     epp_nparam <- fp$numKnots+1
 
     nk <- fp$numKnots
 
-    if(fp$eppmod == "rspline")  # u[1]
+    if (fp$eppmod == "rspline")  # u[1]
       lpr <- dnorm(theta[1], 1.5, 1, log=TRUE)
     else # logrw
       lpr <- dnorm(theta[1], 0.2, 1, log=TRUE)
 
-    if(fp$eppmod == "logrw")
+    if (fp$eppmod == "logrw")
       bayes_lmvt(theta[2:fp$rt$n_rw], rw_prior_shape, rw_prior_rate)
     else
       lpr <- bayes_lmvt(theta[2:nk], tau2_prior_shape, tau2_prior_rate)
 
 
-    if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
-      lpr <- lpr + dunif(theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
+    if (exists("r0logiotaratio", fp) && fp$r0logiotaratio)
+      lpr <- lpr + dunif (theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
     else
       lpr <- lpr + ldsamp_iota(theta[nk+1], fp)
 
-  } else if(fp$eppmod == "rlogistic") {
+  } else if (fp$eppmod == "rlogistic") {
     epp_nparam <- 5
     lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE))
     lpr <- lpr + ldsamp_iota(theta[5], fp)
-  } else if(fp$eppmod == "rtrend"){ # rtrend
+  } else if (fp$eppmod == "rtrend"){ # rtrend
 
     epp_nparam <- 7
 
-    lpr <- dunif(round(theta[1]), t0.unif.prior[1], t0.unif.prior[2], log=TRUE) +
+    lpr <- dunif (round(theta[1]), t0.unif.prior[1], t0.unif.prior[2], log=TRUE) +
       dnorm(round(theta[2]), t1.pr.mean, t1.pr.sd, log=TRUE) +
       dnorm(theta[3], logr0.pr.mean, logr0.pr.sd, log=TRUE) +
       sum(dnorm(theta[4:7], rtrend.beta.pr.mean, rtrend.beta.pr.sd, log=TRUE))
-  } else if(fp$eppmod == "rhybrid"){
+  } else if (fp$eppmod == "rhybrid"){
     epp_nparam <- fp$rt$n_param+1
     lpr <- sum(dnorm(theta[1:4], rlog_pr_mean, rlog_pr_sd, log=TRUE)) +
       sum(dnorm(theta[4+1:fp$rt$n_rw], 0, rw_prior_sd, log=TRUE))
     lpr <- lpr + ldsamp_iota(theta[fp$rt$n_param+1], fp)
   }
 
-  if(exists("ancmod", fp) && fp$ancmod$nparam > 0) {
+  if (exists("ancmod", fp) && fp$ancmod$nparam > 0) {
     theta_anc <- theta[epp_nparam+1:fp$ancmod$nparam]
     lpr <- lpr + lprior_ancmod(theta_anc, fp$ancmod, fp$prior_args)
   }
@@ -529,13 +522,12 @@ ldsamp <- function(theta, fp){
   return(lpr)
 }
 
-
 prior <- function(theta, fp, log=FALSE){
-  if(is.vector(theta))
+  if (is.vector(theta))
     lval <- lprior(theta, fp)
   else
     lval <- unlist(lapply(seq_len(nrow(theta)), function(i) (lprior(theta[i,], fp))))
-  if(log)
+  if (log)
     return(lval)
   else
     return(exp(lval))
@@ -553,11 +545,11 @@ likelihood <- function(theta, fp, likdat, log=FALSE){
 }
 
 dsamp <- function(theta, fp, log=FALSE){
-  if(is.vector(theta))
+  if (is.vector(theta))
     lval <- ldsamp(theta, fp)
   else
     lval <- unlist(lapply(seq_len(nrow(theta)), function(i) (ldsamp(theta[i,], fp))))
-  if(log)
+  if (log)
     return(lval)
   else
     return(exp(lval))

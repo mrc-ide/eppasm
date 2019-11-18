@@ -12,6 +12,7 @@ struct outputSEXP { // outputs for R
   SEXP incid15to49;
   SEXP entrantprev;
   SEXP pregprevlag;
+  SEXP pregprev;
   SEXP inci15to49_ts;
   SEXP prev15to49_ts;
   SEXP rvec;
@@ -33,6 +34,7 @@ struct outputSEXP { // outputs for R
     incid15to49   = PROTECT(NEW_NUMERIC(s.PROJ_YEARS)); ++np;
     entrantprev   = PROTECT(NEW_NUMERIC(s.PROJ_YEARS)); ++np;
     pregprevlag   = PROTECT(NEW_NUMERIC(s.PROJ_YEARS)); ++np;
+    pregprev      = PROTECT(NEW_NUMERIC(s.PROJ_YEARS)); ++np;
     inci15to49_ts = PROTECT(NEW_NUMERIC(s.n_steps)); ++np;
     prev15to49_ts = PROTECT(NEW_NUMERIC(s.n_steps)); ++np;
     rvec          = PROTECT(NEW_NUMERIC(s.n_steps)); ++np;
@@ -44,6 +46,7 @@ struct outputSEXP { // outputs for R
     memset(REAL(prev15to49 ), 0, s.PROJ_YEARS * sizeof(double));
     memset(REAL(incid15to49), 0, s.PROJ_YEARS * sizeof(double));
     memset(REAL(pregprevlag), 0, s.PROJ_YEARS * sizeof(double));
+    memset(REAL(pregprev   ), 0, s.PROJ_YEARS * sizeof(double));
     memset(REAL(entrantprev), 0, s.PROJ_YEARS * sizeof(double));
     
     memset(REAL(inci15to49_ts), 0, s.n_steps    * sizeof(double));
@@ -109,6 +112,7 @@ public: // Pop inits
     incid15to49        (REAL(O.incid15to49), extents[s.PROJ_YEARS]),
     entrantprev        (REAL(O.entrantprev), extents[s.PROJ_YEARS]),
     pregprevlag        (REAL(O.pregprevlag), extents[s.PROJ_YEARS]),
+    pregprev           (REAL(O.pregprev), extents[s.PROJ_YEARS]),
     incrate15to49_ts   (REAL(O.inci15to49_ts), extents[s.n_steps]),
     prev15to49_ts      (REAL(O.prev15to49_ts), extents[s.n_steps]),
     rvec               (REAL(O.rvec), extents[s.n_steps]),
@@ -182,6 +186,7 @@ public: // Pop fields
   boost1D_ptr incid15to49;
   boost1D_ptr entrantprev;
   boost1D_ptr pregprevlag;
+  boost1D_ptr pregprev;
   boost1D_ptr incrate15to49_ts;  
   boost1D_ptr prev15to49_ts;
   boost1D_ptr rvec;

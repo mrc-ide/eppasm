@@ -39,6 +39,7 @@ void outputSEXP::finalize(const StateSpace& s) {
     SET_ATTR(pop, Rf_install("natdeaths"), natdeaths);
     SET_ATTR(pop, Rf_install("popadjust"), popadjust);
     SET_ATTR(pop, Rf_install("pregprevlag"), pregprevlag);
+    SET_ATTR(pop, Rf_install("pregprev"), pregprev);
     SET_ATTR(pop, Rf_install("rvec_ts"), rvec);
     SET_ATTR(pop, Rf_install("prev15to49"), prev15to49);
     SET_ATTR(pop, Rf_install("incid15to49"), incid15to49);

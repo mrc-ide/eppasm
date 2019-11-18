@@ -282,19 +282,21 @@ void popC::cal_prev_pregant (const hivC& hivpop, const artC& artpop, Views& v,
     }
     frap += birth_agrp[agr] * (1 - hivn[agr] / (hivn[agr] + frp + fra));
   }
-  pregprevlag[s.year + s.AGE_START - 1] = frap / sum_vector(birth_age);
+  pregprev[s.year] = frap / sum_vector(birth_age);
+  if (s.year + s.AGE_START <= s.PROJ_YEARS - 1)
+    pregprevlag[s.year + s.AGE_START - 1] = pregprev[s.year];
 }
 
 void popC::save_prev_n_inc (Views& v, const StateSpace& s) {
-  if (s.year + s.AGE_START > s.PROJ_YEARS - 1) // otherwise did in cal_prev_pregant
+  if (s.year + s.AGE_START > s.PROJ_YEARS - 1) // repeat of cal_prev_pregant
     update_active_last_year(v, s);
   double n_positive = 0, everyone_now = 0, s_previous = 0;
   for (int sex = 0; sex < s.NG; sex++)
     for (int age = s.p_age15to49_[0] - 1; age < s.pAG_1549; age++) {
-      n_positive += v.now_pop[s.P][sex][age]; // +virgin
-      s_previous += active_last_year_[s.N][sex][age]; // susceptible -virgin
       for (int ds = 0; ds < s.pDS; ds++)
         everyone_now += v.now_pop[ds][sex][age];
+      n_positive += v.now_pop[s.P][sex][age]; // + included virgin positive
+      s_previous += active_last_year_[s.N][sex][age]; // susceptible -virgin
     }
   prev15to49[s.year] = n_positive / everyone_now;
   incid15to49[s.year] /= s_previous;

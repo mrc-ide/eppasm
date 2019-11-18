@@ -53,8 +53,7 @@ simmod.specfp <- function(fp, VERSION="C", MODEL=1L, MIX=FALSE) {
       }
     }
     if (MODEL != 0) {
-      if (i + fp$ss$AGE_START <= fp$ss$PROJ_YEARS)
-        pop$cal_prev_pregant(hivpop, artpop) # prevalence among pregnant women
+      pop$cal_prev_pregant(hivpop, artpop) # prevalence among pregnant women
       pop$save_prev_n_inc() # save prevalence and incidence 15 to 49
     }
   }

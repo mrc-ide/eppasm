@@ -95,8 +95,7 @@ void Model::infection_process(Views& v) {
 
 void Model::save_outputs(Views& v) {
   if (s.MODEL != 0) {
-    if (s.year + s.AGE_START <= s.PROJ_YEARS - 1)
-      pop.cal_prev_pregant(hivpop, artpop, v, p, s); // prevalence among pregnant women
+    pop.cal_prev_pregant(hivpop, artpop, v, p, s); // prevalence among pregnant women
     pop.save_prev_n_inc(v, s); // save prevalence and incidence 15 to 49
   }
 }

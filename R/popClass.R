@@ -119,7 +119,7 @@ update_infection = function(infect) {
     incid15to49[year]  <<- incid15to49[year] + sum(infect[p.age15to49.idx,])  
 },
 
-remove_hiv_death = function(cd4_mx, hivpop, artpop) {
+remove_hiv_death = function(hivpop, artpop) {
     # death by age group
     artD <- artpop$f_death
     hivD <- hivpop$f_death
@@ -129,14 +129,14 @@ remove_hiv_death = function(cd4_mx, hivpop, artpop) {
     }
     dbyAG <- DT * (colSums(hivD) + colSums(artD,,2))
     # deaths by single-year
-    hiv_mx <- dbyAG / sumByAGs(data[,, hivp.idx, year], ag.idx)
+    hiv_mx <- dbyAG / sumByAGs(data[,, hivp.idx, year], ag.idx) # virgin included
     hiv_mx[is.nan(hiv_mx)] <- 0
     dbyA_pr <- apply(hiv_mx, 2, rep, h.ag.span)
     hivdeaths[,,year] <<- hivdeaths[,,year] + data[,, hivp.idx, year] * dbyA_pr
     data[,, hivp.idx, year] <<- data[,, hivp.idx, year] * (1 - dbyA_pr)
     if (MODEL == 2) {
-      hivdeaths[1:pDB,,year] <<- hivdeaths[1:pDB,,year] +
-        data_db[,, hivp.idx, year] * dbyA_pr[1:pDB, ]
+      # hivdeaths[1:pDB,,year] <<- hivdeaths[1:pDB,,year] +
+        # data_db[,, hivp.idx, year] * dbyA_pr[1:pDB, ] # TODO: no need, see above
       data_db[,,hivp.idx,year] <<- data_db[,,hivp.idx,year] * (1 - dbyA_pr[1:pDB,])
     }
 },
@@ -323,6 +323,8 @@ deaths = function() {
       hiv_sx_prob[is.nan(hiv_sx_prob)] <<- 0
     }
     if (MODEL==2) {
+      # Note that we don't add this to death_now as it's already included
+      # This only means for pop. hivpop and artpop still need to add now
       death_db <- sweep(data_db[,,,year], 1:2, 1 - p$Sx[db_aid,,year], "*")
       data_db[,,,year] <<- data_db[,,,year] - death_db
     }

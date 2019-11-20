@@ -89,13 +89,17 @@ void hivC::scale_cd4_mort(artC& artpop, Views& v,
   for (int sex = 0; sex < s.NG; sex++)
     for (int agr = 0; agr < s.hAG; agr++)
       for (int cd4 = 0; cd4 < s.hDS; cd4++) {
-        num = v.now_hiv[sex][agr][cd4] + data_db[s.year][sex][agr][cd4];
-        for (int dur = 0; dur < s.hTS; dur++)
-          den += v.now_art[sex][agr][cd4][dur] +
-                 artpop.data_db[s.year][sex][agr][cd4][dur];
-        num = (num + den == 0.0) ? 1 : num / (num + den);
+        num = v.now_hiv[sex][agr][cd4];
+        if (s.MODEL==2)
+          num += data_db[s.year][sex][agr][cd4];
+        for (int dur = 0; dur < s.hTS; dur++) {
+          den += v.now_art[sex][agr][cd4][dur];
+          if (s.MODEL==2) 
+            den += artpop.data_db[s.year][sex][agr][cd4][dur];
+        }
+        num = ((num + den) == 0.0) ? 1.0 : num / (num + den);
         cd4_mort_[sex][agr][cd4] = num * p.nh.cd4_mort[sex][agr][cd4];
-        den = 0;
+        den = 0.0;
       }
 }
 

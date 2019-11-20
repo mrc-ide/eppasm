@@ -17,10 +17,15 @@ sumByAGs <- function(k, ag.idx, fertile=FALSE, p.fert.idx=NULL)
 
 # Scale mortality cd4
 scale_cd4_mort <- function(hivpop, artpop) {
-  if (hivpop$p$scale_cd4_mort) {
-    year <- hivpop$year
-    num   <- hivpop$get(year) + hivpop$data_db[,,,year]
-    den   <- colSums(artpop$get(year) + artpop$data_db[,,,,year])
+  year  <- hivpop$year
+  if (hivpop$p$scale_cd4_mort && (year >= hivpop$p$tARTstart) ) {
+    num   <- hivpop$get(year)
+    den   <- artpop$get(year)
+    if (hivpop$MODEL == 2) {
+      num = num + hivpop$data_db[,,,year]
+      den = den + artpop$data_db[,,,,year]
+    }
+    den   <- colSums(den)
     cd4mx <- num / (num + den)
     cd4mx[!is.finite(cd4mx)] <- 1.0
     cd4_mort_ts <- cd4mx * hivpop$p$cd4_mort

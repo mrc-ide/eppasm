@@ -3,14 +3,14 @@
 void Model::initiate() {
   pop.initiate(p, s);
   pop.entrant_art_.resize(s.NG * s.pDS);
-  if (!p.ad.scale_cd4_mort)
-    hivpop.cd4_mort_ = p.nh.cd4_mort; // moved from scale_cd4_mort, do it once
+  hivpop.cd4_mort_ = p.nh.cd4_mort; // moved from scale_cd4_mort, do it once
   if (p.ic.eppmod != 1) // mvoed from update_rvec, do this once
     for (int i = 0; i < s.n_steps; ++i)
       pop.rvec[i] = p.ic.rvec[i];
 }
 
 void Model::update_views() {
+  // Move pointers up one year, depending on data dimension
   artpop.at_prev     = artpop.at_this;
   artpop.at_this    += artpop.N;
   hivpop.at_prev     = hivpop.at_this;

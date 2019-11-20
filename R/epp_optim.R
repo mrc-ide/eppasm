@@ -33,31 +33,45 @@ prepare_fp_for_fitmod <- function(epp, fp, likdat) {
     fp
 }
 
-# extract from fitmod()
-epp_optim <- function(fp, likdat, opt_init, opt_method, opt_diffstep, opthess) {
-  optfn <- function(theta, fp, likdat) {
-    lprior(theta, fp) + sum(ll(theta, fp, likdat))
+obj_fn = function(theta, fp, likdat) 
+  lprior(theta, fp) + sum(ll_all(theta, fp, likdat))
+
+#' extract from fitmod()
+#' 
+#' fit model with optim()
+#' 
+#' @param epp ...
+#' @param fp fix parameters
+#' @param likdat data likelihood
+#' @param control_optim a list specify as optim arguments, e.g. list(fn=,control=list())
+#' @param B0 Number of parameter samples to find MAP as optim's starting value
+#' @param B.re Number of resamples
+#' @param doParallel use mclapply when finding initial value
+epp_optim <- function(epp=FALSE, fp, likdat, control_optim, B0, B.re, doParallel) {
+  .control.optim <- list(par=NULL, fn=obj_fn, method="BFGS", hessian=TRUE,
+                         control=list(fnscale=-1, trace=4, maxit=1e3))
+  if (!is.null(names(control_optim)))
+    .control.optim <- modifyList(.control.optim, control_optim)
+  if (is.null(.control.optim$par)) { # Find starting values that MAP
+    X0     = eppasm:::sample.prior(B0, fp)
+    eppasm:::likelihood(X0[1, ], fp, likdat, log=TRUE, doParallel)
+    lpost0 = eppasm:::likelihood(X0, fp, likdat, log=TRUE, doParallel) + 
+             eppasm:::prior(X0, fp, log=TRUE)
+    .control.optim$par = X0[which.max(lpost0)[1], ]
+    cat('best MAP', max(lpost0), '\n')
   }
-  if (is.null(opt_init)) {
-    X0       <- sample_prior(B0, fp)
-    lpost0   <- likelihood(X0, fp, likdat, log=TRUE) + prior(X0, fp, log=TRUE)
-    opt_init <- X0[which.max(lpost0)[1], ]
+  # .control.optim$ndeps <- rep(opt_diffstep, length(.control.optim$par)))
+  .control.optim <- modifyList(.control.optim, list(fp = fp, likdat = likdat))
+  opt = do.call("optim", .control.optim)
+  opt$fp     = fp
+  opt$likdat = likdat
+  opt$param  = fnCreateParam(opt$par, fp)
+  opt$mod    = simmod(update(fp, list=opt$param))
+  optclass   = ifelse(epp, "eppopt", "specopt")
+  if (.control.optim$hessian) {
+    opt$resample = mvtnorm::rmvnorm(B.re, opt$par, solve(-opt$hessian))
+    optclass     = c(optclass, ifelse(epp, "eppfit", "specfit"))
   }
-  opt <- optim(opt_init, optfn, fp = fp, likdat = likdat, method = opt_method,
-               control = list(fnscale = -1, trace = 4, maxit = opt_maxit,
-                            ndeps = rep(opt_diffstep, length(opt_init))))
-  opt$fp     <- fp
-  opt$likdat <- likdat
-  opt$param  <- fnCreateParam(opt$par, fp)
-  opt$mod    <- simmod(update(fp, list=opt$param))
-  if (opthess) {
-    opt$hessian <- optimHess(opt_init, optfn, fp=fp, likdat=likdat,
-                             control=list(fnscale=-1,
-                                          trace=4,
-                                          maxit=1e3,
-                                          ndeps=rep(.Machine$double.eps^0.5,
-                                                    length(opt_init))))
-    opt$resample <- mvtnorm::rmvnorm(B.re, opt$par, solve(-opt$hessian))
-  }
-  return(opt)
+  class(opt) = optclass
+  opt
 }

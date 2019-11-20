@@ -320,8 +320,10 @@ lprior <- function(theta, fp){
   return(lpr)
 }
 
+#' Full log-likelhood
+#' 
 #' @importFrom stats aggregate approx cov cov.wt density dexp dlnorm dnorm dunif ecdf mahalanobis median model.matrix na.omit optim optimHess pnorm qnorm quantile relevel rexp rgamma rnorm runif sd setNames update var
-ll <- function(theta, fp, likdat) {
+ll_all = function(theta, fp, likdat) {
   theta.last <<- theta
   fp <- update(fp, list=fnCreateParam(theta, fp))
 
@@ -533,12 +535,21 @@ prior <- function(theta, fp, log=FALSE){
     return(exp(lval))
 }
 
-likelihood <- function(theta, fp, likdat, log=FALSE){
-  if(is.vector(theta))
-    lval <- sum(ll(theta, fp, likdat))
-  else
-    lval <- unlist(lapply(seq_len(nrow(theta)), function(i) sum(ll(theta[i,], fp, likdat))))
-  if(log)
+likelihood <- function(theta, fp, likdat, log=FALSE, doParallel=FALSE) {
+  if (is.vector(theta)) {
+    lval <- sum(ll_all(theta, fp, likdat))
+  } else {
+    theta_id <- seq_len(nrow(theta))
+    ll_fn    <- function(i) sum(ll_all(theta[i,], fp, likdat))
+    if (!.Platform$OS.type=='unix' | !doParallel) {
+      lval <- unlist(lapply(theta_id, ll_fn))
+    } else {
+      n_cores = max(floor(parallel::detectCores()/2), 1)
+      cat('finding starting values on', n_cores, 'cores)\n')
+      lval = unlist(parallel::mclapply(theta_id, ll_fn, mc.cores = n_cores))
+    }
+  }
+  if (log)
     return(lval)
   else
     return(exp(lval))

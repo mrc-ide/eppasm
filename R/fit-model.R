@@ -284,14 +284,13 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5,
   return(val)
 }
 
-
-fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000,
+fitmod <- function(obj, ..., epp=FALSE, B0 = 1e3, B = 1e4, B.re = 1e3,
                    number_k = 500, opt_iter=0, 
                    sample_prior = eppasm:::sample.prior,
                    prior = eppasm:::prior,
                    likelihood = eppasm:::likelihood,
-                   optfit = FALSE, opt_method = "BFGS", opt_init = NULL, 
-                   opt_maxit = 1000, opt_diffstep = 1e-3, opthess = TRUE) {
+                   optfit = TRUE, control_optim = list(),
+                   with_debut=FALSE, with_mixing=FALSE, doParallel=0, version="K") {
 
   ## ... : updates to fixed parameters (fp) object to specify fitting options
 
@@ -315,6 +314,9 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000,
     class(opt) <- optclass
     return(opt)
   }
+  ## Fit using optimization
+  if (optfit)
+    return(epp_optim(epp, fp, likdat, control_optim, B0, B.re, doParallel))
 
   ## If IMIS fails, start again
   fit <- try(stop(""), TRUE)

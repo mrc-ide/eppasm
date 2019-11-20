@@ -27,8 +27,10 @@ bw_prev_mod <- c(0.00045, 0.00080, 0.0014, 0.00245, 0.00424, 0.00725, 0.01214,
                  0.1572)
 
 test_that("model simulation returns correct prevalence", {
+  bw_fp$VERSION='C'
   expect_equal(round(prev(simmod(bw_fp))[11:53], 5), bw_prev_mod)
-  expect_equal(round(prev(simmod(bw_fp, VERSION="R"))[11:53], 5), bw_prev_mod)
+  bw_fp$VERSION='R'
+  expect_equal(round(prev(simmod(bw_fp))[11:53], 5), bw_prev_mod)
 })
 
 
@@ -57,9 +59,11 @@ mp_prev_mod <- c(0.00049, 0.00087, 0.00154, 0.00271, 0.00468, 0.00792, 0.01299,
                  0.1762, 0.16976, 0.16322, 0.15678, 0.15029, 0.14384, 0.13677)
 
 test_that("Mozambique Maputo Cidade returns correct prevalence", {
-  expect_equal(prev(simmod(mp_fp)), prev(simmod(mp_fp, "R")))
-  expect_equal(round(prev(simmod(mp_fp))[11:52], 5), mp_prev_mod)
-  expect_equal(round(prev(simmod(mp_fp, "R"))[11:52], 5), mp_prev_mod)
+  mp_fp$VERSION='C'; c = simmod(mp_fp)
+  mp_fp$VERSION='R'; r = simmod(mp_fp)
+  expect_equal(prev(c), prev(r))
+  expect_equal(round(prev(c)[11:52], 5), mp_prev_mod)
+  expect_equal(round(prev(r)[11:52], 5), mp_prev_mod)
 })
 
 nl_fp <- prepare_directincid(system.file("extdata/testpjnz", "Netherlands2017.PJNZ", package="eppasm"))
@@ -75,13 +79,20 @@ hivpop_mod <- c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 38.742753, 277.452295, 832.078741,
                 23673.20584, 23836.395946, 23964.524599, 24062.184597)
 
 test_that("Netherlands returns correct HIV population size", {
-  expect_equal(round(colSums(simmod(nl_fp, "R")$data[,,2,],,2), 6),
-               round(colSums(simmod(nl_fp)[,,2,],,2), 6))
-  expect_equal(round(colSums(simmod(nl_fp)[,,2,],,2), 6), hivpop_mod)
-  expect_equal(round(colSums(simmod(nl_fp, "R")$data[,,2,],,2), 6), hivpop_mod)
+  nl_fp$VERSION='C'; c = simmod(nl_fp)
+  nl_fp$VERSION='R'; r = simmod(nl_fp)  
+  expect_equal(round(colSums(r$data[,,2,],,2), 6), round(colSums(c[,,2,],,2), 6))
+  expect_equal(round(colSums(c[,,2,],,2), 6), hivpop_mod)
+  expect_equal(round(colSums(r$data[,,2,],,2), 6), hivpop_mod)
 })
 
 test_that("hivpop1 and artpop1 align with hivpop and artpop", {
+  bw_fp$VERSION='C'
+  mod <- simmod(bw_fp)
+  hp1 <- hivpop_singleage(mod, bw_fp$ss)
+  expect_equal(colSums(hp1$hivpop1,,2), colSums(attr(mod, "hivpop"),,2))
+  expect_equal(colSums(hp1$artpop1,,3), colSums(attr(mod, "artpop"),,3))
+  bw_fp$VERSION='K'
   mod <- simmod(bw_fp)
   hp1 <- hivpop_singleage(mod, bw_fp$ss)
   expect_equal(colSums(hp1$hivpop1,,2), colSums(attr(mod, "hivpop"),,2))
@@ -90,62 +101,96 @@ test_that("hivpop1 and artpop1 align with hivpop and artpop", {
 
 
 test_that("pop and hivpop+artpop are synchronised", {
-  mod <- simmod(bw_fp)
-  modR <- simmod(bw_fp, "R")
-  expect_equal(colSums(mod[,,2,],,2),
-               colSums(attr(mod, "hivpop"),,3) + colSums(attr(mod, "artpop"),,4))
-  expect_equal(colSums(modR$data[,,2,],,2),
-               colSums(attr(modR, "hivpop"),,3) + colSums(attr(modR, "artpop"),,4))
+  bw_fp$VERSION='C'; c <- simmod(bw_fp)
+  bw_fp$VERSION='R'; r <- simmod(bw_fp)
+  expect_equal(colSums(c[,,2,],,2),
+               colSums(attr(c, "hivpop"),,3) + colSums(attr(c, "artpop"),,4))
+  expect_equal(colSums(r$data[,,2,],,2),
+               colSums(attr(r, "hivpop"),,3) + colSums(attr(r, "artpop"),,4))
 })
 
 test_that("Model ouputs are equal", {
-  mod <- simmod(bw_fp)
-  modR1 <- simmod(bw_fp, "R")
-  expect_equal(attr(mod, "natdeaths"), modR1$natdeaths)
-  expect_equal(attr(mod, "popadjust"), modR1$popadjust)
-  expect_equal(attr(mod, "prev15to49"), modR1$prev15to49)
-  expect_equal(attr(mod, "incid15to49"), modR1$incid15to49)
-  expect_equal(attr(mod, "hivpop"), attr(modR1, "hivpop"))
-  expect_equal(attr(mod, "artpop"), attr(modR1, "artpop"))
-  expect_equal(attr(mod, "infections"), modR1$infections)
-  expect_equal(attr(mod, "hivdeaths"), modR1$hivdeaths)
-  # expect_equal(attr(mod, "pregprevlag"), attr(modR1, "pregprevlag"))
+  bw_fp$VERSION='C'; c <- simmod(bw_fp)
+  bw_fp$VERSION='R'; r <- simmod(bw_fp)
+  expect_equal(attr(c, "natdeaths"), r$natdeaths)
+  expect_equal(attr(c, "popadjust"), r$popadjust)
+  expect_equal(attr(c, "prev15to49"), r$prev15to49)
+  expect_equal(attr(c, "incid15to49"), r$incid15to49)
+  expect_equal(attr(c, "hivpop"), attr(r, "hivpop"))
+  expect_equal(attr(c, "artpop"), attr(r, "artpop"))
+  expect_equal(attr(c, "infections"), r$infections)
+  expect_equal(attr(c, "hivdeaths"), r$hivdeaths)
+  expect_equal(attr(c, "pregprevlag")[1:52], r$pregprevlag[1:52])
+  expect_equal(attr(c, "pregprev")[1:52], r$pregprev[1:52])
   # C++ does not save pregprevlag here
   message("hivp_entrants is not save in C++")
   message("r_ts is not save in R")
-  expect_equal(attr(mod, "prev15to49_ts"),
-               modR1$prev15to49_ts[1:length(attr(mod, "prev15to49_ts"))])
-  expect_equal(attr(mod, "incrate15to49_ts"),
-               modR1$incrate15to49_ts[1:length(attr(mod, "incrate15to49_ts"))])
-  expect_equal(attr(mod, "entrantprev"), modR1$entrantprev)
+  expect_equal(attr(c, "prev15to49_ts"),
+               r$prev15to49_ts[1:length(attr(c, "prev15to49_ts"))])
+  expect_equal(attr(c, "incrate15to49_ts"),
+               r$incrate15to49_ts[1:length(attr(c, "incrate15to49_ts"))])
+  expect_equal(attr(c, "entrantprev"), r$entrantprev)
 })
 
 test_that("Model C++ with and without classes ouputs are equal", {
-  mod <- simmod(bw_fp)
-  modK <- simmod(bw_fp, "K")
-  expect_equal(attr(mod, "natdeaths"), attr(modK, "natdeaths"))
-  expect_equal(attr(mod, "popadjust"), attr(modK, "popadjust"))
-  expect_equal(attr(mod, "prev15to49"), attr(modK, "prev15to49"))
-  expect_equal(attr(mod, "incid15to49"), attr(modK, "incid15to49"))
-  expect_equal(attr(mod, "hivpop"), attr(modK, "hivpop"))
-  expect_equal(attr(mod, "artpop"), attr(modK, "artpop"))
-  expect_equal(attr(mod, "infections"), attr(modK, "infections"))
-  expect_equal(attr(mod, "hivdeaths"), attr(modK, "hivdeaths"))
-  expect_equal(attr(mod, "pregprevlag")[1:52], attr(modK, "pregprevlag")[1:52])
-  expect_equal(attr(mod, "prev15to49_ts"), attr(modK, "prev15to49_ts"))
-  expect_equal(attr(mod, "entrantprev"), attr(modK, "entrantprev"))
+  bw_fp$VERSION='C'; c <- simmod(bw_fp)
+  bw_fp$VERSION='K'; k <- simmod(bw_fp)
+  expect_equal(attr(c, "natdeaths"), attr(k, "natdeaths"))
+  expect_equal(attr(c, "popadjust"), attr(k, "popadjust"))
+  expect_equal(attr(c, "prev15to49"), attr(k, "prev15to49"))
+  expect_equal(attr(c, "incid15to49"), attr(k, "incid15to49"))
+  expect_equal(attr(c, "hivpop"), attr(k, "hivpop"))
+  expect_equal(attr(c, "artpop"), attr(k, "artpop"))
+  expect_equal(attr(c, "infections"), attr(k, "infections"))
+  expect_equal(attr(c, "hivdeaths"), attr(k, "hivdeaths"))
+  expect_equal(attr(c, "pregprevlag")[1:52], attr(k, "pregprevlag")[1:52])
+  expect_equal(attr(c, "pregprev")[1:52], attr(k, "pregprev")[1:52])
+  expect_equal(attr(c, "prev15to49_ts"), attr(k, "prev15to49_ts"))
+  expect_equal(attr(c, "entrantprev"), attr(k, "entrantprev"))
 })
 
 test_that("Debut model C++ equal R", {
   bw_fp$ss$MODEL <- 2L
-  testOK = simmod(bw_fp, "K", 2, T)
-  testOR = simmod(bw_fp, "R", 2, T)
-  expect_equal(prev(testOR), prev(testOK))
-  expect_equal(incid(testOR), incid(testOK) )
-  expect_equal(testOR$data[,,,], testOK[,,,])
-  expect_equal(testOR$entrantprev, attr(testOK, "entrantprev") )
-  expect_equal(testOR$infections, attr(testOK, "infections"))
-  expect_equal(attr(testOK, "debut_pop"), attr(testOR, "debut_pop"))
-  expect_equal(attr(testOR, "hivpop"), attr(testOK, "hivpop"))
-  expect_equal(attr(testOR, "artpop"), attr(testOK, "artpop"))
+  bw_fp$ss$MIX   <- FALSE
+  bw_fp$VERSION='R'; r <- simmod(bw_fp)
+  bw_fp$VERSION='K'; k <- simmod(bw_fp)
+  expect_equal(prev(r), prev(k))
+  expect_equal(incid(r), incid(k) )
+  expect_equal(r$data[,,,], k[,,,])
+  expect_equal(r$entrantprev, attr(k, "entrantprev") )
+  expect_equal(r$infections, attr(k, "infections"))
+  expect_equal(attr(k, "debut_pop"), attr(r, "debut_pop"))
+  expect_equal(attr(r, "hivpop"), attr(k, "hivpop"))
+  expect_equal(attr(r, "artpop"), attr(k, "artpop"))
+  expect_equal(attr(r, "artpop"), attr(k, "artpop"))
+  expect_equal(r$natdeaths, attr(k, "natdeaths"))
+  expect_equal(r$popadjust, attr(k, "popadjust"))
+  expect_equal(r$prev15to49, attr(k, "prev15to49"))
+  expect_equal(r$incid15to49, attr(k, "incid15to49"))
+  expect_equal(r$hivdeaths, attr(k, "hivdeaths"))
+  expect_equal(r$pregprevlag[1:52], attr(k, "pregprevlag")[1:52])
+  expect_equal(r$pregprev[1:52], attr(k, "pregprev")[1:52])
+  expect_equal(r$prev15to49_ts[1:520], attr(k, "prev15to49_ts"))
+})
+
+test_that("Mixing model C++ equal R", {
+  bw_fp$ss$MODEL <- 1L
+  bw_fp$ss$MIX   <- TRUE
+  bw_fp$VERSION='R'; r <- simmod(bw_fp)
+  bw_fp$VERSION='K'; k <- simmod(bw_fp)
+  expect_equal(prev(r), prev(k))
+  expect_equal(incid(r), incid(k) )
+  expect_equal(r$data[,,,], k[,,,])
+  expect_equal(r$entrantprev, attr(k, "entrantprev") )
+  expect_equal(r$infections, attr(k, "infections"))
+  expect_equal(attr(r, "hivpop"), attr(k, "hivpop"))
+  expect_equal(attr(r, "artpop"), attr(k, "artpop"))
+  expect_equal(r$natdeaths, attr(k, "natdeaths"))
+  expect_equal(r$popadjust, attr(k, "popadjust"))
+  expect_equal(r$prev15to49, attr(k, "prev15to49"))
+  expect_equal(r$incid15to49, attr(k, "incid15to49"))
+  expect_equal(r$hivdeaths, attr(k, "hivdeaths"))
+  expect_equal(r$pregprevlag[1:52], attr(k, "pregprevlag")[1:52])
+  expect_equal(r$pregprev[1:52], attr(k, "pregprev")[1:52])
+  expect_equal(r$prev15to49_ts[1:520], attr(k, "prev15to49_ts")[1:520])
 })

@@ -54,5 +54,9 @@ prepare_fp_for_Cpp <- function(fp, MODEL=1L, MIX=FALSE) {
     if (!exists("mat_f", where=fp))  { # mixing model parameters
         fp$mat_f <- fp$mat_m <- matrix(1, fp$ss$pAG, fp$ss$pAG)
     }
+    if (fp$ss$MIX) { # scaled for sexual mixing model C++
+        max_by_year <- apply(fp$incrr_age, 3, function(x) apply(x, 2, max))
+        fp$incrr_age <- sweep(fp$incrr_age, 2:3, max_by_year, "/")
+    }
     fp
 }

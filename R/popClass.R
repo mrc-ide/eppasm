@@ -67,8 +67,7 @@ function(fp, MODEL=1, VERSION="R", MIX=F) {
     if (MODEL==2) # @debut empty pop, all inactive starts from new entrants
         data_db  <<- array(0, c(pDB, NG, pDS, PROJ_YEARS)) # debut ages only
     if (MIX)
-      prev15to49_ts <<- incrate15to49_ts  <<- array(0, c(pAG, NG, length(p$rvec)))
-
+      incrate15to49_ts  <<- array(0, c(pAG, NG, length(p$rvec)))
 })
 
 # named list functions as methods
@@ -396,6 +395,21 @@ infect_mix = function(hivpop, artpop, ii) {
     irmf <- cbind(ir_m, ir_f)
     # if (exists("f_fun", fp)) # that fun
     #   ir <- ir * fp$f_fun
+
+    # Scale to age pattern of IR
+    max_rr_sex <- apply(p$incrr_age[,,year],2,max)
+    scaled_rr_age <- sweep(p$incrr_age[,,year], 2, max_rr_sex, '/')
+    irmf <- irmf * scaled_rr_age
+  
+    # Scale sex pattern IR
+    incidence_estimated <- colSums(irmf * data_active[,,hivn.idx]) / 
+                           colSums(data_active[,,hivn.idx])
+    IRR_FM_estimated <- incidence_estimated[2]/incidence_estimated[1]
+    if (!is.na(IRR_FM_estimated)) {
+      irmf[, f.idx] <- irmf[, f.idx]*p$incrr_sex[year]
+      irmf[, m.idx] <- irmf[, m.idx]*IRR_FM_estimated
+    }
+  
     infections.ts <- irmf * data_active[,,hivn.idx]
 
     incrate15to49_ts[,,ts] <<- transm_prev

@@ -121,6 +121,28 @@ void popC::infect_mix (int ii, Views& v, const Parameters& p, const StateSpace& 
     }
   // if (exists("f_fun", fp)) // that fun
   //   ir = ir * fp.f_fun
+
+  // Match IRR by age // incrr_age was scaled in R
+  for (int sex = 0; sex < s.NG; sex++)
+    for (int age = 0; age < s.pAG; age++)
+      infections_[sex][age] *= p.ic.incrr_age[s.year][sex][age];
+
+  // Match IRR by Sex
+  double inc_M = 0, inc_F = 0, S_M = 0, S_F = 0;
+  for (int age = 0; age < s.pAG; age++) {
+    S_M   += data_active[s.N][s.M][age];
+    S_F   += data_active[s.N][s.F][age];
+    inc_M += infections_[s.M][age] * data_active[s.N][s.M][age];
+    inc_F += infections_[s.F][age] * data_active[s.N][s.F][age];
+  }
+  double IIR_estimated = (inc_F/S_F) / (inc_M/S_M);
+  if (!std::isnan(IIR_estimated)) {
+    for (int age = 0; age < s.pAG; age++) {
+      infections_[s.F][age] *= p.ic.incrr_sex[s.year];
+      infections_[s.M][age] *= IIR_estimated;
+    }
+  }
+
   for (int sex = 0; sex < s.NG; sex++)
     for (int age = 0; age < s.pAG; age++)
       infections_[sex][age] *= data_active[s.N][sex][age];

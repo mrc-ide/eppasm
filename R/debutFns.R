@@ -11,7 +11,7 @@ update_hiv_ss <- function(max_debut_age, fp) {
 
   tt$ag.idx_bk       <- tt$ag.idx
   tt$ag.idx          <- as.integer(agegr)
-  tt$h.ag.span       <- as.numeric(rle(agegr)$lengths)
+  tt$h.ag.span       <- as.integer(rle(agegr)$lengths)
   tt$hAG             <- length(unique(agegr))
   tt$agfirst.idx     <- as.integer(which(!duplicated(tt$ag.idx)))
   tt$aglast.idx      <- as.integer(which(!duplicated(tt$ag.idx, fromLast=TRUE)))

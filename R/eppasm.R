@@ -1,12 +1,25 @@
 #' @useDynLib eppasm eppasmC eppasmOOpp
-simmod.specfp <- function(fp, VERSION="C", MODEL=1L, MIX=FALSE) {
+simmod.specfp <- function(fp) {
+
+  # Move all model options to fp
+  MODEL   = ifelse(is.null(fp$ss$MODEL), 1, fp$ss$MODEL)
+  MIX     = ifelse(is.null(fp$ss$MIX), FALSE, fp$ss$MIX)
+  VERSION = ifelse(is.null(fp$VERSION), 'R', fp$VERSION)
+
   if (!exists("popadjust", where=fp))
     fp$popadjust <- FALSE
 
   if (!exists("incidmod", where=fp))
     fp$incidmod <- "eppspectrum"
 
-  if (MODEL == 2) 
+  if (!exists("DT", where=fp))
+    fp$ss$DT <- 1 / fp$ss$hiv_steps_per_year
+
+  if (is.null(dim(fp$artmx_timerr))) { # repicate for 3 treatment durations
+      fp$artmx_timerr <- matrix(rep(fp$artmx_timerr, 3), nrow=3, byrow=TRUE)
+  }
+
+  if (MODEL == 2 && !exists("db_pr", where=fp)) 
     fp <- update_fp_debut(fp, max_debut_age=30)
   
   if (MIX && !exists("mat_f", where=fp)) { # add these outside

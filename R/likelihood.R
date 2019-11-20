@@ -331,47 +331,31 @@ ll_all = function(theta, fp, likdat) {
     if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) 
       return(-Inf)
 
-  settings = c(1L, FALSE)
-  if (exists("is_debut_model", where=fp)) {
-    if (fp$is_debut_model)
-      settings[1] <- 2L
-  }
-  
-  if (exists("is_debut_model", where = fp)) {
-    if (fp$is_mixing_model)
-      settings[2] <- TRUE
-  }
-  mod <- simmod(fp, 'K', settings[1], as.logical(settings[2]))
+  mod <- simmod(fp)
+
+  .anc = .ancrt = .hhs = .incid = .rprior = 0
 
   ## ANC likelihood
-  if(exists("ancsite.dat", likdat))
-    ll.anc <- ll_ancsite(mod, fp, coef=c(fp$ancbias, fp$ancrtsite.beta),
-                         vinfl=fp$v.infl, likdat$ancsite.dat)
-  else
-    ll.anc <- 0
+  if (exists("ancsite.dat", likdat))
+    .anc <- ll_ancsite(mod, fp, coef=c(fp$ancbias, fp$ancrtsite.beta),
+                       vinfl=fp$v.infl, likdat$ancsite.dat)
 
-  if(exists("ancrtcens.dat", likdat))
-    ll.ancrt <- ll_ancrtcens(mod, likdat$ancrtcens.dat, fp)
-  else
-    ll.ancrt <- 0
-
+  if (exists("ancrtcens.dat", likdat))
+    .ancrt <- ll_ancrtcens(mod, likdat$ancrtcens.dat, fp)
 
   ## Household survey likelihood
-  if(exists("hhs.dat", where=likdat))
-    if(exists("ageprev", fp) && fp$ageprev=="binom")
-      ll.hhs <- ll_hhsage_binom(mod, likdat$hhs.dat)
+  if (exists("hhs.dat", where=likdat)) {
+    if (exists("ageprev", fp) && fp$ageprev=="binom")
+      .hhs <- ll_hhsage_binom(mod, likdat$hhs.dat)
     else ## use probit likelihood
-      ll.hhs <- ll_hhsage(mod, likdat$hhs.dat) # probit-transformed model
-  else
-    ll.hhs <- 0
+      .hhs <- ll_hhsage(mod, likdat$hhs.dat) # probit-transformed model
+  }
 
-  if(!is.null(likdat$hhsincid.dat))
-    ll.incid <- ll_hhsincid(mod, likdat$hhsincid.dat)
-  else
-    ll.incid <- 0
+  if (!is.null(likdat$hhsincid.dat))
+    .incid <- ll_hhsincid(mod, likdat$hhsincid.dat)
 
-  if(exists("equil.rprior", where=fp) && fp$equil.rprior){
-    if(fp$eppmod != "rspline")
+  if (exists("equil.rprior", where=fp) && fp$equil.rprior) {
+    if (fp$eppmod != "rspline")
       stop("error in ll(): equil.rprior is only for use with r-spline model")
 
     lastdata.idx <- max(likdat$ancsite.dat$df$yidx,
@@ -381,26 +365,22 @@ ll_all = function(theta, fp, likdat) {
     
     qM.all <- suppressWarnings(qnorm(prev(mod)))
 
-    if(any(is.na(qM.all[lastdata.idx - 9:0]))) {
-      ll.rprior <- -Inf
-    } else {
+    if (any(is.na(qM.all[lastdata.idx - 9:0]))) {
+      .rprior <- -Inf
+    } 
+    else {
       rvec.ann <- fp$rvec[fp$proj.steps %% 1 == 0.5]
       equil.rprior.mean <- epp:::muSS/(1-pnorm(qM.all[lastdata.idx]))
-      if(!is.null(fp$prior_args$equil.rprior.sd))
+      if (!is.null(fp$prior_args$equil.rprior.sd))
         equil.rprior.sd <- fp$prior_args$equil.rprior.sd
       else
         equil.rprior.sd <- sqrt(mean((epp:::muSS / (1-pnorm(qM.all[lastdata.idx - 9:0])) - rvec.ann[lastdata.idx - 9:0])^2))  # empirical sd based on 10 previous years
       
-      ll.rprior <- sum(dnorm(rvec.ann[(lastdata.idx+1L):length(qM.all)], equil.rprior.mean, equil.rprior.sd, log=TRUE))  # prior starts year after last data
+      .rprior <- sum(dnorm(rvec.ann[(lastdata.idx+1L):length(qM.all)], equil.rprior.mean, equil.rprior.sd, log=TRUE))  # prior starts year after last data
     }
-  } else
-    ll.rprior <- 0
+  }
 
-  c(anc    = ll.anc,
-    ancrt  = ll.ancrt,
-    hhs    = ll.hhs,
-    incid  = ll.incid,
-    rprior = ll.rprior)
+  c(anc = .anc, ancrt = .ancrt, hhs = .hhs, incid = .incid, rprior = .rprior) 
 }
 
 

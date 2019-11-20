@@ -299,21 +299,38 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e3, B = 1e4, B.re = 1e3,
   else
     fp <- update(attr(obj, 'specfp'), ...)
 
+  #=== TODO: move these out of this function
   ## Prepare likelihood data
+  fp$ancsitedata = TRUE
+  fp$ancrt       = "both"
+
   eppd   <- attr(obj, "eppd")
   fp     <- prepare_anc_model(fp, eppd)
   likdat <- prepare_likdat(eppd, fp)
   fp     <- prepare_fp_for_fitmod(epp, fp, likdat)
+  
+  # for debut and mixing
+  if (is.null(version) && (with_debut|with_mixing)) version <- "K"
+  fp$VERSION  = version
+  fp$ss$MODEL = ifelse(with_debut, 2L, 1L)
+  fp$ss$MIX   = ifelse(with_mixing, TRUE, FALSE)
 
-  ## Fit using optimization
-  if (optfit) {
-    out   <- epp_optim(fp, likdat, opt_init, opt_method, opt_diffstep, opthess)
-    optclass <- ifelse(epp, "eppopt", "specopt")
-    if (opthess)
-      optclass <- c(optclass, ifelse(epp, "eppfit", "specfit"))
-    class(opt) <- optclass
-    return(opt)
+  if (fp$ss$MODEL == 2) {
+    if (!exists("db_pr", where=fp)) {
+      fp <- update_fp_debut(fp, max_debut_age=30L)
+      cat('running with default sexual debut rate...\n')
+    }
   }
+
+  if (fp$ss$MIX && !exists("mat_f", where=fp)) { # add these outside
+    fp$mat_m <- readRDS(system.file("extdata", "contact_matrix_male.rds",
+                                    package="eppasm"))
+    fp$mat_f <- readRDS(system.file("extdata", "contact_matrix_female.rds",
+                                    package="eppasm"))
+    cat('running with default mixing matrix...\n')
+  }
+  # move these out of this function===#
+  
   ## Fit using optimization
   if (optfit)
     return(epp_optim(epp, fp, likdat, control_optim, B0, B.re, doParallel))

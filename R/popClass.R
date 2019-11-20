@@ -425,28 +425,47 @@ infect_spec = function(hivpop, artpop, time_step) {
     last_age   <- tail(p.age15to49.idx, 1) + 1
     last_agrp  <- tail(h.age15to49.idx, 1) + 1
     update_active_pop_to(year)
-    hivn.ii <- sum(data_active[p.age15to49.idx,,hivn.idx]) - 
-               sum(data_active[first_age,,hivn.idx]) * dt_ii + 
-               sum(data_active[last_age,,hivn.idx]) * dt_ii
-    hivp.ii <- sum(data_active[p.age15to49.idx,,hivp.idx]) - 
+
+    # counting all negative including virgin
+    hivn_both <- sum(data[p.age15to49.idx,,hivn.idx, year]) -
+                 sum(data[first_age,,hivn.idx, year]) * dt_ii + 
+                 sum(data[last_age,,hivn.idx, year]) * dt_ii
+    
+    hivp_inactive <- 0
+    if (MODEL==2) # add safe positive 
+      hivp_inactive <- sum(data_db[,,hivp.idx, year]) - 
+                       sum(data_db[first_age,,hivp.idx,year]) * dt_ii
+
+    hivp_active <- sum(data_active[p.age15to49.idx,,hivp.idx]) - 
                sum(data_active[first_age,,hivp.idx]) * dt_ii + 
                sum(data_active[last_age,,hivp.idx]) * dt_ii
-    art.ii <- sum(artpop$get(AG = h.age15to49.idx, YEAR = year))
-    if (sum(hivpop$get(AG = first_agrp, YEAR = year)) + 
-        sum(artpop$get(AG = first_agrp, YEAR = year)) > 0) {
-      art_first <- colSums(artpop$data[,,first_agrp,,year],,2)
-      hiv_first <- colSums(hivpop$data[ ,first_agrp,,year],,1)
-      art.ii  <- art.ii - sum(data_active[first_age,,hivp.idx] * 
-        art_first / (hiv_first + art_first) ) * dt_ii
+
+    all_pop <- hivn_both + hivp_active + hivp_inactive
+  
+    art.ii  <- 0
+  
+    if (year >= p$tARTstart) { # otherwise can be dividing zero
+      art.ii  <- sum(artpop$get(AG = h.age15to49.idx, YEAR = year))
+  
+      if (sum(hivpop$get(AG = first_agrp, YEAR = year)) + 
+          sum(artpop$get(AG = first_agrp, YEAR = year)) > 0) {
+        art_first <- colSums(artpop$data[,,first_agrp,,year],,2)
+        hiv_first <- colSums(hivpop$data[ ,first_agrp,,year],,1)
+        art.ii  <- art.ii - 
+          sum(data_active[first_age,,hivp.idx] * art_first / (hiv_first + art_first)) * dt_ii
+      }
+
+      if (sum(hivpop$data[ ,last_agrp,,year]) + 
+          sum(artpop$data[,,last_agrp,,year]) > 0) {
+        art_last <- colSums(artpop$data[,,last_agrp,,year],,2)
+        hiv_last <- colSums(hivpop$data[ ,last_agrp,,year],,1)
+        art.ii <- art.ii + sum(data_active[last_age,,hivp.idx] * 
+          art_last / (hiv_last + art_last) ) * dt_ii
+      }
     }
-    if (sum(hivpop$data[ ,last_agrp,,year]) + 
-        sum(artpop$data[,,last_agrp,,year]) > 0) {
-      art_last <- colSums(artpop$data[,,last_agrp,,year],,2)
-      hiv_last <- colSums(hivpop$data[ ,last_agrp,,year],,1)
-      art.ii <- art.ii + sum(data_active[last_age,,hivp.idx] * 
-        art_last / (hiv_last + art_last) ) * dt_ii
-    }
-    transm_prev <- (hivp.ii - art.ii*(1 - p$relinfectART)) / (hivn.ii+hivp.ii)
+
+    transm_prev <- (hivp_active - art.ii*(1 - p$relinfectART)) / all_pop
+
     w <- p$iota * (p$proj.steps[ts] == p$tsEpidemicStart)
     incrate15to49.ts <- rvec[ts] * transm_prev + w
     
@@ -471,7 +490,7 @@ infect_spec = function(hivpop, artpop, time_step) {
     infections.ts <- agesex.inc * data_active[,,hivn.idx]
     # saving
     incrate15to49_ts[ts] <<- incrate15to49.ts
-    prev15to49_ts[ts] <<- prevlast <<- hivp.ii / (hivn.ii+hivp.ii)
+    prev15to49_ts[ts] <<- prevlast <<- (hivp_active + hivp_inactive) / all_pop
     infections.ts
 },
 

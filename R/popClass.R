@@ -349,7 +349,12 @@ update_fertile = function() { # only on active pop
     update_active_pop_to(year)
     two_years  <- data_active + get_active_pop_in(year-1)
     birth_age  <<- rowSums(two_years[p.fert.idx, f.idx,])/2 * p$asfr[,year]
-    birth_age  <<- rowSums(two_years[p.fert.idx, f.idx,])/2 * p$asfr[,year]
+    # adjusted ASFR to match
+    if (MODEL==2) {
+      two_years  <- data[p.fert.idx,f.idx,,year] + data[p.fert.idx,f.idx,,year-1]
+      N_mid_star <- rowSums(two_years/2)
+      birth_age <<- birth_age * p$asfr[, year] / (birth_age / N_mid_star)
+    }
     birth_agrp <<- sumByAG(birth_age, ag.idx, TRUE, p.fert.idx)
     births     <- p$srb[,year] * sum(birth_agrp)
     if (year + AGE_START <= PROJ_YEARS)

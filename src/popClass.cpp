@@ -201,12 +201,19 @@ void popC::migration (Views& v, const Parameters& p, const StateSpace& s) {
 void popC::update_fertile (Views& v, const Parameters& p, const StateSpace& s) { // only on active pop
   update_active_pop_to(s.year, v, s);
   update_active_last_year(v, s);
-  for (int age = 0; age < s.pAG_FERT; age++)
-    birth_age[age] =
-      ((data_active[s.P][s.F][age] + data_active[s.N][s.F][age] +
-        active_last_year_[s.P][s.F][age] +
-        active_last_year_[s.N][s.F][age]) /
-      2) * p.dm.asfr[s.year][age];
+  for (int age = 0; age < s.pAG_FERT; age++) {
+    birth_age[age] = ((data_active[s.P][s.F][age] + data_active[s.N][s.F][age] +
+      active_last_year_[s.P][s.F][age] + active_last_year_[s.N][s.F][age]) / 2) *
+      p.dm.asfr[s.year][age];
+  }
+
+  if (s.MODEL==2) { // adjust ASFR
+    for (int age = 0; age < s.pAG_FERT; age++) {
+      double N_mid = (v.now_pop[s.P][s.F][age] + v.pre_pop[s.P][s.F][age] +
+                      v.now_pop[s.N][s.F][age] + v.pre_pop[s.N][s.F][age]) / 2;
+      birth_age[age] *= p.dm.asfr[s.year][age] / (birth_age[age] / N_mid);
+    }
+  }
   ivec sub_id(s.ag_.begin() + s.p_fert_[0] - 1, s.ag_.begin() + s.pAG_FERT);
   birth_agrp = sumByAG(birth_age, sub_id, s.hAG_FERT);
   double n_births = sum_vector(birth_agrp);

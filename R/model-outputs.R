@@ -11,7 +11,7 @@ estci2 <- function(x, na.rm=TRUE){
 
 sub_na <- function(x, v=0){x[is.na(x)] <- v; x}
 
-summary_outputs <- function(fit, modlist){
+summary_outputs <- function(fit, modlist) {
   out <- list()
 
   startyr <- fit$fp$ss$proj_start
@@ -29,8 +29,10 @@ summary_outputs <- function(fit, modlist){
   out$artcov15plus <- estci2(sub_na(sapply(modlist, artcov15plus)))
   out$artcov15to49 <- estci2(sub_na(sapply(modlist, artcov15to49)))
 
+  age_1549 <- 15-fit$fp$ss$AGE_START+1L
+
   ## Sex ratio of incidence 14-49
-  out$incidsexratio <- lapply(modlist, ageincid, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
+  out$incidsexratio <- lapply(modlist, ageincid, aidx=age_1549, sidx=1:2,
                               yidx=startyr:endyr - startyr+1L, agspan=35)
   out$incidsexratio <- estci2(sub_na(sapply(out$incidsexratio, function(x) x[,2,] / x[,1,])))
 
@@ -38,51 +40,59 @@ summary_outputs <- function(fit, modlist){
   ann <- c("prev", "incid", "artcov15plus", "artcov15to49", "transmrate", "incidsexratio")
   if(exists("pregprev", out)) ann <- c(ann, "pregprev")
   out[ann] <- lapply(out[ann], function(x){dimnames(x)[[1]] <- startyr:endyr; x})
-
+  
+  chosen_years <- 1999:endyr - startyr+1L
+  chosen_ages <- c(15, 25, 35, 50)-fit$fp$ss$AGE_START+1L
+  chosen_agespan <- c(10, 10, 15, 31)
 
   ## Prevalence, incidence, and ART coverage by age categories and sex
-  agegr3 <- lapply(modlist, ageprev, aidx=c(15, 25, 35, 50)-fit$fp$ss$AGE_START+1L, sidx=1:2,
-                   yidx=1999:endyr - startyr+1L, agspan=c(10, 10, 15, 31))
-  age15to49 <- lapply(modlist, ageprev, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
-                      yidx=1999:endyr - startyr+1L, agspan=35)
-  age15plus <- lapply(modlist, ageprev, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
-                      yidx=1999:endyr - startyr+1L, agspan=66)
-  agegr3 <- estci2(abind::abind(agegr3, rev.along=0))
+  agegr3    <- lapply(modlist, ageprev.specres, aidx=chosen_ages, sidx=1:2,
+                      yidx=chosen_years, agspan=chosen_agespan)
+  age15to49 <- lapply(modlist, ageprev.specres, aidx=age_1549, sidx=1:2,
+                      yidx=chosen_years, agspan=35)
+  age15plus <- lapply(modlist, ageprev.specres, aidx=age_1549, sidx=1:2,
+                      yidx=chosen_years, agspan=66)
+  agegr3    <- estci2(abind::abind(agegr3, rev.along=0))
   age15to49 <- estci2(abind::abind(age15to49, rev.along=0))
   age15plus <- estci2(abind::abind(age15plus, rev.along=0))
+ 
   out$agegr3prev <- abind::abind(agegr3, age15to49, age15plus, along=1)
 
-  agegr3 <- lapply(modlist, ageincid, aidx=c(15, 25, 35, 50)-fit$fp$ss$AGE_START+1L, sidx=1:2,
-                   yidx=1999:endyr - startyr+1L, agspan=c(10, 10, 15, 31))
-  age15to49 <- lapply(modlist, ageincid, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
-                      yidx=1999:endyr - startyr+1L, agspan=35)
-  age15plus <- lapply(modlist, ageincid, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
-                      yidx=1999:endyr - startyr+1L, agspan=66)
-  agegr3 <- estci2(abind::abind(agegr3, rev.along=0))
+  agegr3    <- lapply(modlist, ageincid, aidx=chosen_ages, sidx=1:2,
+                      yidx=chosen_years, agspan=chosen_agespan)
+  age15to49 <- lapply(modlist, ageincid, aidx=age_1549, sidx=1:2,
+                      yidx=chosen_years, agspan=35)
+  age15plus <- lapply(modlist, ageincid, aidx=age_1549, sidx=1:2,
+                      yidx=chosen_years, agspan=66)
+  agegr3    <- estci2(abind::abind(agegr3, rev.along=0))
   age15to49 <- estci2(abind::abind(age15to49, rev.along=0))
   age15plus <- estci2(abind::abind(age15plus, rev.along=0))
+
   out$agegr3incid <- abind::abind(agegr3, age15to49, age15plus, along=1)
 
-  agegr3 <- lapply(modlist, ageinfections, aidx=c(15, 25, 35, 50)-fit$fp$ss$AGE_START+1L, sidx=1:2,
-                   yidx=1999:endyr - startyr+1L, agspan=c(10, 10, 15, 31))
-  age15to49 <- lapply(modlist, ageinfections, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
-                      yidx=1999:endyr - startyr+1L, agspan=35)
-  age15plus <- lapply(modlist, ageinfections, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
-                      yidx=1999:endyr - startyr+1L, agspan=66)
-  agegr3 <- estci2(abind::abind(agegr3, rev.along=0))
+  agegr3    <- lapply(modlist, ageinfections, aidx=chosen_ages, sidx=1:2,
+                      yidx=chosen_years, agspan=chosen_agespan)
+  age15to49 <- lapply(modlist, ageinfections, aidx=age_1549, sidx=1:2,
+                      yidx=chosen_years, agspan=35)
+  age15plus <- lapply(modlist, ageinfections, aidx=age_1549, sidx=1:2,
+                      yidx=chosen_years, agspan=66)
+  agegr3    <- estci2(abind::abind(agegr3, rev.along=0))
   age15to49 <- estci2(abind::abind(age15to49, rev.along=0))
   age15plus <- estci2(abind::abind(age15plus, rev.along=0))
+
   out$agegr3infections <- abind::abind(agegr3, age15to49, age15plus, along=1)
+  
+  dimnames(out$agegr3prev)[1:3] <- 
+    dimnames(out$agegr3incid)[1:3] <- 
+      dimnames(out$agegr3infections)[1:3] <-
+        list(agegr=c("15-24", "25-34", "35-49", "50+", "15-49", "15+"),
+             sex=c("Male", "Female"), year=1999:endyr)
 
-  dimnames(out$agegr3prev)[1:3] <- dimnames(out$agegr3incid)[1:3] <- dimnames(out$agegr3infections)[1:3] <-
-    list(agegr=c("15-24", "25-34", "35-49", "50+", "15-49", "15+"), sex=c("Male", "Female"), year=1999:endyr)
-
-
-  agegr3 <- lapply(modlist, ageartcov, aidx=c(15, 25, 35, 50)-fit$fp$ss$AGE_START+1L, sidx=1:2,
-                   yidx=2005:endyr - startyr+1L, agspan=c(10, 10, 15, 31))
-  age15to49 <- lapply(modlist, ageartcov, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
+  agegr3 <- lapply(modlist, ageartcov, aidx=chosen_ages, sidx=1:2,
+                   yidx=2005:endyr - startyr+1L, agspan=chosen_agespan)
+  age15to49 <- lapply(modlist, ageartcov, aidx=age_1549, sidx=1:2,
                       yidx=2005:endyr - startyr+1L, agspan=35)
-  age15plus <- lapply(modlist, ageartcov, aidx=15-fit$fp$ss$AGE_START+1L, sidx=1:2,
+  age15plus <- lapply(modlist, ageartcov, aidx=age_1549, sidx=1:2,
                       yidx=2005:endyr - startyr+1L, agspan=66)
   agegr3 <- estci2(abind::abind(agegr3, rev.along=0))
   age15to49 <- estci2(abind::abind(age15to49, rev.along=0))
@@ -90,10 +100,10 @@ summary_outputs <- function(fit, modlist){
   out$agegr3artcov <- abind::abind(agegr3, age15to49, age15plus, along=1)
   dimnames(out$agegr3artcov)[1:3] <- list(agegr=c("15-24", "25-34", "35-49", "50+", "15-49", "15+"), sex=c("Male", "Female"), year=2005:endyr)
 
-
-  ## Age-specific prevalence in survey years
-  out$ageprevdat <- data.frame(fit$likdat$hhsage.dat[c("survyear", "year", "sex", "agegr")],
-                               estci2(sapply(modlist, ageprev, arridx=fit$likdat$hhsage.dat$arridx, agspan=5)))
+  ## Age-specific prevalence in survey years // rewrote as gen_ageprev
+  out$ageprevdat <- data.frame(fit$likdat$hhs.dat[c("year", "sex", "agegr")],
+    estci2(sapply(modlist, ageprev, aidx=fit$likdat$hhs.dat$aidx, sidx=fit$likdat$hhs.dat$sidx,
+                  yidx=fit$likdat$hhs.dat$yidx, agspan=fit$likdat$hhs.dat$agspan)))
 
   ## Incidence relative to 25-29y
   out$relincid <- lapply(modlist, ageincid, aidx=3:9*5-fit$fp$ss$AGE_START+1L, sidx=1:2,
@@ -106,10 +116,10 @@ summary_outputs <- function(fit, modlist){
 
 
 create_outputs <- function(fit){
-  paramlist <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
+  paramlist <- lapply(seq_len(nrow(fit$resample)),
+                      function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
   fplist <- lapply(paramlist, function(par) update(fit$fp, list=par))
   modlist <- lapply(fplist, simmod)
-  
   out <- summary_outputs(fit, modlist)
   out
 }

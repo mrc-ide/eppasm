@@ -104,11 +104,10 @@ plot.eppmix <- function(mod, which="FOI",...){
 
 # plot demographic.
 # -----------------------------------------------------------------------------
-plot.dempp <- function(mod, start_year=1970, min_age=15, bin_year=5, bin_age=5, max_age=80, colors=solarized, ...){
+plot.dempp <- function(mod, start_year=1970, min_age=15, bin_year=5, bin_age=5, max_age=80, ...){
   mod <- mod$data[,,1,]
   if (interactive()) dev.new(width=9, height=6)
   put(1, 2, c(5,4,2,2))
-  palette(colors)
   mains  <- c("Male", "Female")
      yl  <- dim(mod)[3]
   y_name <- start_year:(start_year+yl-1)

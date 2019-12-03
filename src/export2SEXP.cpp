@@ -57,7 +57,7 @@ void outputSEXP::finalize(const StateSpace& s) {
       INTEGER(pop_db_sexp_dim)[3] = s.PROJ_YEARS;
       SET_DIM(data_db, pop_db_sexp_dim);
 
-      SET_ATTR(pop, Rf_install("debut_pop"), data_db);
+      SET_ATTR(pop, Rf_install("vpop"), data_db);
     }
   }
   else 

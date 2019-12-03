@@ -65,7 +65,9 @@ function(fp, MODEL=1, VERSION="R", MIX=F) {
       rvec <<- if (p$eppmod=="rtrend") rep(NA, length(p$proj.steps)) else p$rvec
 
     if (MODEL==2) # @debut empty pop, all inactive starts from new entrants
-        data_db  <<- array(0, c(pDB, NG, pDS, PROJ_YEARS)) # debut ages only
+        data_db <<- array(0, c(pDB, NG, pDS, PROJ_YEARS)) # debut ages only
+        data_db[,,hivn.idx,1] <<- p$basepop[db_aid,] * (1 - p$db_pr)
+    }
     if (MIX)
       incrate15to49_ts  <<- array(0, c(pAG, NG, length(p$rvec)))
 })

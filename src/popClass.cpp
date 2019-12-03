@@ -11,6 +11,11 @@ void popC::initiate (const Parameters& p, const StateSpace& s) {
   if (p.ic.eppmod == 0)
     for (int i = 0; i < s.n_steps; ++i)
       rvec[i] = p.ic.rvec[i];
+
+  if (s.MODEL==2)
+    for (int sex = 0; sex < s.NG; sex++)
+      for (int age = 0; age < s.pDB; age++)
+        data_db[0][s.N][sex][age] = p.dm.basepop[sex][age]*(1 - p.ic.db_pr[sex][age]);
 }
 
 void popC::update_active_pop_to (int when, Views& v, const StateSpace& s) {

@@ -2,6 +2,8 @@
 # -----------------------------------------------------------------------------
 epp_death <- function(pop, hivpop, artpop) {
   pop$deaths()
+  if (pop$MODEL==2)
+    pop$VIRGIN$deaths()
   if (pop$MODEL!=0) {
     hivpop$deaths(pop$hiv_sx_prob)
     if (pop$year > pop$p$tARTstart)
@@ -13,6 +15,8 @@ epp_death <- function(pop, hivpop, artpop) {
 # -----------------------------------------------------------------------------
 epp_migration <- function(pop, hivpop, artpop) {
   pop$migration()
+  if (pop$MODEL==2)
+    pop$VIRGIN$migration(pop$mr_prob_)
   if (pop$MODEL!=0) {
     hivpop$migration(pop$hiv_mr_prob)
     if (pop$year > pop$p$tARTstart)
@@ -24,9 +28,11 @@ epp_migration <- function(pop, hivpop, artpop) {
 # -----------------------------------------------------------------------------
 epp_aging <- function(pop, hivpop, artpop) {
   pop$aging()
+  if (pop$MODEL==2)
+      pop$VIRGIN$aging()
   pop$add_entrants()
-  if (pop$MODEL==2) 
-    pop$sexual_debut()
+  if (pop$MODEL==2)
+    pop$VIRGIN$sexual_debut()
   if (pop$MODEL!=0) {
     hiv.ag.prob <- pop$hiv_aging_prob()
     artYesNo    <- pop$entrant_art()
@@ -65,6 +71,19 @@ epp_disease_model <- function(pop, hivpop, artpop) {
       pop$epp_art_init(hivpop, artpop, time_step)
     hivpop$add_grad_to_pop()
   } # end time step
+}
+
+epp_adjustpop <- function(pop, hivpop, artpop) {
+  if (!exists("targetpop", where=pop$p))
+    stop('in epp_adjustpop, no targetpop in input fp!\n')
+  pop$adjust_pop()
+  if (pop$MODEL != 0) {
+    hivpop$adjust_pop(pop$adj_prob_agr)
+    if (pop$year >= pop$p$tARTstart)
+      artpop$adjust_pop(pop$adj_prob_agr)
+  }
+  if (pop$MODEL==2)
+    pop$VIRGIN$adjust_pop(pop$adj_prob_age)
 }
 
 # calculate, distribute eligible for ART, update grad, gradART

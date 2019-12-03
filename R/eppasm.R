@@ -47,7 +47,7 @@ simmod.specfp <- function(fp) {
   hivpop  <- hivEPP$new(fp, MODEL)
   artpop  <- artEPP$new(fp, MODEL)
   for (i in 2:fp$SIM_YEARS) {
-    pop$year <- hivpop$year <- artpop$year <- i
+    pop$update_year <- hivpop$year <- artpop$year <- i
     epp_aging(pop, hivpop, artpop)
     epp_death(pop, hivpop, artpop)
     epp_migration(pop, hivpop, artpop)
@@ -57,14 +57,8 @@ simmod.specfp <- function(fp) {
       if (fp$eppmod == "directincid") ## Direct incidence input model
         pop$epp_disease_model_direct(hivpop, artpop)
     }
-    if (exists("popadjust", where=fp) && fp$popadjust) { # match target pop
-      pop$adjust_pop()
-      if (MODEL != 0) {
-        hivpop$adjust_pop(pop$adj_prob)
-        if (i >= fp$tARTstart)
-          artpop$adjust_pop(pop$adj_prob)
-      }
-    }
+    if (fp$popadjust) # match target pop
+      epp_adjustpop(pop, hivpop, artpop)
     if (MODEL != 0) {
       pop$cal_prev_pregant(hivpop, artpop) # prevalence among pregnant women
       pop$save_prev_n_inc() # save prevalence and incidence 15 to 49
@@ -74,7 +68,7 @@ simmod.specfp <- function(fp) {
     attr(pop, "hivpop") <- hivpop$data
     attr(pop, "artpop") <- artpop$data
     if (MODEL==2)
-      attr(pop, "vpop") <- pop$data_db
+      attr(pop, "vpop") <- pop$VIRGIN$data
     class(pop) <- "spec"
   }
   else 

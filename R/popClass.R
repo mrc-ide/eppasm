@@ -28,7 +28,7 @@ popEPP <- R6::R6Class("popepp", class=F, cloneable=F, portable=F, inherit=eppFP,
         pregprev          = "vector",  # mistook for pregprevlag
         birthslag         = "array",   infections        = "array",
         hivdeaths         = "array",   natdeaths         = "array",
-        popadjust         = "array",   hivp_entrants_out = "array",
+        adj_prob_age      = "array",   hivp_entrants_out = "array",
         incrate15to49_ts  = "vector",  prev15to49_ts     = "vector", # can be array
         data_db           = "array",    # virgin population
         data_active       = "array",
@@ -36,8 +36,12 @@ popEPP <- R6::R6Class("popepp", class=F, cloneable=F, portable=F, inherit=eppFP,
         prev_last         = 0, # last time step prevalence
         hiv_sx_prob       = "array",
         hiv_mr_prob       = "array",
-        adj_prob          = "array",
-        rvec              = "vector")
+        adj_prob_agr      = "array",
+        rvec              = "vector",
+        mr_prob_          = "array",
+        p_hiv_death_age_  = "array",
+        VIRGIN = "virEPP class"
+        )
 )
 
 setMembers(popEPP, "public", "initialize",
@@ -49,13 +53,13 @@ function(fp, MODEL=1, VERSION="R", MIX=F) {
     MIX         <<- MIX
     data        <<- array(0, c(pAG, NG, pDS, PROJ_YEARS))
     data_active <<- array(0, c(pAG, NG, pDS))
-    data[,,1,1] <<- p$basepop
+    data[,,hivn.idx,1] <<- p$basepop
     
     # Outputs
     entrantprev   <<- numeric(PROJ_YEARS)
     prev15to49    <<- incid15to49  <<- pregprevlag <<- pregprev <<- entrantprev
-    popadjust     <<- array(0, c(pAG, NG, PROJ_YEARS))
-    infections    <<- hivdeaths <<- natdeaths <<- popadjust
+    adj_prob_age  <<- array(0, c(pAG, NG, PROJ_YEARS))
+    infections    <<- hivdeaths <<- natdeaths <<- adj_prob_age
     prev15to49_ts <<- incrate15to49_ts <<- rep(NA, length(p$rvec))
     hivp_entrants_out <<- array(0, c(NG, PROJ_YEARS))
     
@@ -64,10 +68,8 @@ function(fp, MODEL=1, VERSION="R", MIX=F) {
     if (p$eppmod != "directincid")
       rvec <<- if (p$eppmod=="rtrend") rep(NA, length(p$proj.steps)) else p$rvec
 
-    if (MODEL==2) # @debut empty pop, all inactive starts from new entrants
-        data_db <<- array(0, c(pDB, NG, pDS, PROJ_YEARS)) # debut ages only
-        data_db[,,hivn.idx,1] <<- p$basepop[db_aid,] * (1 - p$db_pr)
-    }
+    if (MODEL==2)
+        VIRGIN <<- virginEPP$new(fp, MODEL) # has its own initialization
     if (MIX)
       incrate15to49_ts  <<- array(0, c(pAG, NG, length(p$rvec)))
 })
@@ -95,13 +97,19 @@ get = function(YEAR=NULL, AG=T, NG=T, DS=T) {
 update_active_pop_to = function(when) {
     data_active <<- data[,,,when]
     if (MODEL==2)
-        data_active[db_aid,,] <<- data_active[db_aid,,] - data_db[,,,when]
+        data_active[db_aid,,] <<- data_active[db_aid,,] - VIRGIN$data[,,,when]
 },
 
 get_active_pop_in = function(when) {
     out <- data[,,,when]
     if (MODEL==2)
-        out[db_aid,,] <- out[db_aid,,] - data_db[,,,when]
+        out[db_aid,,] <- out[db_aid,,] - VIRGIN$data[,,,when]
+    return(out)
+},
+current_active_pop = function() {
+    out <- data[,,,year]
+    if (MODEL==2)
+        out[db_aid,,] <- out[db_aid,,] - VIRGIN$data[,,,year]
     return(out)
 },
 
@@ -133,14 +141,11 @@ remove_hiv_death = function(hivpop, artpop) {
     # deaths by single-year
     hiv_mx <- dbyAG / sumByAGs(data[,, hivp.idx, year], ag.idx) # virgin included
     hiv_mx[is.nan(hiv_mx)] <- 0
-    dbyA_pr <- apply(hiv_mx, 2, rep, h.ag.span)
-    hivdeaths[,,year] <<- hivdeaths[,,year] + data[,, hivp.idx, year] * dbyA_pr
-    data[,, hivp.idx, year] <<- data[,, hivp.idx, year] * (1 - dbyA_pr)
-    if (MODEL == 2) {
-      # hivdeaths[1:pDB,,year] <<- hivdeaths[1:pDB,,year] +
-        # data_db[,, hivp.idx, year] * dbyA_pr[1:pDB, ] # TODO: no need, see above
-      data_db[,,hivp.idx,year] <<- data_db[,,hivp.idx,year] * (1 - dbyA_pr[1:pDB,])
-    }
+    p_hiv_death_age_ <<- apply(hiv_mx, 2, rep, h.ag.span)
+    hivdeaths[,,year] <<- hivdeaths[,,year] + data[,, hivp.idx, year] * p_hiv_death_age_
+    data[,, hivp.idx, year] <<- data[,, hivp.idx, year] * (1 - p_hiv_death_age_)
+    if (MODEL == 2)
+      VIRGIN$remove_hiv_death(p_hiv_death_age_)
 },
 
 update_preg = function(art_elig, hivpop, artpop) {
@@ -241,22 +246,18 @@ art_distribute = function(art_elig, art_need) {
 },
 
 adjust_pop = function() {
-  popadjust[,,year] <<- p$targetpop[,,year] / rowSums(data[,,,year],,2)
+  adj_prob_age[,,year] <<- p$targetpop[,,year] / rowSums(data[,,,year],,2)
   if (MODEL!=0) {
-    adj_prob <<- sumByAGs(popadjust[,,year] * data[,,hivp.idx,year], ag.idx)/
+    adj_prob_agr <<- sumByAGs(adj_prob_age[,,year] * data[,,hivp.idx,year], ag.idx)/
                  sumByAGs(data[,,hivp.idx,year], ag.idx)
-    adj_prob[is.nan(adj_prob)] <<- 0
+    adj_prob_agr[is.nan(adj_prob_agr)] <<- 0
   }
-  data[,,,year] <<- sweep(data[,,,year], 1:2, popadjust[,,year], "*")
-  if (MODEL==2)
-    data_db[,,,year] <<- sweep(data_db[,,,year], 1:2, popadjust[db_aid,,year], "*")
+  data[,,,year] <<- sweep(data[,,,year], 1:2, adj_prob_age[,,year], "*")
 },
 
 aging = function() {
     data[-c(1,pAG),,,year] <<- data[-(pAG-1:0),,,year-1]
     data[pAG,,,year] <<- data[pAG,,,year-1] + data[pAG-1,,,year-1] # open ended
-    if (MODEL==2)  # @debut age the debut pop
-        data_db[-1,,,year] <<- data_db[-pDB,,,year-1]
 },
 
 add_entrants = function() {
@@ -289,18 +290,13 @@ add_entrants = function() {
         data[1,, hivp.idx, year] <<- positiv
     }
     if (MODEL==2) {  # this is unwise
-        data_db[1,,hivn.idx,year] <<- healthy
-        data_db[1,,hivp.idx,year] <<- positiv
+        VIRGIN$data[1,,hivn.idx,year] <<- healthy
+        VIRGIN$data[1,,hivp.idx,year] <<- positiv
     }
     if (MODEL!=0) {
         entrantprev[year]        <<- sum(positiv)/sum(healthy+positiv)
         hivp_entrants_out[,year] <<- positiv
     }
-},
-
-sexual_debut = function() {
-    debut_now            <- sweep(data_db[,,,year], 1:2, p$db_pr, "*")
-    data_db[,,,year]     <<- data_db[,,,year]     - debut_now
 },
 
 hiv_aging_prob = function() {
@@ -324,27 +320,19 @@ deaths = function() {
                           sumByAGs(data[,,hivp.idx,year], ag.idx)
       hiv_sx_prob[is.nan(hiv_sx_prob)] <<- 0
     }
-    if (MODEL==2) {
-      # Note that we don't add this to death_now as it's already included
-      # This only means for pop. hivpop and artpop still need to add now
-      death_db <- sweep(data_db[,,,year], 1:2, 1 - p$Sx[db_aid,,year], "*")
-      data_db[,,,year] <<- data_db[,,,year] - death_db
-    }
     data[,,,year] <<- data[,,,year] - death_now
     natdeaths[,,year] <<- rowSums(death_now,,2)
 },
 
 migration = function() {
     netmigsurv <- p$netmigr[,,year] * (1 + p$Sx[,,year]) / 2
-    mr.prob <- 1 + netmigsurv / rowSums(data[,,,year],,2)
+    mr_prob_ <<- 1 + netmigsurv / rowSums(data[,,,year],,2)
     if (MODEL != 0) {
-      hiv_mr_prob <<- sumByAGs(mr.prob * data[,,hivp.idx,year], ag.idx) / 
-                      sumByAGs(          data[,,hivp.idx,year], ag.idx)
+      hiv_mr_prob <<- sumByAGs(mr_prob_ * data[,,hivp.idx,year], ag.idx) / 
+                      sumByAGs(           data[,,hivp.idx,year], ag.idx)
       hiv_mr_prob[is.nan(hiv_mr_prob)] <<- 0
     }
-    if (MODEL == 2)
-      data_db[,,,year] <<- sweep(data_db[,,,year], 1:2, mr.prob[db_aid,], "*")
-    data[,,,year] <<- sweep(data[,,,year], 1:2, mr.prob, "*")
+    data[,,,year] <<- sweep(data[,,,year], 1:2, mr_prob_, "*")
 },
 
 update_fertile = function() { # only on active pop
@@ -442,8 +430,8 @@ infect_spec = function(hivpop, artpop, time_step) {
     
     hivp_inactive <- 0
     if (MODEL==2) # add safe positive 
-      hivp_inactive <- sum(data_db[,,hivp.idx, year]) - 
-                       sum(data_db[first_age,,hivp.idx,year]) * dt_ii
+      hivp_inactive <- sum(VIRGIN$data[,,hivp.idx, year]) - 
+                       sum(VIRGIN$data[first_age,,hivp.idx,year]) * dt_ii
 
     hivp_active <- sum(data_active[p.age15to49.idx,,hivp.idx]) - 
                sum(data_active[first_age,,hivp.idx]) * dt_ii + 
@@ -575,3 +563,8 @@ calc_rtrend_rt = function(ts, time_step) {
 )
 
 setMembers(popEPP, "public", names(popFunc), popFunc)
+setMembers(popEPP, "active", 'update_year', function(x) {
+  year <<- x
+  if (MODEL==2)
+    VIRGIN$year <- x
+})

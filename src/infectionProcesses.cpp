@@ -165,7 +165,7 @@ void popC::infect_mix (int ii, Views& v, const Parameters& p, const StateSpace& 
       N_hivp = data_active[s.P][sex][age];
       transm_prev[sex][age] = ((N_hivp * (1 - artcov[sex])) + 
                                (N_hivp * artcov[sex] * (1 - p.ic.relinfectART)))/
-                               (data_active[s.N][sex][age] + N_hivp);
+                               (v.now_pop[s.N][sex][age] + v.now_pop[s.P][sex][age]);
       }
   //+intervention effects and time epidemic start
   double w = (p.ic.proj_steps[ts] == p.ic.tsEpidemicStart) ? p.ic.iota : 0.0;

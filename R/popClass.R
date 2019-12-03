@@ -394,7 +394,7 @@ infect_mix = function(hivpop, artpop, ii) {
     hiv_treated       <- sweep(data_active[,,hivp.idx], 2, artcov, '*')
     hiv_not_treated   <- data_active[,,hivp.idx] - hiv_treated
     transm_prev <- (hiv_not_treated + hiv_treated * (1 - p$relinfectART)) / 
-                    rowSums(data_active,,2) # prevalence adjusted for art
+                    rowSums(data[,,,year],,2) # prevalence adjusted for art
     # +intervention effects and time epidemic start
     w  <- p$iota * (p$proj.steps[ts] == p$tsEpidemicStart)
     transm_prev <- rvec[ts] * transm_prev + w

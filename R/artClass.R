@@ -1,45 +1,5 @@
-#' Set a list of methods to a R6 object
-#'
-#' @param a the object
-#' @param where public, private or active?
-#' @param x a named list,
-#' @param y the corresponding functions to x
-setMembers <- function(a, where="public", x, y) {
-    if (length(x) > 1)
-        mapply(function(x, y) a$set(where, x, y, overwrite=T), x, y)
-    else 
-        a$set(where, x, y, overwrite=T)
-    invisible()
-}
-
-# ART GRAD
+# ART class methods
 # -----------------------------------------------------------------------------
-artEPP <- R6::R6Class("artepp", class=F, cloneable=F, portable=F, inherit=eppFP,
-    lock_objects=F,
-    public = list(
-        year       = 1,
-        MODEL      = "integer",
-        data       = "array",
-        data_db    = "array",
-        gradART    = "array",
-        gradART_db = "array",
-        f_death     = "array",
-        f_death_db  = "array",
-        initialize = function(fp, MODEL) {
-            super$initialize(fp)
-            MODEL <<- MODEL
-            data <<- array(0, c(hTS, hDS, hAG, NG, PROJ_YEARS))            
-            gradART <<- array(0, c(hTS, hDS, hAG, NG))
-            f_death  <<- array(0, c(hTS, hDS, hAG, NG))
-            if (MODEL==2) {
-                data_db <<- data
-                gradART_db <<- gradART
-                f_death_db  <<- array(0, c(hTS, hDS, hAG, NG))
-            }
-        }
-    )
-)
-
 artFns <- c(
 aging = function(ag_prob) {
     data[,,,,year] <<- data[,,,,year-1]
@@ -49,8 +9,8 @@ aging = function(ag_prob) {
     if (MODEL==2) {
         data_db[,,,,year] <<- data_db  [,,,,year-1]
         nARTup <- sweep(data_db[,,-hAG,,year], 3:4, ag_prob[-hAG,], "*")
-        data_db[,,-hAG,,year] <<- data_db  [,,-hAG,,year] - nARTup
-        data_db[,,  -1,,year] <<- data_db  [,,  -1,,year] + nARTup        
+        data_db[,,-hAG,,year] <<- data_db[,,-hAG,,year] - nARTup
+        data_db[,,  -1,,year] <<- data_db[,,  -1,,year] + nARTup        
     }
 },
 

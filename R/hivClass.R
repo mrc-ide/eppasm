@@ -1,29 +1,5 @@
-# HIV CLASS
+# HIV CLASS METHODS
 # -----------------------------------------------------------------------------
-hivEPP <- R6::R6Class("hivepp", class=F, cloneable=F, portable=F, inherit=eppFP,
-    lock_objects=F, 
-    public = list(
-        year = 1,
-        MODEL = "integer",
-        data = "array",
-        data_db = "array",
-        grad = "array",
-        grad_db = "array",
-        f_death = "array",
-        f_death_db = "array",
-        initialize = function(fp, MODEL) {
-            super$initialize(fp)
-            MODEL <<- MODEL
-            data <<- array(0, c(hDS, hAG, NG, PROJ_YEARS))
-            f_death <<- grad <<- array(0, c(hDS, hAG, NG))
-            if (MODEL==2) {
-                data_db <<- data
-                grad_db <<- grad
-                f_death_db <<- f_death
-            }
-        })
-)
-
 hivFunc <- c(
 aging = function(ag_prob) {
     data[,,,year]     <<- data[,,,year-1]

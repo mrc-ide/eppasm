@@ -1,19 +1,5 @@
 # Virgin CLASS
 # -----------------------------------------------------------------------------
-virginEPP <- R6::R6Class("virginepp", class=F, cloneable=F, portable=F, inherit=eppFP,
-    lock_objects=F, 
-    public = list(
-        year = 1,
-        MODEL = "integer",
-        data = "array",
-        initialize = function(fp, MODEL) {                               
-            super$initialize(fp)
-            MODEL <<- MODEL
-            data  <<- array(0, c(pDB, NG, pDS, PROJ_YEARS)) # debut ages only
-            data[,,hivn.idx,1] <<- p$basepop[db_aid,] * (1 - p$db_pr)
-        })
-)
-
 virginFunc <- c(
 aging = function() {
     data[-1,,,year] <<- data[-pDB,,,year-1]

@@ -1,6 +1,166 @@
 # Annualized number of new infections
 # infect_spec <- function(pop, hivpop, artpop, ii, fp)
 # K moved to popClass method
+infectFns <- c(
+infect_mix = function(hivpop, artpop, ii) {
+    ts <- (year-2)/DT + ii
+    update_active_pop_to(year)
+    hiv_treated       <- sweep(data_active[,,hivp.idx], 2, artcov, '*')
+    hiv_not_treated   <- data_active[,,hivp.idx] - hiv_treated
+    transm_prev <- (hiv_not_treated + hiv_treated * (1 - p$relinfectART)) / 
+                    rowSums(data[,,,year],,2) # prevalence adjusted for art
+    # +intervention effects and time epidemic start
+    w  <- p$iota * (p$proj.steps[ts] == p$tsEpidemicStart)
+    transm_prev <- rvec[ts] * transm_prev + w
+    # sweep over sexual mixing matrices
+    ir_m <- rowSums(sweep(p$mat_m, 2, transm_prev[, f.idx], "*")) # male
+    ir_f <- rowSums(sweep(p$mat_f, 2, transm_prev[, m.idx], "*")) # female
+    irmf <- cbind(ir_m, ir_f)
+    # if (exists("f_fun", fp)) # that fun
+    #   ir <- ir * fp$f_fun
+
+    # Scale to age pattern of IR
+    max_rr_sex <- apply(p$incrr_age[,,year],2,max)
+    scaled_rr_age <- sweep(p$incrr_age[,,year], 2, max_rr_sex, '/')
+    irmf <- irmf * scaled_rr_age
+  
+    # Scale sex pattern IR
+    incidence_estimated <- colSums(irmf * data_active[,,hivn.idx]) / 
+                           colSums(data_active[,,hivn.idx])
+    IRR_FM_estimated <- incidence_estimated[2]/incidence_estimated[1]
+    if (!is.na(IRR_FM_estimated)) {
+      irmf[, f.idx] <- irmf[, f.idx]*p$incrr_sex[year]
+      irmf[, m.idx] <- irmf[, m.idx]*IRR_FM_estimated
+    }
+  
+    infections.ts <- irmf * data_active[,,hivn.idx]
+
+    incrate15to49_ts[,,ts] <<- transm_prev
+    prev15to49_ts[ts] <<- prevlast <<- sum(data[,,hivp.idx,year])/sum(data[,,,year])
+    infections.ts
+},
+
+infect_spec = function(hivpop, artpop, time_step) {
+    ts    <- (year-2) / DT + time_step
+    dt_ii <- 1 - DT * (time_step - 1) # transition of population in 1 year
+    first_age  <- p.age15to49.idx[1]
+    first_agrp <- h.age15to49.idx[1]
+    last_age   <- tail(p.age15to49.idx, 1) + 1
+    last_agrp  <- tail(h.age15to49.idx, 1) + 1
+    update_active_pop_to(year)
+
+    # counting all negative including virgin
+    hivn_both <- sum(data[p.age15to49.idx,,hivn.idx, year]) -
+                 sum(data[first_age,,hivn.idx, year]) * dt_ii + 
+                 sum(data[last_age,,hivn.idx, year]) * dt_ii
+    
+    hivp_inactive <- 0
+    if (MODEL==2) # add safe positive 
+      hivp_inactive <- sum(VIRGIN$data[,,hivp.idx, year]) - 
+                       sum(VIRGIN$data[first_age,,hivp.idx,year]) * dt_ii
+
+    hivp_active <- sum(data_active[p.age15to49.idx,,hivp.idx]) - 
+               sum(data_active[first_age,,hivp.idx]) * dt_ii + 
+               sum(data_active[last_age,,hivp.idx]) * dt_ii
+
+    all_pop <- hivn_both + hivp_active + hivp_inactive
+  
+    art.ii  <- 0
+  
+    if (year >= p$tARTstart) { # otherwise can be dividing zero
+      art.ii  <- sum(artpop$get(AG = h.age15to49.idx, YEAR = year))
+  
+      if (sum(hivpop$get(AG = first_agrp, YEAR = year)) + 
+          sum(artpop$get(AG = first_agrp, YEAR = year)) > 0) {
+        art_first <- colSums(artpop$data[,,first_agrp,,year],,2)
+        hiv_first <- colSums(hivpop$data[ ,first_agrp,,year],,1)
+        art.ii  <- art.ii - 
+          sum(data_active[first_age,,hivp.idx] * art_first / (hiv_first + art_first)) * dt_ii
+      }
+
+      if (sum(hivpop$data[ ,last_agrp,,year]) + 
+          sum(artpop$data[,,last_agrp,,year]) > 0) {
+        art_last <- colSums(artpop$data[,,last_agrp,,year],,2)
+        hiv_last <- colSums(hivpop$data[ ,last_agrp,,year],,1)
+        art.ii <- art.ii + sum(data_active[last_age,,hivp.idx] * 
+          art_last / (hiv_last + art_last) ) * dt_ii
+      }
+    }
+
+    transm_prev <- (hivp_active - art.ii*(1 - p$relinfectART)) / all_pop
+
+    w <- p$iota * (p$proj.steps[ts] == p$tsEpidemicStart)
+    inc_rate <- rvec[ts] * transm_prev + w
+    
+    # Incidence: male = negative / female negative * sexratio + male negative; 
+    #          female = male * sexratio
+    sus_age_sex <- data_active[p.age15to49.idx,,hivn.idx]
+
+    if (MODEL==1) {
+      adj_sex <- sum(sus_age_sex) /
+        ( sum(data_active[p.age15to49.idx,m.idx,hivn.idx]) +
+          sum(data_active[p.age15to49.idx,f.idx,hivn.idx]) * 
+          p$incrr_sex[year] )
+      sexinc15to49.ts <- inc_rate * c(1, p$incrr_sex[year]) * adj_sex
+      # New infections distributed by age: ratio age_i/ 25-29 age
+      adj_age    <- sexinc15to49.ts /
+        (colSums(sus_age_sex * p$incrr_age[p.age15to49.idx,,year]) / colSums(sus_age_sex))
+      agesex.inc <- sweep(p$incrr_age[,,year], 2, adj_age, "*")
+    }
+
+    if (MODEL==2) {
+      S_F       = sum(data_active[p.age15to49.idx, f.idx, hivn.idx])
+      S_M       = sum(data_active[p.age15to49.idx, m.idx, hivn.idx])
+      H_M_minus = sum(data[p.age15to49.idx, m.idx, hivn.idx, year])
+      H_F_minus = sum(data[p.age15to49.idx, f.idx, hivn.idx, year])
+      sex_inc = c(0,0)
+      sex_inc[m.idx] = (inc_rate * (S_M + S_F) * H_M_minus) /
+                       (S_M * (p$incrr_sex[year] * H_F_minus + H_M_minus))
+      sex_inc[f.idx] = sex_inc[m.idx] * p$incrr_sex[year] * S_M * H_F_minus / (S_F * H_M_minus)
+      IR_tsa_hat = p$incrr_age[,,year] * data_active[,,hivn.idx] / data[,,hivn.idx,year]
+      incrr_adj = sweep(p$incrr_age[,,year]^2, 2, IR_tsa_hat[10,], '*') /
+                  sweep(IR_tsa_hat, 2, p$incrr_age[10,,year], '*')
+      incrr_adj[is.na(incrr_adj)] = 0
+      inc_sex_hat = colSums(sus_age_sex * incrr_adj[p.age15to49.idx,]) / colSums(sus_age_sex)
+      adj_age = sex_inc / inc_sex_hat
+      agesex.inc <- sweep(incrr_adj, 2, adj_age, "*")
+    }
+
+    ## Adjust age-specific incidence among men for circumcision coverage
+    agesex.inc[, m.idx] <- agesex.inc[, m.idx] * (1 - p$circ_incid_rr * p$circ_prop[,year])
+    infections.ts <- agesex.inc * data_active[,,hivn.idx]
+    # saving
+    incrate15to49_ts[ts] <<- inc_rate
+    prev15to49_ts[ts] <<- prevlast <<- (hivp_active + hivp_inactive) / all_pop
+    infections.ts
+},
+
+epp_disease_model_direct = function(hivpop, artpop) {
+  if (p$incidpopage) 
+    age_id <- p.age15plus.idx # incidence for 15+ population
+  else
+    age_id <- p.age15to49.idx # incidence for 15 -49 population
+  update_active_pop_to(year-1)
+  num <- c(1, p$incrr_sex[year]) * sum(data_active[age_id,, hivn.idx])
+  den <- sum(data_active[age_id, m.idx, hivn.idx]) + 
+         sum(data_active[age_id, f.idx, hivn.idx]) * 
+         p$incrr_sex[year]
+  sexinc <- p$incidinput[year] * num / den
+  ageinc <- colSums( data_active[age_id,,hivn.idx] * 
+                     p$incrr_age[age_id,,year] ) /
+            colSums(data_active[age_id,,hivn.idx])
+  agesex.inc <- sweep(p$incrr_age[,,year], 2, sexinc / ageinc, "*")
+  infections[,,year]     <<- agesex.inc * data[,,hivn.idx,year-1]
+  data[,,hivn.idx,year]  <<- data[,,hivn.idx,year] - infections[,,year]
+  data[,,hivp.idx,year]  <<- data[,,hivp.idx,year] + infections[,,year]
+  infect_agrp            <- sumByAGs(infections[,,year], ag.idx)
+  hivpop$data[,,,year] <- hivpop$data[,,,year] + 
+                          sweep(p$cd4_initdist, 2:3, infect_agrp, "*")
+  incid15to49[year]      <<- sum(infections[p.age15to49.idx,,year])
+})
+
+setMembers(popEPP, "public", names(infectFns), infectFns)
+infectFns <- NULL # optional
 
 calc_infections_simpletransm <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
 

@@ -44,11 +44,39 @@ popEPP <- R6::R6Class("popepp", class=F, cloneable=F, portable=F, inherit=eppFP,
         rvec              = "vector",
         mr_prob_          = "array",
         p_hiv_death_age_  = "array",
-        VIRGIN = "virEPP class",
-        MSM    = "msmEPP class",
-        FSW    = "fswEPP class",
-        CLIENT = "cliEPP class"
-        )
+        VIRGIN            = "virEPP class",
+        MSM               = "msmEPP class",
+        FSW               = "fswEPP class",
+        CLIENT            = "cliEPP class",
+        initialize = function(fp, MODEL=1, VERSION="R", MIX=F) {
+            super$initialize(fp) 
+            # 'Initialize pop array'
+            MODEL       <<- MODEL
+            VERSION     <<- VERSION
+            MIX         <<- MIX
+            data        <<- array(0, c(pAG, NG, pDS, PROJ_YEARS))
+            data_active <<- array(0, c(pAG, NG, pDS))
+            data[,,hivn.idx,1] <<- p$basepop
+            
+            # Outputs
+            entrantprev   <<- numeric(PROJ_YEARS)
+            prev15to49    <<- incid15to49  <<- pregprevlag <<- pregprev <<- entrantprev
+            adj_prob_age  <<- array(0, c(pAG, NG, PROJ_YEARS))
+            infections    <<- hivdeaths <<- natdeaths <<- adj_prob_age
+            prev15to49_ts <<- incrate15to49_ts <<- rep(NA, length(p$rvec))
+            hivp_entrants_out <<- array(0, c(NG, PROJ_YEARS))
+            
+            # use in model
+            birthslag     <<- p$birthslag
+            if (p$eppmod != "directincid")
+              rvec <<- if (p$eppmod=="rtrend") rep(NA, length(p$proj.steps)) else p$rvec
+
+            if (MODEL==2)
+                VIRGIN <<- virginEPP$new(fp, MODEL) # has its own initialization
+            if (MIX)
+              incrate15to49_ts  <<- array(0, c(pAG, NG, length(p$rvec)))
+        }
+    )
 )
 
 artEPP <- R6::R6Class("artepp", class=F, cloneable=F, portable=F, inherit=eppFP,

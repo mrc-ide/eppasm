@@ -29,26 +29,21 @@ adjust_pop = function(adj_prob) {
 
 n_all = function(dt=0, only_1549=TRUE) {
     age_range = if (only_1549) p.age15to49.idx else 1:pAG
-    sum(data[age_range,,,year]) -
-        sum(data[age_range[1],,,year]) * dt +
-            sum(data[tail(age_range)+1,,,year]) * dt
+    sum(data[age_range,,,year]) - sum(data[age_range[1],,,year]) * dt
 },
 
-n_HIV = function(dt=0, only_1549=TRUE) {
-    age_range = if (only_1549) p.age15to49.idx else 1:pAG
-    sum(data[age_range,, hivp.idx, year]) -
-        sum(data[age_range[1],, hivp.idx, year]) * dt +
-            sum(data[tail(age_range)+1,, hivp.idx, year]) * dt
+n_HIV = function(dt=0) {
+    sum(data[db_aid,, hivp.idx, year]) -
+        sum(data[db_aid[1],, hivp.idx, year]) * dt
 },
 
-n_NEG = function(only_1549=TRUE) {
-    age_range = if (only_1549) p.age15to49.idx else 1:pAG
-    data[age_range,, hivn.idx, year]
+n_NEG = function(dt=0) {
+    data[db_aid,, hivn.idx, year] - 
+        sum(data[db_aid[1],, hivp.idx, year]) * dt
 },
 
-n_IDU = function(only_1549=TRUE) {
-    age_range = if (only_1549) p.age15to49.idx else 1:pAG
-    data[age_range,,,year] * p$idu_virgin_pro[age_range,,]
+n_IDU = function() {
+    data[db_aid,,,year] * p$idu_virgin_pro[db_aid,,]
 }
 )
 

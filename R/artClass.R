@@ -1,6 +1,12 @@
 # ART class methods
 # -----------------------------------------------------------------------------
 artFns <- c(
+
+N = function(only_1549=TRUE) {
+    age_range = if (only_1549) h.age15to49.idx else 1:hAG
+    sum(data[,,age_range,,year])
+},
+
 aging = function(ag_prob) {
     data[,,,,year] <<- data[,,,,year-1]
     nARTup <- sweep(data[,,-hAG,,year], 3:4, ag_prob[-hAG,], "*")

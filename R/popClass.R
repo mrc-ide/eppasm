@@ -1,35 +1,34 @@
-setMembers(popEPP, "public", "initialize",
-function(fp, MODEL=1, VERSION="R", MIX=F) {
-    super$initialize(fp) 
-    # 'Initialize pop array'
-    MODEL       <<- MODEL
-    VERSION     <<- VERSION
-    MIX         <<- MIX
-    data        <<- array(0, c(pAG, NG, pDS, PROJ_YEARS))
-    data_active <<- array(0, c(pAG, NG, pDS))
-    data[,,hivn.idx,1] <<- p$basepop
-    
-    # Outputs
-    entrantprev   <<- numeric(PROJ_YEARS)
-    prev15to49    <<- incid15to49  <<- pregprevlag <<- pregprev <<- entrantprev
-    adj_prob_age  <<- array(0, c(pAG, NG, PROJ_YEARS))
-    infections    <<- hivdeaths <<- natdeaths <<- adj_prob_age
-    prev15to49_ts <<- incrate15to49_ts <<- rep(NA, length(p$rvec))
-    hivp_entrants_out <<- array(0, c(NG, PROJ_YEARS))
-    
-    # use in model
-    birthslag     <<- p$birthslag
-    if (p$eppmod != "directincid")
-      rvec <<- if (p$eppmod=="rtrend") rep(NA, length(p$proj.steps)) else p$rvec
-
-    if (MODEL==2)
-        VIRGIN <<- virginEPP$new(fp, MODEL) # has its own initialization
-    if (MIX)
-      incrate15to49_ts  <<- array(0, c(pAG, NG, length(p$rvec)))
+# Methods of popClass
+setMembers(popEPP, "active", 'update_year', function(x) {
+  year <<- x
+  if (MODEL==2)
+    VIRGIN$year <- x
 })
 
 # named list functions as methods
 popFunc <- c(
+
+N = function(dt=0, only_1549=TRUE) {
+    age_range = if (only_1549) p.age15to49.idx else 1:pAG
+    sum(data[           age_range,,,year]) -
+    sum(data[        age_range[1],,,year]) * dt +
+    sum(data[tail(age_range, 1)+1,,,year]) * dt
+},
+
+n_HIV = function(dt=0, only_1549=TRUE) {
+    age_range = if (only_1549) p.age15to49.idx else 1:pAG
+    sum(data[           age_range,,hivp.idx,year]) -
+    sum(data[        age_range[1],,hivp.idx,year]) * dt +
+    sum(data[tail(age_range, 1)+1,,hivp.idx,year]) * dt
+},
+
+n_NEG = function(dt=0, only_1549=TRUE) {
+    age_range = if (only_1549) p.age15to49.idx else 1:pAG
+    sum(data[           age_range,,hivn.idx,year]) -
+    sum(data[        age_range[1],,hivn.idx,year]) * dt +
+    sum(data[tail(age_range, 1)+1,,hivn.idx,year]) * dt
+},
+
 set_data = function(FUN="+", x, AG=T, NG=T, DS=T, YEAR=T) {
     FUN <- match.fun(FUN)
     data[AG, NG, DS, YEAR] <<- FUN(data[AG, NG, DS, YEAR], x)
@@ -60,6 +59,7 @@ get_active_pop_in = function(when) {
         out[db_aid,,] <- out[db_aid,,] - VIRGIN$data[,,,when]
     return(out)
 },
+
 current_active_pop = function() {
     out <- data[,,,year]
     if (MODEL==2)
@@ -73,6 +73,33 @@ update_rvec = function(time_step) {
       rvec[ts] <<- calc_rtrend_rt(ts, time_step)
     else
       rvec[ts] <<- p$rvec[ts]
+},
+
+artpop_adj = function(hivpop, artpop, dt_ii) {
+    # dont use this without updating data_active
+    first_age  <- p.age15to49.idx[1]
+    first_agrp <- h.age15to49.idx[1]
+    last_age   <- tail(p.age15to49.idx, 1) + 1
+    last_agrp  <- tail(h.age15to49.idx, 1) + 1
+
+    art.ii  <- artpop$N()
+
+    if (sum(hivpop$data[ ,first_agrp,,year]) + 
+        sum(artpop$data[,,first_agrp,,year]) > 0) {
+      art_first <- colSums(artpop$data[,,first_agrp,,year],,2)
+      hiv_first <- colSums(hivpop$data[ ,first_agrp,,year],,1)
+      art.ii  <- art.ii - 
+        sum(data_active[first_age,,hivp.idx] * art_first / (hiv_first + art_first)) * dt_ii
+    }
+
+    if (sum(hivpop$data[ ,last_agrp,,year]) + 
+        sum(artpop$data[,,last_agrp,,year]) > 0) {
+      art_last <- colSums(artpop$data[,,last_agrp,,year],,2)
+      hiv_last <- colSums(hivpop$data[ ,last_agrp,,year],,1)
+      art.ii <- art.ii + sum(data_active[last_age,,hivp.idx] * 
+        art_last / (hiv_last + art_last) ) * dt_ii
+    }
+    art.ii
 },
 
 update_infection = function(infect) {
@@ -356,12 +383,6 @@ calc_rtrend_rt = function(ts, time_step) {
   }
   else
     return(p$rtrend$r0)
-}
-)
+})
 
 setMembers(popEPP, "public", names(popFunc), popFunc)
-setMembers(popEPP, "active", 'update_year', function(x) {
-  year <<- x
-  if (MODEL==2)
-    VIRGIN$year <- x
-})

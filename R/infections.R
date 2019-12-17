@@ -5,6 +5,7 @@ infectFns <- c(
 infect_mix = function(hivpop, artpop, ii) {
     ts <- (year-2)/DT + ii
     update_active_pop_to(year)
+    data_active <<- sweepx(data_active, 1:2, p$est_senesence)
     hiv_treated       <- sweep(data_active[,,hivp.idx], 2, artcov, '*')
     hiv_not_treated   <- data_active[,,hivp.idx] - hiv_treated
     transm_prev <- (hiv_not_treated + hiv_treated * (1 - p$relinfectART)) / 
@@ -16,22 +17,22 @@ infect_mix = function(hivpop, artpop, ii) {
     ir_m <- rowSums(sweep(p$mat_m, 2, transm_prev[, f.idx], "*")) # male
     ir_f <- rowSums(sweep(p$mat_f, 2, transm_prev[, m.idx], "*")) # female
     irmf <- cbind(ir_m, ir_f)
-    # if (exists("f_fun", fp)) # that fun
+    # if (exists("f_fun", fp)) # that fun is now replaced by senesence estimate
     #   ir <- ir * fp$f_fun
 
     # Scale to age pattern of IR
-    max_rr_sex <- apply(p$incrr_age[,,year],2,max)
-    scaled_rr_age <- sweep(p$incrr_age[,,year], 2, max_rr_sex, '/')
-    irmf <- irmf * scaled_rr_age
+    # max_rr_sex <- apply(p$incrr_age[,,year],2,max)
+    # scaled_rr_age <- sweep(p$incrr_age[,,year], 2, max_rr_sex, '/')
+    # irmf <- irmf * scaled_rr_age
   
     # Scale sex pattern IR
-    incidence_estimated <- colSums(irmf * data_active[,,hivn.idx]) / 
-                           colSums(data_active[,,hivn.idx])
-    IRR_FM_estimated <- incidence_estimated[2]/incidence_estimated[1]
-    if (!is.na(IRR_FM_estimated)) {
-      irmf[, f.idx] <- irmf[, f.idx]*p$incrr_sex[year]
-      irmf[, m.idx] <- irmf[, m.idx]*IRR_FM_estimated
-    }
+    # incidence_estimated <- colSums(irmf * data_active[,,hivn.idx]) / 
+                           # colSums(data_active[,,hivn.idx])
+    # IRR_FM_estimated <- incidence_estimated[2]/incidence_estimated[1]
+    # if (!is.na(IRR_FM_estimated)) {
+    #   irmf[, f.idx] <- irmf[, f.idx]*p$incrr_sex[year]
+    #   irmf[, m.idx] <- irmf[, m.idx]*IRR_FM_estimated
+    # }
   
     infections.ts <- irmf * data_active[,,hivn.idx]
 

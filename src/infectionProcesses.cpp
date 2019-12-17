@@ -157,6 +157,10 @@ void popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step,
 
 void popC::infect_mix (int ii, Views& v, const Parameters& p, const StateSpace& s) {
   update_active_pop_to(s.year, v, s);
+  for (int ds = 0; ds < s.pDS; ds++)
+    for (int sex = 0; sex < s.NG; sex++)
+      for (int age = 0; age < s.pAG; age++)
+        data_active[ds][sex][age] *= p.ic.est_senesence[sex][age];
   int ts = (s.year-1)/s.DT + ii;
   boost2D transm_prev(extents[s.NG][s.pAG]);
   double N_hivp;
@@ -185,25 +189,25 @@ void popC::infect_mix (int ii, Views& v, const Parameters& p, const StateSpace& 
   //   ir = ir * fp.f_fun
 
   // Match IRR by age // incrr_age was scaled in R
-  for (int sex = 0; sex < s.NG; sex++)
-    for (int age = 0; age < s.pAG; age++)
-      infections_[sex][age] *= p.ic.incrr_age[s.year][sex][age];
+  // for (int sex = 0; sex < s.NG; sex++)
+  //   for (int age = 0; age < s.pAG; age++)
+  //     infections_[sex][age] *= p.ic.incrr_age[s.year][sex][age];
 
   // Match IRR by Sex
-  double inc_M = 0, inc_F = 0, S_M = 0, S_F = 0;
-  for (int age = 0; age < s.pAG; age++) {
-    S_M   += data_active[s.N][s.M][age];
-    S_F   += data_active[s.N][s.F][age];
-    inc_M += infections_[s.M][age] * data_active[s.N][s.M][age];
-    inc_F += infections_[s.F][age] * data_active[s.N][s.F][age];
-  }
-  double IIR_estimated = (inc_F/S_F) / (inc_M/S_M);
-  if (!std::isnan(IIR_estimated)) {
-    for (int age = 0; age < s.pAG; age++) {
-      infections_[s.F][age] *= p.ic.incrr_sex[s.year];
-      infections_[s.M][age] *= IIR_estimated;
-    }
-  }
+  // double inc_M = 0, inc_F = 0, S_M = 0, S_F = 0;
+  // for (int age = 0; age < s.pAG; age++) {
+  //   S_M   += data_active[s.N][s.M][age];
+  //   S_F   += data_active[s.N][s.F][age];
+  //   inc_M += infections_[s.M][age] * data_active[s.N][s.M][age];
+  //   inc_F += infections_[s.F][age] * data_active[s.N][s.F][age];
+  // }
+  // double IIR_estimated = (inc_F/S_F) / (inc_M/S_M);
+  // if (!std::isnan(IIR_estimated)) {
+  //   for (int age = 0; age < s.pAG; age++) {
+  //     infections_[s.F][age] *= p.ic.incrr_sex[s.year];
+  //     infections_[s.M][age] *= IIR_estimated;
+  //   }
+  // }
 
   for (int sex = 0; sex < s.NG; sex++)
     for (int age = 0; age < s.pAG; age++)

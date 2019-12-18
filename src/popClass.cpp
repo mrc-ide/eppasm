@@ -15,7 +15,7 @@ void popC::initiate (const Parameters& p, const StateSpace& s) {
   if (s.MODEL==2)
     for (int sex = 0; sex < s.NG; sex++)
       for (int age = 0; age < s.pDB; age++)
-        data_db[0][s.N][sex][age] = p.dm.basepop[sex][age]*(1 - p.ic.db_pr[sex][age]);
+        data_db[0][s.N][sex][age] = p.dm.basepop[sex][age]*(1 - p.ic.db_rate[0][sex][age]);
 }
 
 void popC::update_active_pop_to (int when, Views& v, const StateSpace& s) {
@@ -102,7 +102,7 @@ void popC::sexual_debut (const Parameters& p, const StateSpace& s) {
   for (int ds = 0; ds < s.pDS; ds++)
     for (int sex = 0; sex < s.NG; sex++)
       for (int age = 0; age < s.pDB; age++)
-        data_db[s.year][ds][sex][age] *= (1 - p.ic.db_pr[sex][age]);
+        data_db[s.year][ds][sex][age] *= (1 - p.ic.db_rate[s.year][sex][age]);
 }
 
 void popC::update_hiv_aging_prob (Views& v, const StateSpace& s) {

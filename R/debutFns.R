@@ -41,9 +41,12 @@ update_hiv_ss <- function(max_debut_age, fp) {
 #' @param fp fix parameters
 #' @param max_debut_age all will become sexual active at this age
 update_fp_debut <- function(fp, max_debut_age = 30) {
-  fp$db_pr     <- cbind(db_rate(fp$ss$AGE_START:max_debut_age),
-                        db_rate(fp$ss$AGE_START:max_debut_age, FALSE))
-  fp$db_pr[a2i(max_debut_age), ] <- 1
+  if (!exists("db_rate", where=fp)) {
+    cat('running with default sexual debut rate...\n')
+    fp$db_rate     <- cbind(db_rate(fp$ss$AGE_START:max_debut_age),
+                          db_rate(fp$ss$AGE_START:max_debut_age, FALSE))    
+  }
+  fp$db_rate[a2i(max_debut_age),,] <- 1
   fp$ss$db_aid <- a2i(fp$ss$AGE_START):a2i(max_debut_age)
   fp$ss$pDB    <- max(fp$ss$db_aid)
   fp           <- update_hiv_ss(max_debut_age, fp)

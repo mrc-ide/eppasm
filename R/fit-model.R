@@ -315,12 +315,8 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e3, B = 1e4, B.re = 1e3,
   fp$ss$MODEL = ifelse(with_debut, 2L, 1L)
   fp$ss$MIX   = ifelse(with_mixing, TRUE, FALSE)
 
-  if (fp$ss$MODEL == 2) {
-    if (!exists("db_pr", where=fp)) {
-      fp <- update_fp_debut(fp, max_debut_age=30L)
-      cat('running with default sexual debut rate...\n')
-    }
-  }
+  if (fp$ss$MODEL == 2)
+    fp <- update_fp_debut(fp, max_debut_age=30L)
 
   if (fp$ss$MIX && !exists("mat_f", where=fp)) { # add these outside
     fp$mat_m <- readRDS(system.file("extdata", "contact_matrix_male.rds",

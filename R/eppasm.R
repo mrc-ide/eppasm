@@ -19,7 +19,7 @@ simmod.specfp <- function(fp) {
       fp$artmx_timerr <- matrix(rep(fp$artmx_timerr, 3), nrow=3, byrow=TRUE)
   }
 
-  if (MODEL == 2 && !exists("db_pr", where=fp)) 
+  if (MODEL == 2)
     fp <- update_fp_debut(fp, max_debut_age=30)
   
   if (MIX && !exists("mat_f", where=fp)) { # add these outside

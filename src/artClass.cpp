@@ -41,7 +41,7 @@ void artC::sexual_debut(Views& v, const Parameters& p, const StateSpace& s) {
     for (int agr = 0; agr < s.hDB; agr++)
       for (int cd4 = 0; cd4 < s.hDS; cd4++)
         for (int dur = 0; dur < s.hTS; dur++) {
-          double n_db = data_db[s.year][sex][agr][cd4][dur] * p.ic.db_pr[sex][agr];
+          double n_db = data_db[s.year][sex][agr][cd4][dur] * p.ic.db_rate[s.year][sex][agr];
           v.now_art[sex][agr][cd4][dur]       += n_db;
           data_db[s.year][sex][agr][cd4][dur] -= n_db;
         }

@@ -73,7 +73,7 @@ IncidenceParam::IncidenceParam(const SEXP& fp) :
     circ_prop (REAL(get_value(fp, "circ_prop")), get_dim_2D(fp, "circ_prop")),
     mat_m     (REAL(get_value(fp, "mat_m")), get_dim_2D(fp, "mat_m")),
     mat_f     (REAL(get_value(fp, "mat_f")), get_dim_2D(fp, "mat_f")),
-    db_pr     (REAL(get_value(fp, "db_pr")), get_dim_2D(fp, "db_pr")),
+    db_rate   (REAL(get_value(fp, "db_rate")), get_dim_3D(fp, "db_rate")),
     est_senesence(REAL(get_value(fp, "est_senesence")), get_dim_2D(fp, "est_senesence")),
     relinfectART(*REAL(get_value(fp, "relinfectART"))),
     incrr_sex(REAL(get_value(fp, "incrr_sex"))),

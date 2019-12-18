@@ -82,7 +82,7 @@ struct IncidenceParam {
   boost2D_ptr    circ_prop;
   boost2D_ptr    mat_m;
   boost2D_ptr    mat_f;
-  boost2D_ptr    db_pr;
+  boost3D_ptr    db_rate;
   boost2D_ptr    est_senesence;
   const double   relinfectART;
   const double * incrr_sex;

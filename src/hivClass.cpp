@@ -38,7 +38,7 @@ void hivC::sexual_debut(Views& v, const Parameters& p, const StateSpace& s) {
   for (int sex = 0; sex < s.NG; sex++)
     for (int adb = 0; adb < s.hDB; adb++)
       for (int cd4 = 0; cd4 < s.hDS; cd4++) {
-        double n_db = data_db[s.year][sex][adb][cd4] * p.ic.db_pr[sex][adb];
+        double n_db = data_db[s.year][sex][adb][cd4] * p.ic.db_rate[s.year][sex][adb];
         v.now_hiv[sex][adb][cd4]       += n_db;
         data_db[s.year][sex][adb][cd4] -= n_db;
       }

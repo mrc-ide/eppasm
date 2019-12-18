@@ -6,7 +6,7 @@ aging = function() {
 },
 
 sexual_debut = function() {
-    debut_now      <- sweep(data[,,,year], 1:2, p$db_pr, "*")
+    debut_now      <- sweep(data[,,,year], 1:2, p$db_rate[,,year], "*")
     data[,,,year] <<- data[,,,year] - debut_now
 },
 

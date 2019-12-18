@@ -25,7 +25,7 @@ add_entrants = function(artYesNo) {
 },
 
 sexual_debut = function() {
-    debut_hiv <- sweep(data_db[,db_agr,, year], 2:3, p$db_pr, '*')
+    debut_hiv <- sweep(data_db[,db_agr,, year], 2:3, p$db_rate[,,year], '*')
        data[,db_agr,,year] <<-    data[,db_agr,,year] + debut_hiv
     data_db[,db_agr,,year] <<- data_db[,db_agr,,year] - debut_hiv
 },

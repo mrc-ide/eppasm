@@ -22,11 +22,9 @@ simmod.specfp <- function(fp) {
   if (MODEL == 2)
     fp <- update_fp_debut(fp, max_debut_age=30)
   
-  if (MIX && !exists("mat_f", where=fp)) { # add these outside
-    fp$mat_m <- readRDS(system.file("extdata", "contact_matrix_male.rds",
-                                    package="eppasm"))
-    fp$mat_f <- readRDS(system.file("extdata", "contact_matrix_female.rds",
-                                    package="eppasm"))
+  if (MIX && !exists("mixmat", where=fp)) {
+    fp$mixmat <- readRDS(system.file("extdata", "est_mixmat.rds", package="eppasm"))[[1]]
+    message('using a random mixing matrix')
   }
 
   if (VERSION != "R") {

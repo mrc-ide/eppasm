@@ -51,10 +51,10 @@ prepare_fp_for_Cpp <- function(fp, MODEL=1L, MIX=FALSE) {
         fp$rvec <- 1
     if (!exists("pDB", where=fp$ss))  { # mixing model parameters
         fp$ss$pDB <- 1L
-        fp$db_pr <- matrix(1, fp$ss$pDB, 2)
+        fp$db_rate <- array(1, c(fp$ss$pDB, 2, 52))
     }
-    if (!exists("mat_f", where=fp))  { # mixing model parameters
-        fp$mat_f <- fp$mat_m <- matrix(1, fp$ss$pAG, fp$ss$pAG)
+    if (!exists("mixmat", where=fp))  { # mixing model parameters
+        fp$mixmat <- array(0, c(fp$ss$pAG, fp$ss$pAG, fp$ss$NG))
     }
     if (!fp$popadjust) {
         fp$targetpop <- array(0, c(1,1,1))

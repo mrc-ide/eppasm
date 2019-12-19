@@ -14,8 +14,8 @@ infect_mix = function(hivpop, artpop, ii) {
     w  <- p$iota * (p$proj.steps[ts] == p$tsEpidemicStart)
     transm_prev <- rvec[ts] * transm_prev + w
     # sweep over sexual mixing matrices
-    ir_m <- rowSums(sweep(p$mat_m, 2, transm_prev[, f.idx], "*")) # male
-    ir_f <- rowSums(sweep(p$mat_f, 2, transm_prev[, m.idx], "*")) # female
+    ir_m <- rowSums(sweep(p$mixmat[,,m.idx], 2, transm_prev[, f.idx], "*")) # male
+    ir_f <- rowSums(sweep(p$mixmat[,,f.idx], 2, transm_prev[, m.idx], "*")) # female
     irmf <- cbind(ir_m, ir_f)
     # if (exists("f_fun", fp)) # that fun is now replaced by senesence estimate
     #   ir <- ir * fp$f_fun

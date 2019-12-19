@@ -80,8 +80,7 @@ struct IncidenceParam {
   const int      incidmod;
   boost3D_ptr    incrr_age;
   boost2D_ptr    circ_prop;
-  boost2D_ptr    mat_m;
-  boost2D_ptr    mat_f;
+  boost3D_ptr    mixmat;
   boost3D_ptr    db_rate;
   boost2D_ptr    est_senesence;
   const double   relinfectART;

@@ -181,9 +181,9 @@ void popC::infect_mix (int ii, Views& v, const Parameters& p, const StateSpace& 
   for (int my_age = 0; my_age < s.pAG; ++my_age)
     for (int partner_age = 0; partner_age < s.pAG; ++partner_age) {
       infections_[s.M][my_age] +=
-        p.ic.mat_m[partner_age][my_age] * transm_prev[s.F][partner_age];
+        p.ic.mixmat[s.M][partner_age][my_age] * transm_prev[s.F][partner_age];
       infections_[s.F][my_age] +=
-        p.ic.mat_f[partner_age][my_age] * transm_prev[s.M][partner_age];
+        p.ic.mixmat[s.F][partner_age][my_age] * transm_prev[s.M][partner_age];
     }
   // if (exists("f_fun", fp)) // that fun
   //   ir = ir * fp.f_fun

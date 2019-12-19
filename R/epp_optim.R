@@ -54,11 +54,10 @@ epp_optim <- function(epp=FALSE, fp, likdat, control_optim, B0, B.re, doParallel
     .control.optim <- modifyList(.control.optim, control_optim)
   if (is.null(.control.optim$par)) { # Find starting values that MAP
     X0     = eppasm:::sample.prior(B0, fp)
-    eppasm:::likelihood(X0[1, ], fp, likdat, log=TRUE, doParallel)
     lpost0 = eppasm:::likelihood(X0, fp, likdat, log=TRUE, doParallel) + 
              eppasm:::prior(X0, fp, log=TRUE)
     .control.optim$par = X0[which.max(lpost0)[1], ]
-    cat('best MAP', max(lpost0), '\n')
+    cat('best MAP', -max(lpost0), '\n')
   }
   # .control.optim$ndeps <- rep(opt_diffstep, length(.control.optim$par)))
   .control.optim <- modifyList(.control.optim, list(fp = fp, likdat = likdat))

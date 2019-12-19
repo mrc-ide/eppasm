@@ -160,7 +160,7 @@ ancrtsite.beta.pr.sd <- 1.0
 #' @param fp fixed parameter input list
 ancsite_pred_df <- function(ancsite_df, fp) {
 
-  df <- ancsite_df
+  df <- as.data.frame(ancsite_df)
   anchor.year <- fp$ss$proj_start
   
   df$aidx <- df$age - fp$ss$AGE_START + 1L

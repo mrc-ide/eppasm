@@ -63,44 +63,47 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
 }
 
 #' Melt ANC-SS and site-level ANC-RT to long dataset
-melt_ancsite_data <- function(eppd, add_index=FALSE){
+melt_ancsite_data <- function(eppd.tot){
+  eppd2 <- eppd.tot
   
-  eppd2 <- eppd
+  ancsitedat <- do.call(rbind,lapply(eppd2,function(eppdl){
+
+  ancsitedat = list()
+  for(kk_ind in names(eppdl)){
+    print(kk_ind)
+    eppd_x <- eppdl[[kk_ind]]
+    anc.used <- data.frame(site=rownames(eppd_x$anc.prev), used= eppd_x$anc.used)
+    anc.prev <- subset(reshape2::melt( eppd_x$anc.prev, varnames=c("site", "year"), value.name="prev"), !is.na(prev))
+    anc.n <- subset(reshape2::melt( eppd_x$anc.n, varnames=c("site", "year"), value.name="n"), !is.na(n))
+    ancsssite <- merge(anc.used, anc.prev)
+    ancsssite <- merge(ancsssite, anc.n)
+    ancsssite$subpop <- rep(kk_ind, nrow(ancsssite)) 
+    ancsssite$type <- rep("ancss", nrow(ancsssite))
+    
+    
+    if(exists("ancrtsite.prev", eppdl[[kk_ind]]) && !is.null(eppdl[[kk_ind]]$ancrtsite.prev)){
+      ancrtsite.prev <- subset(reshape2::melt(eppd_x$ancrtsite.prev, varnames=c("site", "year"), value.name="prev"), !is.na(prev))
+      ancrtsite.n <- subset(reshape2::melt(eppd_x$ancrtsite.n, varnames=c("site", "year"), value.name="n"), !is.na(n))
+      
+      ancrtsite <- merge(anc.used, ancrtsite.prev)
+      ancrtsite <- merge(ancrtsite, ancrtsite.n)
+      ancrtsite$type <- rep("ancrt", nrow(ancrtsite))
+      ancrtsite$subpop <- rep(kk_ind, nrow(ancrtsite)) 
+      
+      anc_out <- rbind(ancsssite, ancrtsite)
+    
+    } else {
+    
+      anc_out <- ancsssite
+  }
+ 
+    ancsitedat = rbind(ancsitedat,anc_out) 
+}
   
 
-  ancsitedat <- do.call(rbind,lapply(eppd2,function(eppd){
-  eppd_x <- eppd
-    if(add_index){
-      eppd_x <- eppd[[1]] 
-    }
-  anc.used <- data.frame(site=rownames( eppd_x$anc.prev), used= eppd_x$anc.used)
-  anc.prev <- subset(reshape2::melt( eppd_x$anc.prev, varnames=c("site", "year"), value.name="prev"), !is.na(prev))
-  anc.n <- subset(reshape2::melt( eppd_x$anc.n, varnames=c("site", "year"), value.name="n"), !is.na(n))
-  ancsitedat <- merge(anc.used, anc.prev)
-  ancsitedat <- merge(ancsitedat, anc.n)
-  ancsitedat$subpop <- attr(eppd,"subpop")
-  ancsitedat$type <- "ancss"
-  
-  
-  if(exists("ancrtsite.prev", eppd) && !is.null(eppd$ancrtsite.prev)){
-    ancrtsite.prev <- subset(reshape2::melt(eppd$ancrtsite.prev, varnames=c("site", "year"), value.name="prev"), !is.na(prev))
-    ancrtsite.n <- subset(reshape2::melt(eppd$ancrtsite.n, varnames=c("site", "year"), value.name="n"), !is.na(n))
-    
-    ancrtsite <- merge(anc.used, ancrtsite.prev)
-    ancrtsite <- merge(ancrtsite, ancrtsite.n)
-    ancrtsite$type <- rep("ancrt", nrow(ancrtsite))
-    ancrtsite$subpop <- rep(attr(eppd,"subpop"), nrow(ancrtsite)) 
-    
-    ancsitedat <- rbind(ancsitedat, ancrtsite)
-  }
-  
   return(ancsitedat)
   }))
   
-  # ancsitedat <- merge(anc.used, anc.prev)
-  # ancsitedat <- merge(ancsitedat, anc.n)
-  # ancsitedat$type <- "ancss"
-
 
   ancsitedat <- subset(ancsitedat, used)
   ancsitedat$agegr <- rep("15-49", nrow(ancsitedat))
@@ -111,24 +114,31 @@ melt_ancsite_data <- function(eppd, add_index=FALSE){
   ancsitedat
 }
 
-tidy_hhs_data <- function(eppd, add_index=FALSE){
+tidy_hhs_data <- function(eppd.tot){
   
-  eppd2 <- eppd$hhs
+  eppd2 <- eppd.tot
 
-  hhs <- do.call(rbind,lapply(eppd2,function(eppd){
-    hhs <- eppd
-    if(add_index){
-      hhs <- eppd[[1]]$hhs
+  hhs <- do.call(rbind,lapply(eppd2,function(eppdl){
+  
+  hhs_out <- list()
+    for(kk_ind in names(eppdl)){
+      print(kk_ind)
+      eppd_x <- eppdl[[kk_ind]]$hhs
+      
+      
+      eppd_x$deff <- eppd_x$deff_approx <- rep(2.0, nrow(eppd_x)) # irrelevant assumption 
+      eppd_x$n <- eppd_x$deff * eppd_x$prev * (1-eppd_x$prev) / eppd_x$se^2
+      
+      eppd_x$agegr <- rep("15-49", nrow(eppd_x))
+      eppd_x$sex <- rep("both", nrow(eppd_x))
+      eppd_x$subpop <- rep(attr(eppdl[[kk_ind]],"subpop"),nrow(eppd_x))
+      
+      eppd_x <- eppd_x[c("year", "sex", "agegr", "n", "prev", "se", "deff", "deff_approx", "used","subpop")]
+      
+      hhs_out <- rbind(hhs_out,eppd_x)
     }
-  hhs$deff <- hhs$deff_approx <- rep(2.0, nrow(hhs)) # irrelevant assumption 
-  hhs$n <- hhs$deff * hhs$prev * (1-hhs$prev) / hhs$se^2
-  hhs$agegr <- rep("15-49", nrow(hhs))
-  hhs$sex <- rep("both", nrow(hhs))
-  hhs$subpop <- rep(attr(eppd,"subpop"),nrow(hhs))
   
-  hhs <- hhs[c("year", "sex", "agegr", "n", "prev", "se", "deff", "deff_approx", "used")]
-  
-  return(hhs)
+  return(hhs_out)
   }))
   
   rownames(hhs) <- NULL
@@ -343,21 +353,21 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
     fp$ancsitedata <- as.logical(nrow(likdat$ancsite.dat$df))
   }else{fp$ancsitedata <- FALSE}
 
-  if(fp$eppmod %in% c("logrw", "rhybrid")) { # THIS IS REALLY MESSY, NEED TO REFACTOR CODE
-    vr_sim_years <- 0
-    if(!is.null(likdat$vr)){
-      vr_sim_years <- max(as.integer(colnames(likdat$vr))) - min(as.integer(colnames(likdat$vr))) + 1
-    }
-    fp$SIM_YEARS <- as.integer(max(likdat$ancsite.dat$df$yidx,
-                                   likdat$hhs.dat$yidx,
-                                   likdat$ancrtcens.dat$yidx,
-                                   likdat$hhsincid.dat$idx,
-                                   likdat$sibmx.dat$idx,
-                                   vr_sim_years
-                                   ))
-      
-    fp$proj.steps <- seq(fp$ss$proj_start+0.5, fp$ss$proj_start-1+fp$SIM_YEARS+0.5, by=1/fp$ss$hiv_steps_per_year)
-  } else
+  # if(fp$eppmod %in% c("logrw", "rhybrid")) { # THIS IS REALLY MESSY, NEED TO REFACTOR CODE
+  #   vr_sim_years <- 0
+  #   if(!is.null(likdat$vr)){
+  #     vr_sim_years <- max(as.integer(colnames(likdat$vr))) - min(as.integer(colnames(likdat$vr))) + 1
+  #   }
+  #   fp$SIM_YEARS <- as.integer(max(likdat$ancsite.dat$df$yidx,
+  #                                  likdat$hhs.dat$yidx,
+  #                                  likdat$ancrtcens.dat$yidx,
+  #                                  likdat$hhsincid.dat$idx,
+  #                                  likdat$sibmx.dat$idx,
+  #                                  vr_sim_years
+  #                                  ))
+  #     
+  #   fp$proj.steps <- seq(fp$ss$proj_start+0.5, fp$ss$proj_start-1+fp$SIM_YEARS+0.5, by=1/fp$ss$hiv_steps_per_year)
+  # } else
     fp$SIM_YEARS <- fp$ss$PROJ_YEARS
 
   ## Prepare the EPP model
@@ -396,7 +406,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
     opt$fp <- fp
     opt$likdat <- likdat
     opt$param <- fnCreateParam(opt$par, fp)
-    opt$mod <- simmod(update(fp, list=opt$param))
+    opt$mod <- simmod(update(fp, list=opt$param, keep.attr = FALSE))
     if(opthess){
       opt$hessian <- optimHess(opt_init, optfn, fp=fp, likdat=likdat,
                                control=list(fnscale=-1,

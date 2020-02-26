@@ -317,6 +317,9 @@ lprior <- function(theta, fp){
     lpr <- lpr + lprior_ancmod(theta_anc, fp$ancmod, fp$prior_args)
   }
 
+  if (fp$ss$MIX)
+    lpr <- lpr + dbeta(tail(theta, 1), 2, 2, log=TRUE)
+
   return(lpr)
 }
 
@@ -325,7 +328,15 @@ lprior <- function(theta, fp){
 #' @importFrom stats aggregate approx cov cov.wt density dexp dlnorm dnorm dunif ecdf mahalanobis median model.matrix na.omit optim optimHess pnorm qnorm quantile relevel rexp rgamma rnorm runif sd setNames update var
 ll_all = function(theta, fp, likdat) {
   theta.last <<- theta
-  fp <- update(fp, list=fnCreateParam(theta, fp))
+
+  nparam <- length(theta)
+  
+  if (fp$ss$MIX) {
+    fp$balancing <- theta[nparam]
+    fp <- update(fp, list=fnCreateParam(theta[1:(nparam-1)], fp))
+  } else {
+    fp <- update(fp, list=fnCreateParam(theta, fp))
+  }
 
   if (fp$eppmod == "rspline")
     if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) 
@@ -405,7 +416,10 @@ sample.prior <- function(n, fp){
   else if (fp$eppmod == "rhybrid")
     epp_nparam <- fp$rt$n_param+1
 
-  nparam <- epp_nparam + fp$ancmod$nparam 
+  nparam <- epp_nparam + fp$ancmod$nparam
+
+  if (fp$ss$MIX)
+    nparam <- nparam + 1
   
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
@@ -445,6 +459,10 @@ sample.prior <- function(n, fp){
   ## sample ANC model parameters
   if (exists("ancmod", fp) && fp$ancmod$nparam > 0)
     mat[ , epp_nparam + 1:fp$ancmod$nparam] <- sample_prior_ancmod(n, fp$ancmod, fp$prior_args)
+
+  # sex acts balancing parameter
+  if (fp$ss$MIX)
+    mat[, nparam] <- rbeta(n, 2, 2)
   
   return(mat)
 }

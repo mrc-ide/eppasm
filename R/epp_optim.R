@@ -62,6 +62,8 @@ epp_optim <- function(epp=FALSE, fp, likdat, control_optim, B0, B.re, doParallel
   # .control.optim$ndeps <- rep(opt_diffstep, length(.control.optim$par)))
   .control.optim <- modifyList(.control.optim, list(fp = fp, likdat = likdat))
   opt = do.call("optim", .control.optim)
+  if (fp$ss$MIX)
+    fp$balancing = tail(opt$par, 1)
   opt$fp     = fp
   opt$likdat = likdat
   opt$param  = fnCreateParam(opt$par, fp)

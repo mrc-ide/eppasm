@@ -120,7 +120,12 @@ prior_to_DE_bounds <- function(fp) {
 	  	lo <- c(lo, ancrtsite.beta.pr.mean - 2.58 * ancrtsite.beta.pr.sd)
 		up <- c(up, ancrtsite.beta.pr.mean + 2.58 * ancrtsite.beta.pr.sd)
 	  } 
-  }
 
-  return(cbind(lo, up))
+      if (fp$ss$MIX) { # balancing parameter ~ beta(2,2)
+            lo <- c(lo, 0)
+            up <- c(up, 1)
+      }
+
+    return(cbind(lo, up))
+    }
 }

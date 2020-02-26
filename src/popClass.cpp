@@ -219,6 +219,7 @@ void popC::update_fertile (Views& v, const Parameters& p, const StateSpace& s) {
       birth_age[age] *= p.dm.asfr[s.year][age] / (birth_age[age] / N_mid);
     }
   }
+  
   ivec sub_id(s.ag_.begin() + s.p_fert_[0] - 1, s.ag_.begin() + s.pAG_FERT);
   birth_agrp = sumByAG(birth_age, sub_id, s.hAG_FERT);
   double n_births = sum_vector(birth_agrp);

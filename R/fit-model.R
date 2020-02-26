@@ -303,12 +303,19 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e3, B = 1e4, B.re = 1e3,
 
   #=== TODO: move these out of this function
   ## Prepare likelihood data
-  fp$ancsitedata = TRUE
-  fp$ancrt       = "both"
 
   eppd   <- attr(obj, "eppd")
-  fp     <- prepare_anc_model(fp, eppd)
   likdat <- prepare_likdat(eppd, fp)
+  
+  if (exists("ancsite.dat", likdat)) {
+    fp$ancsitedata = TRUE
+    fp <- prepare_anc_model(fp, eppd)
+  }
+  
+  if (exists("ancrtcens.dat", likdat)) {
+    fp$ancrt       = "both"
+  }
+
   fp     <- prepare_fp_for_fitmod(epp, fp, likdat)
   
   # for debut and mixing

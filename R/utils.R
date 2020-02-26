@@ -12,6 +12,27 @@ hz_llogis <- function (x, alpha = 8, lambda = 1/18) {
     den <- (lambda * x)^(1-alpha) + lambda * x
     num/den
 }
+
+mu_llogis <- function(alpha, lambda) { # convert to other
+    (1 / lambda * pi * 1 / alpha) /(sin(pi / alpha))
+}
+
+mu_llogis2 <- function(alpha, lambda) { # convert to other
+    pi / (alpha*lambda* sin(pi / alpha))
+}
+
+# density function for log-logistic distribution (parameterize as in INLA)
+d_llogis <- function (x, alpha = 8, lambda = 1/18) {
+    num <- alpha
+    den <- x^(1+alpha)*lambda^alpha + x^(1-alpha)*lambda^(-alpha) + 2*x
+    num/den
+}
+d_llogis2 <- function (x, alpha = 8, lambda = 1/18) {
+    num <- alpha * lambda * (x * lambda)^(alpha-1)
+    den <- ( (lambda*x)^alpha + 1 )^2
+    num/den
+}
+
 # Cumulative function for log-logistic distribution (parameterize as in INLA)
 cdf_llogis <- function (x, alpha = 8, lambda = 1/18) {
     1 / ( 1 + (lambda * x)^(-alpha) )

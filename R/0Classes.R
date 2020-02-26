@@ -140,10 +140,11 @@ virginEPP <- R6::R6Class("virginepp", class=F, cloneable=F, portable=F, inherit=
             MODEL <<- MODEL
             data  <<- array(0, c(pDB, NG, pDS, PROJ_YEARS)) # debut ages only
             data[,,hivn.idx,1] <<- p$basepop[db_aid,] * (1 - p$db_rate[,,1])
+            # Note that only p$db_rate[,,1] is not a rate but CDF instead
         })
 )
-        })
-)
+
+cliEPP <- fswEPP <- msmEPP <- virginEPP
 
 #' Set a list of methods to a R6 object
 #'

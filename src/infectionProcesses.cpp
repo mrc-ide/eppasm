@@ -219,8 +219,8 @@ void popC::infect_mix (int ii, Views& v, const Parameters& p, const StateSpace& 
     }
 
   // prev15to49_ts_m should use this one! now just store as below
-  boost2D n_pos = data_active[ indices[s.P][_all][_all] ];
-  prev15to49_ts[ts] = sumArray(n_pos) / sumArray(data_active);
+  boost2D n_pos = v.now_pop[ indices[s.P][_all][_all] ];
+  prev15to49_ts[ts] = sumArray(n_pos) / sumArray(v.now_pop);
   prev_last = prev15to49_ts[ts];
 }
 

@@ -9,6 +9,8 @@ bw_fp <- prepare_anc_model(bw_fp, attr(bw$Urban, "eppd"))
 
 bw_fp <- prepare_rhybrid(bw_fp)
 bw_fp$logitiota <- TRUE
+bw_fp$ss$MIX <- FALSE
+bw_fp$ss$MODEL <- 1
 
 bw_theta <- c(-0.407503322169364, -2.76794181367538, -1.26018073624346, 1995.96447776502,
               -0.00307437171215574, 0.0114118307148102, 0.00760958379603691, 0.02,
@@ -42,6 +44,8 @@ mp_fp <- attr(mpm[[1]], "specfp")
 mp_fp <- prepare_anc_model(mp_fp, attr(mpm[[1]], "eppd"))
 mp_fp <- prepare_rhybrid(mp_fp)
 mp_fp$logitiota <- TRUE
+mp_fp$ss$MIX <- FALSE
+mp_fp$ss$MODEL <- 1
 
 theta <- c(-0.407503322169364, -2.76794181367538, -1.26018073624346, 1995.96447776502,
            -0.00307437171215574, 0.0114118307148102, 0.00760958379603691, 0.02,
@@ -133,6 +137,8 @@ test_that("Model ouputs are equal", {
 })
 
 test_that("Model C++ with and without classes ouputs are equal", {
+  bw_fp$ss$MODEL <- 1L
+  bw_fp$ss$MIX   <- FALSE
   bw_fp$VERSION='C'; c <- simmod(bw_fp)
   bw_fp$VERSION='K'; k <- simmod(bw_fp)
   expect_equal(attr(c, "natdeaths"), attr(k, "natdeaths"))
@@ -174,7 +180,7 @@ test_that("Debut model C++ equal R", {
 })
 
 test_that("Mixing model C++ equal R", {
-  bw_fp$ss$MODEL <- 1L
+  bw_fp$ss$MODEL <- 2L
   bw_fp$ss$MIX   <- TRUE
   bw_fp$VERSION='R'; r <- simmod(bw_fp)
   bw_fp$VERSION='K'; k <- simmod(bw_fp)

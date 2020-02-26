@@ -7,7 +7,8 @@ likdat <- prepare_likdat(attr(inputs$Urban, "eppd"), fp)
 
 fp <- prepare_anc_model(fp, attr(inputs$Urban, "eppd"))
 fp$logitiota <- TRUE
-
+fp$ss$MODEL <- 1
+fp$ss$MIX <- FALSE
 
 fp_rhybrid <- prepare_rhybrid(fp)
 

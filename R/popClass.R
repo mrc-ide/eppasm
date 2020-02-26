@@ -338,8 +338,10 @@ cal_prev_pregant = function(hivpop, artpop) { # only on active pop
     two_years <- data_active + get_active_pop_in(year-1)
     meanWomen <- two_years[p.fert.idx, f.idx, hivn.idx] / 2
     hivn <- sumByAG(meanWomen, ag.idx, TRUE, p.fert.idx)
-    hivp <- rowMeans(hivpop$get(AG=h.fert.idx, NG=f.idx, YEAR=years),,2)
-    art  <- rowMeans(artpop$get(AG=h.fert.idx, NG=f.idx, YEAR=years),,3)
+    hivp <- rowMeans(hivpop$data[,h.fert.idx, f.idx, years] -
+                     hivpop$data_db[,h.fert.idx, f.idx, years],,2)
+    art  <- rowMeans(artpop$data[,,h.fert.idx, f.idx, years] -
+                     artpop$data_db[,,h.fert.idx, f.idx, years],,3)
     pregprev[year] <<- sum(birth_agrp * 
       (1 - hivn / (hivn + colSums(p$frr_cd4[,,year] * hivp) + 
       colSums(p$frr_art[,,,year] * art,,2)))) / sum(birth_age)

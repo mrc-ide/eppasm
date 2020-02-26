@@ -444,7 +444,7 @@ hivagemx.spec <- function(mod){
 #' Notes: Assumes that AGE_START is 15 and single year of age.
 #' @param VERSION R or Cpp
 #' @useDynLib eppasm ageprevC
-ageprev <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, expand=FALSE, VERSION="C"){
+ageprev <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, expand=FALSE, VERSION="R"){
 
   mod = if (is.environment(mod)) mod$data else mod
 
@@ -637,6 +637,8 @@ agepregprev <- function(mod, fp,
   hfert_idx <- match(fp$ss$ag.idx[a_idx], fp$ss$h.fert.idx)
 
   pop_data = if (is.environment(mod)) mod$data else mod
+  if (fp$ss$MODEL==2)
+    pop_data[1:fp$ss$pDB,,,] <- pop_data[1:fp$ss$pDB,,,] - attr(mod, 'vpop')
 
   hivp <- (pop_data[cbind(a_idx, s_idx, 2, y_idx)] + 
            pop_data[cbind(a_idx, s_idx, 2, yminus1_idx)]) / 2
@@ -644,10 +646,13 @@ agepregprev <- function(mod, fp,
            pop_data[cbind(a_idx, s_idx, 1, yminus1_idx)]) / 2
 
   ## Calculate age-specific FRR given the CD4 and ART duration distribution
-  hivpop_fert <- attr(mod, "hivpop")[ , fp$ss$h.fert.idx, fp$ss$f.idx, ]
+  hivpop_fert <- attr(mod, "hivpop")[ ,   fp$ss$h.fert.idx, fp$ss$f.idx, ]
   artpop_fert <- attr(mod, "artpop")[ , , fp$ss$h.fert.idx, fp$ss$f.idx, ]
-  ha_frr <- (colSums(hivpop_fert * fp$frr_cd4) + 
-             colSums(artpop_fert * fp$frr_art,,2) ) /
+  if (fp$ss$MODEL == 2) {
+    hivpop_fert <- hivpop_fert - attr(mod, "vpophiv")[ ,   fp$ss$h.fert.idx, fp$ss$f.idx, ]
+    artpop_fert <- artpop_fert - attr(mod, "vpopart")[ , , fp$ss$h.fert.idx, fp$ss$f.idx, ]
+  }
+  ha_frr <- (colSums(hivpop_fert * fp$frr_cd4) + colSums(artpop_fert * fp$frr_art,,2) ) /
             (colSums(hivpop_fert) + colSums(artpop_fert,,2))
   births_a <- fp$asfr[cbind(fert_idx, y_idx)] * (hivn + hivp)
   pregprev_a <- 1 - hivn / (hivn + ha_frr[cbind(hfert_idx, y_idx)] * hivp)

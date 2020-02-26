@@ -285,13 +285,10 @@ void popC::cal_prev_pregant (const hivC& hivpop, const artC& artpop, Views& v,
   for (int agr = 0; agr < s.hAG_FERT; ++agr) {
     double frp = 0, fra = 0;
     for (int cd4 = 0; cd4 < s.hDS; ++cd4) {
-      frp += (v.pre_hiv[s.F][agr][cd4] + v.now_hiv[s.F][agr][cd4] ) / 2 *
-              p.nh.frr_cd4[s.year][agr][cd4];
+      frp += (v.pre_hiv[s.F][agr][cd4] - hivpop.data_db[s.year-1][s.F][agr][cd4] + v.now_hiv[s.F][agr][cd4] - hivpop.data_db[s.year][s.F][agr][cd4]) / 2 * p.nh.frr_cd4[s.year][agr][cd4];
       if (s.year >= s.tARTstart - 1)
         for (int dur = 0; dur < s.hTS; dur++)
-          fra += (v.pre_art[s.F][agr][cd4][dur] +
-                  v.now_art[s.F][agr][cd4][dur]) / 2 *
-                  p.nh.frr_art[s.year][agr][cd4][dur];
+          fra += (v.pre_art[s.F][agr][cd4][dur] - artpop.data_db[s.year-1][s.F][agr][cd4][dur] + v.now_art[s.F][agr][cd4][dur] - artpop.data_db[s.year][s.F][agr][cd4][dur]) / 2 * p.nh.frr_art[s.year][agr][cd4][dur];
     }
     frap += birth_agrp[agr] * (1 - hivn[agr] / (hivn[agr] + frp + fra));
   }

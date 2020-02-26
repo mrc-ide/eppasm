@@ -74,6 +74,8 @@ IncidenceParam::IncidenceParam(const SEXP& fp) :
     mixmat    (REAL(get_value(fp, "mixmat")), get_dim_3D(fp, "mixmat")),
     db_rate   (REAL(get_value(fp, "db_rate")), get_dim_3D(fp, "db_rate")),
     est_senesence(REAL(get_value(fp, "est_senesence")), get_dim_2D(fp, "est_senesence")),
+    est_pcr      (REAL(get_value(fp, "est_pcr")), get_dim_2D(fp, "est_pcr")),
+    balancing   (*REAL(get_value(fp, "balancing"))),
     relinfectART(*REAL(get_value(fp, "relinfectART"))),
     incrr_sex(REAL(get_value(fp, "incrr_sex"))),
     circ_incid_rr(*REAL(get_value(fp, "circ_incid_rr")))

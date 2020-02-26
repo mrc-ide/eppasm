@@ -321,7 +321,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e3, B = 1e4, B.re = 1e3,
     fp <- update_fp_debut(fp, max_debut_age=30L)
 
   if (fp$ss$MIX && !exists("mixmat", where=fp)) { # add these outside
-    fp$mixmat <- readRDS(system.file("extdata", "est_mixmat.rds", package="eppasm"))
+    fp$mixmat <- readRDS(system.file("extdata", "est_mixmat_scaled.rds", package="eppasm"))
     cat('running with random mixing matrix...\n')
   }
   # move these out of this function===#

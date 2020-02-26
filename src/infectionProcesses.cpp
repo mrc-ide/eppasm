@@ -161,6 +161,41 @@ void popC::infect_mix (int ii, Views& v, const Parameters& p, const StateSpace& 
     for (int sex = 0; sex < s.NG; sex++)
       for (int age = 0; age < s.pAG; age++)
         data_active[ds][sex][age] *= p.ic.est_senesence[sex][age];
+  // # balancing
+  boost2D
+    nc_m(extents[s.pAG][s.pAG]),
+    nc_f(extents[s.pAG][s.pAG]),
+    nc_m_adj(extents[s.pAG][s.pAG]),
+    nc_f_adj(extents[s.pAG][s.pAG]),
+    n_m_active_negative(extents[s.pAG][s.pAG]),
+    n_f_active_negative(extents[s.pAG][s.pAG]);
+  dvec prop_n_m(s.pAG), prop_n_f(s.pAG);
+
+  for (int r = 0; r < s.pAG; ++r) {
+    double Ma = data_active[s.N][s.M][r] + data_active[s.P][s.M][r];
+    double Fa = data_active[s.N][s.F][r] + data_active[s.P][s.F][r];
+    prop_n_m[r] = data_active[s.N][s.M][r] / Ma;
+    prop_n_f[r] = data_active[s.N][s.F][r] / Fa;
+    for (int c = 0; c < s.pAG; ++c) {
+      nc_m[c][r] = Ma * p.ic.mixmat[s.M][c][r];
+      nc_f[c][r] = Fa * p.ic.mixmat[s.F][c][r];
+    }
+  }
+
+  for (int r = 0; r < s.pAG; ++r) 
+    for (int c = 0; c < s.pAG; ++c) {
+      double ratio_mf = nc_m[c][r] / nc_f[r][c];
+      double rr = ratio_mf - p.ic.balancing * (ratio_mf  - 1);
+      nc_m_adj[c][r] = nc_m[c][r] * rr / ratio_mf;
+      nc_f_adj[c][r] = nc_f[r][c] * rr;
+    }
+
+  for (int r = 0; r < s.pAG; ++r)
+    for (int c = 0; c < s.pAG; ++c) {
+      n_m_active_negative[c][r] = nc_m_adj[c][r] * prop_n_m[r];
+      n_f_active_negative[c][r] = nc_m_adj[r][c] * prop_n_f[r];
+    }
+
   int ts = (s.year-1)/s.DT + ii;
   boost2D transm_prev(extents[s.NG][s.pAG]);
   double N_hivp;
@@ -176,43 +211,13 @@ void popC::infect_mix (int ii, Views& v, const Parameters& p, const StateSpace& 
   multiply_with_inplace(transm_prev, rvec[ts]);
   add_to_each_inplace(transm_prev, w);
 
-  // sweep over sexual mixing matrices
   zeroing(infections_);
-  for (int my_age = 0; my_age < s.pAG; ++my_age)
-    for (int partner_age = 0; partner_age < s.pAG; ++partner_age) {
-      infections_[s.M][my_age] +=
-        p.ic.mixmat[s.M][partner_age][my_age] * transm_prev[s.F][partner_age];
-      infections_[s.F][my_age] +=
-        p.ic.mixmat[s.F][partner_age][my_age] * transm_prev[s.M][partner_age];
+  for (int am = 0; am < s.pAG; ++am) 
+    for (int af = 0; af < s.pAG; ++af) {
+      infections_[s.M][am] += n_m_active_negative[af][am] * transm_prev[s.F][af];
+      infections_[s.F][af] += n_f_active_negative[am][af] * transm_prev[s.M][am];
     }
-  // if (exists("f_fun", fp)) // that fun
-  //   ir = ir * fp.f_fun
 
-  // Match IRR by age // incrr_age was scaled in R
-  // for (int sex = 0; sex < s.NG; sex++)
-  //   for (int age = 0; age < s.pAG; age++)
-  //     infections_[sex][age] *= p.ic.incrr_age[s.year][sex][age];
-
-  // Match IRR by Sex
-  // double inc_M = 0, inc_F = 0, S_M = 0, S_F = 0;
-  // for (int age = 0; age < s.pAG; age++) {
-  //   S_M   += data_active[s.N][s.M][age];
-  //   S_F   += data_active[s.N][s.F][age];
-  //   inc_M += infections_[s.M][age] * data_active[s.N][s.M][age];
-  //   inc_F += infections_[s.F][age] * data_active[s.N][s.F][age];
-  // }
-  // double IIR_estimated = (inc_F/S_F) / (inc_M/S_M);
-  // if (!std::isnan(IIR_estimated)) {
-  //   for (int age = 0; age < s.pAG; age++) {
-  //     infections_[s.F][age] *= p.ic.incrr_sex[s.year];
-  //     infections_[s.M][age] *= IIR_estimated;
-  //   }
-  // }
-
-  for (int sex = 0; sex < s.NG; sex++)
-    for (int age = 0; age < s.pAG; age++)
-      infections_[sex][age] *= data_active[s.N][sex][age];
-  // incrate15to49_ts_m.slice(ts) = ir_mf;
   // prev15to49_ts_m should use this one! now just store as below
   boost2D n_pos = data_active[ indices[s.P][_all][_all] ];
   prev15to49_ts[ts] = sumArray(n_pos) / sumArray(data_active);

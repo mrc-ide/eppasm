@@ -67,6 +67,9 @@ prepare_fp_for_Cpp <- function(fp, MODEL=1L, MIX=FALSE) {
         max_by_year <- apply(fp$incrr_age, 3, function(x) apply(x, 2, max))
         fp$incrr_age <- sweep(fp$incrr_age, 2:3, max_by_year, "/")
     }
+    if (is.null(fp$balancing)) {
+        fp$balancing <- .5 # for C++ read, not doing anything
+    }
     fp
 }
 # Converting prior assumption to parameter boundary for DE

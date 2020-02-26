@@ -6,6 +6,26 @@ infect_mix = function(hivpop, artpop, ii) {
     ts <- (year-2)/DT + ii
     update_active_pop_to(year)
     data_active <<- sweepx(data_active, 1:2, p$est_senesence)
+
+    # balancing
+    prop_n_m <- data_active[, m.idx, hivn.idx]/ rowSums(data_active[, m.idx, ])
+    prop_n_f <- data_active[, f.idx, hivn.idx]/ rowSums(data_active[, f.idx, ])
+
+    # sweep over sexual mixing matrices
+    nc_m <- sweep(p$mixmat[,,m.idx], 1, rowSums(data_active[, m.idx, ]), "*")
+    nc_f <- sweep(p$mixmat[,,f.idx], 1, rowSums(data_active[, f.idx, ]), "*")
+
+    # Partner change rate as a risk reduction
+    # risk_m <- risk_m * (p$est_pcr[, m.idx]/ max(p$est_pcr[, m.idx]))
+    # risk_f <- risk_f * (p$est_pcr[, f.idx]/ max(p$est_pcr[, f.idx]))
+    
+    ratio_mf <- nc_m / t(nc_f)
+
+    nc_m_adj <- nc_m * (ratio_mf - .5 * (ratio_mf - 1)) / ratio_mf
+    nc_f_adj <- t(nc_f) * (ratio_mf - .5 * (ratio_mf - 1))
+    n_m_active_negative <- sweepx(nc_m_adj, 1, prop_n_m)
+    n_f_active_negative <- sweepx(t(nc_f_adj), 1, prop_n_f)
+
     hiv_treated       <- sweep(data_active[,,hivp.idx], 2, artcov, '*')
     hiv_not_treated   <- data_active[,,hivp.idx] - hiv_treated
     transm_prev <- (hiv_not_treated + hiv_treated * (1 - p$relinfectART)) / 
@@ -13,28 +33,12 @@ infect_mix = function(hivpop, artpop, ii) {
     # +intervention effects and time epidemic start
     w  <- p$iota * (p$proj.steps[ts] == p$tsEpidemicStart)
     transm_prev <- rvec[ts] * transm_prev + w
-    # sweep over sexual mixing matrices
-    ir_m <- rowSums(sweep(p$mixmat[,,m.idx], 2, transm_prev[, f.idx], "*")) # male
-    ir_f <- rowSums(sweep(p$mixmat[,,f.idx], 2, transm_prev[, m.idx], "*")) # female
-    irmf <- cbind(ir_m, ir_f)
-    # if (exists("f_fun", fp)) # that fun is now replaced by senesence estimate
-    #   ir <- ir * fp$f_fun
 
-    # Scale to age pattern of IR
-    # max_rr_sex <- apply(p$incrr_age[,,year],2,max)
-    # scaled_rr_age <- sweep(p$incrr_age[,,year], 2, max_rr_sex, '/')
-    # irmf <- irmf * scaled_rr_age
-  
-    # Scale sex pattern IR
-    # incidence_estimated <- colSums(irmf * data_active[,,hivn.idx]) / 
-                           # colSums(data_active[,,hivn.idx])
-    # IRR_FM_estimated <- incidence_estimated[2]/incidence_estimated[1]
-    # if (!is.na(IRR_FM_estimated)) {
-    #   irmf[, f.idx] <- irmf[, f.idx]*p$incrr_sex[year]
-    #   irmf[, m.idx] <- irmf[, m.idx]*IRR_FM_estimated
-    # }
-  
-    infections.ts <- irmf * data_active[,,hivn.idx]
+    risk_m <- rowSums(sweepx(n_m_active_negative, 2, transm_prev[, f.idx]))
+    risk_f <- rowSums(sweepx(n_f_active_negative, 2, transm_prev[, m.idx]))
+
+
+    infections.ts <- cbind(risk_m, risk_f)
 
     incrate15to49_ts[,,ts] <<- transm_prev
     prev15to49_ts[ts] <<- prevlast <<- sum(data[,,hivp.idx,year])/sum(data[,,,year])

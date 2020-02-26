@@ -45,6 +45,7 @@ update_fp_debut <- function(fp, max_debut_age = 30) {
     cat('running with default sexual debut rate...\n')
     fp$db_rate     <- cbind(db_rate(fp$ss$AGE_START:max_debut_age),
                           db_rate(fp$ss$AGE_START:max_debut_age, FALSE))    
+    fp$db_rate[a2i(max_debut_age),] <- 1
   }
   fp$db_rate[a2i(max_debut_age),,] <- 1
   fp$ss$db_aid <- a2i(fp$ss$AGE_START):a2i(max_debut_age)

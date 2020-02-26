@@ -289,7 +289,9 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e3, B = 1e4, B.re = 1e3,
                    sample_prior = eppasm:::sample.prior,
                    prior = eppasm:::prior,
                    likelihood = eppasm:::likelihood,
-                   optfit = TRUE, control_optim = list(),
+                   algorithm = c("optim", "DE", "IMIS"),
+                   control_optim = list(),
+                   control_DE = list(),
                    with_debut=FALSE, with_mixing=FALSE, doParallel=0, version="K") {
 
   ## ... : updates to fixed parameters (fp) object to specify fitting options
@@ -324,10 +326,19 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e3, B = 1e4, B.re = 1e3,
   }
   # move these out of this function===#
   
-  ## Fit using optimization
-  if (optfit)
-    return(epp_optim(epp, fp, likdat, control_optim, B0, B.re, doParallel))
+  ## Fit using DE
+  if (algorithm=='DE') {
+    message('Fitting with Differential Evolution..\n')
+    return(epp_DE(epp, fp, likdat, control_DE, doParallel))
+  }
 
+  ## Fit using optimization
+  if (algorithm=='optim') {
+    message('Fitting with optim()..\n')
+    return(epp_optim(epp, fp, likdat, control_optim, B0, B.re, doParallel))
+  }
+
+  message('Fitting with IMIS..\n')
   ## If IMIS fails, start again
   fit <- try(stop(""), TRUE)
   while(inherits(fit, "try-error")){

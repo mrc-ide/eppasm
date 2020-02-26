@@ -69,3 +69,55 @@ prepare_fp_for_Cpp <- function(fp, MODEL=1L, MIX=FALSE) {
     }
     fp
 }
+# Converting prior assumption to parameter boundary for DE
+prior_to_DE_bounds <- function(fp) {
+
+  if (exists("prior_args", where = fp)){
+	for(i in seq_along(fp$prior_args))
+	  assign(names(fp$prior_args)[i], fp$prior_args[[i]])
+  }
+
+  up <- c()
+  lo <- c()
+
+  if (fp$eppmod == "rhybrid") {
+	up <- rlog_pr_mean + 2.58*rlog_pr_sd
+	lo <- rlog_pr_mean - 2.58*rlog_pr_sd
+	up <- c(up, rep(+2.58*rw_prior_sd, fp$rt$n_rw))
+	lo <- c(lo, rep(-2.58*rw_prior_sd, fp$rt$n_rw))
+	if (exists("logitiota", fp) && fp$logitiota) {
+		up <- c(up, logit(.9999))
+		lo <- c(lo, logit(.0001))
+	} else {
+		up <- c(up, logiota.unif.prior[2])
+		lo <- c(lo, logiota.unif.prior[1])
+	}
+  }
+  ## sample ANC model parameters
+  if (exists("ancmod", fp) && fp$ancmod$nparam > 0) {
+	  if(fp$ancmod$fit_ancbias) {
+		up <- c(up, ancbias.pr.mean + 2.58 * ancbias.pr.sd)
+		lo <- c(lo, ancbias.pr.mean - 2.58 * ancbias.pr.sd)
+	  }
+	  if(fp$ancmod$fit_vinfl){
+		bs <- range(log(rexp(1000, ancrtcens.vinfl.pr.rate)))
+		lo <- c(lo, bs[1])
+		up <- c(up, bs[2])
+	  }
+	  if(fp$ancmod$fit_logfrr){
+		lo <- c(lo, log_frr_adjust.pr.mean - 2.58 * log_frr_adjust.pr.sd)
+		up <- c(up, log_frr_adjust.pr.mean + 2.58 * log_frr_adjust.pr.sd)
+	  }
+	  if(fp$ancmod$fit_ancrtcens_vinfl){
+		bs <- range(log(rexp(1000, ancrtcens.vinfl.pr.rate)))
+		lo <- c(lo, bs[1])
+		up <- c(up, bs[2])
+	  }
+	  if(fp$ancmod$fit_ancrtsite_beta){
+	  	lo <- c(lo, ancrtsite.beta.pr.mean - 2.58 * ancrtsite.beta.pr.sd)
+		up <- c(up, ancrtsite.beta.pr.mean + 2.58 * ancrtsite.beta.pr.sd)
+	  } 
+  }
+
+  return(cbind(lo, up))
+}

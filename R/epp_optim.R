@@ -57,7 +57,7 @@ epp_optim <- function(epp=FALSE, fp, likdat, control_optim, B0, B.re, doParallel
     lpost0 = eppasm:::likelihood(X0, fp, likdat, log=TRUE, doParallel) + 
              eppasm:::prior(X0, fp, log=TRUE)
     .control.optim$par = X0[which.max(lpost0)[1], ]
-    cat('best MAP', -max(lpost0), '\n')
+    cat('best MAP', .control.optim$par, -max(lpost0), '\n')
   }
   # .control.optim$ndeps <- rep(opt_diffstep, length(.control.optim$par)))
   .control.optim <- modifyList(.control.optim, list(fp = fp, likdat = likdat))
@@ -73,4 +73,62 @@ epp_optim <- function(epp=FALSE, fp, likdat, control_optim, B0, B.re, doParallel
   }
   class(opt) = optclass
   opt
+}
+
+#' Update previous fit with optim() results
+#' 
+#' Using best parameters as starting values 
+#' @param fitOp Object return from fitmod with algorithm = 'optim'
+update.eppopt <- function(fitOp,...) 
+{
+  o = epp_optim(TRUE, fitOp$fp, fitOp$likdat, 
+    control_optim = list(par=fitOp$par),
+    B0=1e2, B.re=1e3, doParallel=F)
+  return(o)
+}
+
+obj_fn_neg = function(theta, fp, likdat) 
+  -(lprior(theta, fp) + sum(ll_all(theta, fp, likdat)))
+
+#' Use in fitmod()
+#' 
+#' fit model with DEoptim()
+#' 
+#' @param epp ...
+#' @param fp fix parameters
+#' @param likdat data likelihood
+#' @param control_DE a list specify as optim arguments, e.g. list(initpop=...)
+#' @param doParallel use mclapply when finding initial value
+epp_DE <- function(epp, fp, likdat, control_DE, doParallel) {
+  .control.DE <- list(parallelType=doParallel, trace=1, packages=c('eppasm'))
+  if (!is.null(names(control_DE))) 
+    .control.DE <- modifyList(.control.DE, control_DE)
+  bounds <- prior_to_DE_bounds(fp)
+  o <- list()
+  fit <- DEoptim::DEoptim(obj_fn_neg, bounds[,1], bounds[,2],
+    fp = fp, likdat = likdat, control= .control.DE)
+  o$par    = fit$optim$bestmem
+  o$fit    = fit
+  if (fp$ss$MIX)
+    fp$balancing = tail(o$par, 1)
+  o$fp     = fp
+  o$likdat = likdat
+  o$ctrl   = .control.DE
+  o$param  = fnCreateParam(o$par, fp)
+  o$mod    = simmod(update(fp, list=o$param))
+  class(o) = "eppDE"
+  return(o)
+}
+
+#' Update previous fit with DEoptim() results
+#' 
+#' Using best parameters as starting values 
+#' @param fitDE Object return from fitmod with algorithm = 'DE'
+update.eppDE <- function(fitDE,...) {
+  o = epp_DE(TRUE, fitDE$fp, fitDE$likdat, 
+    modifyList(fitDE$ctrl, list(
+      initpop = fitDE$member$pop,...
+    )), 
+    fitDE$ctrl$parallelType)
+  return(o)
 }

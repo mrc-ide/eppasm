@@ -56,8 +56,11 @@ void outputSEXP::finalize(const StateSpace& s) {
       INTEGER(pop_db_sexp_dim)[2] = s.pDS;
       INTEGER(pop_db_sexp_dim)[3] = s.PROJ_YEARS;
       SET_DIM(data_db, pop_db_sexp_dim);
-
       SET_ATTR(pop, Rf_install("vpop"), data_db);
+      SET_DIM(hivpopdb, hiv_sexp_dim);
+      SET_DIM(artpopdb, art_sexp_dim);
+      SET_ATTR(pop, Rf_install("vpopart"), artpopdb);
+      SET_ATTR(pop, Rf_install("vpophiv"), hivpopdb);
     }
   }
   else 

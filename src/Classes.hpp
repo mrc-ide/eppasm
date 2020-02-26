@@ -6,7 +6,9 @@ class hivC;
 
 struct outputSEXP { // outputs for R
   SEXP artpop;
+  SEXP artpopdb;
   SEXP hivpop;
+  SEXP hivpopdb;
   SEXP pop;
   SEXP prev15to49;
   SEXP incid15to49;
@@ -25,8 +27,12 @@ struct outputSEXP { // outputs for R
   outputSEXP(StateSpace& s) {
     artpop = PROTECT(NEW_NUMERIC(s.hTS * s.hDS * s.hAG * s.NG * s.PROJ_YEARS)); ++np;
     memset(REAL(artpop), 0, s.hTS * s.hDS * s.hAG * s.NG * s.PROJ_YEARS * sizeof(double));
+    artpopdb = PROTECT(NEW_NUMERIC(s.hTS * s.hDS * s.hAG * s.NG * s.PROJ_YEARS)); ++np;
+    memset(REAL(artpopdb), 0, s.hTS * s.hDS * s.hAG * s.NG * s.PROJ_YEARS * sizeof(double));
     hivpop = PROTECT(NEW_NUMERIC(s.hDS * s.hAG * s.NG * s.PROJ_YEARS)); ++np;
-    memset(REAL(hivpop), 0, s.hDS * s.hAG * s.NG * s.PROJ_YEARS * sizeof(double));    
+    memset(REAL(hivpop), 0, s.hDS * s.hAG * s.NG * s.PROJ_YEARS * sizeof(double));
+    hivpopdb = PROTECT(NEW_NUMERIC(s.hDS * s.hAG * s.NG * s.PROJ_YEARS)); ++np;
+    memset(REAL(hivpopdb), 0, s.hDS * s.hAG * s.NG * s.PROJ_YEARS * sizeof(double));
     pop = PROTECT(NEW_NUMERIC(s.pAG * s.NG * s.pDS * s.PROJ_YEARS)); ++np;
     memset(REAL(pop), 0, s.pAG * s.NG * s.pDS * s.PROJ_YEARS * sizeof(double));
 
@@ -225,12 +231,12 @@ public: // Pop fields
 // HIV class
 class hivC {
 public: // inits
-  hivC(double * hiv_sexp, const StateSpace& s) :
+  hivC(outputSEXP& O, double * hiv_sexp, const StateSpace& s) :
 // Boost array class init
   N              (s.NG * s.hAG * s.hDS),
   xtents         ({{s.NG, s.hAG, s.hDS}}),
   at_this        (hiv_sexp),
-  data_db        (extents[s.PROJ_YEARS][s.NG][s.hAG][s.hDS]), // later return this as well
+  data_db        (REAL(O.hivpopdb), extents[s.PROJ_YEARS][s.NG][s.hAG][s.hDS]),
   grad           (xtents),
   grad_db        (xtents),
   data_all       (xtents),
@@ -256,7 +262,7 @@ public: // fields
   boost::array<boost4D_ptr::index, 4> xtents;
   double    * at_this;
   double    * at_prev;
-  boost4D     data_db; // debut only population
+  boost4D_ptr data_db; // debut only population
   boost3D     grad;
   boost3D     grad_db;
   boost3D     data_all; // all populations in the year requested
@@ -269,11 +275,11 @@ public: // fields
 // ART class
 class artC {
 public: // Inits
-  artC(double * artpop_sexp, const StateSpace& s) :
+  artC(outputSEXP& O, double * artpop_sexp, const StateSpace& s) :
     N(s.NG * s.hAG * s.hDS * s.hTS),
     xtents({{s.NG, s.hAG, s.hDS, s.hTS}}),
     at_this(artpop_sexp),
-    data_db   (extents[s.PROJ_YEARS][s.NG][s.hAG][s.hDS][s.hTS]),
+    data_db   (REAL(O.artpopdb), extents[s.PROJ_YEARS][s.NG][s.hAG][s.hDS][s.hTS]),
     at_this_db(data_db.data()),
     at_prev_db(data_db.data()),
     gradART   (xtents),
@@ -299,7 +305,7 @@ public: // fields
   boost::array<boost4D_ptr::index, 4> xtents;
   double    * at_this;
   double    * at_prev;
-  boost5D     data_db; // debut only population
+  boost5D_ptr data_db; // debut only population
   double    * at_this_db;
   double    * at_prev_db;
   boost4D     gradART;
@@ -319,8 +325,8 @@ public:
     s(s),
     p(p),
     pop(O, s),
-    hivpop(hiv_start, s),
-    artpop(art_start, s)
+    hivpop(O, hiv_start, s),
+    artpop(O, art_start, s)
     {}
   void initiate();
   void update_views();

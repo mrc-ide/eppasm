@@ -65,8 +65,11 @@ simmod.specfp <- function(fp) {
   if (MODEL != 0) {
     attr(pop, "hivpop") <- hivpop$data
     attr(pop, "artpop") <- artpop$data
-    if (MODEL==2)
+    if (MODEL==2) {
       attr(pop, "vpop") <- pop$VIRGIN$data
+      attr(pop, "vpopart") <- artpop$db_data
+      attr(pop, "vpophiv") <- hivpop$db_data
+    }
     class(pop) <- "spec"
   }
   else 

@@ -317,8 +317,10 @@ lprior <- function(theta, fp){
     lpr <- lpr + lprior_ancmod(theta_anc, fp$ancmod, fp$prior_args)
   }
 
-  if (fp$ss$MIX)
+  if (fp$ss$MIX) {
+    lpr <- lpr + dunif(tail(theta, 2)[1], 1, 100, log=TRUE)
     lpr <- lpr + dbeta(tail(theta, 1), 2, 2, log=TRUE)
+  }
 
   return(lpr)
 }
@@ -332,7 +334,8 @@ ll_all = function(theta, fp, likdat) {
   nparam <- length(theta)
   
   if (fp$ss$MIX) {
-    fp$balancing <- theta[nparam]
+    fp$rel_PAR   <- tail(theta, 2)[1]
+    fp$balancing <- tail(theta, 1)
     fp <- update(fp, list=fnCreateParam(theta[1:(nparam-1)], fp))
   } else {
     fp <- update(fp, list=fnCreateParam(theta, fp))
@@ -416,10 +419,13 @@ sample.prior <- function(n, fp){
   else if (fp$eppmod == "rhybrid")
     epp_nparam <- fp$rt$n_param+1
 
-  nparam <- epp_nparam + fp$ancmod$nparam
+  if (exists("ancmod", fp) && fp$ancmod$nparam > 0)
+    nparam <- epp_nparam + fp$ancmod$nparam
+  else
+    nparam <- epp_nparam
 
   if (fp$ss$MIX)
-    nparam <- nparam + 1
+    nparam <- nparam + 2
   
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
@@ -461,8 +467,10 @@ sample.prior <- function(n, fp){
     mat[ , epp_nparam + 1:fp$ancmod$nparam] <- sample_prior_ancmod(n, fp$ancmod, fp$prior_args)
 
   # sex acts balancing parameter
-  if (fp$ss$MIX)
-    mat[, nparam] <- rbeta(n, 2, 2)
+  if (fp$ss$MIX) {
+    mat[, nparam-1] <- runif(n, 1, 100)
+    mat[, nparam]   <- rbeta(n, 2, 2)
+  }
   
   return(mat)
 }

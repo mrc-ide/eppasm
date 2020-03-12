@@ -161,14 +161,7 @@ void popC::infect_mix (int ii, Views& v, const Parameters& p, const StateSpace& 
     for (int sex = 0; sex < s.NG; sex++)
       for (int age = 0; age < s.pAG; age++)
         data_active[ds][sex][age] *= p.ic.est_senesence[sex][age];
-  // # balancing
-  boost2D
-    nc_m(extents[s.pAG][s.pAG]),
-    nc_f(extents[s.pAG][s.pAG]),
-    nc_m_adj(extents[s.pAG][s.pAG]),
-    nc_f_adj(extents[s.pAG][s.pAG]),
-    n_m_active_negative(extents[s.pAG][s.pAG]),
-    n_f_active_negative(extents[s.pAG][s.pAG]);
+
   dvec prop_n_m(s.pAG), prop_n_f(s.pAG);
 
   for (int r = 0; r < s.pAG; ++r) {
@@ -176,6 +169,28 @@ void popC::infect_mix (int ii, Views& v, const Parameters& p, const StateSpace& 
     double Fa = data_active[s.N][s.F][r] + data_active[s.P][s.F][r];
     prop_n_m[r] = data_active[s.N][s.M][r] / Ma;
     prop_n_f[r] = data_active[s.N][s.F][r] / Fa;
+  }
+  
+  boost3D actual_active = data_active;
+
+  // number of sex acts
+  for (int ds = 0; ds < s.pDS; ds++)
+    for (int sex = 0; sex < s.NG; sex++)
+      for (int age = 0; age < s.pAG; age++)
+        data_active[ds][sex][age] *= pow(p.ic.rel_PAR, p.ic.est_pcr[sex][age]);
+
+  // balancing number of sex acts
+  boost2D
+    nc_m(extents[s.pAG][s.pAG]),
+    nc_f(extents[s.pAG][s.pAG]),
+    nc_m_adj(extents[s.pAG][s.pAG]),
+    nc_f_adj(extents[s.pAG][s.pAG]),
+    n_m_active_negative(extents[s.pAG][s.pAG]),
+    n_f_active_negative(extents[s.pAG][s.pAG]);
+
+  for (int r = 0; r < s.pAG; ++r) {
+    double Ma = data_active[s.N][s.M][r] + data_active[s.P][s.M][r];
+    double Fa = data_active[s.N][s.F][r] + data_active[s.P][s.F][r];
     for (int c = 0; c < s.pAG; ++c) {
       nc_m[c][r] = Ma * p.ic.mixmat[s.M][c][r];
       nc_f[c][r] = Fa * p.ic.mixmat[s.F][c][r];
@@ -190,6 +205,7 @@ void popC::infect_mix (int ii, Views& v, const Parameters& p, const StateSpace& 
       nc_f_adj[c][r] = nc_f[r][c] * rr;
     }
 
+  // Number of sex acts in HIV negative pop
   for (int r = 0; r < s.pAG; ++r)
     for (int c = 0; c < s.pAG; ++c) {
       n_m_active_negative[c][r] = nc_m_adj[c][r] * prop_n_m[r];
@@ -203,8 +219,8 @@ void popC::infect_mix (int ii, Views& v, const Parameters& p, const StateSpace& 
     for (int age = 0; age < s.pAG; age++) {
       N_hivp = data_active[s.P][sex][age];
       transm_prev[sex][age] = ((N_hivp * (1 - artcov[sex])) + 
-                               (N_hivp * artcov[sex] * (1 - p.ic.relinfectART)))/
-                               (v.now_pop[s.N][sex][age] + v.now_pop[s.P][sex][age]);
+        (N_hivp * artcov[sex] * (1 - p.ic.relinfectART)))/
+        (actual_active[s.N][sex][age] + actual_active[s.P][sex][age]);
       }
   //+intervention effects and time epidemic start
   double w = (p.ic.proj_steps[ts] == p.ic.tsEpidemicStart) ? p.ic.iota : 0.0;

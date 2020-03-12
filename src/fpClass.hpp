@@ -84,6 +84,7 @@ struct IncidenceParam {
   boost3D_ptr    db_rate;
   boost2D_ptr    est_senesence;
   boost2D_ptr    est_pcr;
+  const double   rel_PAR;
   const double   balancing;
   const double   relinfectART;
   const double * incrr_sex;

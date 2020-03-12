@@ -48,26 +48,30 @@ obj_fn = function(theta, fp, likdat)
 #' @param B.re Number of resamples
 #' @param doParallel use mclapply when finding initial value
 epp_optim <- function(epp=FALSE, fp, likdat, control_optim, B0, B.re, doParallel) {
-  .control.optim <- list(par=NULL, fn=obj_fn, method="BFGS", hessian=TRUE,
+  .control.optim <- list(par=NULL, fn=obj_fn, method="BFGS", hessian=FALSE,
                          control=list(fnscale=-1, trace=4, maxit=1e3))
   if (!is.null(names(control_optim)))
     .control.optim <- modifyList(.control.optim, control_optim)
   if (is.null(.control.optim$par)) { # Find starting values that MAP
     X0     = eppasm:::sample.prior(B0, fp)
+    message('Searching for starting values...'); flush.console()
     lpost0 = eppasm:::likelihood(X0, fp, likdat, log=TRUE, doParallel) + 
              eppasm:::prior(X0, fp, log=TRUE)
     .control.optim$par = X0[which.max(lpost0)[1], ]
-    cat('best MAP', .control.optim$par, -max(lpost0), '\n')
+    cat('best MAP', .control.optim$par, -max(lpost0)); flush.console()
   }
   # .control.optim$ndeps <- rep(opt_diffstep, length(.control.optim$par)))
   .control.optim <- modifyList(.control.optim, list(fp = fp, likdat = likdat))
   opt = do.call("optim", .control.optim)
-  if (fp$ss$MIX)
+  if (fp$ss$MIX) {
+    fp$rel_PAR   = tail(opt$par, 2)[1]
     fp$balancing = tail(opt$par, 1)
+  }
   opt$fp     = fp
   opt$likdat = likdat
   opt$param  = fnCreateParam(opt$par, fp)
   opt$mod    = simmod(update(fp, list=opt$param))
+  opt$ctrl   = .control.optim
   optclass   = ifelse(epp, "eppopt", "specopt")
   if (.control.optim$hessian) {
     opt$resample = mvtnorm::rmvnorm(B.re, opt$par, solve(-opt$hessian))
@@ -81,10 +85,10 @@ epp_optim <- function(epp=FALSE, fp, likdat, control_optim, B0, B.re, doParallel
 #' 
 #' Using best parameters as starting values 
 #' @param fitOp Object return from fitmod with algorithm = 'optim'
-update.eppopt <- function(fitOp,...) 
+update.specopt <- function(fitOp,...) 
 {
   o = epp_optim(TRUE, fitOp$fp, fitOp$likdat, 
-    control_optim = list(par=fitOp$par),
+    control_optim = modifyList(fitOp$ctrl, list(par=fitOp$par,...)),
     B0=1e2, B.re=1e3, doParallel=F)
   return(o)
 }
@@ -111,8 +115,10 @@ epp_DE <- function(epp, fp, likdat, control_DE, doParallel) {
     fp = fp, likdat = likdat, control= .control.DE)
   o$par    = fit$optim$bestmem
   o$fit    = fit
-  if (fp$ss$MIX)
+  if (fp$ss$MIX) {
+    fp$rel_PAR   = tail(o$par, 2)[1]
     fp$balancing = tail(o$par, 1)
+  }
   o$fp     = fp
   o$likdat = likdat
   o$ctrl   = .control.DE

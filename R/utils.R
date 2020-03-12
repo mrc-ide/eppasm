@@ -91,6 +91,7 @@ prepare_fp_for_Cpp <- function(fp, MODEL=1L, MIX=FALSE) {
     if (is.null(fp$balancing)) {
         fp$balancing <- .5 # for C++ read, not doing anything
     }
+    if (is.null(fp$rel_PAR)) fp$rel_PAR <- 1
     fp
 }
 # Converting prior assumption to parameter boundary for DE

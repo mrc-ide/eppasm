@@ -7,29 +7,33 @@ infect_mix = function(hivpop, artpop, ii) {
     update_active_pop_to(year)
     data_active <<- sweepx(data_active, 1:2, p$est_senesence)
 
+    actual_active <- data_active # at this point we have the "real" number of
+                                 # people to calculate the prevalence; after adjustment
+                                 # and balancing, the prev would not be correct
+
+    # Partner change rate as a risk reduction
+    data_active <<- sweepx(data_active, 1:2, 1+p$est_pcr)
+
     # balancing
     prop_n_m <- data_active[, m.idx, hivn.idx]/ rowSums(data_active[, m.idx, ])
     prop_n_f <- data_active[, f.idx, hivn.idx]/ rowSums(data_active[, f.idx, ])
 
     # sweep over sexual mixing matrices
-    nc_m <- sweep(p$mixmat[,,m.idx], 1, rowSums(data_active[, m.idx, ]), "*")
-    nc_f <- sweep(p$mixmat[,,f.idx], 1, rowSums(data_active[, f.idx, ]), "*")
-
-    # Partner change rate as a risk reduction
-    # risk_m <- risk_m * (p$est_pcr[, m.idx]/ max(p$est_pcr[, m.idx]))
-    # risk_f <- risk_f * (p$est_pcr[, f.idx]/ max(p$est_pcr[, f.idx]))
+    nc_m <- sweepx(p$mixmat[,,m.idx], 1, rowSums(data_active[, m.idx, ]))
+    nc_f <- sweepx(p$mixmat[,,f.idx], 1, rowSums(data_active[, f.idx, ]))
     
     ratio_mf <- nc_m / t(nc_f)
 
-    nc_m_adj <- nc_m * (ratio_mf - .5 * (ratio_mf - 1)) / ratio_mf
-    nc_f_adj <- t(nc_f) * (ratio_mf - .5 * (ratio_mf - 1))
+    nc_m_adj <- nc_m * (ratio_mf - p$balancing * (ratio_mf - 1)) / ratio_mf
+    nc_f_adj <- t(nc_f) * (ratio_mf - p$balancing * (ratio_mf - 1))
+    
     n_m_active_negative <- sweepx(nc_m_adj, 1, prop_n_m)
     n_f_active_negative <- sweepx(t(nc_f_adj), 1, prop_n_f)
 
     hiv_treated       <- sweep(data_active[,,hivp.idx], 2, artcov, '*')
     hiv_not_treated   <- data_active[,,hivp.idx] - hiv_treated
     transm_prev <- (hiv_not_treated + hiv_treated * (1 - p$relinfectART)) / 
-                    rowSums(data[,,,year],,2) # prevalence adjusted for art
+                    rowSums(actual_active,,2) # prevalence adjusted for art
     # +intervention effects and time epidemic start
     w  <- p$iota * (p$proj.steps[ts] == p$tsEpidemicStart)
     transm_prev <- rvec[ts] * transm_prev + w

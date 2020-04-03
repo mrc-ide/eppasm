@@ -54,6 +54,7 @@ epp_optim <- function(epp=FALSE, fp, likdat, control_optim, B0, B.re, doParallel
     .control.optim <- modifyList(.control.optim, control_optim)
   if (is.null(.control.optim$par)) { # Find starting values that MAP
     X0     = eppasm:::sample.prior(B0, fp)
+    message('Searching for starting values...'); flush.console()
     lpost0 = eppasm:::likelihood(X0, fp, likdat, log=TRUE, doParallel) + 
              eppasm:::prior(X0, fp, log=TRUE)
     .control.optim$par = X0[which.max(lpost0)[1], ]
@@ -68,6 +69,7 @@ epp_optim <- function(epp=FALSE, fp, likdat, control_optim, B0, B.re, doParallel
   opt$likdat = likdat
   opt$param  = fnCreateParam(opt$par, fp)
   opt$mod    = simmod(update(fp, list=opt$param))
+  opt$ctrl   = .control.optim
   optclass   = ifelse(epp, "eppopt", "specopt")
   if (.control.optim$hessian) {
     opt$resample = mvtnorm::rmvnorm(B.re, opt$par, solve(-opt$hessian))
@@ -81,10 +83,10 @@ epp_optim <- function(epp=FALSE, fp, likdat, control_optim, B0, B.re, doParallel
 #' 
 #' Using best parameters as starting values 
 #' @param fitOp Object return from fitmod with algorithm = 'optim'
-update.eppopt <- function(fitOp,...) 
+update.specopt <- function(fitOp,...) 
 {
   o = epp_optim(TRUE, fitOp$fp, fitOp$likdat, 
-    control_optim = list(par=fitOp$par),
+    control_optim = modifyList(fitOp$ctrl, list(par=fitOp$par,...)),
     B0=1e2, B.re=1e3, doParallel=F)
   return(o)
 }

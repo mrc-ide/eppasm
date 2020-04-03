@@ -57,7 +57,7 @@ artcov15to49.specres <- function(specres){colSums(specres$artnum.m[4:10,]+specre
 artcov15plus.specres <- function(specres){colSums(specres$artnum.m[4:17,]+specres$artnum.f[4:17,]) / colSums(specres$hivnum.m[4:17,]+specres$hivnum.f[4:17,])}
 age15pop.specres <- function(specres){colSums(specres$totpop["15",,])}
 
-ageprev.specres <- function(specres, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL){
+ageprev.specres <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NULL){
 
   if(is.null(arridx)){
     if(length(agspan)==1)

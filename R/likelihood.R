@@ -416,7 +416,10 @@ sample.prior <- function(n, fp){
   else if (fp$eppmod == "rhybrid")
     epp_nparam <- fp$rt$n_param+1
 
-  nparam <- epp_nparam + fp$ancmod$nparam
+  if (exists("ancmod", fp) && fp$ancmod$nparam > 0)
+    nparam <- epp_nparam + fp$ancmod$nparam
+  else
+    nparam <- epp_nparam
 
   if (fp$ss$MIX)
     nparam <- nparam + 1

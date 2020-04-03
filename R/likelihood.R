@@ -332,7 +332,7 @@ ll_all = function(theta, fp, likdat) {
   nparam <- length(theta)
   
   if (fp$ss$MIX) {
-    fp$balancing <- theta[nparam]
+    fp$balancing <- tail(theta, 1)
     fp <- update(fp, list=fnCreateParam(theta[1:(nparam-1)], fp))
   } else {
     fp <- update(fp, list=fnCreateParam(theta, fp))

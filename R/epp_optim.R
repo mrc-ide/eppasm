@@ -33,8 +33,11 @@ prepare_fp_for_fitmod <- function(epp, fp, likdat) {
     fp
 }
 
-obj_fn = function(theta, fp, likdat) 
-  lprior(theta, fp) + sum(ll_all(theta, fp, likdat))
+obj_fn = function(theta, fp, likdat) {
+  o <- lprior(theta, fp) + sum(ll_all(theta, fp, likdat))
+  if (is.na(o) || !is.finite(o)) return (-1e6)
+  o
+}
 
 #' extract from fitmod()
 #' 

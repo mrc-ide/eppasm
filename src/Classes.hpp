@@ -169,7 +169,7 @@ public: // Pop inits
   void adjust_pop                (Views& v, const Parameters& p, const StateSpace& s);
   void cal_prev_pregant          (const hivC& hivpop, const artC& artpop, Views& v, const Parameters& p, const StateSpace& s);
   void save_prev_n_inc           (Views& v, const StateSpace& s);
-  void infect_mix                (int ii, Views& v, const Parameters& p, const StateSpace& s);
+  void infect_mix                (hivC& hivpop, artC& artpop, int ii, Views& v, const Parameters& p, const StateSpace& s);
   void infect_spec               (const hivC& hivpop, const artC& artpop, int time_step, Views& v, const Parameters& p, const StateSpace& s);
   void epp_disease_model_direct  (hivC& hivpop, artC& artpop, Views& v, const Parameters& p, const StateSpace& s);
   double calc_rtrend_rt          (int ts, double time_step, const StateSpace& s);
@@ -181,6 +181,7 @@ public: // Pop inits
   void art_distribute            (const dvec& art_need, const Parameters& p, const StateSpace& s);
   void epp_art_init              (hivC& hivpop, artC& artpop, int time_step, Views& v, const Parameters& p, const StateSpace& s);
   void update_eligible_for_art   (const Parameters& p, const StateSpace& s);
+  boost2D age_sex_cov            (hivC& hivpop, artC& artpop, Views& v, const Parameters& p, const StateSpace& s);
 public: // Pop fields
   double    * at_this;
   double    * at_prev;
@@ -256,6 +257,7 @@ public: // inits
   void distribute_artinit(boost3D& artinit, artC& artpop, Views& v, const StateSpace& s);
   void add_grad_to_pop   (Views& v, const StateSpace& s);
   void adjust_pop        (const boost2D& adj_prob, Views& v, const StateSpace& s);
+  boost2D n_by_agr       (Views& v, const Parameters& p, const StateSpace& s);
 public: // fields
   // boost4D_ptr data;
   int         N;
@@ -300,6 +302,7 @@ public: // Inits
   void grad_db_init         (const boost3D& artinit_db, const StateSpace& s);
   void adjust_pop           (const boost2D& adj_prob, Views& v, const StateSpace& s);
   void count_death          (Views& v, const Parameters& p, const StateSpace& s);
+  boost2D n_by_agr          (Views& v, const Parameters& p, const StateSpace& s);
 public: // fields
   int         N;
   boost::array<boost4D_ptr::index, 4> xtents;

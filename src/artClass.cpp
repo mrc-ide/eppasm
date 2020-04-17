@@ -174,3 +174,16 @@ void artC::count_death(Views& v, const Parameters& p, const StateSpace& s) {
               data_db[s.year][sex][agr][cd4][dur] * x;
         }
 }
+
+boost2D artC::n_by_agr(Views& v, const Parameters& p, const StateSpace& s) {
+  boost2D out(extents[s.NG][s.hAG]);
+  for (int sex = 0; sex < s.NG; sex++)
+    for (int agr = 0; agr < s.hAG; agr++)
+      for (int cd4 = 0; cd4 < s.hDS; cd4++)
+        for (int dur = 0; dur < s.hTS; dur++) {
+          out[sex][agr] += v.now_art[sex][agr][cd4][dur];
+          if (s.MODEL == 2)
+            out[sex][agr] += data_db[s.year][sex][agr][cd4][dur];
+        }
+  return out;
+}

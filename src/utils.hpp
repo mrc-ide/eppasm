@@ -138,3 +138,21 @@ void fill_with_inplace (K& A, double B) {
   for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
       *i = B;
 }
+
+template <class K>
+double min (K& A) {
+  double * mini = std::min_element( A.origin(), A.origin() + A.num_elements());
+  return * mini;
+}
+
+template <class K>
+double max (K& A) {
+  double * maxi = std::max_element( A.origin(), A.origin() + A.num_elements());
+  return * maxi;
+}
+
+template <class K>
+void replace_elem_with (K& A, double B = 1, double C = 1) {
+  for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
+    if (*i > B) *i = C;
+}

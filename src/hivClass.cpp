@@ -177,3 +177,15 @@ void hivC::adjust_pop(const boost2D& adj_prob, Views& v, const StateSpace& s) {
           data_db[s.year][sex][agr][cd4] *= adj_prob[sex][agr];
       }
 }
+
+boost2D hivC::n_by_agr(Views& v, const Parameters& p, const StateSpace& s) {
+  boost2D out(extents[s.NG][s.hAG]); 
+  for (int sex = 0; sex < s.NG; sex++)
+    for (int agr = 0; agr < s.hAG; agr++)
+      for (int cd4 = 0; cd4 < s.hDS; cd4++) {
+        out[sex][agr] += v.now_hiv[sex][agr][cd4];
+        if (s.MODEL == 2)
+          out[sex][agr] += data_db[s.year][sex][agr][cd4];
+      }
+  return out;
+}

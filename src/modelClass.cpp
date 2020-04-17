@@ -75,7 +75,7 @@ void Model::infection_process(Views& v) {
     if (p.ic.eppmod != 2) { // != "directincid"
       pop.update_rvec(time_step, p, s);
       if (s.MIX)
-        pop.infect_mix(time_step, v, p, s);
+        pop.infect_mix(hivpop, artpop, time_step, v, p, s);
       else
         pop.infect_spec(hivpop, artpop, time_step, v, p, s);
       pop.update_infection(v, s);

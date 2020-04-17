@@ -155,7 +155,7 @@ void popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step,
   prev15to49_ts[ts] = prev_last;
 }
 
-void popC::infect_mix (int ii, Views& v, const Parameters& p, const StateSpace& s) {
+void popC::infect_mix (hivC& hivpop, artC& artpop, int ii, Views& v, const Parameters& p, const StateSpace& s) {
   update_active_pop_to(s.year, v, s);
   for (int ds = 0; ds < s.pDS; ds++)
     for (int sex = 0; sex < s.NG; sex++)
@@ -211,6 +211,12 @@ void popC::infect_mix (int ii, Views& v, const Parameters& p, const StateSpace& 
       n_m_active_negative[c][r] = nc_m_adj[c][r] * prop_n_m[r];
       n_f_active_negative[c][r] = nc_m_adj[r][c] * prop_n_f[r];
     }
+  boost2D art_cov(extents[s.NG][s.pAG]);
+  zeroing(art_cov);
+  if (s.year >= s.tARTstart-1) {
+    art_cov = age_sex_cov(hivpop, artpop, v, p, s);
+    replace_elem_with(art_cov, 1, 1);
+  }
 
   int ts = (s.year-1)/s.DT + ii;
   boost2D transm_prev(extents[s.NG][s.pAG]);
@@ -218,8 +224,8 @@ void popC::infect_mix (int ii, Views& v, const Parameters& p, const StateSpace& 
   for (int sex = 0; sex < s.NG; sex++)
     for (int age = 0; age < s.pAG; age++) {
       N_hivp = data_active[s.P][sex][age];
-      transm_prev[sex][age] = ((N_hivp * (1 - artcov[sex])) + 
-        (N_hivp * artcov[sex] * (1 - p.ic.relinfectART)))/
+      transm_prev[sex][age] = ((N_hivp * (1 - art_cov[sex][age])) + 
+        (N_hivp * art_cov[sex][age] * (1 - p.ic.relinfectART)))/
         (actual_active[s.N][sex][age] + actual_active[s.P][sex][age]);
       }
   //+intervention effects and time epidemic start

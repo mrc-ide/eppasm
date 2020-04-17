@@ -489,3 +489,16 @@ void popC::update_eligible_for_art(const Parameters& p, const StateSpace& s) {
     elig_art_[i] = 1 - (1 - A) * (1 - B) * (1 - p.ad.specpop_percelig[s.year]);
   }
 }
+
+
+boost2D popC::age_sex_cov (hivC& hivpop, artC& artpop,
+  Views& v, const Parameters& p, const StateSpace& s) {
+  boost2D onn = artpop.n_by_agr(v, p, s);
+  boost2D off = hivpop.n_by_agr(v, p, s);
+  boost2D out(extents[s.NG][s.pAG]);
+  for (int sex = 0; sex < s.NG; ++sex)
+    for (int age = 0; age < s.pAG; ++age)
+      out[sex][age] = onn[sex][ s.ag_[age]-1 ] / 
+        (onn[sex][ s.ag_[age]-1 ] + off[sex][ s.ag_[age]-1 ]);
+  return out;
+}

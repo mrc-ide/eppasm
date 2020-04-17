@@ -29,8 +29,16 @@ infect_mix = function(hivpop, artpop, ii) {
     
     n_m_active_negative <- sweepx(nc_m_adj, 1, prop_n_m)
     n_f_active_negative <- sweepx(t(nc_f_adj), 1, prop_n_f)
+    
+    art_cov <- matrix(0, pAG, NG)
+    if (year >= p$tARTstart) {
+      art_ <- colSums(artpop$data[,,,,year] + artpop$data_db[,,,,year],,2)
+      hiv_ <- colSums(hivpop$data[,,,year] + hivpop$data_db[,,,year],,1)
+      art_cov <- art_/(art_+hiv_)
+      art_cov <- sapply(1:2, function(x) rep(art_cov[, x], h.ag.span))
+    }
 
-    hiv_treated       <- sweep(data_active[,,hivp.idx], 2, artcov, '*')
+    hiv_treated       <- data_active[,,hivp.idx] * art_cov
     hiv_not_treated   <- data_active[,,hivp.idx] - hiv_treated
     transm_prev <- (hiv_not_treated + hiv_treated * (1 - p$relinfectART)) / 
                     rowSums(actual_active,,2) # prevalence adjusted for art

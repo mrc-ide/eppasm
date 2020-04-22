@@ -286,6 +286,7 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5,
 
 fitmod <- function(obj, ..., epp=FALSE, B0 = 1e2, B = 1e3, B.re = 1e3,
                    number_k = 500, opt_iter=0, 
+                   last_fit=NULL, # use to update imis
                    sample_prior = eppasm:::sample.prior,
                    prior = eppasm:::prior,
                    likelihood = eppasm:::likelihood,
@@ -350,7 +351,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e2, B = 1e3, B.re = 1e3,
   fit <- try(stop(""), TRUE)
   while(inherits(fit, "try-error")){
     start.time <- proc.time()
-    fit <- try(imis(B0, B, B.re, number_k, opt_iter, fp=fp, likdat=likdat,
+    fit <- try(imis(B0, B, B.re, number_k, opt_iter, fp=fp, likdat=likdat, last_fit=last_fit,
                     sample_prior=sample.prior, prior=prior, likelihood=likelihood))
     fit.time <- proc.time() - start.time
   }

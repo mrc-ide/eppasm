@@ -19,14 +19,20 @@
 #'
 #' @return list with items resample, stat, and center
 imis <- function(B0, B, B_re, number_k, opt_k=NULL, fp, likdat,
+                 last_fit=NULL,
                  prior=eppasm::prior,
                  likelihood=eppasm::likelihood,
                  sample_prior=eppasm::sample.prior,
                  dsamp = eppasm::dsamp, save_all=FALSE){
 
   ## Draw initial samples from prior distribution
-  X_k <- sample_prior(B0, fp)  # Draw initial samples from the prior distribution
-  cov_prior = cov(X_k)        # estimate of the prior covariance
+  if (is.null(last_fit)) {
+    X_k <- sample_prior(B0, fp)  # Draw initial samples from the prior distribution
+    cov_prior = cov(X_k)        # estimate of the prior covariance    
+  } else {
+    X_k <- last_fit$resample[sample(1:B_re, B0), ] # Draw initial samples from the prior distribution
+    cov_prior = cov(X_k)        # estimate of the prior covariance        
+  }
 
   ## Locations and covariance of mixture components
   center_all <- list()

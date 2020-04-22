@@ -48,7 +48,7 @@ imis <- function(B0, B, B_re, number_k, opt_k=NULL, fp, likdat,
   for(k in 1:number_k){
 
     ## Calculate log-likelihood for new inputs
-    ll_k <- likelihood(X_k, fp, likdat, log=TRUE)
+    ll_k <- likelihood(X_k, fp, likdat, log=TRUE, doParallel=1)
 
     ##  Keep only inputs with non-zero likelihood, calculate importance weights
     which_k <- which(ll_k > -Inf)

@@ -522,6 +522,10 @@ ldsamp <- function(theta, fp){
     lpr <- lpr + lprior_ancmod(theta_anc, fp$ancmod, fp$prior_args)
   }
 
+  if (fp$ss$MIX) {
+    lpr <- lpr + dbeta(tail(theta, 1), 2, 2, log=TRUE)
+  }
+
   return(lpr)
 }
 
@@ -546,10 +550,12 @@ likelihood <- function(theta, fp, likdat, log=FALSE, doParallel=FALSE) {
       lval <- unlist(lapply(theta_id, ll_fn))
     } else {
       n_cores = max(floor(parallel::detectCores()/2), 1)
-      cat('finding starting values on', n_cores, 'cores)\n')
+      cat('calculate ll on', n_cores, 'cores)\n')
       lval = unlist(parallel::mclapply(theta_id, ll_fn, mc.cores = n_cores))
     }
   }
+  if (any(!is.finite(lval))) 
+    lval[!is.finite(lval)] <- -1e6
   if (log)
     return(lval)
   else
@@ -561,6 +567,8 @@ dsamp <- function(theta, fp, log=FALSE){
     lval <- ldsamp(theta, fp)
   else
     lval <- unlist(lapply(seq_len(nrow(theta)), function(i) (ldsamp(theta[i,], fp))))
+  if (any(!is.finite(lval))) 
+    lval[!is.finite(lval)] <- -1e6
   if (log)
     return(lval)
   else

@@ -284,7 +284,7 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5,
   return(val)
 }
 
-fitmod <- function(obj, ..., epp=FALSE, B0 = 1e3, B = 1e4, B.re = 1e3,
+fitmod <- function(obj, ..., epp=FALSE, B0 = 1e2, B = 1e3, B.re = 1e3,
                    number_k = 500, opt_iter=0, 
                    sample_prior = eppasm:::sample.prior,
                    prior = eppasm:::prior,

@@ -63,7 +63,7 @@ epp_optim <- function(epp=FALSE, fp, likdat, control_optim, B0, B.re, doParallel
     .control.optim$par = X0[which.max(lpost0)[1], ]
     cat('best MAP', .control.optim$par, -max(lpost0), '\n')
   }
-  # .control.optim$ndeps <- rep(opt_diffstep, length(.control.optim$par)))
+  .control.optim$control$ndeps <- rep(1e-4, length(.control.optim$par))
   .control.optim <- modifyList(.control.optim, list(fp = fp, likdat = likdat))
   opt = do.call("optim", .control.optim)
   if (fp$ss$MIX)

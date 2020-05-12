@@ -41,6 +41,12 @@ infect_mix = function(hivpop, artpop, ii) {
     risk_m <- rowSums(sweepx(n_m_active_negative, 2, transm_prev[, f.idx]))
     risk_f <- rowSums(sweepx(n_f_active_negative, 2, transm_prev[, m.idx]))
 
+    if (ii==10) {
+      WAIFW[,,m.idx,year] <<- 
+        sweepx(n_m_active_negative, 2, transm_prev[, f.idx])
+      WAIFW[,,f.idx,year] <<- 
+        sweepx(n_f_active_negative, 2, transm_prev[, m.idx])
+    }
 
     infections.ts <- cbind(risk_m, risk_f)
 

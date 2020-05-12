@@ -44,6 +44,7 @@ popEPP <- R6::R6Class("popepp", class=F, cloneable=F, portable=F, inherit=eppFP,
         rvec              = "vector",
         mr_prob_          = "array",
         p_hiv_death_age_  = "array",
+        WAIFW             = "array",
         VIRGIN            = "virEPP class",
         MSM               = "msmEPP class",
         FSW               = "fswEPP class",
@@ -73,8 +74,10 @@ popEPP <- R6::R6Class("popepp", class=F, cloneable=F, portable=F, inherit=eppFP,
 
             if (MODEL==2)
                 VIRGIN <<- virginEPP$new(fp, MODEL) # has its own initialization
-            if (MIX)
+            if (MIX) {
               incrate15to49_ts  <<- array(0, c(pAG, NG, length(p$rvec)))
+              WAIFW <<- array(0, c(pAG, pAG, NG, PROJ_YEARS))
+            }
         }
     )
 )

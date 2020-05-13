@@ -87,6 +87,7 @@ struct IncidenceParam {
   const double   balancing;
   const double   relinfectART;
   const double * incrr_sex;
+  boost2D_ptr    fage;
   double         circ_incid_rr;
   const double * incidinput;
   int            incidpopage;

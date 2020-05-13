@@ -316,11 +316,51 @@ lprior <- function(theta, fp){
     theta_anc <- theta[epp_nparam+1:fp$ancmod$nparam]
     lpr <- lpr + lprior_ancmod(theta_anc, fp$ancmod, fp$prior_args)
   }
-
-  if (fp$ss$MIX)
+  if (fp$ss$MIX) {
+    lpr <- lpr + lgt_prior(tail(theta, 9)[1:4])
+    lpr <- lpr + lgt_prior(tail(theta, 9)[5:8])
     lpr <- lpr + dbeta(tail(theta, 1), 2, 2, log=TRUE)
+  }
 
   return(lpr)
+}
+
+lgt <- function(x, initx, maxx, midx, nx) initx * (1 - maxx) + initx * maxx / (1 + (x/midx)^nx)
+
+lgt_ <- function(x, p) p[1] * (1 - p[2]) + p[1] * p[2] / (1 + (x/p[3])^p[4])
+
+# lgt_prior <- function(x) {
+#   dbeta(x[1], 1, 1e2, log=TRUE) + # start
+#   # hist(rbeta(3000, 1, 1000))
+#   dbeta(x[2], 2, 2, log=TRUE) + # max reduction
+#   # hist(rbeta(3000, 2, 1), 'sc')
+#   dgamma(x[3], 5, scale=5, log=TRUE) + # mid
+#   dgamma(x[4], 1, scale=10, log=TRUE) # # shape
+#   # hist(rgamma(3000, 5, scale=5))
+# }
+
+# lgt_sample <- function() {
+#   c(
+#   rbeta(1, 1, 1e3), # start
+#   rbeta(1, 2, 2), # max reduction
+#   rgamma(1, 5, scale=5), # mid
+#   rgamma(1, 1, scale=10)) # # shape
+# }
+
+lgt_prior <- function(x) {
+  dunif(x[1], 1e-6, 1e-2, log=TRUE) + # start
+  dunif(x[2],  0.5,    1, log=TRUE) + # max reduction
+  dunif(x[3], 15, 49, log=TRUE) + # mid
+  dunif(x[4],  1, 50, log=TRUE) # # shape
+}
+
+lgt_sample <- function() {
+  c(
+    runif(1, 1e-6, 1e-2), # start
+    runif(1,  0.5,    1), # max reduction
+    runif(1, 15, 49), # mid
+    runif(1,  1, 50) # # shape
+  )
 }
 
 #' Full log-likelhood
@@ -332,8 +372,12 @@ ll_all = function(theta, fp, likdat) {
   nparam <- length(theta)
   
   if (fp$ss$MIX) {
+    fp$fage <- cbind(
+      lgt_(15:80, tail(theta, 9)[1:4]),
+      lgt_(15:80, tail(theta, 9)[5:8])
+    )
     fp$balancing <- tail(theta, 1)
-    fp <- update(fp, list=fnCreateParam(theta[1:(nparam-1)], fp))
+    fp <- update(fp, list=fnCreateParam(theta[1:(nparam-9)], fp))
   } else {
     fp <- update(fp, list=fnCreateParam(theta, fp))
   }
@@ -422,7 +466,7 @@ sample.prior <- function(n, fp){
     nparam <- epp_nparam
 
   if (fp$ss$MIX)
-    nparam <- nparam + 1
+    nparam <- nparam + 9
   
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
@@ -464,8 +508,11 @@ sample.prior <- function(n, fp){
     mat[ , epp_nparam + 1:fp$ancmod$nparam] <- sample_prior_ancmod(n, fp$ancmod, fp$prior_args)
 
   # sex acts balancing parameter
-  if (fp$ss$MIX)
+  if (fp$ss$MIX) {
+    mat[, (nparam-9+1):(nparam-9+1+3)] <- t(replicate(n, lgt_sample()))
+    mat[, (nparam-5+1):(nparam-5+1+3)] <- t(replicate(n, lgt_sample()))
     mat[, nparam] <- rbeta(n, 2, 2)
+  }
   
   return(mat)
 }
@@ -524,6 +571,8 @@ ldsamp <- function(theta, fp){
 
   if (fp$ss$MIX) {
     lpr <- lpr + dbeta(tail(theta, 1), 2, 2, log=TRUE)
+    lpr <- lpr + lgt_prior(tail(theta, 9)[1:4])
+    lpr <- lpr + lgt_prior(tail(theta, 9)[5:8])
   }
 
   return(lpr)
@@ -550,7 +599,7 @@ likelihood <- function(theta, fp, likdat, log=FALSE, doParallel=FALSE) {
       lval <- unlist(lapply(theta_id, ll_fn))
     } else {
       n_cores = max(floor(parallel::detectCores()/2), 1)
-      cat('calculate ll on', n_cores, 'cores)\n')
+      # cat('calculate ll on', n_cores, 'cores)\n')
       lval = unlist(parallel::mclapply(theta_id, ll_fn, mc.cores = n_cores))
     }
   }

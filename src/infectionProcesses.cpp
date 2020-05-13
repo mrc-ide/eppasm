@@ -233,11 +233,12 @@ void popC::infect_mix (hivC& hivpop, artC& artpop, int ii, Views& v, const Param
   multiply_with_inplace(transm_prev, rvec[ts]);
   add_to_each_inplace(transm_prev, w);
 
+  double y = (p.ic.proj_steps[ts] >= p.ic.tsEpidemicStart) ? 1.0 : 0.0;
   zeroing(infections_);
   for (int am = 0; am < s.pAG; ++am) 
     for (int af = 0; af < s.pAG; ++af) {
-      infections_[s.M][am] += n_m_active_negative[af][am] * transm_prev[s.F][af];
-      infections_[s.F][af] += n_f_active_negative[am][af] * transm_prev[s.M][am];
+      infections_[s.M][am] += n_m_active_negative[af][am] * (transm_prev[s.F][af] + y * p.ic.fage[s.F][af]);
+      infections_[s.F][af] += n_f_active_negative[am][af] * (transm_prev[s.M][am] + y * p.ic.fage[s.M][am]);
     }
 
   // prev15to49_ts_m should use this one! now just store as below

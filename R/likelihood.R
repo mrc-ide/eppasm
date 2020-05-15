@@ -317,50 +317,29 @@ lprior <- function(theta, fp){
     lpr <- lpr + lprior_ancmod(theta_anc, fp$ancmod, fp$prior_args)
   }
   if (fp$ss$MIX) {
-    lpr <- lpr + lgt_prior(tail(theta, 9)[1:4])
-    lpr <- lpr + lgt_prior(tail(theta, 9)[5:8])
-    lpr <- lpr + dbeta(tail(theta, 1), 2, 2, log=TRUE)
+    lpr <- lpr + lgt_prior(tail(theta, 4)[1:2])
+    lpr <- lpr + lgt_prior(tail(theta, 4)[3:4])
   }
 
   return(lpr)
 }
 
 lgt <- function(x, initx, maxx, midx, nx) initx * (1 - maxx) + initx * maxx / (1 + (x/midx)^nx)
-
 lgt_ <- function(x, p) p[1] * (1 - p[2]) + p[1] * p[2] / (1 + (x/p[3])^p[4])
 
-# lgt_prior <- function(x) {
-#   dbeta(x[1], 1, 1e2, log=TRUE) + # start
-#   # hist(rbeta(3000, 1, 1000))
-#   dbeta(x[2], 2, 2, log=TRUE) + # max reduction
-#   # hist(rbeta(3000, 2, 1), 'sc')
-#   dgamma(x[3], 5, scale=5, log=TRUE) + # mid
-#   dgamma(x[4], 1, scale=10, log=TRUE) # # shape
-#   # hist(rgamma(3000, 5, scale=5))
-# }
-
-# lgt_sample <- function() {
-#   c(
-#   rbeta(1, 1, 1e3), # start
-#   rbeta(1, 2, 2), # max reduction
-#   rgamma(1, 5, scale=5), # mid
-#   rgamma(1, 1, scale=10)) # # shape
-# }
+# lgt2p <- function(x, K, M) 1 + (K-1)/(1+exp(x - M))
+lgt2p <- function(x, p) 1 + (p[1]-1)/(1+exp(x - p[2]))
 
 lgt_prior <- function(x) {
-  dunif(x[1], 1e-6, 1e-2, log=TRUE) + # start
-  dunif(x[2],  0.5,    1, log=TRUE) + # max reduction
-  dunif(x[3], 15, 49, log=TRUE) + # mid
-  dunif(x[4],  1, 50, log=TRUE) # # shape
+    dgamma(x[1], 1, scale=2, log=TRUE) + # increase hist(rgamma(3000, 1, scale=2))
+    dgamma(x[2], 40, scale=0.6, log=TRUE) # # hist(rgamma(3000, 40, scale=.5))
 }
 
 lgt_sample <- function() {
-  c(
-    runif(1, 1e-6, 1e-2), # start
-    runif(1,  0.5,    1), # max reduction
-    runif(1, 15, 49), # mid
-    runif(1,  1, 50) # # shape
-  )
+    c(
+      rgamma(1, 1, scale=2) , # increase hist(rgamma(3000, 1, scale=2))
+      rgamma(1, 40, scale=0.6) # # hist(rgamma(3000, 40, scale=.5))
+    )
 }
 
 #' Full log-likelhood
@@ -373,11 +352,11 @@ ll_all = function(theta, fp, likdat) {
   
   if (fp$ss$MIX) {
     fp$fage <- cbind(
-      lgt_(15:80, tail(theta, 9)[1:4]),
-      lgt_(15:80, tail(theta, 9)[5:8])
+      lgt2p(15:80, tail(theta, 4)[1:2]),
+      lgt2p(15:80, tail(theta, 4)[3:4])
     )
-    fp$balancing <- tail(theta, 1)
-    fp <- update(fp, list=fnCreateParam(theta[1:(nparam-9)], fp))
+    fp$balancing <- 0.5
+    fp <- update(fp, list=fnCreateParam(theta[1:(nparam-4)], fp))
   } else {
     fp <- update(fp, list=fnCreateParam(theta, fp))
   }
@@ -466,7 +445,7 @@ sample.prior <- function(n, fp){
     nparam <- epp_nparam
 
   if (fp$ss$MIX)
-    nparam <- nparam + 9
+    nparam <- nparam + 4
   
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
@@ -509,9 +488,8 @@ sample.prior <- function(n, fp){
 
   # sex acts balancing parameter
   if (fp$ss$MIX) {
-    mat[, (nparam-9+1):(nparam-9+1+3)] <- t(replicate(n, lgt_sample()))
-    mat[, (nparam-5+1):(nparam-5+1+3)] <- t(replicate(n, lgt_sample()))
-    mat[, nparam] <- rbeta(n, 2, 2)
+    mat[, (nparam-4+1):(nparam-4+1+1)] <- t(replicate(n, lgt_sample()))
+    mat[, (nparam-2+1):(nparam-2+1+1)] <- t(replicate(n, lgt_sample()))
   }
   
   return(mat)
@@ -570,9 +548,8 @@ ldsamp <- function(theta, fp){
   }
 
   if (fp$ss$MIX) {
-    lpr <- lpr + dbeta(tail(theta, 1), 2, 2, log=TRUE)
-    lpr <- lpr + lgt_prior(tail(theta, 9)[1:4])
-    lpr <- lpr + lgt_prior(tail(theta, 9)[5:8])
+    lpr <- lpr + lgt_prior(tail(theta, 4)[1:2])
+    lpr <- lpr + lgt_prior(tail(theta, 4)[3:4])
   }
 
   return(lpr)

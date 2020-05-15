@@ -67,10 +67,10 @@ epp_optim <- function(epp=FALSE, fp, likdat, control_optim, B0, B.re, doParallel
   .control.optim <- modifyList(.control.optim, list(fp = fp, likdat = likdat))
   opt = do.call("optim", .control.optim)
   if (fp$ss$MIX) {
-    fp$balancing <- tail(opt$par, 1)
+    fp$balancing <- 0.5
     fp$fage <- cbind(
-      lgt_(15:80, tail(opt$par, 9)[1:4]),
-      lgt_(15:80, tail(opt$par, 9)[5:8])
+      lgt2p(15:80, tail(opt$par, 4)[1:2]),
+      lgt2p(15:80, tail(opt$par, 4)[3:4])
     )
   }
   opt$fp     = fp

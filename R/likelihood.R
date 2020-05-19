@@ -115,7 +115,14 @@ fnCreateParam <- function(theta, fp){
     param$frr_cd4 <- fp$frr_cd4 * exp(param$log_frr_adjust)
     param$frr_art <- fp$frr_art * exp(param$log_frr_adjust)
   }
-  
+
+  if(exists("fitincrr", where=fp)){
+    incrr_nparam <- getnparam_incrr(fp)
+    if(incrr_nparam) {
+      cols  <- (epp_nparam+fp$ancmod$nparam) + 1:incrr_nparam
+      param <- transf_incrr(theta[cols], param, fp)
+    }
+  }
 
   if (fp$ss$MIX) {
     param$balancing <- 0.5
@@ -325,6 +332,15 @@ lprior <- function(theta, fp){
     theta_anc <- theta[epp_nparam+1:fp$ancmod$nparam]
     lpr <- lpr + lprior_ancmod(theta_anc, fp$ancmod, fp$prior_args)
   }
+
+  if(exists("fitincrr", where=fp)){
+    incrr_nparam <- getnparam_incrr(fp)
+    if(incrr_nparam){
+      cols <- (epp_nparam+fp$ancmod$nparam) + 1:incrr_nparam
+      lpr <- lpr + lprior_incrr(theta[cols], fp)
+    }
+  }
+
   if (fp$ss$MIX) {
     lpr <- lpr + lgt_prior(tail(theta, 4)[1:2])
     lpr <- lpr + lgt_prior(tail(theta, 4)[3:4])
@@ -368,7 +384,11 @@ ll_all = function(theta, fp, likdat) {
 
   mod <- simmod(fp)
 
-  .anc = .ancrt = .hhs = .incid = .rprior = 0
+  .anc = .ancrt = .hhs = .incid = .rprior = .incpen = 0
+
+
+  # if (exists("fitincrr", where=fp) && fp$fitincrr==TRUE)
+  #   .incpen <- sum(dnorm(diff(fp$logincrr_age, differences=2), sd=fp$sigma_agepen, log=TRUE)) # not use of simmod?
 
   ## ANC likelihood
   if (exists("ancsite.dat", likdat))
@@ -415,7 +435,7 @@ ll_all = function(theta, fp, likdat) {
     }
   }
 
-  c(anc = .anc, ancrt = .ancrt, hhs = .hhs, incid = .incid, rprior = .rprior) 
+  c(anc = .anc, ancrt = .ancrt, hhs = .hhs, incid = .incid, rprior = .rprior, incpen = .incpen) 
 }
 
 
@@ -444,6 +464,9 @@ sample.prior <- function(n, fp){
     nparam <- epp_nparam + fp$ancmod$nparam
   else
     nparam <- epp_nparam
+
+  if(exists("fitincrr", where=fp)) 
+    nparam <- nparam + getnparam_incrr(fp)
 
   if (fp$ss$MIX)
     nparam <- nparam + 4
@@ -487,6 +510,15 @@ sample.prior <- function(n, fp){
   if (exists("ancmod", fp) && fp$ancmod$nparam > 0)
     mat[ , epp_nparam + 1:fp$ancmod$nparam] <- sample_prior_ancmod(n, fp$ancmod, fp$prior_args)
 
+  if(exists("fitincrr", where=fp)){
+    incrr_nparam <- getnparam_incrr(fp)
+    if (incrr_nparam) {
+      cols <- (epp_nparam+fp$ancmod$nparam) + 1:incrr_nparam
+      mat[, cols] <- sample_incrr(n, fp)
+    } 
+  }
+  # Need to get rid of index
+  # 
   # sex acts balancing parameter
   if (fp$ss$MIX) {
     mat[, (nparam-4+1):(nparam-4+1+1)] <- t(replicate(n, lgt_sample()))
@@ -546,6 +578,14 @@ ldsamp <- function(theta, fp){
   if (exists("ancmod", fp) && fp$ancmod$nparam > 0) {
     theta_anc <- theta[epp_nparam+1:fp$ancmod$nparam]
     lpr <- lpr + lprior_ancmod(theta_anc, fp$ancmod, fp$prior_args)
+  }
+
+  if(exists("fitincrr", where=fp)){
+    incrr_nparam <- getnparam_incrr(fp)
+    if(incrr_nparam){
+      cols <- (epp_nparam+fp$ancmod$nparam) + 1:incrr_nparam
+      lpr <- lpr + lprior_incrr(theta[cols], fp)
+    }
   }
 
   if (fp$ss$MIX) {

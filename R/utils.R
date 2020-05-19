@@ -91,9 +91,10 @@ prepare_fp_for_Cpp <- function(fp, MODEL=1L, MIX=FALSE) {
     if (is.null(fp$balancing)) {
         fp$balancing <- .5 # for C++ read, not doing anything
     }
-    if (is.null(fp$fage)) {
+    if (is.null(fp$fage))
         fp$fage <- matrix(1, 1, 2) # for C++ read, not doing anything
-    }
+    if (is.null(fp$est_pcr))
+        fp$est_pcr <- matrix(1, 1, 2) # for C++ read, not doing anything
     fp
 }
 # Converting prior assumption to parameter boundary for DE

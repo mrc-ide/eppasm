@@ -26,7 +26,7 @@ simmod.specfp <- function(fp) {
     fp$mixmat <- readRDS(system.file("extdata", "est_mixmat.rds", package="eppasm"))[[1]]
     message('using a random mixing matrix')
   }
-  if (!exists("est_pcr", where=fp)) {
+  if (MIX && !exists("est_pcr", where=fp)) {
     fp$est_pcr <- readRDS(system.file("extdata", "est_pcr.rds", package="eppasm"))[[1]]
   }
   if (!exists("est_senesence", where=fp)) {

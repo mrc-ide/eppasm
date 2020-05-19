@@ -66,13 +66,6 @@ epp_optim <- function(epp=FALSE, fp, likdat, control_optim, B0, B.re, doParallel
   .control.optim$control$ndeps <- rep(1e-4, length(.control.optim$par))
   .control.optim <- modifyList(.control.optim, list(fp = fp, likdat = likdat))
   opt = do.call("optim", .control.optim)
-  if (fp$ss$MIX) {
-    fp$balancing <- 0.5
-    fp$fage <- cbind(
-      lgt2p(15:80, tail(opt$par, 4)[1:2]),
-      lgt2p(15:80, tail(opt$par, 4)[3:4])
-    )
-  }
   opt$fp     = fp
   opt$likdat = likdat
   opt$param  = fnCreateParam(opt$par, fp)
@@ -121,8 +114,6 @@ epp_DE <- function(epp, fp, likdat, control_DE, doParallel) {
     fp = fp, likdat = likdat, control= .control.DE)
   o$par    = fit$optim$bestmem
   o$fit    = fit
-  if (fp$ss$MIX)
-    fp$balancing = tail(o$par, 1)
   o$fp     = fp
   o$likdat = likdat
   o$ctrl   = .control.DE

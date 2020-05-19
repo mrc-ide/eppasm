@@ -124,14 +124,6 @@ fnCreateParam <- function(theta, fp){
     }
   }
 
-  if (fp$ss$MIX) {
-    param$balancing <- 0.5
-    param$fage <- cbind(
-      lgt2p(15:80, tail(theta, 4)[1:2]),
-      lgt2p(15:80, tail(theta, 4)[3:4])
-    )
-  }
-
   return(param)
 }
 
@@ -341,11 +333,6 @@ lprior <- function(theta, fp){
     }
   }
 
-  if (fp$ss$MIX) {
-    lpr <- lpr + lgt_prior(tail(theta, 4)[1:2])
-    lpr <- lpr + lgt_prior(tail(theta, 4)[3:4])
-  }
-
   return(lpr)
 }
 
@@ -467,9 +454,6 @@ sample.prior <- function(n, fp){
 
   if(exists("fitincrr", where=fp)) 
     nparam <- nparam + getnparam_incrr(fp)
-
-  if (fp$ss$MIX)
-    nparam <- nparam + 4
   
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
@@ -518,12 +502,6 @@ sample.prior <- function(n, fp){
     } 
   }
   # Need to get rid of index
-  # 
-  # sex acts balancing parameter
-  if (fp$ss$MIX) {
-    mat[, (nparam-4+1):(nparam-4+1+1)] <- t(replicate(n, lgt_sample()))
-    mat[, (nparam-2+1):(nparam-2+1+1)] <- t(replicate(n, lgt_sample()))
-  }
   
   return(mat)
 }
@@ -586,11 +564,6 @@ ldsamp <- function(theta, fp){
       cols <- (epp_nparam+fp$ancmod$nparam) + 1:incrr_nparam
       lpr <- lpr + lprior_incrr(theta[cols], fp)
     }
-  }
-
-  if (fp$ss$MIX) {
-    lpr <- lpr + lgt_prior(tail(theta, 4)[1:2])
-    lpr <- lpr + lgt_prior(tail(theta, 4)[3:4])
   }
 
   return(lpr)

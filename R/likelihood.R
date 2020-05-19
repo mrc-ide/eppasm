@@ -116,6 +116,15 @@ fnCreateParam <- function(theta, fp){
     param$frr_art <- fp$frr_art * exp(param$log_frr_adjust)
   }
   
+
+  if (fp$ss$MIX) {
+    param$balancing <- 0.5
+    param$fage <- cbind(
+      lgt2p(15:80, tail(theta, 4)[1:2]),
+      lgt2p(15:80, tail(theta, 4)[3:4])
+    )
+  }
+
   return(param)
 }
 
@@ -346,20 +355,12 @@ lgt_sample <- function() {
 #' 
 #' @importFrom stats aggregate approx cov cov.wt density dexp dlnorm dnorm dunif ecdf mahalanobis median model.matrix na.omit optim optimHess pnorm qnorm quantile relevel rexp rgamma rnorm runif sd setNames update var
 ll_all = function(theta, fp, likdat) {
+
   theta.last <<- theta
 
   nparam <- length(theta)
   
-  if (fp$ss$MIX) {
-    fp$fage <- cbind(
-      lgt2p(15:80, tail(theta, 4)[1:2]),
-      lgt2p(15:80, tail(theta, 4)[3:4])
-    )
-    fp$balancing <- 0.5
-    fp <- update(fp, list=fnCreateParam(theta[1:(nparam-4)], fp))
-  } else {
-    fp <- update(fp, list=fnCreateParam(theta, fp))
-  }
+  fp <- update(fp, list=fnCreateParam(theta, fp))
 
   if (fp$eppmod == "rspline")
     if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) 

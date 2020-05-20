@@ -3,10 +3,7 @@
 void Model::initiate() {
   pop.initiate(p, s);
   pop.entrant_art_.resize(s.NG * s.pDS);
-  hivpop.cd4_mort_ = p.nh.cd4_mort; // moved from scale_cd4_mort, do it once
-  if (p.ic.eppmod != 1) // mvoed from update_rvec, do this once
-    for (int i = 0; i < s.n_steps; ++i)
-      pop.rvec[i] = p.ic.rvec[i];
+  hivpop.cd4_mort_ = p.nh.cd4_mort;
 }
 
 void Model::update_views() {

@@ -8,7 +8,7 @@ void popC::initiate (const Parameters& p, const StateSpace& s) {
 
   birthslag = p.dm.birthslag;
 
-  if (p.ic.eppmod == 0)
+  if (p.ic.eppmod != 1)
     for (int i = 0; i < s.n_steps; ++i)
       rvec[i] = p.ic.rvec[i];
 

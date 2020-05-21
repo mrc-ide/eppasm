@@ -588,7 +588,7 @@ likelihood <- function(theta, fp, likdat, log=FALSE, doParallel=FALSE) {
     if (!.Platform$OS.type=='unix' | !doParallel) {
       lval <- unlist(lapply(theta_id, ll_fn))
     } else {
-      n_cores = max(floor(parallel::detectCores()/2), 1)
+      n_cores = max(parallel::detectCores()-2, 1)
       # cat('calculate ll on', n_cores, 'cores)\n')
       lval = unlist(parallel::mclapply(theta_id, ll_fn, mc.cores = n_cores))
     }

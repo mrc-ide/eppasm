@@ -151,7 +151,7 @@ StateSpace::StateSpace(const SEXP& fp) :
   DT             (*REAL(get_value(fp_ss, "DT"))),
   pDB            (*INTEGER(get_value(fp_ss, "pDB"))),
   hDB            (pDB),
-  n_steps        ((PROJ_YEARS-1) * steps_per_year),
+  n_steps        (*INTEGER(get_value(fp, "n_steps"))),
   tARTstart      (*INTEGER(get_value(fp, "tARTstart"))),
   p_fert_        (INTEGER(get_value(fp_ss, "p_fert_idx")), get_dim_1D(fp_ss, "p_fert_idx")),
   p_age15to49_   (INTEGER(get_value(fp_ss, "p_age15to49_idx")), get_dim_1D(fp_ss, "p_age15to49_idx")),

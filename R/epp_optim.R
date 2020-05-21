@@ -8,8 +8,10 @@ prepare_fp_for_fitmod <- function(epp, fp, likdat) {
       fp$proj.steps <- seq(fp$ss$proj_start+0.5,
                            fp$ss$proj_start-1+fp$SIM_YEARS+0.5, 
                            by = 1/fp$ss$hiv_steps_per_year)
+      fp$n_steps <- length(fp$proj.steps)
     } else {
       fp$SIM_YEARS <- fp$ss$PROJ_YEARS
+      fp$n_steps <- fp$SIM_YEARS * fp$ss$hiv_steps_per_year
     }
 
     ## Prepare the EPP model

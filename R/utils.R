@@ -60,6 +60,14 @@ prepare_fp_for_Cpp <- function(fp, MODEL=1L, MIX=FALSE) {
         names(fp$rt) <- gsub('\\.', '_', names(fp$rt))
     if (!exists("DT", where=fp))
         fp$ss$DT <- 1 / fp$ss$hiv_steps_per_year
+    if (!exists("n_steps", where=fp)) {
+        if(fp$eppmod %in% c("logrw", "rhybrid")) {
+          fp$n_steps <- length(fp$proj_steps)
+        } else {
+          fp$n_steps <- fp$SIM_YEARS * fp$ss$hiv_steps_per_year
+        }        
+    }
+    
     if ( is.integer(fp$ss$time_epi_start) )
         fp$ss$time_epi_start <- as.numeric(fp$ss$time_epi_start)
     fp$incidmodInt <- match(fp$incidmod, c("eppspectrum"))-1L

@@ -306,7 +306,7 @@ void popC::save_prev_n_inc (Views& v, const StateSpace& s) {
       for (int ds = 0; ds < s.pDS; ds++)
         everyone_now += v.now_pop[ds][sex][age];
       n_positive += v.now_pop[s.P][sex][age]; // + included virgin positive
-      s_previous += active_last_year_[s.N][sex][age]; // susceptible -virgin
+      s_previous += v.pre_pop[s.N][sex][age]; // susceptible including virgin
     }
   prev15to49[s.year] = n_positive / everyone_now;
   incid15to49[s.year] /= s_previous;

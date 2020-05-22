@@ -352,9 +352,9 @@ save_prev_n_inc = function() {
                           sum(data[p.age15to49.idx,,         , year])
     update_active_pop_to(year-1)
     incid15to49[year] <<- incid15to49[year] /
-                          sum(data_active[p.age15to49.idx,,hivn.idx])
+                          sum(data[p.age15to49.idx,,hivn.idx,year-1])
     prev[year]  <<- sum(data[,,hivp.idx,year]) / sum(data[,,,year])
-    incid[year] <<- incid15to49[year] / sum(data_active[,,hivn.idx]) # TODO:
+    incid[year] <<- incid15to49[year] / sum(data[,,hivn.idx,year-1])
 }, 
 
 calc_rtrend_rt = function(ts, time_step) {

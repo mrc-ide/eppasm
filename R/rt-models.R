@@ -177,7 +177,7 @@ extend_projection <- function(fit, proj_years) {
   } else {
     warning("already specified length, added rw_sigma only")
   }
-
+  fpnew$n_steps <- length(fpnew$proj.steps)
   fit$fp <- fpnew
 
   return(fit)

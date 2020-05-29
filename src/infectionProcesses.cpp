@@ -212,11 +212,8 @@ void popC::infect_mix (hivC& hivpop, artC& artpop, int ii, Views& v, const Param
       n_f_active_negative[c][r] = nc_m_adj[r][c] * prop_n_f[r];
     }
   boost2D art_cov(extents[s.NG][s.pAG]);
-  zeroing(art_cov);
-  if (s.year >= s.tARTstart-1) {
+  if (s.year >= s.tARTstart-1)
     art_cov = age_sex_cov(hivpop, artpop, v, p, s);
-    replace_elem_with(art_cov, 1, 1);
-  }
 
   int ts = (s.year-1)/s.DT + ii;
   boost2D transm_prev(extents[s.NG][s.pAG]);

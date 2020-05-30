@@ -156,3 +156,21 @@ void replace_elem_with (K& A, double B = 1, double C = 1) {
   for (auto i = A.data(); i < (A.data() + A.num_elements()); ++i)
     if (*i > B) *i = C;
 }
+
+template <class K>
+boost1D rowSums (K& A) { // extend to 3D/4D?
+  boost1D rowsum(extents[A.shape()[1]]);
+  for (int irow = 0; irow < A.shape()[1]; ++irow)
+    for (int icol = 0; icol < A.shape()[0]; ++icol)
+        rowsum[irow] += A[icol][irow];
+  return rowsum;
+}
+
+template <class K>
+boost1D colSums (K& A) { // extend to 3D/4D?
+  boost1D colsum(extents[A.shape()[0]]);
+  for (int icol = 0; icol < A.shape()[0]; ++icol)
+    for (int irow = 0; irow < A.shape()[1]; ++irow)
+        colsum[icol] += A[icol][irow];
+  return colsum;
+}

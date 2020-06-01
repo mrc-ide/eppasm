@@ -79,6 +79,9 @@ incrr_50plus_logdiff <- cbind(male   = log(0.493510) - log(c(0.358980, 0.282400,
 
 ## Beers coefficient matrix
 beers_Amat <- create_beers(17)[16:81, 4:17]
+beers_Amat[,] <- 0
+irc <- cbind(1:66, c(rep(1:13, each=5), 14))
+beers_Amat[irc] <- 1
 
 getnparam_incrr <- function(fp){
   value <- switch(as.character(fp$fitincrr),

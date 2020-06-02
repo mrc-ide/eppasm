@@ -80,75 +80,29 @@ void popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step,
 
   // Incidence: male = negative / female negative * sexratio + male negative; 
   //          female = male * sexratio
-  if (s.MODEL==1) {
-    double n_neg_m = 0, n_neg_f = 0;
+  double n_neg_m = 0, n_neg_f = 0;
+  for (int age = p_lo; age < s.pAG_1549; age++) {
+    n_neg_m += data_active[s.N][s.M][age];
+    n_neg_f += data_active[s.N][s.F][age];
+  }
+  double adj_sex = (n_neg_m + n_neg_f) / (n_neg_m + n_neg_f * p.ic.incrr_sex[s.year]);
+  double sex_inc[2] = {inc_rate * adj_sex, inc_rate * adj_sex * p.ic.incrr_sex[s.year]};
+  // New infections distributed by age: ratio age_i/ 25-29 age
+  for (int sex = 0; sex < s.NG; sex++) {
+    double n_neg = 0, n_neg_rr = 0, adj_age;
     for (int age = p_lo; age < s.pAG_1549; age++) {
-      n_neg_m += data_active[s.N][s.M][age];
-      n_neg_f += data_active[s.N][s.F][age];
+      n_neg += data_active[s.N][sex][age]; 
+      n_neg_rr += p.ic.incrr_age[s.year][sex][age] * data_active[s.N][sex][age];
     }
-    double adj_sex = (n_neg_m + n_neg_f) / (n_neg_m + n_neg_f * p.ic.incrr_sex[s.year]);
-    double sex_inc[2] = {inc_rate * adj_sex, inc_rate * adj_sex * p.ic.incrr_sex[s.year]};
-    // New infections distributed by age: ratio age_i/ 25-29 age
-    for (int sex = 0; sex < s.NG; sex++) {
-      double n_neg = 0, n_neg_rr = 0, adj_age;
-      for (int age = p_lo; age < s.pAG_1549; age++) {
-        n_neg += data_active[s.N][sex][age]; 
-        n_neg_rr += p.ic.incrr_age[s.year][sex][age] * data_active[s.N][sex][age];
-      }
-      adj_age = sex_inc[sex] / ( n_neg_rr / n_neg );
-      for (int age = 0; age < s.pAG; age++) {
-        if (sex == s.M) // age-specific incidence among circumcised men
-          adj_age *= (1 - p.ic.circ_incid_rr * p.ic.circ_prop[s.year][age]);
-        infections_[sex][age] = p.ic.incrr_age[s.year][sex][age] * adj_age * 
-          data_active[s.N][sex][age];
-      }
+    adj_age = sex_inc[sex] / ( n_neg_rr / n_neg );
+    for (int age = 0; age < s.pAG; age++) {
+      if (sex == s.M) // age-specific incidence among circumcised men
+        adj_age *= (1 - p.ic.circ_incid_rr * p.ic.circ_prop[s.year][age]);
+      infections_[sex][age] = p.ic.incrr_age[s.year][sex][age] * adj_age * 
+        data_active[s.N][sex][age];
     }
   }
 
-  if (s.MODEL==2) {
-    double S_F = .0, S_M = .0, H_M_minus = .0, H_F_minus = .0;
-    for (int age = p_lo; age < s.pAG_1549; age++) {
-      S_M += data_active[s.N][s.M][age];
-      S_F += data_active[s.N][s.F][age];
-      H_M_minus += v.now_pop[s.N][s.M][age];
-      H_F_minus += v.now_pop[s.N][s.F][age];
-    }
-    dvec sex_inc(2);
-    sex_inc[s.M] = (inc_rate * (S_M + S_F) * H_M_minus) /
-                   (S_M * (p.ic.incrr_sex[s.year] * H_F_minus + H_M_minus));
-    sex_inc[s.F] = sex_inc[s.M] * p.ic.incrr_sex[s.year] * S_M * H_F_minus / (S_F * H_M_minus);
-    
-    // adjust Incidence rate ratio by age
-    boost2D IR_tsa_hat(boost::extents[s.NG][s.pAG]);
-    for (int sex = 0; sex < s.NG; sex++)
-      for (int age = 0; age < s.pAG; age++)
-        IR_tsa_hat[sex][age] = p.ic.incrr_age[s.year][sex][age] * data_active[s.N][sex][age]/
-                               v.now_pop[s.N][sex][age];
-    boost2D incrr_adj(boost::extents[s.NG][s.pAG]);
-    for (int sex = 0; sex < s.NG; sex++)
-      for (int age = 0; age < s.pAG; age++) {
-        incrr_adj[sex][age] = pow(p.ic.incrr_age[s.year][sex][age], 2) * IR_tsa_hat[sex][9] /
-          (IR_tsa_hat[sex][age] * p.ic.incrr_age[s.year][sex][9]);
-        if (std::isnan(incrr_adj[sex][age]))
-          incrr_adj[sex][age] = .0;
-      }
-
-    // New infections distributed by age: ratio age_i/ 25-29 age
-    for (int sex = 0; sex < s.NG; sex++) {
-      double n_neg = 0, n_neg_rr = 0, adj_age;
-      for (int age = p_lo; age < s.pAG_1549; age++) {
-        n_neg += data_active[s.N][sex][age]; 
-        n_neg_rr += incrr_adj[sex][age] * data_active[s.N][sex][age];
-      }
-      adj_age = sex_inc[sex] / ( n_neg_rr / n_neg );
-      for (int age = 0; age < s.pAG; age++) {
-        if (sex == s.M) // age-specific incidence among circumcised men
-          adj_age *= (1 - p.ic.circ_incid_rr * p.ic.circ_prop[s.year][age]);
-        infections_[sex][age] = incrr_adj[sex][age] * adj_age * 
-          data_active[s.N][sex][age];
-      }
-    }
-  }
   // saving
   incrate15to49_ts[ts] = inc_rate;
   prev_last = (hivp_active + hivp_inactive) / (hivn_both + hivp_active + hivp_inactive);

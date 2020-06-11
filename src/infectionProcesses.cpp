@@ -111,10 +111,10 @@ void popC::infect_spec (const hivC& hivpop, const artC& artpop, int time_step,
 
 void popC::infect_mix (hivC& hivpop, artC& artpop, int ii, Views& v, const Parameters& p, const StateSpace& s) {
   update_active_pop_to(s.year, v, s);
-  for (int ds = 0; ds < s.pDS; ds++)
-    for (int sex = 0; sex < s.NG; sex++)
-      for (int age = 0; age < s.pAG; age++)
-        data_active[ds][sex][age] *= p.ic.est_senesence[sex][age];
+  // for (int ds = 0; ds < s.pDS; ds++)
+  //   for (int sex = 0; sex < s.NG; sex++)
+  //     for (int age = 0; age < s.pAG; age++)
+  //       data_active[ds][sex][age] *= p.ic.est_senesence[sex][age];
 
   dvec prop_n_m(s.pAG), prop_n_f(s.pAG);
 
@@ -128,10 +128,10 @@ void popC::infect_mix (hivC& hivpop, artC& artpop, int ii, Views& v, const Param
   boost3D actual_active = data_active;
 
   // number of sex acts
-  for (int ds = 0; ds < s.pDS; ds++)
-    for (int sex = 0; sex < s.NG; sex++)
-      for (int age = 0; age < s.pAG; age++)
-        data_active[ds][sex][age] *= (1 + p.ic.est_pcr[sex][age]);
+  // for (int ds = 0; ds < s.pDS; ds++)
+  //   for (int sex = 0; sex < s.NG; sex++)
+  //     for (int age = 0; age < s.pAG; age++)
+  //       data_active[ds][sex][age] *= (1 + p.ic.est_pcr[sex][age]);
 
   // balancing number of sex acts
   boost2D

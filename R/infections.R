@@ -5,14 +5,14 @@ infectFns <- c(
 infect_mix = function(hivpop, artpop, ii) {
     ts <- (year-2)/DT + ii
     update_active_pop_to(year)
-    data_active <<- sweepx(data_active, 1:2, p$est_senesence)
+    # data_active <<- sweepx(data_active, 1:2, p$est_senesence)
 
     actual_active <- data_active # at this point we have the "real" number of
                                  # people to calculate the prevalence; after adjustment
                                  # and balancing, the prev would not be correct
 
     # Partner change rate as a risk reduction
-    data_active <<- sweepx(data_active, 1:2, 1+p$est_pcr)
+    # data_active <<- sweepx(data_active, 1:2, 1+p$est_pcr)
 
     # balancing
     prop_n_m <- data_active[, m.idx, hivn.idx]/ rowSums(data_active[, m.idx, ])

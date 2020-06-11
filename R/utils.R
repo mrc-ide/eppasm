@@ -92,10 +92,10 @@ prepare_fp_for_Cpp <- function(fp, MODEL=1L, MIX=FALSE) {
     if (is.null(dim(fp$artmx_timerr))) { # repicate for 3 treatment durations
         fp$artmx_timerr <- matrix(rep(fp$artmx_timerr, 3), nrow=3, byrow=TRUE)
     }
-    if (fp$ss$MIX) { # scaled for sexual mixing model C++
-        max_by_year <- apply(fp$incrr_age, 3, function(x) apply(x, 2, max))
-        fp$incrr_age <- sweep(fp$incrr_age, 2:3, max_by_year, "/")
-    }
+    # if (fp$ss$MIX) { # scaled for sexual mixing model C++
+    #     max_by_year <- apply(fp$incrr_age, 3, function(x) apply(x, 2, max))
+    #     fp$incrr_age <- sweep(fp$incrr_age, 2:3, max_by_year, "/")
+    # }
     if (is.null(fp$balancing)) {
         fp$balancing <- .5 # for C++ read, not doing anything
     }

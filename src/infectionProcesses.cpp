@@ -184,12 +184,26 @@ void popC::infect_mix (hivC& hivpop, artC& artpop, int ii, Views& v, const Param
   multiply_with_inplace(transm_prev, rvec[ts]);
   add_to_each_inplace(transm_prev, w);
 
-  zeroing(infections_);
-  for (int am = 0; am < s.pAG; ++am) 
-    for (int af = 0; af < s.pAG; ++af) {
-      infections_[s.M][am] += n_m_active_negative[af][am] * transm_prev[s.F][af];
-      infections_[s.F][af] += n_f_active_negative[am][af] * transm_prev[s.M][am];
+  boost2D inc_m(extents[s.pAG][s.pAG]), inc_f(extents[s.pAG][s.pAG]);
+
+  // adjusted to IRRa
+  for (int r = 0; r < s.pAG; ++r)
+    for (int c = 0; c < s.pAG; ++c) {
+      inc_m[c][r] = n_m_active_negative[c][r] * transm_prev[s.F][c] * p.ic.incrr_age[s.year][s.M][r];
+      inc_f[c][r] = n_f_active_negative[c][r] * transm_prev[s.M][c] * p.ic.incrr_age[s.year][s.F][r];
     }
+
+  // adjusted to IRRs
+  double adj_sex = p.ic.incrr_sex[s.year] * sumArray(inc_m)/sumArray(inc_f);
+  if (std::isnan(adj_sex)) adj_sex = 1;
+  multiply_with_inplace(inc_f, adj_sex);
+
+  boost1D inc_mv = rowSums(inc_m), inc_fv = rowSums(inc_f);
+
+  for (int age = 0; age < s.pAG; ++age) {
+    infections_[s.M][age] = inc_mv[age];
+    infections_[s.F][age] = inc_fv[age];
+  }
 
   // prev15to49_ts_m should use this one! now just store as below
   boost2D n_pos = v.now_pop[ indices[s.P][_all][_all] ];

@@ -46,17 +46,21 @@ infect_mix = function(hivpop, artpop, ii) {
     w  <- p$iota * (p$proj.steps[ts] == p$tsEpidemicStart)
     transm_prev <- rvec[ts] * transm_prev + w
 
-    risk_m <- rowSums(sweepx(n_m_active_negative, 2, transm_prev[, f.idx]))
-    risk_f <- rowSums(sweepx(n_f_active_negative, 2, transm_prev[, m.idx]))
+    inc_m <- sweepx(n_m_active_negative, 2, transm_prev[, f.idx])
+    inc_m <- sweepx(inc_m, 1, p$incrr_age[, m.idx, year])
+    inc_f <- sweepx(n_f_active_negative, 2, transm_prev[, m.idx])
+    inc_f <- sweepx(inc_f, 1, p$incrr_age[, f.idx, year])
+    # adjusted sex
+    adj_sex <- p$incrr_sex[year] * sum(inc_m)/sum(inc_f)
+    if (is.na(adj_sex)) adj_sex <- 1
+    inc_f <- inc_f * adj_sex
 
     if (ii==10) {
-      WAIFW[,,m.idx,year] <<- 
-        sweepx(n_m_active_negative, 2, transm_prev[, f.idx])
-      WAIFW[,,f.idx,year] <<- 
-        sweepx(n_f_active_negative, 2, transm_prev[, m.idx])
+      WAIFW[,,m.idx,year] <<- inc_m
+      WAIFW[,,f.idx,year] <<- inc_f
     }
 
-    infections.ts <- cbind(risk_m, risk_f)
+    infections.ts <- cbind(rowSums(inc_m), rowSums(inc_f))
 
     incrate15to49_ts[,,ts] <<- transm_prev
     prev15to49_ts[ts] <<- prevlast <<- sum(data[,,hivp.idx,year])/sum(data[,,,year])
@@ -65,7 +69,7 @@ infect_mix = function(hivpop, artpop, ii) {
 
 infect_spec = function(hivpop, artpop, time_step) {
     ts    <- (year-2) / DT + time_step
-    dt_ii <- 1 - DT * (time_step - 1) # transition of population
+    dt_ii <- 1 - DT * (time_step - 1) # transition of population    
     update_active_pop_to(year)
   
     # counting all negative including virgin

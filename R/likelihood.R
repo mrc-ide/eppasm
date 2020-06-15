@@ -124,6 +124,10 @@ fnCreateParam <- function(theta, fp){
     }
   }
 
+  if (fp$ss$MIX) {
+    param$balancing <- tail(theta, 1)
+  }
+
   return(param)
 }
 
@@ -333,6 +337,10 @@ lprior <- function(theta, fp){
     }
   }
 
+  if (fp$ss$MIX) {
+    lpr <- lpr + dbeta(tail(theta, 1), 2, 2, log=TRUE)
+  }
+
   return(lpr)
 }
 
@@ -453,6 +461,9 @@ sample.prior <- function(n, fp){
 
   if(exists("fitincrr", where=fp)) 
     nparam <- nparam + getnparam_incrr(fp)
+
+  if(fp$ss$MIX) 
+    nparam <- nparam + 1
   
   ## Create matrix for storing samples
   mat <- matrix(NA, n, nparam)
@@ -501,6 +512,9 @@ sample.prior <- function(n, fp){
     } 
   }
   # Need to get rid of index
+  if (fp$ss$MIX) {
+    mat[, nparam] <- rbeta(n, 2, 2)
+  }
   
   return(mat)
 }
@@ -563,6 +577,10 @@ ldsamp <- function(theta, fp){
       cols <- (epp_nparam+fp$ancmod$nparam) + 1:incrr_nparam
       lpr <- lpr + lprior_incrr(theta[cols], fp)
     }
+  }
+
+  if (fp$ss$MIX) {
+    lpr <- lpr + dbeta(tail(theta, 1), 2, 2, log=TRUE)
   }
 
   return(lpr)

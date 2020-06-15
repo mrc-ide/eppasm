@@ -47,9 +47,8 @@ infect_mix = function(hivpop, artpop, ii) {
     transm_prev <- rvec[ts] * transm_prev + w
 
     inc_m <- sweepx(n_m_active_negative, 2, transm_prev[, f.idx])
-    inc_m <- sweepx(inc_m, 1, p$incrr_age[, m.idx, year])
     inc_f <- sweepx(n_f_active_negative, 2, transm_prev[, m.idx])
-    inc_f <- sweepx(inc_f, 1, p$incrr_age[, f.idx, year])
+    
     # adjusted sex
     adj_sex <- p$incrr_sex[year] * sum(inc_m)/sum(inc_f)
     if (is.na(adj_sex)) adj_sex <- 1

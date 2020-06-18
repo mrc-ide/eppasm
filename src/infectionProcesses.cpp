@@ -171,32 +171,31 @@ void popC::infect_mix (hivC& hivpop, artC& artpop, int ii, Views& v, const Param
 
   int ts = (s.year-1)/s.DT + ii;
 
-  double all_pop, hiv_treated, hiv_not_treated;
-  all_pop = sumArray(actual_active);
-  for (int sex = 0; sex < s.NG; sex++)
+  boost1D transm_prev(extents[s.NG]);
+  for (int sex = 0; sex < s.NG; sex++) {
+    double all_pop=0, hiv_treated=0, hiv_not_treated=0;
     for (int age = 0; age < s.pAG; age++) {
-      hiv_treated += data_active[s.P][sex][age] * art_cov[sex][age];
+      hiv_treated     += data_active[s.P][sex][age] * art_cov[sex][age];
       hiv_not_treated += data_active[s.P][sex][age] * (1 - art_cov[sex][age]);
-      }
-  double transm_prev = (hiv_not_treated + hiv_treated * (1 - p.ic.relinfectART)) / all_pop;
+      all_pop += actual_active[s.N][sex][age] + actual_active[s.P][sex][age];
+    }
+    transm_prev[sex] = (hiv_not_treated + hiv_treated * (1 - p.ic.relinfectART)) / all_pop;
+  }
 
   //+intervention effects and time epidemic start
   double w = (p.ic.proj_steps[ts] == p.ic.tsEpidemicStart) ? p.ic.iota : 0.0;
-  transm_prev = transm_prev * rvec[ts] + w;
+  multiply_with_inplace(transm_prev, rvec[ts]);
+  transm_prev[s.F] *= p.ic.incrr_sex[s.year];
+  add_to_each_inplace(transm_prev, w);
 
   boost2D inc_m(extents[s.pAG][s.pAG]), inc_f(extents[s.pAG][s.pAG]);
 
   // adjusted to IRRa
   for (int r = 0; r < s.pAG; ++r)
     for (int c = 0; c < s.pAG; ++c) {
-      inc_m[c][r] = n_m_active_negative[c][r] * transm_prev * p.ic.incrr_age[s.year][s.M][r];
-      inc_f[c][r] = n_f_active_negative[c][r] * transm_prev * p.ic.incrr_age[s.year][s.F][r];
+      inc_m[c][r] = n_m_active_negative[c][r] * transm_prev[s.F] * p.ic.incrr_age[s.year][s.M][r];
+      inc_f[c][r] = n_f_active_negative[c][r] * transm_prev[s.M] * p.ic.incrr_age[s.year][s.F][r];
     }
-
-  // adjusted to IRRs
-  double adj_sex = p.ic.incrr_sex[s.year] * sumArray(inc_m)/sumArray(inc_f);
-  if (std::isnan(adj_sex)) adj_sex = 1;
-  multiply_with_inplace(inc_f, adj_sex);
 
   boost1D inc_mv = rowSums(inc_m), inc_fv = rowSums(inc_f);
 

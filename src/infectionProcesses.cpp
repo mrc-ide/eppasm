@@ -170,27 +170,27 @@ void popC::infect_mix (hivC& hivpop, artC& artpop, int ii, Views& v, const Param
     art_cov = age_sex_cov(hivpop, artpop, v, p, s);
 
   int ts = (s.year-1)/s.DT + ii;
-  boost2D transm_prev(extents[s.NG][s.pAG]);
-  double N_hivp;
+
+  double all_pop, hiv_treated, hiv_not_treated;
+  all_pop = sumArray(actual_active);
   for (int sex = 0; sex < s.NG; sex++)
     for (int age = 0; age < s.pAG; age++) {
-      N_hivp = data_active[s.P][sex][age];
-      transm_prev[sex][age] = ((N_hivp * (1 - art_cov[sex][age])) + 
-        (N_hivp * art_cov[sex][age] * (1 - p.ic.relinfectART)))/
-        (actual_active[s.N][sex][age] + actual_active[s.P][sex][age]);
+      hiv_treated += data_active[s.P][sex][age] * art_cov[sex][age];
+      hiv_not_treated += data_active[s.P][sex][age] * (1 - art_cov[sex][age]);
       }
+  double transm_prev = (hiv_not_treated + hiv_treated * (1 - p.ic.relinfectART)) / all_pop;
+
   //+intervention effects and time epidemic start
   double w = (p.ic.proj_steps[ts] == p.ic.tsEpidemicStart) ? p.ic.iota : 0.0;
-  multiply_with_inplace(transm_prev, rvec[ts]);
-  add_to_each_inplace(transm_prev, w);
+  transm_prev = transm_prev * rvec[ts] + w;
 
   boost2D inc_m(extents[s.pAG][s.pAG]), inc_f(extents[s.pAG][s.pAG]);
 
   // adjusted to IRRa
   for (int r = 0; r < s.pAG; ++r)
     for (int c = 0; c < s.pAG; ++c) {
-      inc_m[c][r] = n_m_active_negative[c][r] * transm_prev[s.F][c] * p.ic.incrr_age[s.year][s.M][r];
-      inc_f[c][r] = n_f_active_negative[c][r] * transm_prev[s.M][c] * p.ic.incrr_age[s.year][s.F][r];
+      inc_m[c][r] = n_m_active_negative[c][r] * transm_prev * p.ic.incrr_age[s.year][s.M][r];
+      inc_f[c][r] = n_f_active_negative[c][r] * transm_prev * p.ic.incrr_age[s.year][s.F][r];
     }
 
   // adjusted to IRRs

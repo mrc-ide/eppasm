@@ -40,15 +40,15 @@ infect_mix = function(hivpop, artpop, ii) {
 
     hiv_treated       <- data_active[,,hivp.idx] * art_cov
     hiv_not_treated   <- data_active[,,hivp.idx] - hiv_treated
-    transm_prev <- (hiv_not_treated + hiv_treated * (1 - p$relinfectART)) / 
-                    rowSums(actual_active,,2) # prevalence adjusted for art
+    transm_prev <- (sum(hiv_not_treated) + sum(hiv_treated) * (1 - p$relinfectART)) / 
+                    sum(rowSums(actual_active,,2)) # prevalence adjusted for art
     # +intervention effects and time epidemic start
     w  <- p$iota * (p$proj.steps[ts] == p$tsEpidemicStart)
     transm_prev <- rvec[ts] * transm_prev + w
 
-    inc_m <- sweepx(n_m_active_negative, 2, transm_prev[, f.idx])
+    inc_m <- sweepx(n_m_active_negative, 2, transm_prev)
     inc_m <- sweepx(inc_m, 1, p$incrr_age[, m.idx, year])
-    inc_f <- sweepx(n_f_active_negative, 2, transm_prev[, m.idx])
+    inc_f <- sweepx(n_f_active_negative, 2, transm_prev)
     inc_f <- sweepx(inc_f, 1, p$incrr_age[, f.idx, year])
     # adjusted sex
     adj_sex <- p$incrr_sex[year] * sum(inc_m)/sum(inc_f)
@@ -62,7 +62,7 @@ infect_mix = function(hivpop, artpop, ii) {
 
     infections.ts <- cbind(rowSums(inc_m), rowSums(inc_f))
 
-    incrate15to49_ts[,,ts] <<- transm_prev
+    # incrate15to49_ts[,,ts] <<- transm_prev
     prev15to49_ts[ts] <<- prevlast <<- sum(data[,,hivp.idx,year])/sum(data[,,,year])
     infections.ts
 },

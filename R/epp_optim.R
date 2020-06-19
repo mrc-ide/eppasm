@@ -31,7 +31,8 @@ prepare_fp_for_fitmod <- function(epp, fp, likdat) {
     fp$logitiota <- TRUE
 
     ## Prepare the incidence model
-    fp$incidmod <- "eppspectrum"
+    if (is.null(fp$incidmod))
+      fp$incidmod <- "eppspectrum"
     fp
 }
 

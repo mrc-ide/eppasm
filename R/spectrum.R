@@ -745,3 +745,39 @@ artcov15plus.spec <- function(mod, sex=1:2) {
 }
 
 age15pop.spec <- function(mod) {colSums(mod[1,,,],,2)}
+
+#' Transmission rate 
+#' 
+#' Computed as the number of new infection in one sex divivded by the number of infected cases in the opposite sex 
+#' 
+#'@param x simmod output
+#'@param year_last last year of outputs
+fnTR <- function(x, direction=c('F2M', 'M2F'), ratio=FALSE, year_last=48) {
+  # number of incidence in male /  number of infected female
+  F2M <- colSums(attr(x, 'infections')[,1,3:year_last]) / colSums(x[,2,2,2:(year_last-1)])
+  # number of incidence in female /  number of infected male
+  M2F <- colSums(attr(x, 'infections')[,2,3:year_last]) / colSums(x[,1,2,2:(year_last-1)])
+  if (ratio) {
+    message('Male/Female ratio')
+    return(M2F/F2M)
+  } else
+    return(data.frame(M2F=M2F, F2M=F2M))
+}
+
+#' Incidence rate 
+#' 
+#' Computed as the number of new infection in one sex divivded by the number of infected cases in the opposite sex 
+#' 
+#'@param x simmod output
+#'@param year_last last year of outputs
+fnIR <- function(x, ratio=FALSE, year_last=48) {
+  # number of incidence in male /  number of suseptible last year
+  M <- colSums(attr(x, 'infections')[,1,3:year_last]) / colSums(x[,1,1,2:(year_last-1)])
+  # number of incidence in female /  number of suseptible last year
+  F <- colSums(attr(x, 'infections')[,2,3:year_last]) / colSums(x[,2,1,2:(year_last-1)])
+  if (ratio) {
+    message('Male/Female Ratio')
+    return(M/F)
+  } else
+    return(data.frame(M=M, F=F))
+}

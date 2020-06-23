@@ -186,8 +186,8 @@ void popC::infect_mix (hivC& hivpop, artC& artpop, int ii, Views& v, const Param
   double w = (p.ic.proj_steps[ts] == p.ic.tsEpidemicStart) ? p.ic.iota : 0.0;
   multiply_with_inplace(transm_prev, rvec[ts]);
   transm_prev[s.M] *= p.ic.incrr_sex[s.year];
-  transm_prev[s.M] += w * p.ic.incrr_sex[s.year];
-  transm_prev[s.F] += w;
+  transm_prev[s.M] += w;
+  transm_prev[s.F] += w * pow(p.ic.incrr_sex[s.year], 0.5);
 
   boost2D inc_m(extents[s.pAG][s.pAG]), inc_f(extents[s.pAG][s.pAG]);
 

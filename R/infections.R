@@ -43,7 +43,8 @@ infect_mix = function(hivpop, artpop, ii) {
                     (colSums(rowSums(actual_active,,2))) # prevalence adjusted for art
     # +intervention effects and time epidemic start
     w  <- p$iota * (p$proj.steps[ts] == p$tsEpidemicStart)
-    transm_prev <- rvec[ts] * transm_prev * c(p$incrr_sex[year], 1) + w * c(p$incrr_sex[year], 1)
+    transm_prev <- rvec[ts] * transm_prev * c(p$incrr_sex[year], 1) + w * c(1, sqrt(p$incrr_sex[year]))
+    # transm_prev <- rvec[ts] * transm_prev * c(p$incrr_sex[year], 1) + w * c(p$incrr_sex[year], 1)
 
     inc_m <- n_m_active_negative * transm_prev[f.idx]
     inc_m <- sweepx(inc_m, 1, p$incrr_age[, m.idx, year])

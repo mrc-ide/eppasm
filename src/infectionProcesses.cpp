@@ -171,31 +171,36 @@ void popC::infect_mix (hivC& hivpop, artC& artpop, int ii, Views& v, const Param
 
   int ts = (s.year-1)/s.DT + ii;
 
-  boost1D transm_prev(extents[s.NG]);
+  boost2D transm_prev(extents[s.NG][s.pAG]);
+  double all_pop=0, hiv_treated=0, hiv_not_treated=0;
   for (int sex = 0; sex < s.NG; sex++) {
-    double all_pop=0, hiv_treated=0, hiv_not_treated=0;
     for (int age = 0; age < s.pAG; age++) {
-      hiv_treated     += data_active[s.P][sex][age] * art_cov[sex][age];
-      hiv_not_treated += data_active[s.P][sex][age] * (1 - art_cov[sex][age]);
-      all_pop += actual_active[s.N][sex][age] + actual_active[s.P][sex][age];
+      hiv_treated     = data_active[s.P][sex][age] * art_cov[sex][age];
+      hiv_not_treated = data_active[s.P][sex][age] * (1 - art_cov[sex][age]);
+      all_pop         = actual_active[s.N][sex][age] + actual_active[s.P][sex][age];
+      transm_prev[sex][age] = (hiv_not_treated + hiv_treated * (1 - p.ic.relinfectART)) / all_pop;
     }
-    transm_prev[sex] = (hiv_not_treated + hiv_treated * (1 - p.ic.relinfectART)) / all_pop;
   }
 
   //+intervention effects and time epidemic start
-  double w = (p.ic.proj_steps[ts] == p.ic.tsEpidemicStart) ? p.ic.iota : 0.0;
+  if (p.ic.proj_steps[ts] == p.ic.tsEpidemicStart) {
+    for (int age = 0; age < s.pAG; ++age) {
+      transm_prev[s.M][age] += p.ic.iota;
+      transm_prev[s.F][age] += p.ic.iota * pow(p.ic.incrr_sex[s.year], 0.5);
+    }    
+  }
+
   multiply_with_inplace(transm_prev, rvec[ts]);
-  transm_prev[s.M] *= p.ic.incrr_sex[s.year];
-  transm_prev[s.M] += w * p.ic.incrr_sex[s.year];
-  transm_prev[s.F] += w;
+  for (int age = 0; age < s.pAG; ++age)
+    transm_prev[s.M][age] *= p.ic.incrr_sex[s.year];
 
   boost2D inc_m(extents[s.pAG][s.pAG]), inc_f(extents[s.pAG][s.pAG]);
 
   // adjusted to IRRa
   for (int r = 0; r < s.pAG; ++r)
     for (int c = 0; c < s.pAG; ++c) {
-      inc_m[c][r] = n_m_active_negative[c][r] * transm_prev[s.F] * p.ic.incrr_age[s.year][s.M][r];
-      inc_f[c][r] = n_f_active_negative[c][r] * transm_prev[s.M] * p.ic.incrr_age[s.year][s.F][r];
+      inc_m[c][r] = n_m_active_negative[c][r] * transm_prev[s.F][c] * p.ic.incrr_age[s.year][s.M][r];
+      inc_f[c][r] = n_f_active_negative[c][r] * transm_prev[s.M][c] * p.ic.incrr_age[s.year][s.F][r];
     }
 
   boost1D inc_mv = rowSums(inc_m), inc_fv = rowSums(inc_f);
@@ -203,6 +208,12 @@ void popC::infect_mix (hivC& hivpop, artC& artpop, int ii, Views& v, const Param
   for (int age = 0; age < s.pAG; ++age) {
     infections_[s.M][age] = inc_mv[age];
     infections_[s.F][age] = inc_fv[age];
+  }
+
+  if (p.ic.proj_steps[ts] == p.ic.tsEpidemicStart) {
+    double ob = sumArray(infections_);
+    double ex = p.ic.iota * sumArray(v.now_pop);
+    multiply_with_inplace(infections_, ex/ob);
   }
 
   // prev15to49_ts_m should use this one! now just store as below

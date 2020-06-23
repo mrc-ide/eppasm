@@ -7,7 +7,7 @@ infect_mix = function(hivpop, artpop, ii) {
     update_active_pop_to(year)
     # data_active <<- sweepx(data_active, 1:2, p$est_senesence)
 
-    actual_active <- data_active # at this point we have the "real" number of
+    # actual_active <- data_active # at this point we have the "real" number of
                                  # people to calculate the prevalence; after adjustment
                                  # and balancing, the prev would not be correct
 
@@ -21,7 +21,7 @@ infect_mix = function(hivpop, artpop, ii) {
     # sweep over sexual mixing matrices
     nc_m <- sweepx(p$mixmat[,,m.idx], 1, rowSums(data_active[, m.idx, ]))
     nc_f <- sweepx(p$mixmat[,,f.idx], 1, rowSums(data_active[, f.idx, ]))
-    
+
     ratio_mf <- nc_m / t(nc_f)
 
     nc_m_adj <- nc_m * (ratio_mf - p$balancing * (ratio_mf - 1)) / ratio_mf
@@ -37,27 +37,27 @@ infect_mix = function(hivpop, artpop, ii) {
       art_cov <- art_/(art_+hiv_)
       art_cov <- sapply(1:2, function(x) rep(art_cov[, x], h.ag.span))
     }
-    hiv_treated       <- colSums(data_active[,,hivp.idx] * art_cov)
-    hiv_not_treated   <- colSums(data_active[,,hivp.idx]) - hiv_treated
+    hiv_treated       <- data_active[,,hivp.idx] * art_cov
+    hiv_not_treated   <- data_active[,,hivp.idx] - hiv_treated
     transm_prev <- (hiv_not_treated + hiv_treated * (1 - p$relinfectART)) / 
-                    (colSums(rowSums(actual_active,,2))) # prevalence adjusted for art
-    # +intervention effects and time epidemic start
-    w  <- p$iota * (p$proj.steps[ts] == p$tsEpidemicStart)
-    transm_prev <- rvec[ts] * transm_prev * c(p$incrr_sex[year], 1) + w * c(p$incrr_sex[year], 1)
+                    rowSums(data_active,,2) # prevalence adjusted for art
+    if (p$proj.steps[ts] == p$tsEpidemicStart) {
+      transm_prev <- sweep(transm_prev, 2, p$iota * c(1, sqrt(p$incrr_sex[year])), '+')
+    }
+    inc_r <- rvec[ts] * sweepx(transm_prev, 2, c(p$incrr_sex[year], 1))
 
-    inc_m <- n_m_active_negative * transm_prev[f.idx]
+    inc_m <- sweepx(n_m_active_negative, 2, inc_r[, f.idx])
+    inc_f <- sweepx(n_f_active_negative, 2, inc_r[, m.idx])
+    
     inc_m <- sweepx(inc_m, 1, p$incrr_age[, m.idx, year])
-    inc_f <- n_f_active_negative * transm_prev[m.idx]
     inc_f <- sweepx(inc_f, 1, p$incrr_age[, f.idx, year])
 
-    if (ii==10) {
-      WAIFW[,,m.idx,year] <<- inc_m
-      WAIFW[,,f.idx,year] <<- inc_f
-    }
-
     infections.ts <- cbind(rowSums(inc_m), rowSums(inc_f))
+    
+    if (p$proj.steps[ts] == p$tsEpidemicStart)
+      infections.ts <- infections.ts * p$iota * sum(data[,,,year]) / sum(infections.ts)
 
-    # incrate15to49_ts[,,ts] <<- transm_prev
+    # incrate15to49_ts[,,ts] <<- inc_r
     prev15to49_ts[ts] <<- prevlast <<- sum(data[,,hivp.idx,year])/sum(data[,,,year])
     infections.ts
 },

@@ -336,17 +336,17 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e2, B = 1e3, B.re = 1e3,
   
   ## Fit using DE
   if (algorithm=='DE') {
-    message('Fitting with Differential Evolution..\n')
+    message('Fitting with Differential Evolution..\r')
     return(epp_DE(epp, fp, likdat, control_DE, doParallel))
   }
 
   ## Fit using optimization
   if (algorithm=='optim') {
-    message('Fitting with optim()..\n')
+    message('Fitting with optim()..\r')
     return(epp_optim(epp, fp, likdat, control_optim, B0, B.re, doParallel))
   }
 
-  message('Fitting with IMIS..\n')
+  message('Fitting with IMIS..\r')
   ## If IMIS fails, start again
   fit <- try(stop(""), TRUE)
   while(inherits(fit, "try-error")){

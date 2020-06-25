@@ -60,14 +60,15 @@ epp_optim <- function(epp=FALSE, fp, likdat, control_optim, B0, B.re, doParallel
     .control.optim <- modifyList(.control.optim, control_optim)
   if (is.null(.control.optim$par)) { # Find starting values that MAP
     X0     = eppasm:::sample.prior(B0, fp)
-    message('Searching for starting values...'); flush.console()
+    message('Searching for starting values...\r'); flush.console()
     lpost0 = eppasm:::likelihood(X0, fp, likdat, log=TRUE, doParallel) + 
              eppasm:::prior(X0, fp, log=TRUE)
     .control.optim$par = X0[which.max(lpost0)[1], ]
-    cat('best MAP', .control.optim$par, -max(lpost0), '\n')
+    cat('best MAP', .control.optim$par, -max(lpost0), '\r')
   }
   .control.optim$control$ndeps <- rep(1e-4, length(.control.optim$par))
   .control.optim <- modifyList(.control.optim, list(fp = fp, likdat = likdat))
+  message('Starts optim...\r'); flush.console()
   opt = do.call("optim", .control.optim)
   opt$fp     = fp
   opt$likdat = likdat
@@ -76,6 +77,7 @@ epp_optim <- function(epp=FALSE, fp, likdat, control_optim, B0, B.re, doParallel
   opt$ctrl   = .control.optim
   optclass   = ifelse(epp, "eppopt", "specopt")
   if (.control.optim$hessian) {
+    message('Done optim, sampling...\r'); flush.console()
     opt$resample = mvtnorm::rmvnorm(B.re, opt$par, solve(-opt$hessian))
     optclass     = c(optclass, ifelse(epp, "eppfit", "specfit"))
   }

@@ -373,8 +373,12 @@ ll_all = function(theta, fp, likdat) {
 
   .anc = .ancrt = .hhs = .incid = .rprior = .incpen = 0
 
-  if (exists("fitincrr", where=fp) && fp$fitincrr==TRUE)
-    .incpen <- sum(dnorm(diff(fp$logincrr_age[1:7, ], differences=2), sd=fp$sigma_agepen, log=TRUE)) # not use of simmod?
+  if (exists("fitincrr", where=fp)) {
+    if (fp$fitincrr==TRUE)
+      .incpen <- sum(dnorm(diff(fp$logincrr_age[1:7, ], differences=2), sd=fp$sigma_agepen, log=TRUE))
+    if (fp$fitincrr=="kincrr")
+      .incpen <- sum(dnorm(diff(fp$logincrr_age[1:13, ], differences=2), sd=fp$sigma_agepen, log=TRUE))
+  }
 
   ## ANC likelihood
   if (exists("ancsite.dat", likdat))

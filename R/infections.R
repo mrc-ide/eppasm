@@ -24,6 +24,8 @@ infect_mix = function(hivpop, artpop, ii) {
 
     ratio_mf <- nc_m / t(nc_f)
 
+    if (is.null(p$balancing)) p$balancing <- .5
+
     nc_m_adj <- nc_m * (ratio_mf - p$balancing * (ratio_mf - 1)) / ratio_mf
     nc_f_adj <- t(nc_f) * (ratio_mf - p$balancing * (ratio_mf - 1))
     
@@ -45,12 +47,10 @@ infect_mix = function(hivpop, artpop, ii) {
       transm_prev <- sweep(transm_prev, 2, p$iota * c(1, sqrt(p$incrr_sex[year])), '+')
     }
     inc_r <- rvec[ts] * sweepx(transm_prev, 2, c(p$incrr_sex[year], 1))
+    inc_r <- inc_r * p$incrr_age[,,year]
 
     inc_m <- sweepx(n_m_active_negative, 2, inc_r[, f.idx])
     inc_f <- sweepx(n_f_active_negative, 2, inc_r[, m.idx])
-    
-    inc_m <- sweepx(inc_m, 1, p$incrr_age[, m.idx, year])
-    inc_f <- sweepx(inc_f, 1, p$incrr_age[, f.idx, year])
 
     infections.ts <- cbind(rowSums(inc_m), rowSums(inc_f))
     

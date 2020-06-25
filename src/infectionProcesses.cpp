@@ -199,8 +199,8 @@ void popC::infect_mix (hivC& hivpop, artC& artpop, int ii, Views& v, const Param
   // adjusted to IRRa
   for (int r = 0; r < s.pAG; ++r)
     for (int c = 0; c < s.pAG; ++c) {
-      inc_m[c][r] = n_m_active_negative[c][r] * transm_prev[s.F][c] * p.ic.incrr_age[s.year][s.M][r];
-      inc_f[c][r] = n_f_active_negative[c][r] * transm_prev[s.M][c] * p.ic.incrr_age[s.year][s.F][r];
+      inc_m[c][r] = n_m_active_negative[c][r] * transm_prev[s.F][c] * p.ic.incrr_age[s.year][s.F][c];
+      inc_f[c][r] = n_f_active_negative[c][r] * transm_prev[s.M][c] * p.ic.incrr_age[s.year][s.M][c];
     }
 
   boost1D inc_mv = rowSums(inc_m), inc_fv = rowSums(inc_f);

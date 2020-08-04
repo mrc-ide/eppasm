@@ -99,7 +99,7 @@ transf_incrr <- function(theta_incrr, param, fp){
     param$incrr_sex <- fp$incrr_sex
     param$incrr_sex[] <- exp(theta_incrr[1])
   } else if(fp$incidmod == "transm") {
-    param$mf_transm_rr <- rep(exp(theta_incrr[1]), fp$ss$PROJ_YEARS)
+    param$incrr_sex <- rep(exp(theta_incrr[1]), fp$ss$PROJ_YEARS)
   }
 
   if(fp$fitincrr %in% c(TRUE ,"linincrr")){

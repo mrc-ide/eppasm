@@ -1,6 +1,7 @@
 ## eppasm 0.5.8
 
 - Update read_incid_input() to use tag "<IncidenceByFit MV4>" in Spectrum DP file.
+- Update read_hivproj_param() to parse incidence rate ratio fom new "<SexRatioByEpidPatt MV>" tag.
 
 ## eppasm 0.5.6
 

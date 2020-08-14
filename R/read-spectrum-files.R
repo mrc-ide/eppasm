@@ -1058,15 +1058,21 @@ read_incid_input <- function(pjnz){
   yr_end <- as.integer(dpsub("<FinalYear MV2>",2,4))
   proj_years <- yr_start:yr_end
 
-  if(exists_dptag("<IncidenceInput MV>")){
+  if (exists_dptag("<IncidenceByFit MV4>")) {
+    val <- dpsub("<IncidenceByFit MV4>", 2:7, 3 + seq_along(proj_years))
+    rownames(val) <- dpsub("<IncidenceByFit MV4>", 2:7, 3)
+    incidence_option <- as.integer(dpsub("<IncidenceOptions MV>", 2, 4))  # 0-based indexing
+    val <- as.numeric(val[incidence_option + 1, ])
+  } else if (exists_dptag("<IncidenceInput MV>")) {
     val <- as.numeric(dpsub("<IncidenceInput MV>", 2, 3+seq_along(proj_years)))
-    val <- setNames(val, proj_years)
-    attr(val, "incidpopage") <- as.integer(dpsub("<EPPPopulationAges MV>", 2, 4))  # Adults 15-49 = 0; Adults 15+ = 1
-    return(val / 100)
   } else {
     warning(paste0("<IncidenceInput MV> not found for ", basename(pjnz), "."))
     val <- NULL
   }
+
+  val <- setNames(val, proj_years)
+  attr(val, "incidpopage") <- as.integer(dpsub("<EPPPopulationAges MV>", 2, 4))  # Adults 15-49 = 0; Adults 15+ = 1
+  val <- val / 100
 
   return(val)
 }

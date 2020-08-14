@@ -297,6 +297,18 @@ extern "C" {
     multi_array_ref<double, 3> popadjust(REAL(s_popadjust), extents[PROJ_YEARS][NG][pAG]);
     memset(REAL(s_popadjust), 0, length(s_popadjust)*sizeof(double));
 
+    SEXP s_artinit = PROTECT(allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_artinit_dim = PROTECT(allocVector(INTSXP, 4));
+    INTEGER(s_artinit_dim)[0] = hDS;
+    INTEGER(s_artinit_dim)[1] = hAG;
+    INTEGER(s_artinit_dim)[2] = NG;
+    INTEGER(s_artinit_dim)[3] = PROJ_YEARS;
+    setAttrib(s_artinit, R_DimSymbol, s_artinit_dim);
+    setAttrib(s_pop, install("artinit"), s_artinit);
+    multi_array_ref<double, 4> artinit(REAL(s_artinit), extents[PROJ_YEARS][NG][hAG][hDS]);
+    memset(REAL(s_artinit), 0, length(s_artinit)*sizeof(double));
+
+
     SEXP s_pregprevlag = PROTECT(allocVector(REALSXP, PROJ_YEARS));
     setAttrib(s_pop, install("pregprevlag"), s_pregprevlag);
 
@@ -726,6 +738,7 @@ extern "C" {
 		    artinit_hahm = hivpop[t][g][ha][hm] + DT * grad[g][ha][hm];
 		  grad[g][ha][hm] -= artinit_hahm / DT;
                   gradART[g][ha][hm][ART0MOS] += artinit_hahm / DT;
+		  artinit[t][g][ha][hm] += artinit_hahm; 
                 }
 
             } else if(art_alloc_method == 4) {  // lowest CD4 first
@@ -744,6 +757,7 @@ extern "C" {
 
                   grad[g][ha][hm] -= artinit_hahm / DT;
                   gradART[g][ha][hm][ART0MOS] += artinit_hahm / DT;
+		  artinit[t][g][ha][hm] += artinit_hahm; 
 		}
 		if(init_prop < 1.0)
 		  break;
@@ -761,6 +775,7 @@ extern "C" {
 		    artinit_hahm = hivpop[t][g][ha][hm] + DT * grad[g][ha][hm];
                   grad[g][ha][hm] -= artinit_hahm / DT;
                   gradART[g][ha][hm][ART0MOS] += artinit_hahm / DT;
+		  artinit[t][g][ha][hm] += artinit_hahm; 
                 }
             }
           }
@@ -922,7 +937,7 @@ extern "C" {
       incid15to49[t] /= hivn15to49[t-1];
     }
 
-    UNPROTECT(22);
+    UNPROTECT(24);
     return s_pop;
   }
 }

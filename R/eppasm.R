@@ -1,3 +1,6 @@
+
+#' @useDynLib eppasm eppasmC
+#' @export
 simmod.specfp <- function(fp, VERSION="C"){
 
   if(!exists("popadjust", where=fp))

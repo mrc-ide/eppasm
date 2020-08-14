@@ -317,18 +317,27 @@ update.specfp <- function (fp, ..., keep.attr = TRUE, list = vector("list")){
 #########################
 
 ## modprev15to49 <- function(mod, fp){colSums(mod[fp$ss$p.age15to49.idx,,fp$ss$hivp.idx,],,2) / colSums(mod[fp$ss$p.age15to49.idx,,,],,3)}
+
+#' @export 
 prev.spec <- function(mod, fp){ attr(mod, "prev15to49") }
+
+#' @export 
 incid.spec <- function(mod, fp){ attr(mod, "incid15to49") }
+
+#' @export 
 fnPregPrev.spec <- function(mod, fp) { attr(mod, "pregprev") }
 
+#' @export 
 calc_prev15to49 <- function(mod, fp){
   colSums(mod[fp$ss$p.age15to49.idx,,2,],,2)/colSums(mod[fp$ss$p.age15to49.idx,,,],,3)
 }
 
+#' @export 
 calc_incid15to49 <- function(mod, fp){
   c(0, colSums(attr(mod, "infections")[fp$ss$p.age15to49.idx,,-1],,2)/colSums(mod[fp$ss$p.age15to49.idx,,1,-fp$ss$PROJ_YEARS],,2))
 }
 
+#' @export 
 calc_pregprev <- function(mod, fp){
   warning("not yet implemented")
 }
@@ -348,6 +357,8 @@ calc_pregprev <- function(mod, fp){
 #'
 #' @param mod output of simmod of class \code{\link{spec}}.
 #' @return 3-dimensional array of mortality by age, sex, and year.
+#'
+#' @export 
 agemx.spec <- function(mod, nonhiv=FALSE){
   if(nonhiv)
     deaths <- attr(mod, "natdeaths")
@@ -375,6 +386,8 @@ agemx.spec <- function(mod, nonhiv=FALSE){
 #'
 #' @param mod output of simmod of class \code{\link{spec}}.
 #' @return 3-dimensional array of mortality by age, sex, and year.
+#'
+#' @export 
 natagemx.spec <- function(mod){
   deaths <- attr(mod, "natdeaths")
   pop <- mod[,,1,]+ mod[,,2,]
@@ -397,11 +410,15 @@ hivagemx.spec <- function(mod){
 
 
 
-#' Prevalene by arbitrary age groups
+#' Prevalence by arbitrary age groups
 #'
 #' @param sidx sex (1 = Male, 2 = Female, 0 = Both)
 #' Notes: Assumes that AGE_START is 15 and single year of age.
+#'
+#' 
 #' @useDynLib eppasm ageprevC
+#' @export
+#' 
 ageprev <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, expand=FALSE, VERSION="C"){
 
   if(length(agspan)==1)
@@ -559,6 +576,8 @@ ageartcov <- function(mod, aidx=NULL, sidx=NULL, yidx=NULL, agspan=5, arridx=NUL
 #' Age-specific prevalence among pregnant women
 #' 
 #' @param expand whether to expand aidx, yidx, sidx, and agspan
+#'
+#' @export
 agepregprev <- function(mod, fp,
                         aidx=3:9*5-fp$ss$AGE_START+1L,
                         yidx=1:fp$ss$PROJ_YEARS,
@@ -607,6 +626,8 @@ agepregprev <- function(mod, fp,
 #' Age-specific ART coverage among pregnant women
 #' 
 #' @param expand whether to expand aidx, yidx, sidx, and agspan
+#'
+#' @export
 agepregartcov <- function(mod, fp,
                           aidx=3:9*5-fp$ss$AGE_START+1L,
                           yidx=1:fp$ss$PROJ_YEARS,

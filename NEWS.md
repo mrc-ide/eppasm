@@ -2,7 +2,9 @@
 
 - Update read_incid_input() to use tag "<IncidenceByFit MV4>" in Spectrum DP file.
 - Update read_hivproj_param() to parse incidence rate ratio fom new "<SexRatioByEpidPatt MV>" tag.
-- Add model output for number of ART initiations by CD4 category.
+- Add model output `artinit` for number of ART initiations by CD4 category.
+- Add model outputs `aidsdeaths_noart` and `aidsdeaths_noart` for number of AIDS deaths by 
+  coarse age groups, stage of infection, and ART duration.
 
 ## eppasm 0.5.6
 

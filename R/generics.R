@@ -1,12 +1,17 @@
 
 #' Simulate model
 #' 
+#' @export
 simmod <- function(fp, ...) UseMethod("simmod")
 simfit <- function(fit, ...) UseMethod("simfit")
 
 #' @export
 prev <- function(mod, ...) UseMethod("prev")
+
+#' @export
 fnPregPrev <- function(mod, fp, ...) UseMethod("fnPregPrev")
+
+#' @export
 incid <- function(mod, ...) UseMethod("incid")
 
 incid_sexratio <- function(mod, ...) UseMethod("incid_sexratio")

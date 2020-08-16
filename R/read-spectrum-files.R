@@ -10,19 +10,21 @@ get_dp_version <- function(dp){
   return(dp.vers)
 }
 
+#' @export
 read_dp <- function(pjnz){
   dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
   dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
   return(dp)
 }
 
+#' @export
 read_pjn <- function(pjnz){
   dpfile <- grep(".PJN$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
   dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
   return(dp)
 }
 
-
+#' @export
 read_region <- function(pjnz){
   pjn <- read_pjn(pjnz)
   region <- pjn[which(pjn[,1] == "<Projection Parameters - Subnational Region Name2>")+2, 4]
@@ -32,12 +34,14 @@ read_region <- function(pjnz){
     return(region)
 }
 
+#' @export
 read_country <- function(pjnz){
   pjn <- read_pjn(pjnz)
   cc <- as.integer(pjn[which(pjn[,1] == "<Projection Parameters>")+2, 4])
   return(with(spectrum5_countrylist, Country[Code == cc]))
 }
 
+#' @export
 read_iso3 <- function(pjnz){
   pjn <- read_pjn(pjnz)
   cc <- as.integer(pjn[which(pjn[,1] == "<Projection Parameters>")+2, 4])
@@ -48,6 +52,7 @@ read_iso3 <- function(pjnz){
 ####  function to read HIV projection outputs  ####
 ###################################################
 
+#' @export
 read_hivproj_output <- function(pjnz, single.age=TRUE){
 
   ## read .DP file
@@ -295,6 +300,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
 ####  function to read HIV projection parameters  ####
 ######################################################
 
+#' @export
 read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 
   ## read .DP file

@@ -198,8 +198,9 @@ simmod.specfp <- function(fp, VERSION="C"){
         gradART <- array(0, c(hTS, hDS, hAG, NG))
 
         ## progression and mortality
-        gradART[1:2,,,] <- gradART[1:2,,,] - 2.0 * artpop[1:2,,,, i]      # remove ART duration progression (HARD CODED 6 months duration)
-        gradART[2:3,,,] <- gradART[2:3,,,] + 2.0 * artpop[1:2,,,, i]      # add ART duration progression (HARD CODED 6 months duration)
+
+        gradART[1:2,,,] <- gradART[1:2,,,] - 1.0 / fp$ss$h_art_stage_dur * artpop[1:2,,,, i]      # remove ART duration progression 
+        gradART[2:3,,,] <- gradART[2:3,,,] + 1.0 / fp$ss$h_art_stage_dur * artpop[1:2,,,, i]      # add ART duration progression
 
         gradART <- gradART - fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i]   # ART mortality
 

@@ -38,11 +38,6 @@
 #define HIVP 1
 
 #define ART0MOS 0
-#define ART6MOS 1
-#define ART1YR 2
-
-#define ART_STAGE_PROG_RATE 2.0 // HARD CODED: ART stage progression rate
-
 
 #define EPP_RSPLINE 0
 #define EPP_RTREND 1
@@ -94,6 +89,7 @@ extern "C" {
     int HIVSTEPS_PER_YEAR = *INTEGER(getListElement(s_ss, "hiv_steps_per_year"));
     double DT = 1.0/HIVSTEPS_PER_YEAR;
     int *hAG_SPAN = INTEGER(getListElement(s_ss, "h.ag.span"));
+    double *h_art_stage_dur = REAL(getListElement(s_ss, "h_art_stage_dur"));
 
     int hAG_START[hAG];
     hAG_START[0] = 0;
@@ -652,9 +648,10 @@ extern "C" {
                   gradART[g][ha][hm][hu] = -deaths;
                 }
 
-                gradART[g][ha][hm][ART0MOS] += -ART_STAGE_PROG_RATE * artpop[t][g][ha][hm][ART0MOS];
-                gradART[g][ha][hm][ART6MOS] += ART_STAGE_PROG_RATE * artpop[t][g][ha][hm][ART0MOS] - ART_STAGE_PROG_RATE * artpop[t][g][ha][hm][ART6MOS];
-                gradART[g][ha][hm][ART1YR] += ART_STAGE_PROG_RATE * artpop[t][g][ha][hm][ART6MOS];
+		for(int hu = 0; hu < (hTS - 1); hu++) {
+		  gradART[g][ha][hm][hu] += -artpop[t][g][ha][hm][hu] / h_art_stage_dur[hu];
+		  gradART[g][ha][hm][hu+1] += artpop[t][g][ha][hm][hu] / h_art_stage_dur[hu];
+		}
 
 		// ART dropout
 		if(art_dropout[t] > 0)

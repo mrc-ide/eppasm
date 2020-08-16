@@ -5,6 +5,7 @@
 - Add model output `artinit` for number of ART initiations by CD4 category.
 - Add model outputs `aidsdeaths_noart` and `aidsdeaths_noart` for number of AIDS deaths by 
   coarse age groups, stage of infection, and ART duration.
+- Make ART stage durations (0-5 months, 6-11 months, 1+ years) input parameters `fp$ss$h_art_stage_dur` instead of hard coded values.
 
 ## eppasm 0.5.6
 

@@ -20,6 +20,7 @@ create_specfp <- function(pjnz, upd.path=NULL, hiv_steps_per_year = 10L, use_ep5
   return(specfp)
 }
 
+#' @export
 prepare_directincid <- function(pjnz){
   specfp <- create_specfp(pjnz)
   specfp$eppmod <- "directincid"

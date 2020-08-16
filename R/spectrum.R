@@ -36,7 +36,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ss$h.ag.span <- as.integer(c(2,3, rep(5, 6), 31))   # Number of population age groups spanned by each HIV age group [sum(h.ag.span) = pAG]
   ss$hAG <- length(ss$h.ag.span)          # Number of age groups
   ss$hDS <- 7                             # Number of CD4 stages (Disease Stages)
-  ss$hTS <- 3                             # number of treatment stages (excluding untreated)
+  ss$hTS <- 7                             # number of treatment stages (excluding untreated)
 
   ss$ag.idx <- rep(1:ss$hAG, ss$h.ag.span)
   ss$agfirst.idx <- which(!duplicated(ss$ag.idx))
@@ -47,7 +47,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ss$h.age15to49.idx <- which((AGE_START-1 + cumsum(ss$h.ag.span)) %in% 15:49)
   ss$h.age15plus.idx <- which((AGE_START-1 + cumsum(ss$h.ag.span)) >= 15)
 
-  ss$h_art_stage_dur <- c(0.5, 0.5) # duration of treatment stages in years; length hTS - 1
+  ss$h_art_stage_dur <- c(0.5, 0.5, 1, 1, 1, 1) # duration of treatment stages in years; length hTS - 1
 
   invisible(list2env(ss, environment())) # put ss variables in environment for convenience
 

@@ -1,3 +1,7 @@
+## eppasm 0.6.0
+
+- Extend ART seven ART duration groups: 0-5 months, 6-11 months, 1 year, 2, 3, 4 years, and 5+ years.
+
 ## eppasm 0.5.8
 
 - Update read_incid_input() to use tag "<IncidenceByFit MV4>" in Spectrum DP file.

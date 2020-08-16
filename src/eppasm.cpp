@@ -20,7 +20,7 @@
 
 #define hAG 9
 #define hDS 7
-#define hTS 3
+#define hTS 7
 
 #define hIDX_FERT 0
 #define hAG_FERT 8

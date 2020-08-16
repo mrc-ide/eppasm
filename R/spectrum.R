@@ -141,8 +141,8 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$cd4_initdist <- projp$cd4_initdist[,projp.h.ag,]
   fp$cd4_prog <- (1-exp(-projp$cd4_prog[,projp.h.ag,] / hiv_steps_per_year)) * hiv_steps_per_year
   fp$cd4_mort <- projp$cd4_mort[,projp.h.ag,]
-  fp$art_mort <- projp$art_mort[,,projp.h.ag,]
-  fp$artmx_timerr <- projp$artmx_timerr
+  fp$art_mort <- projp$art_mort[c(1, 2, rep(3, hTS - 2)),,projp.h.ag,]
+  fp$artmx_timerr <- projp$artmx_timerr[c(1, 2, rep(3, hTS - 2)), ]
 
   frr_agecat <- as.integer(rownames(projp$fert_rat))
   frr_agecat[frr_agecat == 18] <- 17
@@ -155,7 +155,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   
   fp$frr_art <- array(1.0, c(hTS, hDS, length(h.fert.idx), PROJ_YEARS))
   fp$frr_art[1,,,] <- fp$frr_cd4 # 0-6 months
-  fp$frr_art[2:3, , , ] <- sweep(fp$frr_art[2:3, , , ], 3, projp$frr_art6mos[fert_rat.h.ag] * projp$frr_scalar, "*") # 6-12mos, >1 years
+  fp$frr_art[2:hTS, , , ] <- sweep(fp$frr_art[2:hTS, , , ], 3, projp$frr_art6mos[fert_rat.h.ag] * projp$frr_scalar, "*") # 6-12mos, >1 years
 
   ## ART eligibility and numbers on treatment
 
@@ -231,7 +231,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$paedsurv_artcd4dist <- array(0, c(hTS, hDS, NG, PROJ_YEARS))
 
   fp$paedsurv_cd4dist[,,2:PROJ_YEARS] <- sweep(hiv_noart14, 2:3, colSums(hiv_noart14), "/")
-  fp$paedsurv_artcd4dist[,,,2:PROJ_YEARS] <- sweep(artpop14, 3:4, colSums(artpop14,,2), "/")
+  fp$paedsurv_artcd4dist[1:3,,,2:PROJ_YEARS] <- sweep(artpop14, 3:4, colSums(artpop14,,2), "/")
 
   fp$paedsurv_cd4dist[is.na(fp$paedsurv_cd4dist)] <- 0
   fp$paedsurv_artcd4dist[is.na(fp$paedsurv_artcd4dist)] <- 0

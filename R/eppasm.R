@@ -428,7 +428,7 @@ spec_add_dimnames <- function(mod, fp) {
   nm_pDS <- c("negative", "positive")
   nm_years <- fp$ss$proj_start + seq_len(fp$ss$PROJ_YEARS) - 1L
   nm_hDS <- c(">500", "350-499", "250-349", "200-249", "100-199", "50-99", "<50")
-  nm_hTS <- c("art0mos", "art6mos", "art1yr")
+  nm_hTS <- c("art0mos", "art6mos", "art1yr", "art2yr", "art3yr", "art4yr", "art5yr")
   nm_hAG <- c("15-16", "17-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50+")
   
   dn_pop <- list(age = nm_pAG, sex = nm_NG, hivstatus = nm_pDS, year = nm_years)

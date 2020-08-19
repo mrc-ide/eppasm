@@ -71,7 +71,7 @@ epp_optim <- function(epp=FALSE, fp, likdat, control_optim, B0, B.re, doParallel
   opt = do.call("optim", .control.optim)
   opt$fp     = fp
   opt$likdat = likdat
-  opt$param  = fnCreateParam(opt$par, fp)
+  opt$param  = fnCreateParam(opt$par, opt$fp)
   opt$mod    = simmod(update(fp, list=opt$param))
   opt$ctrl   = .control.optim
   optclass   = ifelse(epp, "eppopt", "specopt")

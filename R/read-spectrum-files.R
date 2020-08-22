@@ -707,7 +707,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 ####  function to read UN Population Division projection file  ####
 ###################################################################
 
-
+#' @export
 read_demog_param <- function(upd.file, age.intervals = 1){
 
   ## check age intervals and prepare age groups vector
@@ -946,6 +946,8 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
 ## Read percentage urban input from EPP XML file
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
+#'
+#' @export
 read_epp_perc_urban <- function(pjnz){
 
   xmlfile <- grep(".xml", unzip(pjnz, list=TRUE)$Name, value=TRUE)
@@ -971,6 +973,7 @@ read_epp_perc_urban <- function(pjnz){
 #' @param pjnz file path to Spectrum PJNZ file.
 #' @return vector of epidemic start year for each EPP subregion with region names
 #'
+#' @export
 read_epp_t0 <- function(pjnz){
 
   xmlfile <- grep(".xml", unzip(pjnz, list=TRUE)$Name, value=TRUE)
@@ -995,6 +998,8 @@ read_epp_t0 <- function(pjnz){
 ## Read subpopulation size input file
 #'
 #' @param filepath file path to .subp file
+#'
+#' @export
 read_subp_file <- function(filepath){
 
   dat <- readLines(filepath)
@@ -1025,6 +1030,8 @@ read_subp_file <- function(filepath){
 #' Read CSAVR input data
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
+#'
+#' @export
 read_csavr_data <- function(pjnz){
 
   dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
@@ -1059,6 +1066,8 @@ read_csavr_data <- function(pjnz){
 #' Read annual incidence input
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
+#'
+#' @export
 read_incid_input <- function(pjnz){
 
   dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)

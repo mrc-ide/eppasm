@@ -301,6 +301,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
 ######################################################
 
 #' @export
+#' 
 read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 
   ## read .DP file
@@ -798,6 +799,7 @@ read_demog_param <- function(upd.file, age.intervals = 1){
 
 ## Note: only parses Spectrum 2016 files, produces outputs by single-year age
 
+#' @export
 read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
 
   if(use_ep5)

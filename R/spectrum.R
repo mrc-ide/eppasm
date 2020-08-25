@@ -292,6 +292,7 @@ prepare_rspline_model <- function(fp, numKnots=NULL, tsEpidemicStart=fp$ss$time_
 }
 
 
+#' @export 
 update.specfp <- function (fp, ..., keep.attr = TRUE, list = vector("list")){
   dots <- substitute(list(...))[-1]
   newnames <- names(dots)
@@ -696,12 +697,14 @@ pop15to49.spec <- function(mod){colSums(mod[1:35,,,],,3)}
 artpop15to49.spec <- function(mod){colSums(attr(mod, "artpop")[,,1:8,,],,4)}
 artpop15plus.spec <- function(mod){colSums(attr(mod, "artpop"),,4)}
 
+#' @export 
 artcov15to49.spec <- function(mod, sex=1:2){
   n_art <- colSums(attr(mod, "artpop")[,,1:8,sex,,drop=FALSE],,4)
   n_hiv <- colSums(attr(mod, "hivpop")[,1:8,sex,,drop=FALSE],,3)
   return(n_art / (n_hiv+n_art))
 }
 
+#' @export 
 artcov15plus.spec <- function(mod, sex=1:2){
   n_art <- colSums(attr(mod, "artpop")[,,,sex,,drop=FALSE],,4)
   n_hiv <- colSums(attr(mod, "hivpop")[,,sex,,drop=FALSE],,3)

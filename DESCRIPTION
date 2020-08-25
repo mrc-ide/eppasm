@@ -7,7 +7,6 @@ Depends: R (>= 3.1.0),
 Imports: epp (>= 0.4.1),
     fastmatch (>= 1.1),
     abind (>= 1.4),
-    data.table,
     mvtnorm,
     reshape2,
     xml2

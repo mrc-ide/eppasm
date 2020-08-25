@@ -1,4 +1,5 @@
 
+#' @export
 tidy_output <- function(fit, modlab, country=NA, eppregion=NA, ancsite = TRUE){
 
   idvars <- data.frame(country = country,

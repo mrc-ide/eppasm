@@ -129,6 +129,7 @@ prepare_ancsite_likdat <- function(ancsitedat, fp){
        df_idx.lst = df_idx.lst)
 }
 
+#' @export 
 ll_ancsite <- function(mod, fp, coef=c(0, 0), vinfl=0, dat){
 
   df <- dat$df
@@ -185,6 +186,7 @@ prepare_ancrtcens_likdat <- function(dat, fp){
   return(dat)
 }
 
+#' @export 
 ll_ancrtcens <- function(mod, dat, fp, pointwise = FALSE){
   if(!nrow(dat))
     return(0)
@@ -208,6 +210,7 @@ ll_ancrtcens <- function(mod, dat, fp, pointwise = FALSE){
 ####  Age/sex incidence model  ####
 ###################################
 
+#' @export
 fnCreateParam <- function(theta, fp){
 
   if(exists("prior_args", where = fp)){
@@ -336,6 +339,7 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
 }
 
 #' Log likelihood for age-specific household survey prevalence
+#' @export 
 ll_hhsage <- function(mod, dat, pointwise = FALSE){
 
   qM.age <- suppressWarnings(qnorm(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan)))
@@ -352,6 +356,7 @@ ll_hhsage <- function(mod, dat, pointwise = FALSE){
 
 
 #' Log likelihood for age-specific household survey prevalence using binomial approximation
+#' @export 
 ll_hhsage_binom <- function(mod, dat, pointwise = FALSE){
 
   prevM.age <- suppressWarnings(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan))
@@ -405,6 +410,7 @@ ll_hhsincid <- function(mod, hhsincid.dat){
 ####  Likelihood function  ####
 ###############################
 
+#' @export 
 prepare_likdat <- function(eppd, fp){
 
   likdat <- list()
@@ -436,7 +442,7 @@ prepare_likdat <- function(eppd, fp){
 
 
 
-
+#' @export 
 lprior <- function(theta, fp){
 
   if(exists("prior_args", where = fp)){
@@ -506,6 +512,7 @@ lprior <- function(theta, fp){
 }
 
 
+#' @export 
 ll <- function(theta, fp, likdat){
   theta.last <<- theta
   fp <- update(fp, list=fnCreateParam(theta, fp))

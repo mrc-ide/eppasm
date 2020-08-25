@@ -43,10 +43,14 @@ rlogistic <- function(t, p){
 }
 
 
+#' Setup the r-hybrid model
+#' 
 #' @param fp model parameters object
 #' @param tsEpidemicStart time step at which epidemic is seeded
 #' @param rw_start time when random walk starts
 #' @param rw_trans number of years to transition from logistic differences to RW differences. If NULL, defaults to 5 steps
+#'
+#' @export
 prepare_rhybrid <- function(fp,
                             tsEpidemicStart = fp$ss$time_epi_start+0.5,
                             rw_start = fp$rw_start,

@@ -3,7 +3,7 @@
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
 #' @param proj.end end year for projection.
-#' @param popupdate logical should target population be updated to match age-specific population size from DP file and %Urban from EPP XML.
+#' @param popupdate logical should target population be updated to match age-specific population size from DP file and \%Urban from EPP XML.
 #'
 #' @export
 #' 

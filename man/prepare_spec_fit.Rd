@@ -17,7 +17,7 @@ prepare_spec_fit(
 
 \item{proj.end}{end year for projection.}
 
-\item{popupdate}{logical should target population be updated to match age-specific population size from DP file and %Urban from EPP XML.}
+\item{popupdate}{logical should target population be updated to match age-specific population size from DP file and \%Urban from EPP XML.}
 }
 \description{
 Prepare fit by EPP regions

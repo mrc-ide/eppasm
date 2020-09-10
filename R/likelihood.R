@@ -119,7 +119,8 @@ fnCreateParam <- function(theta, fp){
   if(exists("fitincrr", where=fp)){
     incrr_nparam <- getnparam_incrr(fp)
     if(incrr_nparam) {
-      cols  <- (epp_nparam+fp$ancmod$nparam) + 1:incrr_nparam
+      anc_np <- ifelse(!is.null(fp$ancmod$nparam), fp$ancmod$nparam, 0)
+      cols <- (epp_nparam+anc_np) + 1:incrr_nparam
       param <- transf_incrr(theta[cols], param, fp)
     }
   }
@@ -328,7 +329,8 @@ lprior <- function(theta, fp){
   if(exists("fitincrr", where=fp)){
     incrr_nparam <- getnparam_incrr(fp)
     if(incrr_nparam){
-      cols <- (epp_nparam+fp$ancmod$nparam) + 1:incrr_nparam
+      anc_np <- ifelse(!is.null(fp$ancmod$nparam), fp$ancmod$nparam, 0)
+      cols <- (epp_nparam+anc_np) + 1:incrr_nparam
       lpr <- lpr + lprior_incrr(theta[cols], fp)
     }
   }
@@ -500,7 +502,8 @@ sample.prior <- function(n, fp){
   if(exists("fitincrr", where=fp)){
     incrr_nparam <- getnparam_incrr(fp)
     if (incrr_nparam) {
-      cols <- (epp_nparam+fp$ancmod$nparam) + 1:incrr_nparam
+      anc_np <- ifelse(!is.null(fp$ancmod$nparam), fp$ancmod$nparam, 0)
+      cols <- (epp_nparam+anc_np) + 1:incrr_nparam
       mat[, cols] <- sample_incrr(n, fp)
     } 
   }

@@ -49,12 +49,11 @@ rtrend.beta.pr.mean <- c(0.46, 0.17, -0.68, -0.038)
 rtrend.beta.pr.sd <- c(0.12, 0.07, 0.24, 0.009)
 
 
-
-
 ###################################
 ####  Age/sex incidence model  ####
 ###################################
 
+#' @export
 fnCreateParam <- function(theta, fp){
 
   if(exists("prior_args", where = fp)){
@@ -161,6 +160,7 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
 }
 
 #' Log likelihood for age-specific household survey prevalence
+#' @export 
 ll_hhsage <- function(mod, dat, pointwise = FALSE){
 
   qM.age <- suppressWarnings(qnorm(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan)))
@@ -177,6 +177,7 @@ ll_hhsage <- function(mod, dat, pointwise = FALSE){
 
 
 #' Log likelihood for age-specific household survey prevalence using binomial approximation
+#' @export 
 ll_hhsage_binom <- function(mod, dat, pointwise = FALSE){
 
   prevM.age <- suppressWarnings(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan))
@@ -230,6 +231,7 @@ ll_hhsincid <- function(mod, hhsincid.dat){
 ####  Likelihood function  ####
 ###############################
 
+#' @export 
 prepare_likdat <- function(eppd, fp){
 
   likdat <- list()
@@ -261,7 +263,7 @@ prepare_likdat <- function(eppd, fp){
 
 
 
-
+#' @export 
 lprior <- function(theta, fp){
 
   if(exists("prior_args", where = fp)){
@@ -312,6 +314,7 @@ lprior <- function(theta, fp){
 }
 
 
+#' @export 
 ll <- function(theta, fp, likdat){
   theta.last <<- theta
   fp <- update(fp, list=fnCreateParam(theta, fp))

@@ -1,9 +1,12 @@
-## Prepare fit by EPP regions
+
+#' Prepare fit by EPP regions
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
 #' @param proj.end end year for projection.
-#' @param popupdate logical should target population be updated to match
-#'   age-specific population size from DP file and %Urban from EPP XML.
+#' @param popupdate logical should target population be updated to match age-specific population size from DP file and \%Urban from EPP XML.
+#'
+#' @export
+#' 
 prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=TRUE, use_ep5=FALSE){
 
   ## epp
@@ -271,6 +274,7 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps
 }
 
 
+#' @export 
 fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k = 500, opt_iter=0, 
                    sample_prior=eppasm:::sample.prior,
                    prior=eppasm:::prior,

@@ -10,19 +10,21 @@ get_dp_version <- function(dp){
   return(dp.vers)
 }
 
+#' @export
 read_dp <- function(pjnz){
   dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
   dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
   return(dp)
 }
 
+#' @export
 read_pjn <- function(pjnz){
   dpfile <- grep(".PJN$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
   dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
   return(dp)
 }
 
-
+#' @export
 read_region <- function(pjnz){
   pjn <- read_pjn(pjnz)
   region <- pjn[which(pjn[,1] == "<Projection Parameters - Subnational Region Name2>")+2, 4]
@@ -32,12 +34,14 @@ read_region <- function(pjnz){
     return(region)
 }
 
+#' @export
 read_country <- function(pjnz){
   pjn <- read_pjn(pjnz)
   cc <- as.integer(pjn[which(pjn[,1] == "<Projection Parameters>")+2, 4])
   return(with(spectrum5_countrylist, Country[Code == cc]))
 }
 
+#' @export
 read_iso3 <- function(pjnz){
   pjn <- read_pjn(pjnz)
   cc <- as.integer(pjn[which(pjn[,1] == "<Projection Parameters>")+2, 4])
@@ -48,6 +52,7 @@ read_iso3 <- function(pjnz){
 ####  function to read HIV projection outputs  ####
 ###################################################
 
+#' @export
 read_hivproj_output <- function(pjnz, single.age=TRUE){
 
   ## read .DP file
@@ -295,6 +300,8 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
 ####  function to read HIV projection parameters  ####
 ######################################################
 
+#' @export
+#' 
 read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 
   ## read .DP file
@@ -433,7 +440,16 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     incrr_age[,"Male",] <- sapply(dpsub("<DistOfHIV MV>", 4:20, timedat.idx), as.numeric)
     incrr_age[,"Female",] <- sapply(dpsub("<DistOfHIV MV>", 22:38, timedat.idx), as.numeric)
   } else if(dp.vers == "Spectrum2017") {
-    incrr_sex <- setNames(as.numeric(dpsub("<HIVSexRatio MV>", 2, timedat.idx)), proj.years)
+    if (exists_dptag("<HIVSexRatio MV>")) {
+      incrr_sex <- setNames(as.numeric(dpsub("<HIVSexRatio MV>", 2, timedat.idx)), proj.years)
+    } else if (exists_dptag("<SexRatioByEpidPatt MV>")) {
+      sexincrr_idx <- as.integer(dpsub("<IncEpidemicRGIdx MV>", 2, 4)) # 0-based index
+      incrr_sex <- dpsub("<SexRatioByEpidPatt MV>", 3:8, timedat.idx)[sexincrr_idx+1, ]
+      incrr_sex <- as.numeric(incrr_sex)
+      names(incrr_sex) <- proj.years
+    } else {
+      stop("Incidence sex ratio not found")
+    }
     incrr_age[,"Male",] <- sapply(dpsub("<DistOfHIV MV2>", 3:19, timedat.idx), as.numeric)
     incrr_age[,"Female",] <- sapply(dpsub("<DistOfHIV MV2>", 20:36, timedat.idx), as.numeric)
   }
@@ -694,7 +710,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 ####  function to read UN Population Division projection file  ####
 ###################################################################
 
-
+#' @export
 read_demog_param <- function(upd.file, age.intervals = 1){
 
   ## check age intervals and prepare age groups vector
@@ -785,6 +801,7 @@ read_demog_param <- function(upd.file, age.intervals = 1){
 
 ## Note: only parses Spectrum 2016 files, produces outputs by single-year age
 
+#' @export
 read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
 
   if(use_ep5)
@@ -933,6 +950,8 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
 ## Read percentage urban input from EPP XML file
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
+#'
+#' @export
 read_epp_perc_urban <- function(pjnz){
 
   xmlfile <- grep(".xml", unzip(pjnz, list=TRUE)$Name, value=TRUE)
@@ -958,6 +977,7 @@ read_epp_perc_urban <- function(pjnz){
 #' @param pjnz file path to Spectrum PJNZ file.
 #' @return vector of epidemic start year for each EPP subregion with region names
 #'
+#' @export
 read_epp_t0 <- function(pjnz){
 
   xmlfile <- grep(".xml", unzip(pjnz, list=TRUE)$Name, value=TRUE)
@@ -982,6 +1002,8 @@ read_epp_t0 <- function(pjnz){
 ## Read subpopulation size input file
 #'
 #' @param filepath file path to .subp file
+#'
+#' @export
 read_subp_file <- function(filepath){
 
   dat <- readLines(filepath)
@@ -1012,6 +1034,8 @@ read_subp_file <- function(filepath){
 #' Read CSAVR input data
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
+#'
+#' @export
 read_csavr_data <- function(pjnz){
 
   dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
@@ -1046,6 +1070,8 @@ read_csavr_data <- function(pjnz){
 #' Read annual incidence input
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
+#'
+#' @export
 read_incid_input <- function(pjnz){
 
   dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
@@ -1060,15 +1086,21 @@ read_incid_input <- function(pjnz){
   yr_end <- as.integer(dpsub("<FinalYear MV2>",2,4))
   proj_years <- yr_start:yr_end
 
-  if(exists_dptag("<IncidenceInput MV>")){
+  if (exists_dptag("<IncidenceByFit MV4>")) {
+    val <- dpsub("<IncidenceByFit MV4>", 2:7, 3 + seq_along(proj_years))
+    rownames(val) <- dpsub("<IncidenceByFit MV4>", 2:7, 3)
+    incidence_option <- as.integer(dpsub("<IncidenceOptions MV>", 2, 4))  # 0-based indexing
+    val <- as.numeric(val[incidence_option + 1, ])
+  } else if (exists_dptag("<IncidenceInput MV>")) {
     val <- as.numeric(dpsub("<IncidenceInput MV>", 2, 3+seq_along(proj_years)))
-    val <- setNames(val, proj_years)
-    attr(val, "incidpopage") <- as.integer(dpsub("<EPPPopulationAges MV>", 2, 4))  # Adults 15-49 = 0; Adults 15+ = 1
-    return(val / 100)
   } else {
     warning(paste0("<IncidenceInput MV> not found for ", basename(pjnz), "."))
     val <- NULL
   }
+
+  val <- setNames(val, proj_years)
+  attr(val, "incidpopage") <- as.integer(dpsub("<EPPPopulationAges MV>", 2, 4))  # Adults 15-49 = 0; Adults 15+ = 1
+  val <- val / 100
 
   return(val)
 }

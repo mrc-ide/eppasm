@@ -38,11 +38,6 @@
 #define HIVP 1
 
 #define ART0MOS 0
-#define ART6MOS 1
-#define ART1YR 2
-
-#define ART_STAGE_PROG_RATE 2.0 // HARD CODED: ART stage progression rate
-
 
 #define EPP_RSPLINE 0
 #define EPP_RTREND 1
@@ -94,6 +89,7 @@ extern "C" {
     int HIVSTEPS_PER_YEAR = *INTEGER(getListElement(s_ss, "hiv_steps_per_year"));
     double DT = 1.0/HIVSTEPS_PER_YEAR;
     int *hAG_SPAN = INTEGER(getListElement(s_ss, "h.ag.span"));
+    double *h_art_stage_dur = REAL(getListElement(s_ss, "h_art_stage_dur"));
 
     int hAG_START[hAG];
     hAG_START[0] = 0;
@@ -286,6 +282,30 @@ extern "C" {
     setAttrib(s_pop, install("natdeaths"), s_natdeaths);
     multi_array_ref<double, 3> natdeaths(REAL(s_natdeaths), extents[PROJ_YEARS][NG][pAG]);
     memset(REAL(s_natdeaths), 0, length(s_natdeaths)*sizeof(double));
+    
+    SEXP s_aidsdeaths_noart = PROTECT(allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_aidsdeaths_noart_dim = PROTECT(allocVector(INTSXP, 4));
+    INTEGER(s_aidsdeaths_noart_dim)[0] = hDS;
+    INTEGER(s_aidsdeaths_noart_dim)[1] = hAG;
+    INTEGER(s_aidsdeaths_noart_dim)[2] = NG;
+    INTEGER(s_aidsdeaths_noart_dim)[3] = PROJ_YEARS;
+    setAttrib(s_aidsdeaths_noart, R_DimSymbol, s_aidsdeaths_noart_dim);
+    setAttrib(s_pop, install("aidsdeaths_noart"), s_aidsdeaths_noart);
+    multi_array_ref<double, 4> aidsdeaths_noart(REAL(s_aidsdeaths_noart), extents[PROJ_YEARS][NG][hAG][hDS]);
+    memset(REAL(s_aidsdeaths_noart), 0, length(s_aidsdeaths_noart)*sizeof(double));
+
+    SEXP s_aidsdeaths_art = PROTECT(allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_aidsdeaths_art_dim = PROTECT(allocVector(INTSXP, 5));
+    INTEGER(s_aidsdeaths_art_dim)[0] = hTS;
+    INTEGER(s_aidsdeaths_art_dim)[1] = hDS;
+    INTEGER(s_aidsdeaths_art_dim)[2] = hAG;
+    INTEGER(s_aidsdeaths_art_dim)[3] = NG;
+    INTEGER(s_aidsdeaths_art_dim)[4] = PROJ_YEARS;
+    setAttrib(s_aidsdeaths_art, R_DimSymbol, s_aidsdeaths_art_dim);
+    setAttrib(s_pop, install("aidsdeaths_art"), s_aidsdeaths_art);
+    multi_array_ref<double, 5> aidsdeaths_art(REAL(s_aidsdeaths_art), extents[PROJ_YEARS][NG][hAG][hDS][hTS]);
+    memset(REAL(s_aidsdeaths_art), 0, length(s_aidsdeaths_art)*sizeof(double));
+
 
     SEXP s_popadjust = PROTECT(allocVector(REALSXP, pAG * NG * PROJ_YEARS));
     SEXP s_popadjust_dim = PROTECT(allocVector(INTSXP, 3));
@@ -296,6 +316,18 @@ extern "C" {
     setAttrib(s_pop, install("popadjust"), s_popadjust);
     multi_array_ref<double, 3> popadjust(REAL(s_popadjust), extents[PROJ_YEARS][NG][pAG]);
     memset(REAL(s_popadjust), 0, length(s_popadjust)*sizeof(double));
+
+    SEXP s_artinit = PROTECT(allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_artinit_dim = PROTECT(allocVector(INTSXP, 4));
+    INTEGER(s_artinit_dim)[0] = hDS;
+    INTEGER(s_artinit_dim)[1] = hAG;
+    INTEGER(s_artinit_dim)[2] = NG;
+    INTEGER(s_artinit_dim)[3] = PROJ_YEARS;
+    setAttrib(s_artinit, R_DimSymbol, s_artinit_dim);
+    setAttrib(s_pop, install("artinit"), s_artinit);
+    multi_array_ref<double, 4> artinit(REAL(s_artinit), extents[PROJ_YEARS][NG][hAG][hDS]);
+    memset(REAL(s_artinit), 0, length(s_artinit)*sizeof(double));
+
 
     SEXP s_pregprevlag = PROTECT(allocVector(REALSXP, PROJ_YEARS));
     setAttrib(s_pop, install("pregprevlag"), s_pregprevlag);
@@ -546,6 +578,7 @@ extern "C" {
 	      
               double deaths = cd4mx_scale * cd4_mort[g][ha][hm] * hivpop[t][g][ha][hm];
               hivdeaths_ha[g][ha] += DT*deaths;
+	      aidsdeaths_noart[t][g][ha][hm] += DT*deaths;
               grad[g][ha][hm] = -deaths;
             }
             for(int hm = 1; hm < hDS; hm++){
@@ -611,12 +644,14 @@ extern "C" {
                 for(int hu = 0; hu < hTS; hu++){
                   double deaths = art_mort[g][ha][hm][hu] * artmx_timerr[t][hu] * artpop[t][g][ha][hm][hu];
                   hivdeaths_ha[g][ha] += DT*deaths;
+		  aidsdeaths_art[t][g][ha][hm][hu] += DT*deaths;
                   gradART[g][ha][hm][hu] = -deaths;
                 }
 
-                gradART[g][ha][hm][ART0MOS] += -ART_STAGE_PROG_RATE * artpop[t][g][ha][hm][ART0MOS];
-                gradART[g][ha][hm][ART6MOS] += ART_STAGE_PROG_RATE * artpop[t][g][ha][hm][ART0MOS] - ART_STAGE_PROG_RATE * artpop[t][g][ha][hm][ART6MOS];
-                gradART[g][ha][hm][ART1YR] += ART_STAGE_PROG_RATE * artpop[t][g][ha][hm][ART6MOS];
+		for(int hu = 0; hu < (hTS - 1); hu++) {
+		  gradART[g][ha][hm][hu] += -artpop[t][g][ha][hm][hu] / h_art_stage_dur[hu];
+		  gradART[g][ha][hm][hu+1] += artpop[t][g][ha][hm][hu] / h_art_stage_dur[hu];
+		}
 
 		// ART dropout
 		if(art_dropout[t] > 0)
@@ -726,6 +761,7 @@ extern "C" {
 		    artinit_hahm = hivpop[t][g][ha][hm] + DT * grad[g][ha][hm];
 		  grad[g][ha][hm] -= artinit_hahm / DT;
                   gradART[g][ha][hm][ART0MOS] += artinit_hahm / DT;
+		  artinit[t][g][ha][hm] += artinit_hahm; 
                 }
 
             } else if(art_alloc_method == 4) {  // lowest CD4 first
@@ -744,6 +780,7 @@ extern "C" {
 
                   grad[g][ha][hm] -= artinit_hahm / DT;
                   gradART[g][ha][hm][ART0MOS] += artinit_hahm / DT;
+		  artinit[t][g][ha][hm] += artinit_hahm; 
 		}
 		if(init_prop < 1.0)
 		  break;
@@ -761,6 +798,7 @@ extern "C" {
 		    artinit_hahm = hivpop[t][g][ha][hm] + DT * grad[g][ha][hm];
                   grad[g][ha][hm] -= artinit_hahm / DT;
                   gradART[g][ha][hm][ART0MOS] += artinit_hahm / DT;
+		  artinit[t][g][ha][hm] += artinit_hahm; 
                 }
             }
           }
@@ -922,7 +960,7 @@ extern "C" {
       incid15to49[t] /= hivn15to49[t-1];
     }
 
-    UNPROTECT(22);
+    UNPROTECT(28);
     return s_pop;
   }
 }

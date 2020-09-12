@@ -1,3 +1,6 @@
+
+#' @useDynLib eppasm eppasmC
+#' @export
 simmod.specfp <- function(fp, VERSION="C"){
 
   if(!exists("popadjust", where=fp))
@@ -195,8 +198,9 @@ simmod.specfp <- function(fp, VERSION="C"){
         gradART <- array(0, c(hTS, hDS, hAG, NG))
 
         ## progression and mortality
-        gradART[1:2,,,] <- gradART[1:2,,,] - 2.0 * artpop[1:2,,,, i]      # remove ART duration progression (HARD CODED 6 months duration)
-        gradART[2:3,,,] <- gradART[2:3,,,] + 2.0 * artpop[1:2,,,, i]      # add ART duration progression (HARD CODED 6 months duration)
+
+        gradART[1:(hTS-1),,,] <- gradART[1:(hTS-1),,,] - 1.0 / fp$ss$h_art_stage_dur * artpop[1:(hTS-1),,,, i]      # remove ART duration progression 
+        gradART[2:hTS,,,] <- gradART[2:hTS,,,] + 1.0 / fp$ss$h_art_stage_dur * artpop[1:(hTS-1),,,, i]      # add ART duration progression
 
         gradART <- gradART - fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i]   # ART mortality
 
@@ -405,4 +409,51 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "hivp_entrants") <- hivp_entrants_out
   class(pop) <- "spec"
   return(pop)
+}
+
+
+#' Add dimnames to EPP-ASM model output
+#'
+#' @param mod output from `simmod()`
+#' @param fp fixed parameters input to `simmod()`
+#'
+#' @return Input `mod` object with dimnames applied to arrays.
+#' 
+#'
+#' @export
+spec_add_dimnames <- function(mod, fp) {
+
+  nm_pAG <- fp$ss$AGE_START + seq_len(fp$ss$pAG) - 1L
+  nm_NG <- c("male", "female")
+  nm_pDS <- c("negative", "positive")
+  nm_years <- fp$ss$proj_start + seq_len(fp$ss$PROJ_YEARS) - 1L
+  nm_hDS <- c(">500", "350-499", "250-349", "200-249", "100-199", "50-99", "<50")
+  nm_hTS <- c("art0mos", "art6mos", "art1yr")
+  nm_hAG <- c("15-16", "17-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50+")
+  
+  dn_pop <- list(age = nm_pAG, sex = nm_NG, hivstatus = nm_pDS, year = nm_years)
+  dn_hivpop <- list(cd4stage = nm_hDS, age_coarse = nm_hAG, sex = nm_NG, year = nm_years)
+  dn_artpop <- c(list(artdur = nm_hTS), dn_hivpop)
+
+  dimnames(mod) <- dn_pop
+  dimnames(attr(mod, "hivpop")) <- dn_hivpop
+  dimnames(attr(mod, "artpop")) <- dn_artpop
+  dimnames(attr(mod, "infections")) <- dn_pop[c("age", "sex", "year")]
+  dimnames(attr(mod, "hivdeaths")) <- dn_pop[c("age", "sex", "year")]
+  dimnames(attr(mod, "natdeaths")) <- dn_pop[c("age", "sex", "year")]
+  dimnames(attr(mod, "aidsdeaths_noart")) <- dn_hivpop
+  dimnames(attr(mod, "aidsdeaths_art")) <- dn_artpop
+  dimnames(attr(mod, "popadjust")) <- dn_pop[c("age", "sex", "year")]
+  dimnames(attr(mod, "artinit")) <- dn_hivpop
+  
+  names(attr(mod, "pregprevlag")) <- nm_years
+  names(attr(mod, "incrate15to49_ts")) <- fp$proj.steps[-length(fp$proj.steps)]
+  names(attr(mod, "prev15to49_ts")) <- fp$proj.steps[-length(fp$proj.steps)]
+  names(attr(mod, "rvec_ts")) <- fp$proj.steps[-length(fp$proj.steps)]
+  names(attr(mod, "prev15to49")) <- nm_years
+  names(attr(mod, "pregprev")) <- nm_years
+  names(attr(mod, "incid15to49")) <- nm_years
+  names(attr(mod, "entrantprev")) <- nm_years
+
+  mod
 }

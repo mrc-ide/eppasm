@@ -224,7 +224,7 @@ prepare_ancsite_likdat <- function(ancsitedat, fp, offset = "offset"){
 
   df <- df[c("site", "year", "used", "type", "age", "agspan",
              "n", "prev", "aidx", "yidx", "qMidx",
-             "pstar", "W", "v", "offset", "type")]
+             "pstar", "W", "v", "offset")]
 
   list(df = df,
        datgrp = d$datgrp,

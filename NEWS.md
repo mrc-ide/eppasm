@@ -10,8 +10,8 @@
 
 ## eppasm 0.5.7
 
+- Add ANC dropout at end of model simulation step.
 - Refactor ANC data model code and add option to input offset in regression equation.
-
 
 ## eppasm 0.5.6
 
@@ -144,4 +144,4 @@
 # eppspectrum 0.1
 
 - Update to interface with `epp v0.3` which implements ANC routine testing (ANC-RT) likelihood in EPP 2017.
->>>>>>> master
+

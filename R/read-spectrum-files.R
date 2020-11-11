@@ -441,7 +441,8 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     incrr_age[,"Female",] <- sapply(dpsub("<DistOfHIV MV>", 22:38, timedat.idx), as.numeric)
   } else if(dp.vers == "Spectrum2017") {
     if (exists_dptag("<HIVSexRatio MV>")) {
-      incrr_sex <- setNames(as.numeric(dpsub("<HIVSexRatio MV>", 2, timedat.idx)), proj.years)
+      row_offset <- if (dpsub("<HIVSexRatio MV>", 2, 2) == "<Value>") { 3 } else { 2 }
+      incrr_sex <- setNames(as.numeric(dpsub("<HIVSexRatio MV>", row_offset, timedat.idx)), proj.years)
     } else if (exists_dptag("<SexRatioByEpidPatt MV>")) {
       sexincrr_idx <- as.integer(dpsub("<IncEpidemicRGIdx MV>", 2, 4)) # 0-based index
       incrr_sex <- dpsub("<SexRatioByEpidPatt MV>", 3:8, timedat.idx)[sexincrr_idx+1, ]

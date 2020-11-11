@@ -450,6 +450,7 @@ sample.prior <- function(n, fp){
   return(mat)
 }
 
+#' @export 
 ldsamp <- function(theta, fp){
 
   if(exists("prior_args", where = fp)){
@@ -528,6 +529,7 @@ likelihood <- function(theta, fp, likdat, log=FALSE){
     return(exp(lval))
 }
 
+#' @export
 dsamp <- function(theta, fp, log=FALSE){
   if(is.vector(theta))
     lval <- ldsamp(theta, fp)

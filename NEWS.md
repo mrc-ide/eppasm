@@ -2,6 +2,10 @@
 
 - Extend ART seven ART duration groups: 0-5 months, 6-11 months, 1 year, 2, 3, 4 years, and 5+ years.
 
+## eppasm 0.5.9
+
+* Update `read_hivproj_param()` to read incidence sex ratio from Spectrum v5.88, v5.89, and v5.90.
+
 ## eppasm 0.5.8
 
 - Update read_incid_input() to use tag "<IncidenceByFit MV4>" in Spectrum DP file.
@@ -11,6 +15,11 @@
   coarse age groups, stage of infection, and ART duration.
 - Make ART stage durations (0-5 months, 6-11 months, 1+ years) input parameters `fp$ss$h_art_stage_dur` instead of hard coded values.
 - Add function `spec_add_dimnames()` to add dimnames to simmod output arrays.
+
+## eppasm 0.5.7
+
+- Add ANC dropout at end of model simulation step.
+- Refactor ANC data model code and add option to input offset in regression equation.
 
 ## eppasm 0.5.6
 
@@ -143,3 +152,4 @@
 # eppspectrum 0.1
 
 - Update to interface with `epp v0.3` which implements ANC routine testing (ANC-RT) likelihood in EPP 2017.
+

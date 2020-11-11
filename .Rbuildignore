@@ -5,3 +5,5 @@ dev/*
 ^analysis$
 ^README\.Rmd$
 ^\.travis\.yml$
+^.*\.Rproj$
+^\.Rproj\.user$

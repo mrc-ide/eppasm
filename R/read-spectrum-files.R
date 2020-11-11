@@ -301,6 +301,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
 ######################################################
 
 #' @export
+#' 
 read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 
   ## read .DP file
@@ -440,7 +441,8 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     incrr_age[,"Female",] <- sapply(dpsub("<DistOfHIV MV>", 22:38, timedat.idx), as.numeric)
   } else if(dp.vers == "Spectrum2017") {
     if (exists_dptag("<HIVSexRatio MV>")) {
-      incrr_sex <- setNames(as.numeric(dpsub("<HIVSexRatio MV>", 2, timedat.idx)), proj.years)
+      row_offset <- if (dpsub("<HIVSexRatio MV>", 2, 2) == "<Value>") { 3 } else { 2 }
+      incrr_sex <- setNames(as.numeric(dpsub("<HIVSexRatio MV>", row_offset, timedat.idx)), proj.years)
     } else if (exists_dptag("<SexRatioByEpidPatt MV>")) {
       sexincrr_idx <- as.integer(dpsub("<IncEpidemicRGIdx MV>", 2, 4)) # 0-based index
       incrr_sex <- dpsub("<SexRatioByEpidPatt MV>", 3:8, timedat.idx)[sexincrr_idx+1, ]
@@ -607,7 +609,9 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   if(exists_dptag("<ChAged15ByCD4Cat MV>")){
 
     age15hivpop_raw <- sapply(dpsub("<ChAged15ByCD4Cat MV>", 1+1:(NG*DS*2), timedat.idx), as.numeric)
-    age15hivpop[c(1, 4),,,] <- array(age15hivpop_raw, c(2, DS, NG, length(proj.years)))
+    age15hivpop_raw <- array(age15hivpop_raw, c(DS, 2, NG, length(proj.years)))
+    age15hivpop[1,,,] <- age15hivpop_raw[,1,,]		
+    age15hivpop[4,,,] <- age15hivpop_raw[,2,,]
 
   } else if(exists_dptag("<ChAged14ByCD4Cat MV>")){
 
@@ -707,7 +711,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 ####  function to read UN Population Division projection file  ####
 ###################################################################
 
-
+#' @export
 read_demog_param <- function(upd.file, age.intervals = 1){
 
   ## check age intervals and prepare age groups vector
@@ -798,6 +802,7 @@ read_demog_param <- function(upd.file, age.intervals = 1){
 
 ## Note: only parses Spectrum 2016 files, produces outputs by single-year age
 
+#' @export
 read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
 
   if(use_ep5)
@@ -946,6 +951,8 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
 ## Read percentage urban input from EPP XML file
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
+#'
+#' @export
 read_epp_perc_urban <- function(pjnz){
 
   xmlfile <- grep(".xml", unzip(pjnz, list=TRUE)$Name, value=TRUE)
@@ -971,6 +978,7 @@ read_epp_perc_urban <- function(pjnz){
 #' @param pjnz file path to Spectrum PJNZ file.
 #' @return vector of epidemic start year for each EPP subregion with region names
 #'
+#' @export
 read_epp_t0 <- function(pjnz){
 
   xmlfile <- grep(".xml", unzip(pjnz, list=TRUE)$Name, value=TRUE)
@@ -995,6 +1003,8 @@ read_epp_t0 <- function(pjnz){
 ## Read subpopulation size input file
 #'
 #' @param filepath file path to .subp file
+#'
+#' @export
 read_subp_file <- function(filepath){
 
   dat <- readLines(filepath)
@@ -1025,6 +1035,8 @@ read_subp_file <- function(filepath){
 #' Read CSAVR input data
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
+#'
+#' @export
 read_csavr_data <- function(pjnz){
 
   dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
@@ -1059,6 +1071,8 @@ read_csavr_data <- function(pjnz){
 #' Read annual incidence input
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
+#'
+#' @export
 read_incid_input <- function(pjnz){
 
   dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)

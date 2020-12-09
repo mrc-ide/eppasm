@@ -455,6 +455,8 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     incrr_age[,"Female",] <- sapply(dpsub("<DistOfHIV MV2>", 20:36, timedat.idx), as.numeric)
   }
 
+  stopifnot(!is.na(incrr_sex))
+  stopifnot(!is.na(incrr_age))
 
   ## hiv natural history
   cd4_initdist <- array(NA, c(DS, 4, NG), list(cd4stage=1:DS, agecat=c("15-24", "25-34", "35-44", "45+"), sex=c("Male", "Female")))

@@ -441,8 +441,24 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     incrr_age[,"Female",] <- sapply(dpsub("<DistOfHIV MV>", 22:38, timedat.idx), as.numeric)
   } else if(dp.vers == "Spectrum2017") {
     if (exists_dptag("<HIVSexRatio MV>")) {
-      row_offset <- if (dpsub("<HIVSexRatio MV>", 2, 2) == "<Value>") { 3 } else { 2 }
-      incrr_sex <- setNames(as.numeric(dpsub("<HIVSexRatio MV>", row_offset, timedat.idx)), proj.years)
+
+      ## Note from Rob Glaubius (9 Dec 2020)
+      ## Sometime between version 5.756 and the release v5.87 the variable <HIVSexRatio MV>
+      ## was dropped for the more detailed <SexRatioByEpidPatt MV>. The old tag was
+      ## reintroduced more recently with the shifts in cell placement you noticed. Since the
+      ## variable was removed and reintroduced we didn’t think to tag this as “MV2” instead
+      ## of “MV”.
+      ##
+      ## Action: to parse this check that one of these rows 2 or 3 after the <HIVSexRatio MV>
+      ## has data, but not both.
+
+      data_row <- dpsub("<HIVSexRatio MV>", 1:3, 4)
+      data_row <- which(data_row != "")
+      if (length(data_row) != 1) {
+        stop("DP tag <HIVSexRatio MV> not parsed correctly")
+      }
+      incrr_sex <- setNames(as.numeric(dpsub("<HIVSexRatio MV>", data_row, timedat.idx)), proj.years)
+      
     } else if (exists_dptag("<SexRatioByEpidPatt MV>")) {
       sexincrr_idx <- as.integer(dpsub("<IncEpidemicRGIdx MV>", 2, 4)) # 0-based index
       incrr_sex <- dpsub("<SexRatioByEpidPatt MV>", 3:8, timedat.idx)[sexincrr_idx+1, ]

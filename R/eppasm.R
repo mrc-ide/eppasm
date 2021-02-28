@@ -1,5 +1,6 @@
 
 #' @useDynLib eppasm eppasmC
+#' @useDynLib eppasm eppasm_tensorC
 #' @export
 simmod.specfp <- function(fp, VERSION="C"){
 
@@ -12,9 +13,13 @@ simmod.specfp <- function(fp, VERSION="C"){
   if(VERSION != "R"){
     fp$eppmodInt <- match(fp$eppmod, c("rtrend", "directincid"), nomatch=0) # 0: r-spline;
     fp$incidmodInt <- match(fp$incidmod, c("eppspectrum"))-1L  # -1 for 0-based indexing
-    mod <- .Call(eppasmC, fp)
-    class(mod) <- "spec"
-    return(mod)
+    if (VERSION == "tensor") {
+      mod <- .Call("eppasm_tensorC", fp)
+    } else {     
+      mod <- .Call(eppasmC, fp)
+    }
+      class(mod) <- "spec"
+      return(mod)
   }
 
 ##################################################################################

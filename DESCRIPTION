@@ -10,7 +10,9 @@ Imports: epp (>= 0.4.1),
     mvtnorm,
     reshape2,
     xml2
-LinkingTo: BH
+LinkingTo:
+    BH,
+    RcppEigen
 Remotes:
     jeffeaton/epp
 License: GPL-3

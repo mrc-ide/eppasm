@@ -226,7 +226,6 @@ extern "C" {
     INTEGER(s_pop_dim)[2] = pDS;
     INTEGER(s_pop_dim)[3] = PROJ_YEARS;
     setAttrib(s_pop, R_DimSymbol, s_pop_dim);
-    memset(REAL(s_pop), 0, length(s_pop)*sizeof(double));
 
     SEXP s_hivpop = PROTECT(allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
     SEXP s_hivpop_dim = PROTECT(allocVector(INTSXP, 4));
@@ -236,7 +235,6 @@ extern "C" {
     INTEGER(s_hivpop_dim)[3] = PROJ_YEARS;
     setAttrib(s_hivpop, R_DimSymbol, s_hivpop_dim);
     setAttrib(s_pop, install("hivpop"), s_hivpop);
-    memset(REAL(s_hivpop), 0, length(s_hivpop)*sizeof(double));
 
     SEXP s_artpop = PROTECT(allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
     SEXP s_artpop_dim = PROTECT(allocVector(INTSXP, 5));
@@ -247,7 +245,6 @@ extern "C" {
     INTEGER(s_artpop_dim)[4] = PROJ_YEARS;
     setAttrib(s_artpop, R_DimSymbol, s_artpop_dim);
     setAttrib(s_pop, install("artpop"), s_artpop);
-    memset(REAL(s_artpop), 0, length(s_artpop)*sizeof(double));
 
     SEXP s_infections = PROTECT(allocVector(REALSXP, pAG * NG * PROJ_YEARS));
     SEXP s_infections_dim = PROTECT(allocVector(INTSXP, 3));
@@ -256,8 +253,6 @@ extern "C" {
     INTEGER(s_infections_dim)[2] = PROJ_YEARS;
     setAttrib(s_infections, R_DimSymbol, s_infections_dim);
     setAttrib(s_pop, install("infections"), s_infections);
-    TensorMap<Tensor<double, 3>> infections(REAL(s_infections), pAG, NG, PROJ_YEARS);
-    memset(REAL(s_infections), 0, length(s_infections)*sizeof(double));
 
     SEXP s_hivdeaths = PROTECT(allocVector(REALSXP, pAG * NG * PROJ_YEARS));
     SEXP s_hivdeaths_dim = PROTECT(allocVector(INTSXP, 3));
@@ -340,26 +335,51 @@ extern "C" {
     memset(hivn15to49, 0, PROJ_YEARS*sizeof(double));
     memset(hivp15to49, 0, PROJ_YEARS*sizeof(double));
 
+    
+    // initialize population
+
+    // population by single-year age
+    TensorMap<Tensor<double, 4>> pop_t(REAL(s_pop), pAG, NG, pDS, PROJ_YEARS);
+    pop_t.setZero();
+    
+    for(int g = 0; g < NG; g++)
+      for(int a = 0; a < pAG; a++){
+        pop_t(a, g, HIVN, 0) = basepop(a, g);
+        if(a >= pIDX_15TO49 & a < pIDX_15TO49+pAG_15TO49)
+          hivn15to49[0] += basepop(a, g);
+      }
+
+    // HIV population with stage stratification
+    TensorMap<Tensor<double, 4>> hivpop_t(REAL(s_hivpop), hDS, hAG, NG, PROJ_YEARS);
+    hivpop_t.setZero();
+
+    // ART population with stage stratification
+    TensorMap<Tensor<double, 5>> artpop_t(REAL(s_artpop), hTS, hDS, hAG, NG, PROJ_YEARS);
+    artpop_t.setZero();
+
 
     // assign references to output arrays
 
+    TensorMap<Tensor<double, 3>> infections(REAL(s_infections), pAG, NG, PROJ_YEARS);
+    infections.setZero();
+
     TensorMap<Tensor<double, 3>> hivdeaths(REAL(s_hivdeaths), pAG, NG, PROJ_YEARS);
-    memset(REAL(s_hivdeaths), 0, length(s_hivdeaths)*sizeof(double));
+    hivdeaths.setZero();
 
     TensorMap<Tensor<double, 3>> natdeaths(REAL(s_natdeaths), pAG, NG, PROJ_YEARS);
-    memset(REAL(s_natdeaths), 0, length(s_natdeaths)*sizeof(double));
+    natdeaths.setZero();
 
     TensorMap<Tensor<double, 4>> aidsdeaths_noart(REAL(s_aidsdeaths_noart), hDS, hAG, NG, PROJ_YEARS);
-    memset(REAL(s_aidsdeaths_noart), 0, length(s_aidsdeaths_noart)*sizeof(double));
+    aidsdeaths_noart.setZero();
 
     TensorMap<Tensor<double, 5>> aidsdeaths_art(REAL(s_aidsdeaths_art), hTS, hDS, hAG, NG, PROJ_YEARS);
-    memset(REAL(s_aidsdeaths_art), 0, length(s_aidsdeaths_art)*sizeof(double));
+    aidsdeaths_art.setZero();
 
     TensorMap<Tensor<double, 3>> popadjust(REAL(s_popadjust), pAG, NG, PROJ_YEARS);
-    memset(REAL(s_popadjust), 0, length(s_popadjust)*sizeof(double));
+    popadjust.setZero();
 
     TensorMap<Tensor<double, 4>> artinit(REAL(s_artinit), hDS, hAG, NG, PROJ_YEARS);
-    memset(REAL(s_artinit), 0, length(s_artinit)*sizeof(double));
+    artinit.setZero();
 
     
     double *incrate15to49_ts_out = REAL(s_incrate15to49_ts);
@@ -383,40 +403,6 @@ extern "C" {
     memset(entrantprev_out, 0, length(s_entrantprev_out)*sizeof(double));
 
     
-
-    
-    // initialize population
-
-    // population by single-year age
-    // double pop[PROJ_YEARS][pDS][NG][pAG];
-    TensorMap<Tensor<double, 4>> pop_t(REAL(s_pop), pAG, NG, pDS, PROJ_YEARS);
-    
-    for(int g = 0; g < NG; g++)
-      for(int a = 0; a < pAG; a++){
-        pop_t(a, g, HIVN, 0) = basepop(a, g);
-	pop_t(a, g, HIVP, 0) = 0.0;
-        if(a >= pIDX_15TO49 & a < pIDX_15TO49+pAG_15TO49)
-          hivn15to49[0] += basepop(a, g);
-      }
-
-    // HIV population with stage stratification
-    // double hivpop[PROJ_YEARS][NG][hAG][hDS];
-    TensorMap<Tensor<double, 4>> hivpop_t(REAL(s_hivpop), hDS, hAG, NG, PROJ_YEARS);
-    for(int g = 0; g < NG; g++)
-      for(int ha = 0; ha < hAG; ha++)
-        for(int hm = 0; hm < hDS; hm++)
-          hivpop_t(hm, ha, g, 0) = 0.0;
-
-    // ART population with stage stratification
-    // double artpop[PROJ_YEARS][NG][hAG][hDS][hTS];
-    TensorMap<Tensor<double, 5>> artpop_t(REAL(s_artpop), hTS, hDS, hAG, NG, PROJ_YEARS);
-    if(t_ART_start < PROJ_YEARS)
-      for(int g = 0; g < NG; g++)
-        for(int ha = 0; ha < hAG; ha++)
-          for(int hm = 0; hm < hDS; hm++)
-            for(int hu = 0; hu < hTS; hu++)
-              artpop_t(hu, hm, ha, g, t_ART_start) = 0.0;  // initialize to zero in year of ART start
-
 
     // array to store lagged prevalence among pregnant women
     double *pregprevlag = REAL(s_pregprevlag); // (double*) R_alloc(PROJ_YEARS, sizeof(double));

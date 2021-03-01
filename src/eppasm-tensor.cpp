@@ -1,4 +1,3 @@
-#define BOOST_DISABLE_ASSERTS
 #include <unsupported/Eigen/CXX11/Tensor>
 
 #include <R.h>
@@ -72,7 +71,7 @@ void calc_infections_eppspectrum_tensor(const TensorMap<Tensor<double, 4>> pop_t
 					int *hAG_SPAN,
 					double *prevcurr,
 					double *incrate15to49_ts,
-					double infections_ts[NG][pAG]);
+					TensorFixedSize<double, Sizes<pAG, NG>>& infections_ts);
 
 extern "C" {
 
@@ -116,7 +115,7 @@ extern "C" {
       ptr_entrantpop = REAL(getListElement(s_fp, "entrantpop"));
     }
     TensorMap<Tensor<double, 3>> targetpop(ptr_targetpop, pAG, NG, PROJ_YEARS);
-    TensorMap<Tensor<double, 2>> entrantpop(ptr_targetpop, NG, PROJ_YEARS);
+    TensorMap<Tensor<double, 2>> entrantpop(ptr_entrantpop, NG, PROJ_YEARS);
 
     // disease progression
     TensorMap<Tensor<double, 3>> cd4_initdist(REAL(getListElement(s_fp, "cd4_initdist")), hDS, hAG, NG);
@@ -427,27 +426,29 @@ extern "C" {
 	  pop_t(pAG-1, g, m, t) += pop_t(pAG-1, g, m, t-1); // open age group
         }
 
-      double hiv_ag_prob[NG][hAG];
+      TensorFixedSize<double, Sizes<hAG, NG>> hiv_ag_prob;
+      // Tensor<double, 2> hiv_ag_prob(hAG, NG);      
+      hiv_ag_prob.setZero();
+      
       for(int g = 0; g < NG; g++){
         int a = 0;
         for(int ha = 0; ha < (hAG-1); ha++){
-          hiv_ag_prob[g][ha] = 0;
           for(int i = 0; i < hAG_SPAN[ha]; i++){
-            hiv_ag_prob[g][ha] += pop_t(a, g, HIVP, t-1);
+            hiv_ag_prob(ha, g) += pop_t(a, g, HIVP, t-1);
             a++;
           }
-          hiv_ag_prob[g][ha] = (hiv_ag_prob[g][ha] > 0) ? pop_t(a-1, g, HIVP, t-1) / hiv_ag_prob[g][ha] : 0;
+          hiv_ag_prob(ha, g) = (hiv_ag_prob(ha, g) > 0) ? pop_t(a-1, g, HIVP, t-1) / hiv_ag_prob(ha, g) : 0;
         }
-        hiv_ag_prob[g][hAG-1] = 0.0; // no one ages out of the open-ended age group
+	// Note: loop stops at hAG-1; no one ages out of the open-ended age group
       }
 
       for(int g = 0; g < NG; g++)
         for(int ha = 1; ha < hAG; ha++)
           for(int hm = 0; hm < hDS; hm++){
-            hivpop_t(hm, ha, g, t) = (1-hiv_ag_prob[g][ha]) * hivpop_t(hm, ha, g, t-1) + hiv_ag_prob[g][ha-1]*hivpop_t(hm, ha-1, g, t-1);
+            hivpop_t(hm, ha, g, t) = (1-hiv_ag_prob(ha, g)) * hivpop_t(hm, ha, g, t-1) + hiv_ag_prob(ha-1, g)*hivpop_t(hm, ha-1, g, t-1);
             if(t > t_ART_start)
               for(int hu = 0; hu < hTS; hu++)
-                artpop_t(hu, hm, ha, g, t) = (1-hiv_ag_prob[g][ha]) * artpop_t(hu, hm, ha, g, t-1) + hiv_ag_prob[g][ha-1]*artpop_t(hu, hm, ha-1, g, t-1);
+                artpop_t(hu, hm, ha, g, t) = (1-hiv_ag_prob(ha, g)) * artpop_t(hu, hm, ha, g, t-1) + hiv_ag_prob(ha-1, g)*artpop_t(hu, hm, ha-1, g, t-1);
           }
 
       // add lagged births to youngest age group
@@ -474,15 +475,16 @@ extern "C" {
         entrantprev_out[t] = (pop_t(0, MALE, HIVP, t) + pop_t(0, FEMALE, HIVP, t)) / (pop_t(0, MALE, HIVN, t) + pop_t(0, FEMALE, HIVN, t) + pop_t(0, MALE, HIVP, t) + pop_t(0, FEMALE, HIVP, t));
 
         for(int hm = 0; hm < hDS; hm++){
-          hivpop_t(hm, 0, g, t) = (1-hiv_ag_prob[g][0]) * hivpop_t(hm, 0, g, t-1) + paedsurv_g * paedsurv_cd4dist(hm, g, t) * (1.0 - entrantartcov(g, t));
+          hivpop_t(hm, 0, g, t) = (1-hiv_ag_prob(0, g)) * hivpop_t(hm, 0, g, t-1) + paedsurv_g * paedsurv_cd4dist(hm, g, t) * (1.0 - entrantartcov(g, t));
           if(t > t_ART_start){
             for(int hu = 0; hu < hTS; hu++){
-              artpop_t(hu, hm, 0, g, t) = (1-hiv_ag_prob[g][0]) * artpop_t(hu, hm, 0, g, t-1);
+              artpop_t(hu, hm, 0, g, t) = (1-hiv_ag_prob(0, g)) * artpop_t(hu, hm, 0, g, t-1);
 	      artpop_t(hu, hm, 0, g, t) += paedsurv_g * paedsurv_artcd4dist(hu, hm, g, t) * entrantartcov(g, t);
 	    }
 	  }
         }
       }
+
 
       // non-HIV mortality and netmigration
       for(int g = 0; g < NG; g++){
@@ -543,7 +545,6 @@ extern "C" {
         for(int g = 0; g < NG; g++)
           birthslag(g, t + AGE_START-1) = srb(g, t) * births;
 
-
       ////////////////////////////////
       ////  HIV model simulation  ////
       ////////////////////////////////
@@ -556,13 +557,15 @@ extern "C" {
 
         int ts = (t-1)*HIVSTEPS_PER_YEAR + hts;
 
-        double hivdeaths_ha[NG][hAG];
-        memset(hivdeaths_ha, 0, sizeof(double)*NG*hAG);
+	TensorFixedSize<double, Sizes<hAG, NG>> hivdeaths_ha;
+	hivdeaths_ha.setZero();
 
         // untreated population
 
         // disease progression and mortality
-        double grad[NG][hAG][hDS];
+	TensorFixedSize<double, Sizes<hDS, hAG, NG>> grad_t;
+	// Tensor<double, 3> grad_t(hDS, hAG, NG);
+	
         for(int g = 0; g < NG; g++)
           for(int ha = 0; ha < hAG; ha++){
             for(int hm = 0; hm < hDS; hm++){
@@ -576,17 +579,18 @@ extern "C" {
 	      }
 	      
               double deaths = cd4mx_scale * cd4_mort(hm, ha, g) * hivpop_t(hm, ha, g, t);
-              hivdeaths_ha[g][ha] += DT*deaths;
+              hivdeaths_ha(ha, g) += DT*deaths;
 	      aidsdeaths_noart(hm, ha, g, t) += DT*deaths;
-              grad[g][ha][hm] = -deaths;
+	      grad_t(hm, ha, g) = -deaths;
             }
             for(int hm = 1; hm < hDS; hm++){
-              grad[g][ha][hm-1] -= cd4_prog(hm-1, ha, g) * hivpop_t(hm-1, ha, g, t);
-              grad[g][ha][hm] += cd4_prog(hm-1, ha, g) * hivpop_t(hm-1, ha, g, t);
+              grad_t(hm-1, ha, g) -= cd4_prog(hm-1, ha, g) * hivpop_t(hm-1, ha, g, t);
+              grad_t(hm, ha, g) += cd4_prog(hm-1, ha, g) * hivpop_t(hm-1, ha, g, t);
             }
           }
 
         if(eppmod != EPP_DIRECTINCID){
+
           // incidence
 
           // calculate r(t)
@@ -600,7 +604,7 @@ extern "C" {
 	  }
 
           // calculate new infections by sex and age
-          double infections_ts[NG][pAG];
+	  TensorFixedSize<double, Sizes<pAG, NG>> infections_ts;
           if(incidmod == INCIDMOD_EPPSPEC)
             calc_infections_eppspectrum_tensor(pop_t,
 					       hivpop_t,
@@ -619,7 +623,7 @@ extern "C" {
             for(int ha = 0; ha < hAG; ha++){
               double infections_a, infections_ha = 0.0;
               for(int i = 0; i < hAG_SPAN[ha]; i++){
-                infections_ha += infections_a = infections_ts[g][a];
+                infections_ha += infections_a = infections_ts(a, g);
                 infections(a, g, t) += DT*infections_a;
                 pop_t(a, g, HIVN, t) -= DT*infections_a;
                 pop_t(a, g, HIVP, t) += DT*infections_a;
@@ -629,8 +633,9 @@ extern "C" {
                 incid15to49[t] += DT*infections_ha;
 
               // add infections to grad hivpop
-              for(int hm = 0; hm < hDS; hm++)
-                grad[g][ha][hm] += infections_ha * cd4_initdist(hm, ha, g);
+              for(int hm = 0; hm < hDS; hm++) {
+                grad_t(hm, ha, g) += infections_ha * cd4_initdist(hm, ha, g);
+	      }
             }
           }
         }
@@ -638,7 +643,8 @@ extern "C" {
         // ART progression, mortality, and initiation
         if(t >= t_ART_start){
 
-	  double gradART[NG][hAG][hDS][hTS];
+	  TensorFixedSize<double, Sizes<hTS, hDS, hAG, NG>> gradART_t;
+	  // Tensor<double, 4> gradART_t(hTS, hDS, hAG, NG);
 	  
           // progression and mortality
           for(int g = 0; g < NG; g++)
@@ -647,21 +653,21 @@ extern "C" {
 
                 for(int hu = 0; hu < hTS; hu++){
                   double deaths = art_mort(hu, hm, ha, g) * artmx_timerr(hu, t) * artpop_t(hu, hm, ha, g, t);
-                  hivdeaths_ha[g][ha] += DT*deaths;
+                  hivdeaths_ha(ha, g) += DT*deaths;
 		  aidsdeaths_art(hu, hm, ha, g, t) += DT*deaths;
-                  gradART[g][ha][hm][hu] = -deaths;
+                  gradART_t(hu, hm, ha, g) = -deaths;
                 }
 
 		for(int hu = 0; hu < (hTS - 1); hu++) {
-		  gradART[g][ha][hm][hu] += -artpop_t(hu, hm, ha, g, t) / h_art_stage_dur[hu];
-		  gradART[g][ha][hm][hu+1] += artpop_t(hu, hm, ha, g, t) / h_art_stage_dur[hu];
+		  gradART_t(hu, hm, ha, g) += -artpop_t(hu, hm, ha, g, t) / h_art_stage_dur[hu];
+		  gradART_t(hu+1, hm, ha, g) += artpop_t(hu, hm, ha, g, t) / h_art_stage_dur[hu];
 		}
 
 		// ART dropout
 		if(art_dropout[t] > 0)
 		  for(int hu = 0; hu < hTS; hu++){
-		    grad[g][ha][hm] += art_dropout[t] * artpop_t(hu, hm, ha, g, t);
-                    gradART[g][ha][hm][hu] -= art_dropout[t] * artpop_t(hu, hm, ha, g, t);
+		    grad_t(hm, ha, g) += art_dropout[t] * artpop_t(hu, hm, ha, g, t);
+                    gradART_t(hu, hm, ha, g) -= art_dropout[t] * artpop_t(hu, hm, ha, g, t);
 		  }
 
               }
@@ -670,16 +676,18 @@ extern "C" {
           // ART initiation
           for(int g = 0; g < NG; g++){
 
-            double artelig_hahm[hAG_15PLUS][hDS], Xart_15plus = 0.0, Xartelig_15plus = 0.0, expect_mort_artelig15plus = 0.0;
+	    TensorFixedSize<double, Sizes<hDS, hAG_15PLUS>> artelig_hahm;
+	      
+	    double Xart_15plus = 0.0, Xartelig_15plus = 0.0, expect_mort_artelig15plus = 0.0;
             for(int ha = hIDX_15PLUS; ha < hAG; ha++){
               for(int hm = everARTelig_idx; hm < hDS; hm++){
 		if(hm >= anyelig_idx){
 		  double prop_elig = (hm >= cd4elig_idx) ? 1.0 : (hm >= hIDX_CD4_350) ? 1.0 - (1.0-specpop_percelig[t])*(1.0-who34percelig) : specpop_percelig[t];
-		  Xartelig_15plus += artelig_hahm[ha-hIDX_15PLUS][hm] = prop_elig * hivpop_t(hm, ha, g, t);
-		  expect_mort_artelig15plus += cd4_mort(hm, ha, g) * artelig_hahm[ha-hIDX_15PLUS][hm];
+		  Xartelig_15plus += artelig_hahm(hm, ha-hIDX_15PLUS) = prop_elig * hivpop_t(hm, ha, g, t);
+		  expect_mort_artelig15plus += cd4_mort(hm, ha, g) * artelig_hahm(hm, ha-hIDX_15PLUS);
 		}
                 for(int hu = 0; hu < hTS; hu++)
-                  Xart_15plus += artpop_t(hu, hm, ha, g, t) + DT * gradART[g][ha][hm][hu];
+                  Xart_15plus += artpop_t(hu, hm, ha, g, t) + DT * gradART_t(hu, hm, ha, g);
               }
 
               // if pw_artelig, add pregnant women to artelig_hahm population
@@ -694,7 +702,7 @@ extern "C" {
                 }
                 for(int hm = anyelig_idx; hm < cd4elig_idx; hm++){
                   double pw_elig_hahm = births_by_ha[ha-hIDX_FERT] * frr_cd4(hm, ha-hIDX_FERT, t) * hivpop_t(hm, ha, g, t) / frr_pop_ha;
-                  artelig_hahm[ha-hIDX_15PLUS][hm] += pw_elig_hahm;
+                  artelig_hahm(hm, ha-hIDX_15PLUS) += pw_elig_hahm;
                   Xartelig_15plus += pw_elig_hahm;
                   expect_mort_artelig15plus += cd4_mort(hm, ha, g) * pw_elig_hahm;
                 }
@@ -741,11 +749,11 @@ extern "C" {
               double elig_below = 0.0, elig_above = 0.0;
               for(int ha = hIDX_15PLUS; ha < hAG; ha++){
                 for(int hm = anyelig_idx; hm < medcd4_idx; hm++)
-                  elig_above += artelig_hahm[ha-hIDX_15PLUS][hm];
-                elig_above += (1.0 - medcat_propbelow) * artelig_hahm[ha-hIDX_15PLUS][medcd4_idx];
-                elig_below += medcat_propbelow * artelig_hahm[ha-hIDX_15PLUS][medcd4_idx];
+                  elig_above += artelig_hahm(hm, ha-hIDX_15PLUS);
+                elig_above += (1.0 - medcat_propbelow) * artelig_hahm(medcd4_idx, ha-hIDX_15PLUS);
+                elig_below += medcat_propbelow * artelig_hahm(medcd4_idx, ha-hIDX_15PLUS);
                 for(int hm = medcd4_idx+1; hm < hDS; hm++)
-                  elig_below += artelig_hahm[ha-hIDX_15PLUS][hm];
+                  elig_below += artelig_hahm(hm, ha-hIDX_15PLUS);
               }
 
               double initprob_below = (elig_below > artinit_hts * 0.5) ? artinit_hts * 0.5 / elig_below : 1.0;
@@ -756,15 +764,16 @@ extern "C" {
                 for(int hm = anyelig_idx; hm < hDS; hm++){
                   double artinit_hahm;
                   if(hm < medcd4_idx)
-                    artinit_hahm = artelig_hahm[ha-hIDX_15PLUS][hm] * initprob_above;
+                    artinit_hahm = artelig_hahm(hm, ha-hIDX_15PLUS) * initprob_above;
                   else if(hm == medcd4_idx)
-                    artinit_hahm = artelig_hahm[ha-hIDX_15PLUS][hm] * initprob_medcat;
+                    artinit_hahm = artelig_hahm(hm, ha-hIDX_15PLUS) * initprob_medcat;
                   if(hm > medcd4_idx)
-                    artinit_hahm = artelig_hahm[ha-hIDX_15PLUS][hm] * initprob_below;
-                  if(artinit_hahm > hivpop_t(hm, ha, g, t) + DT * grad[g][ha][hm])
-		    artinit_hahm = hivpop_t(hm, ha, g, t) + DT * grad[g][ha][hm];
-		  grad[g][ha][hm] -= artinit_hahm / DT;
-                  gradART[g][ha][hm][ART0MOS] += artinit_hahm / DT;
+                    artinit_hahm = artelig_hahm(hm, ha-hIDX_15PLUS) * initprob_below;
+                  if (artinit_hahm > hivpop_t(hm, ha, g, t) + DT * grad_t(hm, ha, g)) {
+		    artinit_hahm = hivpop_t(hm, ha, g, t) + DT * grad_t(hm, ha, g);
+		  }
+		  grad_t(hm, ha, g) -= artinit_hahm / DT;
+                  gradART_t(ART0MOS, hm, ha, g) += artinit_hahm / DT;
 		  artinit(hm, ha, g, t) += artinit_hahm; 
                 }
 
@@ -773,17 +782,18 @@ extern "C" {
 	      for(int hm = hDS-1; hm >= anyelig_idx; hm--){
 		double artelig_hm = 0;
 		for(int ha = hIDX_15PLUS; ha < hAG; ha++)
-		  artelig_hm += artelig_hahm[ha-hIDX_15PLUS][hm];
+		  artelig_hm += artelig_hahm(hm, ha-hIDX_15PLUS);
 		double init_prop = (artelig_hm == 0 | artinit_hts > artelig_hm) ? 1.0 : artinit_hts / artelig_hm;
 
 		for(int ha = hIDX_15PLUS; ha < hAG; ha++){
-		  double artinit_hahm = init_prop * artelig_hahm[ha-hIDX_15PLUS][hm];
+		  double artinit_hahm = init_prop * artelig_hahm(hm, ha-hIDX_15PLUS);
 
-		  if(artinit_hahm > hivpop_t(hm, ha, g, t) + DT * grad[g][ha][hm])
-		    artinit_hahm = hivpop_t(hm, ha, g, t) + DT * grad[g][ha][hm];
+		  if (artinit_hahm > hivpop_t(hm, ha, g, t) + DT * grad_t(hm, ha, g)) {
+		    artinit_hahm = hivpop_t(hm, ha, g, t) + DT * grad_t(hm, ha, g);
+		  }
 
-                  grad[g][ha][hm] -= artinit_hahm / DT;
-                  gradART[g][ha][hm][ART0MOS] += artinit_hahm / DT;
+                  grad_t(hm, ha, g) -= artinit_hahm / DT;
+                  gradART_t(ART0MOS, hm, ha, g) += artinit_hahm / DT;
 		  artinit(hm, ha, g, t) += artinit_hahm; 
 		}
 		if(init_prop < 1.0)
@@ -795,13 +805,14 @@ extern "C" {
 
               for(int ha = hIDX_15PLUS; ha < hAG; ha++)
                 for(int hm = anyelig_idx; hm < hDS; hm++){
-                  double artinit_hahm = artinit_hts * artelig_hahm[ha-hIDX_15PLUS][hm] * ((1.0 - art_alloc_mxweight)/Xartelig_15plus + art_alloc_mxweight * cd4_mort(hm, ha, g) / expect_mort_artelig15plus);
-                  if(artinit_hahm > artelig_hahm[ha-hIDX_15PLUS][hm])
-		    artinit_hahm = artelig_hahm[ha-hIDX_15PLUS][hm];
-		  if(artinit_hahm > hivpop_t(hm, ha, g, t) + DT * grad[g][ha][hm])
-		    artinit_hahm = hivpop_t(hm, ha, g, t) + DT * grad[g][ha][hm];
-                  grad[g][ha][hm] -= artinit_hahm / DT;
-                  gradART[g][ha][hm][ART0MOS] += artinit_hahm / DT;
+                  double artinit_hahm = artinit_hts * artelig_hahm(hm, ha-hIDX_15PLUS) * ((1.0 - art_alloc_mxweight)/Xartelig_15plus + art_alloc_mxweight * cd4_mort(hm, ha, g) / expect_mort_artelig15plus);
+                  if (artinit_hahm > artelig_hahm(hm, ha-hIDX_15PLUS)) {
+		    artinit_hahm = artelig_hahm(hm, ha-hIDX_15PLUS);
+		  } if (artinit_hahm > hivpop_t(hm, ha, g, t) + DT * grad_t(hm, ha, g)) {
+		    artinit_hahm = hivpop_t(hm, ha, g, t) + DT * grad_t(hm, ha, g);
+		  }
+                  grad_t(hm, ha, g) -= artinit_hahm / DT;
+                  gradART_t(ART0MOS, hm, ha, g) += artinit_hahm / DT;
 		  artinit(hm, ha, g, t) += artinit_hahm; 
                 }
             }
@@ -811,14 +822,14 @@ extern "C" {
 	    for(int ha = 0; ha < hAG; ha++)
 	      for(int hm = everARTelig_idx; hm < hDS; hm++)
 		for(int hu = 0; hu < hTS; hu++)
-		  artpop_t(hu, hm, ha, g, t) += DT*gradART[g][ha][hm][hu];
+		  artpop_t(hu, hm, ha, g, t) += DT*gradART_t(hu, hm, ha, g);
 	  
 	} // if(t >= t_ART_start)
 
 	for(int g = 0; g < NG; g++)
           for(int ha = 0; ha < hAG; ha++)
             for(int hm = 0; hm < hDS; hm++)
-              hivpop_t(hm, ha, g, t) += DT*grad[g][ha][hm];
+              hivpop_t(hm, ha, g, t) += DT*grad_t(hm, ha, g);
 
 
 	// remove hivdeaths from pop
@@ -839,7 +850,7 @@ extern "C" {
 	  a = 0;
 	  for(int ha = 0; ha < hAG; ha++){
 	    if(hivpop_ha[ha] > 0){
-	      double hivqx_ha = hivdeaths_ha[g][ha] / hivpop_ha[ha];
+	      double hivqx_ha = hivdeaths_ha(ha, g) / hivpop_ha[ha];
 	      for(int i = 0; i < hAG_SPAN[ha]; i++){
 		hivdeaths(a, g, t) += pop_t(a, g, HIVP, t) * hivqx_ha;
 		pop_t(a, g, HIVP, t) *= (1.0-hivqx_ha);
@@ -973,11 +984,20 @@ extern "C" {
 void calc_infections_eppspectrum_tensor(const TensorMap<Tensor<double, 4>> pop_t,
 					const TensorMap<Tensor<double, 4>> hivpop_t,
 					const TensorMap<Tensor<double, 5>> artpop_t,
-					double r_ts, double relinfectART, double iota,
+					double r_ts,
+					double relinfectART,
+					double iota,
 					double *incrr_sex,
 					const TensorMap<Tensor<double, 3>> incrr_age,
-					int t_ART_start, double DT, int t, int hts, int *hAG_START, int *hAG_SPAN,
-					double *prevcurr, double *incrate15to49_ts, double infections_ts[NG][pAG])
+					int t_ART_start,
+					double DT,
+					int t,
+					int hts,
+					int *hAG_START,
+					int *hAG_SPAN,
+					double *prevcurr,
+					double *incrate15to49_ts,
+					TensorFixedSize<double, Sizes<pAG, NG>>& infections_ts)
 {
 
   // sum population sizes
@@ -1037,7 +1057,7 @@ void calc_infections_eppspectrum_tensor(const TensorMap<Tensor<double, 4>> pop_t
   // annualized infections by age and sex
   for(int g = 0; g < NG; g++)
     for(int a = 0; a < pAG; a++){
-      infections_ts[g][a] = pop_t(a, g, HIVN, t) * incrate15to49_g[g] * incrr_age(a, g, t) * Xhivn_g[g] / Xhivn_incagerr[g];
+      infections_ts(a, g) = pop_t(a, g, HIVN, t) * incrate15to49_g[g] * incrr_age(a, g, t) * Xhivn_g[g] / Xhivn_incagerr[g];
     }
 
   return;

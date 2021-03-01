@@ -1,3 +1,16 @@
+## eppasm 0.6.0
+
+* Add version of `simmod(..., version = "tensor")` using `Eigen::Tensor` containers 
+  instead of `boost:multi_array`. Source is implemented in `sro/eppasm-tensor.cpp`.
+  
+  Currently this is implemented for testing purposes only. Benchmarking demonstrates that
+  simulation with `Eigen::tensor` is about 30% faster than `boost::multi_array`. The 
+  `Eigen::Tensor` appears to have negligible overhead vs. C arrays. Using `Eigen::TensorFixedSize`
+  results in similar performance to statically allocated multidimenional C arrays.
+  
+  Initial testing of replacing loops with Tensor.slice() operations shows that .slice() is 
+  inefficient
+
 ## eppasm 0.5.9
 
 * Update `read_hivproj_param()` to read incidence sex ratio from Spectrum v5.88, v5.89, and v5.90.

@@ -1029,11 +1029,23 @@ double calc_rtrend_rt(const multi_array_ref<double, 4> pop, double rtrend_tstab,
 }
 
 
-void calc_infections_eppspectrum(const multi_array_ref<double, 4> pop, const multi_array_ref<double, 4> hivpop, const multi_array_ref<double, 5> artpop,
-                                 double r_ts, double relinfectART, double iota,
-                                 double *incrr_sex, const multi_array_ref<double, 3> incrr_age,
-                                 int t_ART_start, double DT, int t, int hts, int *hAG_START, int *hAG_SPAN,
-                                 double *prevcurr, double *incrate15to49_ts, double infections_ts[NG][pAG])
+void calc_infections_eppspectrum(const multi_array_ref<double, 4> pop,
+				 const multi_array_ref<double, 4> hivpop,
+				 const multi_array_ref<double, 5> artpop,
+                                 double r_ts,
+				 double relinfectART,
+				 double iota,
+                                 double *incrr_sex,
+				 const multi_array_ref<double, 3> incrr_age,
+                                 int t_ART_start,
+				 double DT,
+				 int t,
+				 int hts,
+				 int *hAG_START,
+				 int *hAG_SPAN,
+                                 double *prevcurr,
+				 double *incrate15to49_ts,
+				 double infections_ts[NG][pAG])
 {
 
   // sum population sizes

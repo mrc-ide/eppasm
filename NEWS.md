@@ -1,3 +1,7 @@
+## eppasm 0.5.10
+
+* Patch function `mod_dimnames()`. 
+
 ## eppasm 0.5.9
 
 * Update `read_hivproj_param()` to read incidence sex ratio from Spectrum v5.88, v5.89, and v5.90.

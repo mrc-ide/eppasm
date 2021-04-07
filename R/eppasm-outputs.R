@@ -17,6 +17,7 @@ get_proj_years <- function(ss){
 #' pjnz <- system.file("extdata/testpjnz", "Botswana2018.PJNZ", package="eppasm")
 #' fp <- prepare_directincid(pjnz)
 #' mod <- simmod(fp)
+#' mod <- mod_dimnames(mod, fp$ss)
 #'
 #' @export
 mod_dimnames <- function(mod, ss){
@@ -33,12 +34,12 @@ mod_dimnames <- function(mod, ss){
   dimnames(attr(mod, "hivpop")) <- list(cd4stage = hDSlbl, agegr = hAGlbl, sex = sexlbl, year = yrlbl)
   dimnames(attr(mod, "artpop")) <- list(artdur = hTSlbl, cd4stage = hDSlbl, agegr = hAGlbl, sex = sexlbl, year = yrlbl)
 
-  dimnames(attr(mod, "infections")) <- dimnames(mod)
-  dimnames(attr(mod, "hivdeaths")) <- dimnames(mod)
-  dimnames(attr(mod, "natdeaths")) <- dimnames(mod)
-  dimnames(attr(mod, "prev15to49")) <- yrlbl
-  dimnames(attr(mod, "pregprev")) <- yrlbl
-  dimnames(attr(mod, "incid15to49")) <- yrlbl
+  dimnames(attr(mod, "infections")) <- dimnames(mod)[c(1,2,4)]
+  dimnames(attr(mod, "hivdeaths")) <- dimnames(mod)[c(1,2,4)]
+  dimnames(attr(mod, "natdeaths")) <- dimnames(mod)[c(1,2,4)]
+  names(attr(mod, "prev15to49")) <- yrlbl
+  names(attr(mod, "pregprev")) <- yrlbl
+  names(attr(mod, "incid15to49")) <- yrlbl
 
   mod
 }

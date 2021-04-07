@@ -62,6 +62,8 @@ fp$logitiota <- TRUE
 fp$rw_start <- 2005
 fp$incidmod <- "eppspectrum"
 
+fp <- prepare_anc_model(fp, attr(bw$Urban, "eppd"))
+
 param <- fnCreateParam(theta_ur, fp)
 fp_par <- update(fp, list = param)
 ```

@@ -39,10 +39,10 @@ bw <- prepare_spec_fit(pjnz, proj.end=2021.5)
 bwfit <- list()
 
 bwfit$Urban <- fitmod(bw$Urban,
-                      eppmod = "rlogistic_rw", rw_start = 2005, fitincrr = FALSE,
+                      eppmod = "rhybrid", rw_start = 2005, fitincrr = FALSE,
                       B0=1e4, B=1e3, opt_iter = 1:2*5, number_k=50)
 bwfit$Rural <- fitmod(bw$Rural,
-                      eppmod = "rlogistic_rw", rw_start = 2005, fitincrr = FALSE,
+                      eppmod = "rhybrid", rw_start = 2005, fitincrr = FALSE,
                       B0=1e4, B=1e3, opt_iter = 1:2*5, number_k=50)
 ```
 
@@ -195,7 +195,7 @@ bw <- prepare_national_fit(pjnz, proj.end=2021.5)
 attr(bw, "eppd") <- create_eppd("Botswana")
 
 bwfit <- fitmod(bw,
-                eppmod = "rlogistic_rw", rw_start = 2005, fitincrr = "linincrr",
+                eppmod = "rhybrid", rw_start = 2005, fitincrr = "linincrr",
                 B0=1e4, B=1e3, opt_iter = 1:2*5, number_k=50)
 bwfit <- extend_projection(bwfit, 52)
 

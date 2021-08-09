@@ -5,10 +5,9 @@ bw <- prepare_spec_fit(pjnz, proj.end=2022.5)
 
 bw_fp <- attr(bw$Urban, "specfp")
 
+bw_fp <- prepare_anc_model(bw_fp, attr(bw$Urban, "eppd"))
+
 bw_fp <- prepare_rhybrid(bw_fp)
-bw_fp$ancsitedata <- TRUE
-bw_fp$ancrt <- "census"
-bw_fp$ancrtsite.beta <- 0
 bw_fp$logitiota <- TRUE
 
 bw_theta <- c(-0.407503322169364, -2.76794181367538, -1.26018073624346, 1995.96447776502,
@@ -21,10 +20,11 @@ bw_fp <- update(bw_fp, list=param)
 
 bw_prev_mod <- c(0.00045, 0.00080, 0.0014, 0.00245, 0.00424, 0.00725, 0.01214,
                  0.01985, 0.03147, 0.04804, 0.07013, 0.0975, 0.12857, 0.16083,
-                 0.19143, 0.21797, 0.23908, 0.25419, 0.26363, 0.26817, 0.26871,
-                 0.26618, 0.26129, 0.2551, 0.24887, 0.24365, 0.23928, 0.23545,
-                 0.23186, 0.22866, 0.22569, 0.22277, 0.21931, 0.21555, 0.21147,
-                 0.2069, 0.20155, 0.19559, 0.1893, 0.1829, 0.1763, 0.16953, 0.16266)
+                 0.19142, 0.21797, 0.23908, 0.25419, 0.26363, 0.26816, 0.26869, 
+                 0.26616, 0.26124, 0.25501, 0.24874, 0.24343, 0.23894, 0.23495, 
+                 0.23114, 0.22766, 0.22435, 0.22104, 0.21715, 0.21297, 0.20847, 
+                 0.20343, 0.19763, 0.19124, 0.1846, 0.17793, 0.17115, 0.16422, 
+                 0.1572)
 
 test_that("model simulation returns correct prevalence", {
   expect_equal(round(prev(simmod(bw_fp))[11:53], 5), bw_prev_mod)
@@ -37,10 +37,8 @@ mpm <- prepare_spec_fit(pjnz, proj.end=2021.5)
 
 mp_fp <- attr(mpm[[1]], "specfp")
 
+mp_fp <- prepare_anc_model(mp_fp, attr(mpm[[1]], "eppd"))
 mp_fp <- prepare_rhybrid(mp_fp)
-mp_fp$ancsitedata <- TRUE
-mp_fp$ancrt <- "census"
-mp_fp$ancrtsite.beta <- 0
 mp_fp$logitiota <- TRUE
 
 theta <- c(-0.407503322169364, -2.76794181367538, -1.26018073624346, 1995.96447776502,

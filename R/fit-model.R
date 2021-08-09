@@ -124,7 +124,7 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
                else subpop  # bloody French...
     demp.subpop[[subpop]] <- demp
     if (popadjust) {
-      demp.subpop[[subpop]]$basepop <- subp[[grep(paste0("^", country_code, "_"), names(subp))]][[strsubp]][,,dimnames(demp$basepop)[[3]]]
+      demp.subpop[[subpop]]$basepop <- subp[[grep(paste0("\\_", country_code, "$"), names(subp))]][[strsubp]][,,dimnames(demp$basepop)[[3]]]
       demp.subpop[[subpop]]$netmigr[] <- 0
 
       ## Record GFR for each subpop
@@ -214,7 +214,7 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
   ## Apportion age 14 HIV population
   ## Allocate relative to HIV prevalence and population size, same as ART population
   for(subpop in names(eppd)){
-    projp.subpop[[subpop]]$age14hivpop <- projp.subpop[[subpop]]$age14hivpop * art.dist[subpop]
+    projp.subpop[[subpop]]$age15hivpop <- projp.subpop[[subpop]]$age15hivpop * art.dist[subpop]
   }
   
   specfp.subpop <- list()
@@ -291,24 +291,8 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
 
   ## Prepare likelihood data
   eppd <- attr(obj, "eppd")
-
-  has_ancrtsite <- exists("ancsitedat", eppd) && any(eppd$ancsitedat$type == "ancrt")
-  has_ancrtcens <- !is.null(eppd$ancrtcens) && nrow(eppd$ancrtcens)
-  
-  if(!has_ancrtsite)
-    fp$ancrtsite.beta <- 0
-
-  if(has_ancrtsite & has_ancrtcens)
-    fp$ancrt <- "both"
-  else if(has_ancrtsite & !has_ancrtcens)
-    fp$ancrt <- "site"
-  else if(!has_ancrtsite & has_ancrtcens)
-    fp$ancrt <- "census"
-  else
-    fp$ancrt <- "none"
-
+  fp <- prepare_anc_model(fp, eppd)
   likdat <- prepare_likdat(eppd, fp)
-  fp$ancsitedata <- as.logical(nrow(likdat$ancsite.dat$df))
 
   if(fp$eppmod %in% c("logrw", "rhybrid")) { # THIS IS REALLY MESSY, NEED TO REFACTOR CODE
     

@@ -104,7 +104,11 @@ tidy_hhs_data <- function(eppd){
   hhs$agegr <- rep("15-49", nrow(hhs))
   hhs$sex <- rep("both", nrow(hhs))
   
-  hhs <- hhs[c("year", "sex", "agegr", "n", "prev", "se", "deff", "deff_approx", "used")]
+  if(!"year" %in% colnames(hhs)) {
+    hhs <- hhs[c( "sex", "agegr", "n", "prev", "se", "deff", "deff_approx")]
+  } else {
+    hhs <- hhs[c("year", "sex", "agegr", "n", "prev", "se", "deff", "deff_approx", "used")]
+  } 
   
   hhs
 }

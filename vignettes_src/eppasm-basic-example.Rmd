@@ -5,8 +5,10 @@ date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Vignette Title}
-  %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include = FALSE}
@@ -20,10 +22,12 @@ knitr::opts_chunk$set(
 This vignette develops the workflow for fitting the EPP-ASM model and generating outputs to provide as Spectrum inputs.
 
 ```{r, load}
-## eppasm version >= 0.5.2
-## devtool::install_github("mrc-ide/eppasm@new-master")
-## library(eppasm)
+#eppasm version >= 0.5.2
+install.packages("devtool")
+devtools::install_github("mrc-ide/eppasm@new-master")
+library(eppasm)
 devtools::load_all()
+devtools::load_all(path = "~/Documents/eppasm/")
 ```
 
 ## Preparing EPP-ASM inputs
@@ -114,10 +118,11 @@ ll_ancrtcens(mod, likdat$ancrtcens.dat, fp_par)
 bwfit <- list()
 
 bwfit$Urban <- fitmod(bw$Urban, eppmod = "rhybrid", rw_start = 2005,
-                      B0=1e3, B=1e2, opt_iter = 1, number_k=50)
+                      B0=1e3, B=1e2, opt_iter = 1, number_k=50, optfit = TRUE)
 bwfit$Rural <- fitmod(bw$Rural, eppmod = "rhybrid", rw_start = 2005,
-                      B0=1e3, B=1e2, opt_iter = 1, number_k=50)
+                      B0=1e3, B=1e2, opt_iter = 1, number_k=50, optfit = TRUE)
 ```
+
 
 When fitting, the random-walk based models only simulate through the end of the
 data period. The `extend_projection()` function extends the random walk for $r(t)$
@@ -130,7 +135,9 @@ bwfit <- lapply(bwfit, extend_projection, proj_years = 52)
 ## Simulating model outptus
 
 ```{r, tidy_output}
+
 bwout <- Map(tidy_output, bwfit, "r-hybrid", "Botswana", names(bwfit))
+
 ```
 
 ## Pooling EPP subpopulation results

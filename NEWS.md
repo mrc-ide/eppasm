@@ -1,3 +1,8 @@
+## eppasm 0.5.10
+
+* Patch `read_epp_t0()` to parse XML file projection sets using same code as `epp:read_epp_data()`. This resolves parsing issue for Niger, Senegal, and Dominican Republic. Unsure why the XML is formed different for these cases.
+
+
 ## eppasm 0.5.9
 
 * Update `read_hivproj_param()` to read incidence sex ratio from Spectrum v5.88, v5.89, and v5.90.

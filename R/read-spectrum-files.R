@@ -1004,9 +1004,12 @@ read_epp_t0 <- function(pjnz){
   r <- xml2::xml_children(xml2::xml_child(epp.xml))
   names(r) <- xml2::xml_attr(r, "property")
 
+  obj <- xml2::xml_find_all(r, ".//object")
+  projsets <- obj[which(xml2::xml_attr(obj, "class") == "epp2011.core.sets.ProjectionSet")]
+  
   t0 <- list()
-  for(nd in xml2::xml_children(r[["eppSetChildren"]])) {
-    ns <- xml2::xml_children(xml2::xml_child(nd))
+  for(nd in projsets) {
+    ns <- xml2::xml_children(nd)
     names(ns) <- xml2::xml_attr(ns, "property")
     nm <- xml2::xml_text(ns[["name"]])
     t0[[nm]] <- xml2::xml_double(ns[["priorT0vr"]])

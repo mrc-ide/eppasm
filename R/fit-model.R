@@ -11,10 +11,10 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
 
   ## epp
   eppd <- epp::read_epp_data(pjnz)
-  ## epp.subp <- epp::read_epp_subpops(pjnz)
-  ## epp.input <- epp::read_epp_input(pjnz)
+  epp.subp <- epp::read_epp_subpops(pjnz)
+  epp.input <- epp::read_epp_input(pjnz)
 
-  ## epp.subp.input <- epp::fnCreateEPPSubpops(epp.input, epp.subp, eppd)
+  epp.subp.input <- epp::fnCreateEPPSubpops(epp.input, epp.subp, eppd)
 
   country <- attr(eppd, "country")
   cc <- attr(eppd, "country_code")
@@ -54,7 +54,7 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
     mapply(function(set, value){ attributes(set)[[attrib]] <- value; set}, obj, value.lst)
 
   val <- set.list.attr(val, "eppd", eppd)
-  ## val <- set.list.attr(val, "eppfp", lapply(epp.subp.input, epp::fnCreateEPPFixPar, proj.end = proj.end))
+  val <- set.list.attr(val, "eppfp", lapply(epp.subp.input, epp::fnCreateEPPFixPar, proj.end = proj.end))
   val <- set.list.attr(val, "specfp", specfp.subp)
   val <- set.list.attr(val, "country", read_country(pjnz))
   val <- set.list.attr(val, "region", names(eppd))
@@ -130,10 +130,16 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
     if (popadjust) {
       demp.subpop[[subpop]]$basepop <- subp[[grep(paste0("\\_", country_code, "$"), names(subp))]][[strsubp]][,,dimnames(demp$basepop)[[3]]]
       demp.subpop[[subpop]]$netmigr[] <- 0
-
-      ## Record GFR for each subpop
-      gfr_subpop[[subpop]] <- subset(subp_gfr, cc == country_code & eppregion == strsubp, c(gfr, survyear))
     }
+      ## Record GFR for each subpop
+     
+      gfr_value <- gfr_subpop[[subpop]] <- subset(subp_gfr, cc == country_code & eppregion == strsubp, c(gfr, survyear))
+      if(nrow(gfr_value) == 0) {
+        gfr_subpop[[subpop]] <- subset(subp_gfr, cc == country_code & eppregion == "N", c(gfr, survyear))
+      } else {
+        gfr_subpop[[subpop]] <- gfr_value
+      }
+      if(subpop %in% c("MSM","HSH")) gfr_subpop[[subpop]]$gfr <- 0
   }
 
   ## Compare demp population with subpopulations

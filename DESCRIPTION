@@ -4,7 +4,7 @@ Version: 0.5.10
 Authors@R: person("Jeff", "Eaton", email = "jeffrey.eaton@imperial.ac.uk", role = c("aut", "cre"))
 Description: What the package does (one paragraph).
 Depends: R (>= 3.1.0),
-Imports: epp (>= 0.4.1),
+Imports: epp (>= 0.4.2),
     fastmatch (>= 1.1),
     abind (>= 1.4),
     mvtnorm,
@@ -12,7 +12,7 @@ Imports: epp (>= 0.4.1),
     xml2
 LinkingTo: BH
 Remotes:
-    jeffeaton/epp
+    jeffeaton/epp@deepa-dev
 License: GPL-3
 Encoding: UTF-8
 LazyData: true

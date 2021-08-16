@@ -54,7 +54,9 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
     mapply(function(set, value){ attributes(set)[[attrib]] <- value; set}, obj, value.lst)
 
   val <- set.list.attr(val, "eppd", eppd)
-  val <- set.list.attr(val, "eppfp", lapply(epp.subp.input, epp::fnCreateEPPFixPar, proj.end = proj.end))
+  if(epp.subp.input[[1]]$epidemicType == "concentrated"){ #Not needed for standard urban/rural split
+    val <- set.list.attr(val, "eppfp", lapply(epp.subp.input, epp::fnCreateEPPFixPar, proj.end = proj.end))
+  }
   val <- set.list.attr(val, "specfp", specfp.subp)
   val <- set.list.attr(val, "country", read_country(pjnz))
   val <- set.list.attr(val, "region", names(eppd))
@@ -139,7 +141,7 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
       } else {
         gfr_subpop[[subpop]] <- gfr_value
       }
-      if(subpop %in% c("MSM","HSH")) gfr_subpop[[subpop]]$gfr <- 0
+
   }
 
   ## Compare demp population with subpopulations
@@ -204,7 +206,7 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
   get15to49pop <- function(demp, year) sum(demp$basepop[as.character(15:49),,as.character(year)])
   subpop.dist <- prop.table(sapply(demp.subpop, get15to49pop, 2010))
   
-  if(nrow(subset(eppd[[1]]$hhs, used)) != 0){ # HH survey data available
+  if(!any(unlist(lapply(eppd, function(x) nrow(x$hhs)))==0)){ # HH survey data available
     hhsprev.means <- sapply(lapply(eppd, function(dat) na.omit(dat$hhs$prev[dat$hhs$used])), mean)
     art.dist <- prop.table(subpop.dist * hhsprev.means)
   } else {  ## no HH survey data

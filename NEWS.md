@@ -1,3 +1,7 @@
+## eppasm 0.6.1
+
+- Allow flexible number of ART duration stages by separate `hTS_MAX` defining dimensions of state space at compile time and `hTS_SIM` defining number of ART stages used in simulation. Array size and memory allocation will always be defined by `hTS_MAX`, but simulation looping only uses `hTS_SIM`.
+
 ## eppasm 0.6.0
 
 - Extend ART seven ART duration groups: 0-5 months, 6-11 months, 1 year, 2, 3, 4 years, and 5+ years.

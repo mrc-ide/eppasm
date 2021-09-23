@@ -36,7 +36,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   pop <- array(0, c(pAG, NG, pDS, PROJ_YEARS))
   pop[,,1,1] <- fp$basepop
   hivpop <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
-  artpop <- array(0, c(hTS, hDS, hAG, NG, PROJ_YEARS))
+  artpop <- array(0, c(hTS_MAX, hDS, hAG, NG, PROJ_YEARS))
 
   ## initialize output
   prev15to49 <- numeric(PROJ_YEARS)
@@ -195,12 +195,12 @@ simmod.specfp <- function(fp, VERSION="C"){
       ## ART initiation
       if(i >= fp$tARTstart) {
 
-        gradART <- array(0, c(hTS, hDS, hAG, NG))
+        gradART <- array(0, c(hTS_MAX, hDS, hAG, NG))
 
         ## progression and mortality
 
-        gradART[1:(hTS-1),,,] <- gradART[1:(hTS-1),,,] - 1.0 / fp$ss$h_art_stage_dur * artpop[1:(hTS-1),,,, i]      # remove ART duration progression 
-        gradART[2:hTS,,,] <- gradART[2:hTS,,,] + 1.0 / fp$ss$h_art_stage_dur * artpop[1:(hTS-1),,,, i]      # add ART duration progression
+        gradART[1:(hTS_SIM-1),,,] <- gradART[1:(hTS_SIM-1),,,] - 1.0 / fp$ss$h_art_stage_dur * artpop[1:(hTS_SIM-1),,,, i]      # remove ART duration progression 
+        gradART[2:hTS_SIM,,,] <- gradART[2:hTS_SIM,,,] + 1.0 / fp$ss$h_art_stage_dur * artpop[1:(hTS_SIM-1),,,, i]      # add ART duration progression
 
         gradART <- gradART - fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i]   # ART mortality
 

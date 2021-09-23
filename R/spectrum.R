@@ -1,7 +1,8 @@
 create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_start = projp$yr_start, proj_end = projp$yr_end,
                                    AGE_START = 15L, relinfectART = projp$relinfectART, time_epi_start = projp$t0,
                                    popadjust=FALSE, targetpop=demp$basepop, artelig200adj=TRUE, who34percelig=0,
-                                   frr_art6mos=projp$frr_art6mos, frr_art1yr=projp$frr_art6mos){
+                                   frr_art6mos=projp$frr_art6mos, frr_art1yr=projp$frr_art6mos,
+                                   h_art_stage_dur = c(0.5, 0.5, 1, 1, 1, 1)){
   
   ## ########################## ##
   ##  Define model state space  ##
@@ -36,7 +37,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ss$h.ag.span <- as.integer(c(2,3, rep(5, 6), 31))   # Number of population age groups spanned by each HIV age group [sum(h.ag.span) = pAG]
   ss$hAG <- length(ss$h.ag.span)          # Number of age groups
   ss$hDS <- 7                             # Number of CD4 stages (Disease Stages)
-  ss$hTS <- 7                             # number of treatment stages (excluding untreated)
+  ss$hTS_MAX <- 7                         # Maximum number of treatment stages (excluding untreated)
 
   ss$ag.idx <- rep(1:ss$hAG, ss$h.ag.span)
   ss$agfirst.idx <- which(!duplicated(ss$ag.idx))
@@ -48,7 +49,9 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ss$h.age15plus.idx <- which((AGE_START-1 + cumsum(ss$h.ag.span)) >= 15)
 
   ss$h_art_stage_dur <- c(0.5, 0.5, 1, 1, 1, 1) # duration of treatment stages in years; length hTS - 1
-
+  ss$hTS_SIM <- length(ss$h_art_stage_dur)+1L
+  
+  
   invisible(list2env(ss, environment())) # put ss variables in environment for convenience
 
   fp <- list(ss=ss)
@@ -141,9 +144,16 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$cd4_initdist <- projp$cd4_initdist[,projp.h.ag,]
   fp$cd4_prog <- (1-exp(-projp$cd4_prog[,projp.h.ag,] / hiv_steps_per_year)) * hiv_steps_per_year
   fp$cd4_mort <- projp$cd4_mort[,projp.h.ag,]
-  fp$art_mort <- projp$art_mort[c(1, 2, rep(3, hTS - 2)),,projp.h.ag,]
-  fp$artmx_timerr <- projp$artmx_timerr[c(1, 2, rep(3, hTS - 2)), ]
+  fp$art_mort <- projp$art_mort[c(1, 2, rep(3, hTS_MAX- 2)),,projp.h.ag,]
+  fp$artmx_timerr <- projp$artmx_timerr[c(1, 2, rep(3, hTS_MAX - 2)), ]
 
+  ## If unused ART stages (hTS_MAX > hTS_SIM), set values to a nonsense value
+  if (hTS_MAX > hTS_SIM) {
+    fp$art_mort[(hTS_SIM+1):hTS_MAX,,,,] <- -100
+    fp$artmx_timerr[(hTS_SIM+1):hTS_MAX,] <- -100
+  }
+
+      
   frr_agecat <- as.integer(rownames(projp$fert_rat))
   frr_agecat[frr_agecat == 18] <- 17
   fert_rat.h.ag <- findInterval(AGE_START + cumsum(h.ag.span[h.fert.idx]) - h.ag.span[h.fert.idx], frr_agecat)
@@ -153,9 +163,9 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$frr_cd4 <- sweep(fp$frr_cd4, 1, projp$cd4fert_rat, "*")
   fp$frr_cd4 <- fp$frr_cd4 * projp$frr_scalar
   
-  fp$frr_art <- array(1.0, c(hTS, hDS, length(h.fert.idx), PROJ_YEARS))
+  fp$frr_art <- array(1.0, c(hTS_MAX, hDS, length(h.fert.idx), PROJ_YEARS))
   fp$frr_art[1,,,] <- fp$frr_cd4 # 0-6 months
-  fp$frr_art[2:hTS, , , ] <- sweep(fp$frr_art[2:hTS, , , ], 3, projp$frr_art6mos[fert_rat.h.ag] * projp$frr_scalar, "*") # 6-12mos, >1 years
+  fp$frr_art[2:hTS_MAX, , , ] <- sweep(fp$frr_art[2:hTS_MAX, , , ], 3, projp$frr_art6mos[fert_rat.h.ag] * projp$frr_scalar, "*") # 6-12mos, >1 years
 
   ## ART eligibility and numbers on treatment
 
@@ -228,7 +238,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   artpop14 <- hivpop15[2:4,,,]
   
   fp$paedsurv_cd4dist <- array(0, c(hDS, NG, PROJ_YEARS))
-  fp$paedsurv_artcd4dist <- array(0, c(hTS, hDS, NG, PROJ_YEARS))
+  fp$paedsurv_artcd4dist <- array(0, c(hTS_MAX, hDS, NG, PROJ_YEARS))
 
   fp$paedsurv_cd4dist[,,2:PROJ_YEARS] <- sweep(hiv_noart14, 2:3, colSums(hiv_noart14), "/")
   fp$paedsurv_artcd4dist[1:3,,,2:PROJ_YEARS] <- sweep(artpop14, 3:4, colSums(artpop14,,2), "/")

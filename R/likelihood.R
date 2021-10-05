@@ -374,6 +374,50 @@ ll_hhsage_binom <- function(mod, dat, pointwise = FALSE){
 }
 
 
+#' ## Household survey ART coverage likelihood
+
+prepare_hhsartcov_likdat <- function(hhsartcov, fp){
+  
+  anchor.year <- floor(min(fp$proj.steps))
+
+  hhsartcov$W.hhs <- qnorm(hhsartcov$artcov)
+  hhsartcov$v.hhs <- 2*pi*exp(hhsartcov$W.hhs^2)*hhsartcov$se^2
+  hhsartcov$sd.W.hhs <- sqrt(hhsartcov$v.hhs)
+
+  if(is.null(hhsartcov$sex))
+    hhsartcov$sex <- rep("both", nrow(hhsartcov))
+
+  if(is.null(hhsartcov$agegr))
+    hhsartcov$agegr <- "15-49"
+
+  startage <- as.integer(sub("([0-9]*)-([0-9]*)", "\\1", hhsartcov$agegr))
+  endage <- as.integer(sub("([0-9]*)-([0-9]*)", "\\2", hhsartcov$agegr))
+  
+  hhsartcov$sidx <- match(hhsartcov$sex, c("both", "male", "female")) - 1L
+  hhsartcov$aidx <- startage - fp$ss$AGE_START+1L
+  hhsartcov$yidx <- as.integer(hhsartcov$year - (anchor.year - 1))
+  hhsartcov$agspan <- endage - startage + 1L
+
+  return(subset(hhsartcov, aidx > 0))
+}
+
+
+#' Log likelihood for age-specific household survey prevalence
+ll_hhsartcov <- function(mod, dat, pointwise = FALSE){
+
+  qM <- qnorm(artcov15to49(mod)[dat$yidx])
+  
+  if(any(is.na(qM)))
+    val <- rep(-Inf, nrow(dat))
+  else
+    val <- dnorm(dat$W.hhs, qM, dat$sd.W.hhs, log=TRUE)
+
+  if(pointwise)
+    return(val)
+  sum(val)
+}
+
+
 
 #########################################
 ####  Incidence likelihood function  ####
@@ -436,6 +480,9 @@ prepare_likdat <- function(eppd, fp){
 
   if(exists("hhsincid", where=eppd))
     likdat$hhsincid.dat <- prepare_hhsincid_likdat(eppd$hhsincid, fp)
+
+  if(exists("hhsartcov", where=eppd))
+    likdat$hhsartcov.dat <- prepare_hhsartcov_likdat(eppd$hhsartcov, fp)
 
   return(likdat)
 }
@@ -549,6 +596,12 @@ ll <- function(theta, fp, likdat){
   else
     ll.incid <- 0
 
+  if(!is.null(likdat$hhsartcov.dat))
+    ll.hhsartcov <- ll_hhsartcov(mod, likdat$hhsartcov.dat)
+  else
+    ll.hhsartcov <- 0
+
+  
   if(exists("equil.rprior", where=fp) && fp$equil.rprior){
     if(fp$eppmod != "rspline")
       stop("error in ll(): equil.rprior is only for use with r-spline model")
@@ -579,6 +632,7 @@ ll <- function(theta, fp, likdat){
     ancrt  = ll.ancrt,
     hhs    = ll.hhs,
     incid  = ll.incid,
+    artcov = ll.hhsartcov,
     rprior = ll.rprior)
 }
 

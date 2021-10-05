@@ -81,6 +81,26 @@ prev(modR)
 incid(modR)
 ```
 
+Add survey ART coverage data.
+
+```{r, add_artcov_dat
+attr(bw$Urban, "eppd")$hhsartcov <- data.frame(year = 2012,
+                                               sex = "both",
+                                               agegr = "15-49",
+                                               n = 764,
+                                               artcov = 0.397,
+                                               se = 0.024,
+                                               used = TRUE)
+
+attr(bw$Urban, "eppd")$hhsartcov <- data.frame(year = 2012,
+                                               sex = "both",
+                                               agegr = "15-49",
+                                               n = 484,
+                                               artcov = 0.397,
+                                               se = 0.034,
+                                               used = TRUE)
+
+```
 
 Prepare likelihood and calculate the likelihood once
 

@@ -1,3 +1,8 @@
+## eppasm 0.6.0
+
+* Add likelihood for survey ART coverage.
+
+
 ## eppasm 0.5.10
 
 * Patch `read_epp_t0()` to parse XML file projection sets using same code as `epp:read_epp_data()`. This resolves parsing issue for Niger, Senegal, and Dominican Republic. Unsure why the XML is formed different for these cases.

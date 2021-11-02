@@ -20,10 +20,16 @@ create_specfp <- function(pjnz, upd.path=NULL, hiv_steps_per_year = 10L, use_ep5
   return(specfp)
 }
 
+#' Prepare direct incidence input EPP simulation
+#' 
+#' @param method Method for intercalating new infections. Either "directincid_ann"
+#'   for annual new infections or "directincid_hts" for new infections each
+#'   HIV time step.
+#' 
 #' @export
-prepare_directincid <- function(pjnz){
+prepare_directincid <- function(pjnz, method = "directincid_hts"){
   specfp <- create_specfp(pjnz)
-  specfp$eppmod <- "directincid"
+  specfp$eppmod <- method
   specfp$incidinput <- read_incid_input(pjnz)
   specfp$incidpopage <- attr(specfp$incidinput, "incidpopage")
   return(specfp)

@@ -10,7 +10,13 @@ simmod.specfp <- function(fp, VERSION="C"){
     fp$incidmod <- "eppspectrum"
 
   if(VERSION != "R"){
-    fp$eppmodInt <- match(fp$eppmod, c("rtrend", "directincid"), nomatch=0) # 0: r-spline;
+
+    ## eppmod codes:
+    ## 0: r-spline
+    ## 1: r-trend
+    ## 2: directincid_ann
+    ## 3: directincid_hts
+    fp$eppmodInt <- match(fp$eppmod, c("rtrend", "directincid_ann", "directincid_hts"), nomatch=0) # 0: r-spline;
     fp$incidmodInt <- match(fp$incidmod, c("eppspectrum"))-1L  # -1 for 0-based indexing
     mod <- .Call(eppasmC, fp)
     class(mod) <- "spec"
@@ -50,7 +56,7 @@ simmod.specfp <- function(fp, VERSION="C"){
 
   popadj.prob <- array(0, c(pAG, NG, PROJ_YEARS))
 
-  if(fp$eppmod != "directincid"){
+  if(fp$eppmod != "directincid_ann"){
     ## outputs by timestep
     incrate15to49.ts.out <- rep(NA, length(fp$rvec))
     rvec <- if(fp$eppmod == "rtrend") rep(NA, length(fp$proj.steps)) else fp$rvec
@@ -141,6 +147,20 @@ simmod.specfp <- function(fp, VERSION="C"){
     ##  Disease model simulation  ##
     ## ########################## ##
 
+    ## Calculate number of new infections for direct-incidence input model
+    if (fp$eppmod %in% c("directincid_ann", "directincid_hts")) {
+
+      if(fp$incidpopage == 0L) # incidence for 15-49 population
+        p.incidpop.idx <- p.age15to49.idx
+      else if(fp$incidpopage == 1L) # incidence for 15+ population
+        p.incidpop.idx <- p.age15plus.idx
+      incrate.i <- fp$incidinput[i]
+      
+      sexinc <- incrate.i*c(1, fp$incrr_sex[i])*sum(pop[p.incidpop.idx,,hivn.idx,i-1])/(sum(pop[p.incidpop.idx,m.idx,hivn.idx,i-1]) + fp$incrr_sex[i]*sum(pop[p.incidpop.idx, f.idx,hivn.idx,i-1]))
+      agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc/(colSums(pop[p.incidpop.idx,,hivn.idx,i-1] * fp$incrr_age[p.incidpop.idx,,i])/colSums(pop[p.incidpop.idx,,hivn.idx,i-1])), "*")
+      infections_i <- agesex.inc * pop[,,hivn.idx,i-1]
+    }
+
     ## events at dt timestep
     for(ii in seq_len(hiv_steps_per_year)){
       
@@ -148,22 +168,30 @@ simmod.specfp <- function(fp, VERSION="C"){
 
       grad <- array(0, c(hDS, hAG, NG))
 
-      if(fp$eppmod != "directincid"){
+      if (fp$eppmod != "directincid_ann") {
+
         ## incidence
 
-        ## calculate r(t)
-        if(fp$eppmod %in% c("rtrend", "rtrend_rw"))
-          rvec[ts] <- calc_rtrend_rt(fp$proj.steps[ts], fp, rvec[ts-1], prevlast, pop, i, ii)
-        else
-          rvec[ts] <- fp$rvec[ts]
-
-        ## number of infections by age / sex
-        infections.ts <- calc_infections_eppspectrum(fp, pop, hivpop, artpop, i, ii, rvec[ts])
-
-        incrate15to49.ts.out[ts] <- attr(infections.ts, "incrate15to49.ts")
-        prev15to49.ts.out[ts] <- attr(infections.ts, "prevcurr")
-        prevlast <- attr(infections.ts, "prevcurr")
-
+        if (fp$eppmod != "directincid_hts") {
+          
+          ## calculate r(t)
+          if (fp$eppmod %in% c("rtrend", "rtrend_rw")) {
+            rvec[ts] <- calc_rtrend_rt(fp$proj.steps[ts], fp, rvec[ts-1], prevlast, pop, i, ii)
+          } else {
+            rvec[ts] <- fp$rvec[ts]
+          } 
+          
+          ## number of infections by age / sex
+          infections.ts <- calc_infections_eppspectrum(fp, pop, hivpop, artpop, i, ii, rvec[ts])
+          
+          incrate15to49.ts.out[ts] <- attr(infections.ts, "incrate15to49.ts")
+          prev15to49.ts.out[ts] <- attr(infections.ts, "prevcurr")
+          prevlast <- attr(infections.ts, "prevcurr")
+        } else {
+          ## eppmod == directincid_hts
+          infections.ts <- infections_i
+        }
+        
         pop[,,hivn.idx,i] <- pop[,,hivn.idx,i] - DT*infections.ts
         pop[,,hivp.idx,i] <- pop[,,hivp.idx,i] + DT*infections.ts
         infections[,,i] <- infections[,,i] + DT*infections.ts
@@ -341,17 +369,8 @@ simmod.specfp <- function(fp, VERSION="C"){
     ## incrate15to49.i <- (fp$prev15to49[i] - prev.i)/(1-prev.i)
 
     ## Direct incidence input
-    if(fp$eppmod == "directincid"){
-      if(fp$incidpopage == 0L) # incidence for 15-49 population
-        p.incidpop.idx <- p.age15to49.idx
-      else if(fp$incidpopage == 1L) # incidence for 15+ population
-        p.incidpop.idx <- p.age15plus.idx
-      incrate.i <- fp$incidinput[i]
-
-      sexinc <- incrate.i*c(1, fp$incrr_sex[i])*sum(pop[p.incidpop.idx,,hivn.idx,i-1])/(sum(pop[p.incidpop.idx,m.idx,hivn.idx,i-1]) + fp$incrr_sex[i]*sum(pop[p.incidpop.idx, f.idx,hivn.idx,i-1]))
-      agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc/(colSums(pop[p.incidpop.idx,,hivn.idx,i-1] * fp$incrr_age[p.incidpop.idx,,i])/colSums(pop[p.incidpop.idx,,hivn.idx,i-1])), "*")
-      infections[,,i] <- agesex.inc * pop[,,hivn.idx,i-1]
-      
+    if(fp$eppmod == "directincid_ann"){
+      infections[,,i] <- infections_i
       pop[,,hivn.idx,i] <- pop[,,hivn.idx,i] - infections[,,i]
       pop[,,hivp.idx,i] <- pop[,,hivp.idx,i] + infections[,,i]
       
@@ -400,7 +419,7 @@ simmod.specfp <- function(fp, VERSION="C"){
 
   attr(pop, "pregprevlag") <- pregprevlag
 
-  if(fp$eppmod != "directincid"){
+  if(fp$eppmod != "directincid_ann"){
     attr(pop, "incrate15to49_ts") <- incrate15to49.ts.out
     attr(pop, "prev15to49_ts") <- prev15to49.ts.out
   }

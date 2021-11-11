@@ -32,6 +32,7 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
   demp <- read_specdp_demog_param(pjnz, use_ep5=use_ep5)
   projp <- read_hivproj_param(pjnz, use_ep5=use_ep5)
   epp_t0 <- read_epp_t0(pjnz)
+  print(epp_t0)
 
   ## If popadjust = NULL, look for subp if more than 1 EPP region
   if(is.null(popadjust))
@@ -43,8 +44,11 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
   else
     perc_urban <- NULL
     
-  specfp.subp <- create_subpop_specfp(projp, demp, eppd, proj_end=proj.end, epp_t0=epp_t0,
-                                      popadjust = popadjust, popupdate = popupdate, perc_urban = perc_urban)
+  specfp.subp <- create_subpop_specfp(projp, demp, eppd, epp.subp.input,
+                                      proj_end=proj.end, epp_t0=epp_t0,
+                                      popadjust = popadjust, 
+                                      popupdate = popupdate, 
+                                      perc_urban = perc_urban)
   
 
   ## output
@@ -54,9 +58,9 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
     mapply(function(set, value){ attributes(set)[[attrib]] <- value; set}, obj, value.lst)
 
   val <- set.list.attr(val, "eppd", eppd)
-  if(epp.subp.input[[1]]$epidemicType == "concentrated"){ #Not needed for standard urban/rural split
-    val <- set.list.attr(val, "eppfp", lapply(epp.subp.input, epp::fnCreateEPPFixPar, proj.end = proj.end))
-  }
+  # if(epp.subp.input[[1]]$epidemicType == "concentrated"){ #Not needed for standard urban/rural split
+  #   val <- set.list.attr(val, "eppfp", lapply(epp.subp.input, epp::fnCreateEPPFixPar, proj.end = proj.end))
+  # }
   val <- set.list.attr(val, "specfp", specfp.subp)
   val <- set.list.attr(val, "country", read_country(pjnz))
   val <- set.list.attr(val, "region", names(eppd))
@@ -115,7 +119,7 @@ tidy_hhs_data <- function(eppd){
   hhs
 }
 
-create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, length(eppd)), names(eppd)), ..., popadjust=TRUE, popupdate=TRUE, perc_urban=NULL){
+create_subpop_specfp <- function(projp, demp, eppd, epp.subp.input, epp_t0=setNames(rep(1975, length(eppd)), names(eppd)), ..., popadjust=TRUE, popupdate=TRUE, perc_urban=NULL){
 
   country <- attr(eppd, "country")
   country_code <- attr(eppd, "country_code")
@@ -231,7 +235,7 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
   
   specfp.subpop <- list()
   for(subpop in names(eppd))
-    specfp.subpop[[subpop]] <- create_spectrum_fixpar(projp.subpop[[subpop]], demp.subpop[[subpop]], ..., popadjust=popadjust, time_epi_start=epp_t0[subpop])
+    specfp.subpop[[subpop]] <- create_spectrum_fixpar(projp.subpop[[subpop]], demp.subpop[[subpop]], epp.subp.input[[subpop]],..., popadjust=popadjust, time_epi_start=epp_t0[subpop])
 
   return(specfp.subpop)
 }
@@ -291,7 +295,8 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
                    sample_prior=eppasm:::sample.prior,
                    prior=eppasm:::prior,
                    likelihood=eppasm:::likelihood,
-                   optfit=FALSE, opt_method="BFGS", opt_init=NULL, opt_maxit=1000, opt_diffstep=1e-3, opthess=TRUE){
+                   optfit=FALSE, opt_method="BFGS", opt_init=NULL, opt_maxit=1000, opt_diffstep=1e-3, opthess=TRUE,
+                   simmod_vers = "R"){
 
   ## ... : updates to fixed parameters (fp) object to specify fitting options
 
@@ -347,7 +352,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
     opt$fp <- fp
     opt$likdat <- likdat
     opt$param <- fnCreateParam(opt$par, fp)
-    opt$mod <- simmod(update(fp, list=opt$param))
+    opt$mod <- simmod(update(fp, list=opt$param), VERSION = simmod_vers)
     if(opthess){
       opt$hessian <- optimHess(opt_init, optfn, fp=fp, likdat=likdat,
                                control=list(fnscale=-1,
@@ -376,8 +381,8 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   fit <- try(stop(""), TRUE)
   while(inherits(fit, "try-error")){
     start.time <- proc.time()
-    fit <- try(imis(B0, B, B.re, number_k, opt_iter, fp=fp, likdat=likdat,
-                    sample_prior=sample.prior, prior=prior, likelihood=likelihood))
+    fit <- imis(B0, B, B.re, number_k, opt_iter, fp=fp, likdat=likdat,
+                    sample_prior=sample.prior, prior=prior, likelihood=likelihood)
     fit.time <- proc.time() - start.time
   }
   fit$fp <- fp

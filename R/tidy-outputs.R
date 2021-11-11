@@ -1,6 +1,6 @@
 
 #' @export
-tidy_output <- function(fit, modlab, country=NA, eppregion=NA, ancsite = TRUE){
+tidy_output <- function(fit, modlab, country=NA, eppregion=NA, ancsite = TRUE, simmod_vers="R"){
 
   idvars <- data.frame(country = country,
                        eppregion = eppregion,
@@ -27,8 +27,10 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA, ancsite = TRUE){
     fit <- rw_projection(fit)
   
   fp_list <- lapply(param_list, function(par) update(fit$fp, list=par))
-  mod_list <- lapply(fp_list, simmod)
-
+  mod_list <- lapply(fp_list, simmod, simmod_vers)
+  
+  # saveRDS(mod_list, "~/Documents/tests/SEN_to.RDS")
+  # mod_list = readRDS("~/Documents/tests/SEN_to.RDS")
 
 
   ## Assemble results

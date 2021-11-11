@@ -1,4 +1,4 @@
-create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_start = projp$yr_start, proj_end = projp$yr_end,
+create_spectrum_fixpar <- function(projp, demp, epp.subp.input,hiv_steps_per_year = 10L, proj_start = projp$yr_start, proj_end = projp$yr_end,
                                    AGE_START = 15L, relinfectART = projp$relinfectART, time_epi_start = projp$t0,
                                    popadjust=FALSE, targetpop=demp$basepop, artelig200adj=TRUE, who34percelig=0,
                                    frr_art6mos=projp$frr_art6mos, frr_art1yr=projp$frr_art6mos){
@@ -122,6 +122,29 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   if(popadjust & is.null(fp$targetpop))
     stop("targetpop does not span proj_start:proj_end")
 
+  ################################
+  ##  Turnover-related inputs  ##
+  ##############################
+  epp.input = epp.subp.input
+  fp$turnover <- FALSE
+  
+  if(exists("turnover", where = epp.input)) {
+    fp$turnover <- epp.input$turnover
+    turnover <- fp$turnover
+  }
+  
+  if(fp$turnover){
+    
+    fp$duration <-  epp.input$duration
+    fp$percent_male <- epp.input$percent_male
+    fp$duration  <- epp.input$duration
+    fp$assign_id <- epp.input$assign_id ##Which pop do they go back to
+    fp$assignmentType <- epp.input$assignmentType
+    fp$assign_name <- epp.input$assign_name
+
+    } 
+  
+  
   
   ## ###################### ##
   ##  HIV model parameters  ##

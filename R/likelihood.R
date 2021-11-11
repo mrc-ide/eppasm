@@ -317,13 +317,14 @@ lprior <- function(theta, fp){
 #' @export 
 ll <- function(theta, fp, likdat){
   theta.last <<- theta
+
   fp <- update(fp, list=fnCreateParam(theta, fp))
 
   if (fp$eppmod == "rspline")
     if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) 
       return(-Inf)
 
-  mod <- simmod(fp)
+  mod <- simmod(fp, VERSION ="R")
 
   ## ANC likelihood
   if(exists("ancsite.dat", likdat))
@@ -442,7 +443,7 @@ sample.prior <- function(n, fp){
     mat[,4+1:fp$rt$n_rw] <- rnorm(n*fp$rt$n_rw, 0, rw_prior_sd)  # u[2:numKnots]
     mat[,fp$rt$n_param+1] <- sample_iota(n, fp)
   }
-
+  #print(mat[,1])
   ## sample ANC model parameters
   if(exists("ancmod", fp) && fp$ancmod$nparam > 0)
     mat[ , epp_nparam + 1:fp$ancmod$nparam] <- sample_prior_ancmod(n, fp$ancmod, fp$prior_args)

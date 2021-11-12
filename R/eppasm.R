@@ -292,6 +292,7 @@ simmod.specfp <- function(fp, VERSION="C"){
         
         ## number of infections by age / sex
         ##print(sum(pop[p.age15to49.idx,,,i]))
+        #print(rvec[ts])
         infections.ts <- calc_infections_eppspectrum(fp, pop, hivpop, artpop, i, ii, rvec[ts])
         
         incrate15to49.ts.out[ts] <- attr(infections.ts, "incrate15to49.ts")

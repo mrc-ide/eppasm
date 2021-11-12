@@ -1,0 +1,78 @@
+---
+title: "Basic example stepping through EPP-ASM for key populations"
+author: ""
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+editor_options: 
+  chunk_output_type: console
+---
+  
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  warning = FALSE,
+  comment = "#>"
+)
+```
+
+
+```{r, load}
+devtools::install_github("mrc-ide/eppasm@new-master-csvar")
+devtools::install_github("jeffeaton/epp@deepa-dev")
+devtools::load_all("~/Documents/epp")
+devtools::load_all("~/Documents/eppasm")
+library(epp)
+library(eppasm)
+```
+
+## Preparing EPP-ASM inputs
+
+```{r, eppasm_inputs}
+pjnz <- system.file("extdata/testpjnz", "senegal_2021_05_04.pjnz", package="eppasm")
+sen <- prepare_spec_fit(pjnz, proj.end=2021.5, popadjust = FALSE)
+```
+
+## EPP-ASM model with single set of parameter inputs
+
+Prepare model parameters from parameter vector input
+```{r, single_param}
+theta_ur <- c(-6.895487e-01, -2.094288e+00 ,-1.565049e+00 , 2.001957e+03 , 1.154403e-01, 3.414504e-03,-5.279024e-02,  5.471747e+00, -5.251565e-01, -7.461571e+00)
+
+fp <- attr(sen$`Travailleurs du sexe`, "specfp")
+fp$proj.steps <- fp_good$proj.steps
+
+fp <- prepare_rhybrid(fp)
+
+fp$logitiota <- TRUE
+fp$incidmod <- "eppspectrum"
+
+fp <- prepare_anc_model(fp, attr(sen$`Travailleurs du sexe`, "eppd"))
+
+```
+
+Simulate the model once.
+
+```{r, simulate_model}
+param <- fnCreateParam(theta_ur, fp)
+fp_par <- update(fp, list = param)
+mod <- simmod(fp_par, VERSION = "R")
+
+prev(mod)
+incid(mod)
+
+
+```
+
+
+## Fitting the EPP-ASM model
+
+```{r, fit_eppasm, cache=TRUE}
+senfit <- list()
+
+senfit$Urban <- fitmod(sen$`Travailleurs du sexe`, eppmod = "rhybrid", rw_start = 2005,
+                      B0=1e3, B=1e2, opt_iter = 1, number_k=50, optfit = FALSE)
+```
+
+
+
+

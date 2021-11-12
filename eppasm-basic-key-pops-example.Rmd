@@ -39,7 +39,6 @@ Prepare model parameters from parameter vector input
 theta_ur <- c(-6.895487e-01, -2.094288e+00 ,-1.565049e+00 , 2.001957e+03 , 1.154403e-01, 3.414504e-03,-5.279024e-02,  5.471747e+00, -5.251565e-01, -7.461571e+00)
 
 fp <- attr(sen$`Travailleurs du sexe`, "specfp")
-fp$proj.steps <- fp_good$proj.steps
 
 fp <- prepare_rhybrid(fp)
 

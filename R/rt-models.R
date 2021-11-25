@@ -106,7 +106,7 @@ create_rvec <- function(theta, rt){
   if(rt$eppmod == "rhybrid"){
 
     par <- theta[1:4]
-    print(paste0("logistic parameters: ",par))
+    #print(paste0("logistic parameters: ",par))
     par[3] <- exp(par[3])
     rvec_rlog <- rlogistic(rt$rlogistic_steps, par)
 
@@ -118,7 +118,7 @@ create_rvec <- function(theta, rt){
     rvec_rw <- cumsum(c(rvec_rlog[length(rvec_rlog)], diff_rvec))
 
     rvec <- c(rvec_rlog, rvec_rw)
-    print(paste0("max rvec value: ",max(rvec)))
+    #print(paste0("max rvec value: ",max(rvec)))
     return(exp(rvec))
   }
   else

@@ -348,7 +348,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
       lpost0 <- likelihood(X0, fp, likdat, log=TRUE) + prior(X0, fp, log=TRUE)
       opt_init <- X0[which.max(lpost0)[1],]
     }
-    opt <- optim(opt_init, optfn, fp=fp, likdat=likdat, method=opt_method, control=list(fnscale=-1, trace=4, maxit=opt_maxit, ndeps=rep(opt_diffstep, length(opt_init))))
+    opt <- try(optim(opt_init, optfn, fp=fp, likdat=likdat, method=opt_method, control=list(fnscale=-1, trace=4, maxit=opt_maxit, ndeps=rep(opt_diffstep, length(opt_init)))))
     opt$fp <- fp
     opt$likdat <- likdat
     opt$param <- fnCreateParam(opt$par, fp)
@@ -614,10 +614,15 @@ simfit.eppfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", pregprev=TRUE)
 }
 
 
-sim_mod_list <- function(fit, rwproj=fit$fp$eppmod == "rspline"){
+sim_mod_list <- function(fit, rwproj=fit$fp$eppmod == "rspline",single_sim){
 
-  fit$param <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
-
+  if(single_sim){
+      fit$param <- list(fnCreateParam(apply(fit$resample,1,mean), fit$fp))
+  } else {
+    fit$param <- lapply(1:2, function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
+    #fit$param <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
+  }
+  
   if(rwproj){
     if(exists("eppmod", where=fit$fp) && fit$fp$eppmod == "rtrend")
       stop("Random-walk projection is only used with r-spline model")
@@ -637,23 +642,53 @@ sim_mod_list <- function(fit, rwproj=fit$fp$eppmod == "rspline"){
     fit$param <- lapply(fit$param, function(par){par$rvec <- epp:::sim_rvec_rwproj(par$rvec, firstidx, lastidx, dt); par})
   }
   
-  fp.list <- lapply(fit$param, function(par) update(fit$fp, list=par))
-  mod.list <- lapply(fp.list, simmod)
-
-  ## strip unneeded attributes to preserve memory
-
-  keep <- c("class", "dim", "infections", "hivdeaths", "natdeaths", "hivpop", "artpop", "rvec", "popadjust")
-  mod.list <- lapply(mod.list, function(mod){ attributes(mod)[!names(attributes(mod)) %in% keep] <- NULL; mod})
+    fp.list <- lapply(fit$param, function(par) update(fit$fp, list=par))
+    mod.list <- lapply(fp.list, simmod, "R")
+    ## strip unneeded attributes to preserve memory
+    keep <- c("class", "dim", "infections", "hivdeaths", "natdeaths", "hivpop", "artpop", "rvec", "popadjust","t.hivpop")
+    mod.list <- lapply(mod.list, function(mod){ attributes(mod)[!names(attributes(mod)) %in% keep] <- NULL; mod})
+    
 
   return(mod.list)
 }
 
 ## ' aggregate lists of model fits 
-aggr_specfit <- function(fitlist, rwproj=sapply(fitlist, function(x) x$fp$eppmod) == "rspline"){
-  allmod <- mapply(sim_mod_list, fitlist, rwproj, SIMPLIFY=FALSE)
+aggr_specfit <- function(fitlist, turnover=FALSE, single_sim = FALSE,rwproj=sapply(fitlist,  function(x) x$fp$eppmod) == "rhybrid"){
 
+  allmod <- mapply(sim_mod_list, fitlist, single_sim, rwproj=FALSE,SIMPLIFY=FALSE)
+  
+  check_turnover <- unlist(lapply(fitlist,function(x) if(exists("turnover", where=x$fp)) return(x$fp$turnover)))
+  if(any(check_turnover) && turnover){
+    turnover_attr = lapply(fitlist[check_turnover],function(x) return(list(assign_name = x$fp$assign_name, assignType = x$fp$assignmentType)))
+    name = unlist(lapply(turnover_attr, function(j) j$assign_name))
+    for(n in names(name)){
+          agg_mod = allmod[name[n]][[1]]
+          t_mod = allmod[n][[1]]
+          hivpop_dest = lapply(agg_mod,function(g) attr(g,"hivpop")) #Destination population
+          hivpop_source = lapply(t_mod,function(g) attr(g,"hivpop")) #Source population
+          t.hivpop = lapply(t_mod,function(g) attr(g,"t.hivpop")) #Turnover population
+          
+          #Add turnover population to the main population group if they were not represented in the data
+          combine_pops = list(hivpop_dest , t.hivpop)
+          if(turnover_attr[[n]]$assignType == "add") {
+            add_t.pop = lapply(do.call(mapply, c(FUN=list, combine_pops, SIMPLIFY=FALSE)), Reduce, f="+")
+            #Substitute back into modlist - SHOULD TO FIX THIS, RECURSIVE WILL BE  SLOW
+            for(i in 1:length(allmod[name[n]][[1]])){
+              attr(allmod[name[n]][[1]][[i]],"hivpop") <- add_t.pop[[i]]
+            }
+          } 
+          
+          #Remove turnover population from the source key population and sub back into modlist
+          combine_pops = list(hivpop_source, t.hivpop)
+          remove_t.pop = lapply(do.call(mapply, c(FUN=list, combine_pops, SIMPLIFY=FALSE)), Reduce, f="-")
+          for(i in 1:length(allmod[name[n]][[1]])){
+            attr(allmod[n][[1]][[i]],"hivpop") <- remove_t.pop[[i]]
+          }
+      }
+  }
+  
   modaggr <- lapply(do.call(mapply, c(FUN=list, allmod, SIMPLIFY=FALSE)), Reduce, f="+")
-  ##
+
   infectionsaggr <- lapply(do.call(mapply, c(FUN=list, lapply(allmod, lapply, attr, "infections"), SIMPLIFY=FALSE)), Reduce, f="+")
   hivdeathsaggr <- lapply(do.call(mapply, c(FUN=list, lapply(allmod, lapply, attr, "hivdeaths"), SIMPLIFY=FALSE)), Reduce, f="+")
   natdeathsaggr <- lapply(do.call(mapply, c(FUN=list, lapply(allmod, lapply, attr, "natdeaths"), SIMPLIFY=FALSE)), Reduce, f="+")
@@ -670,5 +705,6 @@ aggr_specfit <- function(fitlist, rwproj=sapply(fitlist, function(x) x$fp$eppmod
   modaggr <- mapply("attr<-", modaggr, "incid15to49", lapply(modaggr, calc_incid15to49, fitlist[[1]]$fp), SIMPLIFY=FALSE)
   ##
   modaggr <- lapply(modaggr, "class<-", c("specaggr", "spec"))
-  return(modaggr)
+  
+  return(list(modaggr=modaggr, allmod = allmod))
 }

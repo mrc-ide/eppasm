@@ -110,7 +110,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   #                      hiv_p_entries = rep(NA,y*11),
   #                      artpop = rep(NA,y*11),
   #                      t_artpop = rep(NA,y*11))
-  ##out_dat[1,] <- c(1,0,sum(pop[,,,1]), sum(t.pop[,,,1]), 0,0,0,0,0,0)
+  # #out_dat[1,] <- c(1,0,sum(pop[,,,1]), sum(t.pop[,,,1]), 0,0,0,0,0,0)
   
   for(i in 2:fp$SIM_YEARS){
     #if(i == 7) break

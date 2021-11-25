@@ -137,7 +137,6 @@ create_spectrum_fixpar <- function(projp, demp, epp.subp.input,hiv_steps_per_yea
     
     fp$duration <-  epp.input$duration
     fp$percent_male <- epp.input$percent_male
-    fp$duration  <- epp.input$duration
     fp$assign_id <- epp.input$assign_id ##Which pop do they go back to
     fp$assignmentType <- epp.input$assignmentType
     fp$assign_name <- epp.input$assign_name

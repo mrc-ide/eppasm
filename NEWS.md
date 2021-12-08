@@ -1,3 +1,7 @@
+## epapsm 0.5.11
+
+* Patch `get_dp_version()` to search for tag instead of relying on exact location.
+
 ## eppasm 0.5.10
 
 * Patch `read_epp_t0()` to parse XML file projection sets using same code as `epp:read_epp_data()`. This resolves parsing issue for Niger, Senegal, and Dominican Republic. Unsure why the XML is formed different for these cases.

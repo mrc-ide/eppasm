@@ -1,12 +1,25 @@
 get_dp_version <- function(dp){
-  dp.vers <- dp[2,1] # <General 3>: 2013, 2014 Spectrum files; <General5>: 2015 Spectrum files
-  if(!dp.vers %in% c("<General 3>", "<General5>"))
-    if(dp.vers == "<FirstYear MV>")
-      dp.vers <- "Spectrum2016"
-    else if(dp.vers == "<FirstYear MV2>")
-      dp.vers <- "Spectrum2017"
-    else
-      stop("Spectrum DP file version not recognized. Package probably needs to be updated to most recent Spectrum version.")
+
+  ## Check the following tags to identify the version:
+  ## * <General 3>: 2013, 2014 Spectrum files;
+  ## * <General5>: 2015 Spectrum files
+  ## * <FirstYear MV>: 2016 Spectrum file
+  ## * <FirstYear MV2>: 2017+ spectrum file
+  
+  exists_dptag <- function(tag, tagcol=1){tag %in% dp[,tagcol]}
+  
+  dp.vers <- if (exists_dptag("<General 3>")) {
+    "<General 3>"
+  } else if (exists_dptag("<General5>")) {
+    "<General5>"
+  } else if (exists_dptag("<FirstYear MV>")) {
+    "Spectrum2016"
+  } else if (exists_dptag("<FirstYear MV2>")) {
+    "Spectrum2017"
+  } else {
+    stop("Spectrum DP file version not recognized. Package probably needs to be updated to most recent Spectrum version.")
+  }
+
   return(dp.vers)
 }
 

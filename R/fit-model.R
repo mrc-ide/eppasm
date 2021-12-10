@@ -679,11 +679,11 @@ aggr_specfit <- function(fitlist, turnover=FALSE, single_sim = FALSE,rwproj=sapp
           } 
           
           #Remove turnover population from the source key population and sub back into modlist
-          combine_pops = list(hivpop_source, t.hivpop)
-          remove_t.pop = lapply(do.call(mapply, c(FUN=list, combine_pops, SIMPLIFY=FALSE)), Reduce, f="-")
-          for(i in 1:length(allmod[name[n]][[1]])){
-            attr(allmod[n][[1]][[i]],"hivpop") <- remove_t.pop[[i]]
-          }
+          # combine_pops = list(hivpop_source, t.hivpop)
+          # remove_t.pop = lapply(do.call(mapply, c(FUN=list, combine_pops, SIMPLIFY=FALSE)), Reduce, f="-")
+          # for(i in 1:length(allmod[name[n]][[1]])){
+          #   attr(allmod[n][[1]][[i]],"hivpop") <- remove_t.pop[[i]]
+          # }
       }
   }
   

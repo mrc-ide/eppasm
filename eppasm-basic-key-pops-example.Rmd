@@ -43,8 +43,8 @@ fp <- attr(sen$`Travailleurs du sexe`, "specfp")
 fp <- prepare_rhybrid(fp)
 fp$logitiota <- TRUE
 fp$incidmod <- "eppspectrum"
-
-theta.last <- c(13.5474460157919, -2.26381027222213, -1.6006607259674, 2001.52507341818, -0.0488857130042534, 0.0128448438395525, 0.00304293094295147, 1.89825596375801, 0.526881511294999, -5.31315362796926)
+# 
+# theta.last <- c(13.5474460157919, -2.26381027222213, -1.6006607259674, 2001.52507341818, -0.0488857130042534, 0.0128448438395525, 0.00304293094295147, 1.89825596375801, 0.526881511294999, -5.31315362796926)
 
 ```
 
@@ -55,7 +55,7 @@ param <- fnCreateParam(theta_ur, fp)
 fp_par <- update(fp, list = param)
 mod <- simmod.specfp(fp_par, VERSION = "R")
 
-prev(mod)
+plot(prev(mod))
 incid(mod)
 
 
@@ -65,6 +65,8 @@ incid(mod)
 ## Fitting the EPP-ASM model
 
 ```{r, fit_eppasm, cache=TRUE}
+loc <- sen
+sort(names(attr(loc$HSH, "specfp")))
 locfit = list()
 locfit$HSH <- eppasm::fitmod(loc$HSH, eppmod = "rhybrid", rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE)
 
@@ -81,8 +83,8 @@ locfit$`Pop masculine restante`<- eppasm::fitmod(loc$`Pop masculine restante`,  
 ## Extend the projection
 
 ```{r, fit_eppasm, cache=TRUE}
-
-locfit = readRDS("~/Documents/tests/SEN_test1fitmod_all.RDS")
+#saveRDS(locfit ,"~/Documents/tests/SEN_test2fitmod_all.RDS")
+locfit = readRDS("~/Documents/tests/SEN_test2fitmod_all.RDS")
 locfit <- lapply(locfit, extend_projection, proj_years = 52)
 
 ```
@@ -90,31 +92,43 @@ locfit <- lapply(locfit, extend_projection, proj_years = 52)
 ## Aggregation
 
 ```{r, fit_eppasm, cache=TRUE}
-#Single sim takes the mean across resamples but is not working right now - resulting in Nan
-#Instead, set to just take first 2 resamples for testing
-locfit$HSH$fp$assign_name = "Pop masculine restante"
-locfit$HSH$fp$assignmentType <- "add"
-locfit$`Clients des travailleurs du sexe`$fp$assign_name = "Pop masculine restante"
-locfit$`Clients des travailleurs du sexe`$fp$assignmentType <- "remove"
+#Single sim takes the mean across resamples but is not working right now - resulting in Nan- Instead, set to just take first 2 resamples for testing
 
-##With turnover
+##Adding this because they wound up NA, XML file missing string attribute
+locfit$`Clients des travailleurs du sexe`$fp$assignmentType <- 'replace'
+
+##With incorporating turnover
 locfit_aggr <- aggr_specfit(fitlist=locfit, turnover = TRUE,  single_sim = FALSE)
-turnover_HSH <- apply(attr(locfit_aggr$allmod$HSH [[1]],"hivpop"),4,sum)
-turnover_HSH <- data.table(value=turnover_HSH, group = "HSH", type = "turnover")
+##Without incorporating turnover
+locfit_aggr1 <- aggr_specfit(fitlist=locfit, turnover = FALSE,  single_sim = FALSE)
+names(locfit_aggr$allmod)
+pop = "Travailleurs du sexe"
+rem_pop = "Pop féminine restante"
+turnover <- apply(attr(locfit_aggr$allmod[[pop]][[1]],"hivpop"),4,sum)
+turnover <- data.table(value=turnover, group = pop, type = "turnover")
 
-turnover_rem_male <- apply(attr(locfit_aggr$allmod$`Pop masculine restante` [[1]],"hivpop"),4,sum)
-turnover_rem_male<- data.table(value=turnover_rem_male, group = "Rem. Male", type = "turnover")
+turnover_rem <- apply(attr(locfit_aggr$allmod[[rem_pop]][[1]],"hivpop"),4,sum)
+turnover_rem <- data.table(value=turnover_rem, group = rem_pop, type = "turnover")
 
-##Without turnover
-locfit_aggr <- aggr_specfit(fitlist=locfit, turnover = FALSE,  single_sim = FALSE)
-no_turnover_HSH <- apply(attr(locfit_aggr$allmod$HSH[[1]],"hivpop"),4,sum)
-no_turnover_rem_male <- apply(attr(locfit_aggr$allmod$`Pop masculine restante`[[1]],"hivpop"),4,sum)
-no_turnover_HSH <- data.table(value=no_turnover_HSH, group = "HSH", type = "No turnover")
-no_turnover_rem_male <- data.table(value=no_turnover_rem_male, group = "Rem. Male", type = "No turnover")
+no_turnover <- apply(attr(locfit_aggr1$allmod[[pop]][[1]],"hivpop"),4,sum)
+no_turnover_rem <- apply(attr(locfit_aggr1$allmod[[rem_pop]][[1]],"hivpop"),4,sum)
+no_turnover <- data.table(value=no_turnover, group = pop, type = "No turnover")
+no_turnover_rem <- data.table(value=no_turnover_rem, group = rem_pop, type = "No turnover")
 
-new_dat = rbind( turnover_HSH, turnover_rem_male, no_turnover_HSH, no_turnover_rem_male, use.names = TRUE)
+new_dat = rbind(turnover, turnover_rem, no_turnover, no_turnover_rem, use.names = TRUE)
 new_dat[,year := rep(1:52, times = 4)]
 
-ggplot(new_dat, aes(year, value,col=type)) + geom_line() + facet_wrap(~group, scales="free_y") + theme_bw()
- 
+ggplot(new_dat[year <= 50], aes(year, value,col=type)) + geom_line() + facet_wrap(~group, scales="free_y") + theme_bw()
+
+pop = "total pop"
+turnover <- apply(attr(locfit_aggr$modaggr[[1]],"hivpop"),4,sum)
+no_turnover <- apply(attr(locfit_aggr1$modaggr[[1]],"hivpop"),4,sum)
+turnover <- attr(locfit_aggr1$modaggr[[1]],"prev15to49")
+no_turnover <- attr(locfit_aggr1$modaggr[[1]],"prev15to49")
+turnover <- data.table(value=turnover, group = pop, type = "turnover")
+no_turnover <- data.table(value=no_turnover, group = pop, type = "No turnover")
+
+new_dat = rbind(turnover,  no_turnover,  use.names = TRUE)
+new_dat[,year := rep(1:52, times = 2)]
+ggplot(new_dat[year <= 50], aes(year, value,col=type)) + geom_line() + facet_wrap(~group, scales="free_y") + theme_bw() 
 ```

@@ -53,10 +53,9 @@ Simulate the model once.
 ```{r, simulate_model}
 param <- fnCreateParam(theta_ur, fp)
 fp_par <- update(fp, list = param)
-debugonce(simmod.specfp)
 mod <- simmod.specfp(fp_par, VERSION = "R")
 
-plot(prev(mod))
+prev(mod)
 incid(mod)
 
 
@@ -67,7 +66,6 @@ incid(mod)
 
 ```{r, fit_eppasm, cache=TRUE}
 loc <- sen
-sort(names(attr(loc$HSH, "specfp")))
 locfit = list()
 locfit$HSH <- eppasm::fitmod(loc$HSH, eppmod = "rhybrid", rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE)
 

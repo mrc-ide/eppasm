@@ -611,7 +611,7 @@ simmod.specfp <- function(fp, VERSION="C"){
         }
         
         artinit <- pmin(artinit, hivpop[ , , , i] + (DT * grad))
-        t.artinit <- pmin(t.artinit, t.hivpop[ , , , i]) ##Do not need to add DT*t.grad here because done above
+        
         #out_dat[(-21 + 11*i) + ii,"artinit"] <- sum(artinit)
         #out_dat[(-21 + 11*i) + ii,"t_artinit"] <- sum(t.artinit)
         
@@ -621,15 +621,17 @@ simmod.specfp <- function(fp, VERSION="C"){
         #out_dat[(-21 + 11*i) + ii,"artpop"] <- sum(artpop[,,,, i])
         
         if(turnover){
+          t.artinit <- pmin(t.artinit, t.hivpop[ , , , i]) ##Do not need to add DT*t.grad here because done above
           t.grad[ , h.age15plus.idx, ] <- t.grad[ , h.age15plus.idx, ] - t.artinit / DT
           t.gradART[1, , h.age15plus.idx, ] <- t.gradART[1, , h.age15plus.idx, ] + t.artinit / DT
           t.artpop[,,,, i] <- t.artpop[,,,, i] + DT * t.gradART
+          t.hivpop[,h.age15plus.idx,,i] <- t.hivpop[,h.age15plus.idx,,i] - t.artinit
           #out_dat[(-21 + 11*i) + ii,"t_artpop"] <- sum(t.artpop[,,,, i])
           
         }
       }
       
-      t.hivpop[,,h.age15plus.idx,i] <- t.hivpop[,,h.age15plus.idx,i] - t.artinit
+      
       hivpop[,,,i] <- hivpop[,,,i] + DT * grad  
       # print(sum(pop[,,hivp.idx,i]))
       # print(sum(hivpop[,,,i]))

@@ -96,25 +96,25 @@ simmod.specfp <- function(fp, VERSION="C"){
   ## store some outputs to troubleshoot
   y = 52
   #out_dat = data.frame(year = rep(NA,y*11),
-                       time_step = rep(c(0:10),y),
-                       total_pop = rep(NA,y*11),
-                       t_pop = rep(NA,y*11),
-                       total_pop_entries = rep(NA,y*11),
-                       total_pop_deaths = rep(NA,y*11),
-                       total_pop_mig = rep(NA,y*11),
-                       t_pop_entries = rep(NA,y*11),
-                       t_pop_deaths = rep(NA,y*11),
-                       total_hiv = rep(NA,y*11),
-                       t_hiv = rep(NA,y*11),
-                       hiv_migration = rep(NA,y*11),
-                       t_hiv_migration = rep(NA,y*11),
-                       hiv_deaths = rep(NA,y*11),
-                       t_hivdeaths= rep(NA,y*11),
-                       hiv_p_entries = rep(NA,y*11),
-                       artpop = rep(NA,y*11),
-                       infections = rep(NA, y*11),
-                       t_artpop = rep(NA,y*11))
-  
+                       # time_step = rep(c(0:10),y),
+                       # total_pop = rep(NA,y*11),
+                       # t_pop = rep(NA,y*11),
+                       # total_pop_entries = rep(NA,y*11),
+                       # total_pop_deaths = rep(NA,y*11),
+                       # total_pop_mig = rep(NA,y*11),
+                       # t_pop_entries = rep(NA,y*11),
+                       # t_pop_deaths = rep(NA,y*11),
+                       # total_hiv = rep(NA,y*11),
+                       # t_hiv = rep(NA,y*11),
+                       # hiv_migration = rep(NA,y*11),
+                       # t_hiv_migration = rep(NA,y*11),
+                       # hiv_deaths = rep(NA,y*11),
+                       # t_hivdeaths= rep(NA,y*11),
+                       # hiv_p_entries = rep(NA,y*11),
+                       # artpop = rep(NA,y*11),
+                       # infections = rep(NA, y*11),
+                       # t_artpop = rep(NA,y*11))
+                       # 
   
   for(i in 2:fp$SIM_YEARS){
     print(i)

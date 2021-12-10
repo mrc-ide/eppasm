@@ -53,6 +53,7 @@ Simulate the model once.
 ```{r, simulate_model}
 param <- fnCreateParam(theta_ur, fp)
 fp_par <- update(fp, list = param)
+debugonce(simmod.specfp)
 mod <- simmod.specfp(fp_par, VERSION = "R")
 
 plot(prev(mod))

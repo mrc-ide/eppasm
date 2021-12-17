@@ -4,8 +4,9 @@
 
 ## eppasm 0.5.10
 
-* Patch `read_epp_t0()` to parse XML file projection sets using same code as `epp:read_epp_data()`. This resolves parsing issue for Niger, Senegal, and Dominican Republic. Unsure why the XML is formed different for these cases.
 
+* Patch `read_epp_t0()` to parse XML file projection sets using same code as `epp:read_epp_data()`. This resolves parsing issue for Niger, Senegal, and Dominican Republic. Unsure why the XML is formed different for these cases.
+* Patch function `mod_dimnames()`. 
 
 ## eppasm 0.5.9
 
@@ -20,6 +21,11 @@
   coarse age groups, stage of infection, and ART duration.
 - Make ART stage durations (0-5 months, 6-11 months, 1+ years) input parameters `fp$ss$h_art_stage_dur` instead of hard coded values.
 - Add function `spec_add_dimnames()` to add dimnames to simmod output arrays.
+
+## eppasm 0.5.7
+
+- Add ANC dropout at end of model simulation step.
+- Refactor ANC data model code and add option to input offset in regression equation.
 
 ## eppasm 0.5.6
 
@@ -152,3 +158,4 @@
 # eppspectrum 0.1
 
 - Update to interface with `epp v0.3` which implements ANC routine testing (ANC-RT) likelihood in EPP 2017.
+

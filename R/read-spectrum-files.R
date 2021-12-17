@@ -640,7 +640,9 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   if(exists_dptag("<ChAged15ByCD4Cat MV>")){
 
     age15hivpop_raw <- sapply(dpsub("<ChAged15ByCD4Cat MV>", 1+1:(NG*DS*2), timedat.idx), as.numeric)
-    age15hivpop[c(1, 4),,,] <- array(age15hivpop_raw, c(2, DS, NG, length(proj.years)))
+    age15hivpop_raw <- array(age15hivpop_raw, c(DS, 2, NG, length(proj.years)))
+    age15hivpop[1,,,] <- age15hivpop_raw[,1,,]		
+    age15hivpop[4,,,] <- age15hivpop_raw[,2,,]
 
   } else if(exists_dptag("<ChAged14ByCD4Cat MV>")){
 

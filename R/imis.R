@@ -19,10 +19,11 @@
 #'
 #' @return list with items resample, stat, and center
 imis <- function(B0, B, B_re, number_k, opt_k=NULL, fp, likdat,
-                 prior=eppasm::prior,
-                 likelihood=eppasm::likelihood,
-                 sample_prior=eppasm::sample.prior,
-                 dsamp = eppasm::dsamp, save_all=FALSE){
+                 prior = eppasm::prior,
+                 likelihood = eppasm::likelihood,
+                 sample_prior = eppasm::sample.prior,
+                 dsamp = eppasm::dsamp,
+                 save_all=FALSE){
 
   ## Draw initial samples from prior distribution
   X_k <- sample_prior(B0, fp)  # Draw initial samples from the prior distribution

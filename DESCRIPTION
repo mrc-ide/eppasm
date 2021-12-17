@@ -20,7 +20,8 @@ Suggests:
     testthat,
     knitr,
     rmarkdown,
-    covr
+    covr,
+    scoringRules
 VignetteBuilder: knitr
 URL: https://github.com/mrc-ide/eppasm
 BugReports: https://github.com/mrc-ide/eppasm/issues

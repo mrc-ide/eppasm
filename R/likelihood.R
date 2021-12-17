@@ -449,11 +449,13 @@ lprior <- function(theta, fp){
 
     nk <- fp$numKnots
 
-    if(fp$eppmod == "logrw")
-      lpr <- bayes_lmvt(theta[2:fp$numKnots], rw_prior_shape, rw_prior_rate)
-    else
-      lpr <- bayes_lmvt(theta[(1+fp$rtpenord):nk], tau2_prior_shape, tau2_prior_rate)
-
+    if (fp$eppmod == "logrw") {
+      lpr <- dnorm(theta[1], 0.2, 1, log = TRUE)
+      lpr <- lpr + bayes_lmvt(theta[2:fp$rt$n_rw], rw_prior_shape, rw_prior_rate)
+    } else {
+      lpr <- dnorm(theta[1], 1.5, 1, log = TRUE)
+      lpr <- lpr + bayes_lmvt(theta[(1 + fp$rtpenord):nk], tau2_prior_shape, tau2_prior_rate)
+    }
     if(exists("r0logiotaratio", fp) && fp$r0logiotaratio)
       lpr <- lpr + dunif(theta[nk+1], r0logiotaratio.unif.prior[1], r0logiotaratio.unif.prior[2], log=TRUE)
     else

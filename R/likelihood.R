@@ -696,8 +696,8 @@ ldsamp <- function(theta, fp){
     else # logrw
       lpr <- dnorm(theta[1], 0.2, 1, log=TRUE)
 
-    if(fp$eppmod == "logrw")
-      bayes_lmvt(theta[2:fp$rt$n_rw], rw_prior_shape, rw_prior_rate)
+    if (fp$eppmod == "logrw")
+      lpr <- bayes_lmvt(theta[2:fp$rt$n_rw], rw_prior_shape, rw_prior_rate)
     else
       lpr <- bayes_lmvt(theta[2:nk], tau2_prior_shape, tau2_prior_rate)
 

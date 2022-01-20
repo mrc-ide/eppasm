@@ -32,7 +32,7 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
   demp <- read_specdp_demog_param(pjnz, use_ep5=use_ep5)
   projp <- read_hivproj_param(pjnz, use_ep5=use_ep5)
   epp_t0 <- read_epp_t0(pjnz)
-  print(epp_t0)
+
 
   ## If popadjust = NULL, look for subp if more than 1 EPP region
   if(is.null(popadjust))
@@ -127,15 +127,39 @@ create_subpop_specfp <- function(projp, demp, eppd, epp.subp.input, epp_t0=setNa
   ## Update demp for subpopulation 
   demp.subpop <- list()
   gfr_subpop <- list()
-  for(subpop in names(eppd)){
-    ## if(country != "Malawi")
+  for(subpop in names(eppd)){ 
+    ## if(country != "Malawi") ##Probably more terminology issues here.
     strsubp <- if(subpop %in% c("Urbain", "Urbaine", "Urban")) "U"
                else if(subpop %in%  c("Rural", "Rurale")) "R"
+               else if(subpop %in%  c("Travailleurs du sexe", "Female sex workers")) "FSW"
+               else if(subpop %in%  c("Pop masculine restante", "Remaining male pop")) "RMP"
+               else if(subpop %in%  c("Clients des travailleurs du sexe", "Clients of sex workers")) "CFSW"
+               else if(subpop %in%  c("Pop féminine restante", "Remaining female pop")) "RFP"
+               else if(subpop %in%  c("HSH", "MSM")) "MSM"
                else subpop  # bloody French...
     demp.subpop[[subpop]] <- demp
+ 
     if (popadjust) {
       demp.subpop[[subpop]]$basepop <- subp[[grep(paste0("\\_", country_code, "$"), names(subp))]][[strsubp]][,,dimnames(demp$basepop)[[3]]]
       demp.subpop[[subpop]]$netmigr[] <- 0
+      
+      ##Added for key populations
+      if(is.null(demp.subpop[[subpop]]$basepop)){
+        
+        demp.subpop[[subpop]]$basepop <- subp[[grep(paste0("\\_", country_code, "$"), names(subp))]][["N"]][,,dimnames(demp$basepop)[[3]]]
+        perc_male = epp.subp.input[[subpop]]$percent_male
+        subpop1 <- pops[[subpop]][,'pop']
+        
+        for(year in 1:dim(demp.subpop[[subpop]]$basepop)[3]){
+          template <- demp.subpop[[subpop]]$basepop[,,year] 
+          template[1:15,] <- 0
+          template[16:dim(demp.subpop[[subpop]]$basepop)[1],ifelse(perc_male == 1, 1,2)] <- subpop1[year] * entry_rates$proportion
+          template[,ifelse(perc_male == 1, 2,1)] <- 0
+          demp.subpop[[subpop]]$basepop[,,year]  <- template
+         
+        }
+        
+      }
     }
       ## Record GFR for each subpop
      

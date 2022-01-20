@@ -29,7 +29,9 @@ devtools::load_all("~/Documents/eppasm")
 ```{r, eppasm_inputs}
 
 pjnz <- system.file("extdata/testpjnz", "senegal_2021_05_04.pjnz", package="eppasm")
-sen <- eppasm::prepare_spec_fit(pjnz, proj.end=2021.5, popadjust = FALSE)
+entry_rates = read.csv(system.file("extdata/entry_rates.csv", package = "eppasm"))
+pops = epp::read_spt(system.file("extdata/testpjnz", "senegal_2021_05_04.pjnz", package="eppasm"))
+sen <- prepare_spec_fit(pjnz, proj.end=2021.5, popupdate = FALSE)
 
 ```
 
@@ -37,14 +39,16 @@ sen <- eppasm::prepare_spec_fit(pjnz, proj.end=2021.5, popadjust = FALSE)
 
 Prepare model parameters from parameter vector input
 ```{r, single_param}
-theta_ur <- c(-6.895487e-01, -2.094288e+00 ,-1.565049e+00 , 2.001957e+03 , 1.154403e-01, 3.414504e-03,-5.279024e-02,  5.471747e+00, -5.251565e-01, -7.461571e+00)
+theta_ur <- c(-5.074497e-01, -2.829512e+00, -1.529482e+00,  1.999455e+03, -6.620818e-02,
+-7.390377e-02, -3.267637e-03,  2.730426e+00, -3.984808e-01, -3.242572e+00)
+
 
 fp <- attr(sen$`Travailleurs du sexe`, "specfp")
+#Set migration to 0
+fp$netmigr <- attr(sen$`Travailleurs du sexe`,"specfp")$netmigr - attr(sen$`Travailleurs du sexe`,"specfp")$netmigr
 fp <- prepare_rhybrid(fp)
 fp$logitiota <- TRUE
 fp$incidmod <- "eppspectrum"
-# 
-# theta.last <- c(13.5474460157919, -2.26381027222213, -1.6006607259674, 2001.52507341818, -0.0488857130042534, 0.0128448438395525, 0.00304293094295147, 1.89825596375801, 0.526881511294999, -5.31315362796926)
 
 ```
 
@@ -55,6 +59,7 @@ param <- fnCreateParam(theta_ur, fp)
 fp_par <- update(fp, list = param)
 mod <- simmod.specfp(fp_par, VERSION = "R")
 
+#These methods need adjustment for key populations (currently produces NaN because 0 males or females in some pops)
 prev(mod)
 incid(mod)
 
@@ -67,6 +72,7 @@ incid(mod)
 ```{r, fit_eppasm, cache=TRUE}
 loc <- sen
 locfit = list()
+
 locfit$HSH <- eppasm::fitmod(loc$HSH, eppmod = "rhybrid", rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE)
 
 locfit$`Travailleurs du sexe`<- eppasm::fitmod(loc$`Travailleurs du sexe`, eppmod = "rhybrid", rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE)
@@ -82,8 +88,6 @@ locfit$`Pop masculine restante`<- eppasm::fitmod(loc$`Pop masculine restante`,  
 ## Extend the projection
 
 ```{r, fit_eppasm, cache=TRUE}
-#saveRDS(locfit ,"~/Documents/tests/SEN_test2fitmod_all.RDS")
-locfit = readRDS("~/Documents/tests/SEN_test2fitmod_all.RDS")
 locfit <- lapply(locfit, extend_projection, proj_years = 52)
 
 ```
@@ -98,36 +102,5 @@ locfit$`Clients des travailleurs du sexe`$fp$assignmentType <- 'replace'
 
 ##With incorporating turnover
 locfit_aggr <- aggr_specfit(fitlist=locfit, turnover = TRUE,  single_sim = FALSE)
-##Without incorporating turnover
-locfit_aggr1 <- aggr_specfit(fitlist=locfit, turnover = FALSE,  single_sim = FALSE)
-names(locfit_aggr$allmod)
-pop = "Travailleurs du sexe"
-rem_pop = "Pop féminine restante"
-turnover <- apply(attr(locfit_aggr$allmod[[pop]][[1]],"hivpop"),4,sum)
-turnover <- data.table(value=turnover, group = pop, type = "turnover")
 
-turnover_rem <- apply(attr(locfit_aggr$allmod[[rem_pop]][[1]],"hivpop"),4,sum)
-turnover_rem <- data.table(value=turnover_rem, group = rem_pop, type = "turnover")
-
-no_turnover <- apply(attr(locfit_aggr1$allmod[[pop]][[1]],"hivpop"),4,sum)
-no_turnover_rem <- apply(attr(locfit_aggr1$allmod[[rem_pop]][[1]],"hivpop"),4,sum)
-no_turnover <- data.table(value=no_turnover, group = pop, type = "No turnover")
-no_turnover_rem <- data.table(value=no_turnover_rem, group = rem_pop, type = "No turnover")
-
-new_dat = rbind(turnover, turnover_rem, no_turnover, no_turnover_rem, use.names = TRUE)
-new_dat[,year := rep(1:52, times = 4)]
-
-ggplot(new_dat[year <= 50], aes(year, value,col=type)) + geom_line() + facet_wrap(~group, scales="free_y") + theme_bw()
-
-pop = "total pop"
-turnover <- apply(attr(locfit_aggr$modaggr[[1]],"hivpop"),4,sum)
-no_turnover <- apply(attr(locfit_aggr1$modaggr[[1]],"hivpop"),4,sum)
-turnover <- attr(locfit_aggr1$modaggr[[1]],"prev15to49")
-no_turnover <- attr(locfit_aggr1$modaggr[[1]],"prev15to49")
-turnover <- data.table(value=turnover, group = pop, type = "turnover")
-no_turnover <- data.table(value=no_turnover, group = pop, type = "No turnover")
-
-new_dat = rbind(turnover,  no_turnover,  use.names = TRUE)
-new_dat[,year := rep(1:52, times = 2)]
-ggplot(new_dat[year <= 50], aes(year, value,col=type)) + geom_line() + facet_wrap(~group, scales="free_y") + theme_bw() 
 ```

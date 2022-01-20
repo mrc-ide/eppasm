@@ -27,6 +27,7 @@ calc_infections_eppspectrum <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
     }
   }
 
+  art.ii[is.nan(art.ii)] <- 0
   transm_prev <- (hivp.ii - art.ii + fp$relinfectART*art.ii) / (hivn.ii+hivp.ii)
 
   incrate15to49.ts <- r_ts * transm_prev + fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
@@ -34,7 +35,8 @@ calc_infections_eppspectrum <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
   agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc15to49.ts/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$incrr_age[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
   
   infections.ts <- agesex.inc * pop[,,hivn.idx,i]
-
+  infections.ts[is.nan(infections.ts)] <- 0
+  
   attr(infections.ts, "incrate15to49.ts") <- incrate15to49.ts
   attr(infections.ts, "prevcurr") <- hivp.ii / (hivn.ii+hivp.ii)
 

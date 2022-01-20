@@ -26,13 +26,8 @@ rates over time and iv) translate the code to C for speed and efficiency
 
 ## examples of current problems using Senegal test file
 
-\[Follow eppasm-basic-key-pops-example.RmD to regenerate results\]
+Follow eppasm-basic-key-pops-example.RmD to regenerate results
 
-``` r
-print(system.file("extdata/example_background_deaths.png", package = "eppasm"))
-#> [1] ""
-# ![caption.]("inst/extdata/example_ART.png")
-# !(system.file("extdata/example_background_deaths.png", package = "eppasm"))
-# !(system.file("extdata/example_PLHIV.png", package = "eppasm"))
-# !(system.file("extdata/example_HIV_deaths.png", package = "eppasm"))
-```
+See system.file("extdata/senegal_example_mod.RDS", package = "eppasm") and images in the same folder
+
+

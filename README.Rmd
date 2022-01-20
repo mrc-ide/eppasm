@@ -30,8 +30,9 @@ While the code works for the example below, there is additional debugging requir
 
 ## examples of current problems using Senegal test file
 
-[Follow eppasm-basic-key-pops-example.RmD to regenerate results]
-See: system.file("extdata/senegal_example_mod.RDS", package = "eppasm") and images in the same folder
+Follow eppasm-basic-key-pops-example.RmD to regenerate results
+
+See system.file("extdata/senegal_example_mod.RDS", package = "eppasm") and images in the same folder
 
 
 

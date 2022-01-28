@@ -1,3 +1,8 @@
+## epapsm 0.5.12
+
+* Add condition in `eppasm.cpp` to avoid dividing by 0 when there is zero population eligible
+  to initiate ART.
+
 ## epapsm 0.5.11
 
 * Patch `get_dp_version()` to search for tag instead of relying on exact location.

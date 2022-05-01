@@ -324,8 +324,9 @@ ll <- function(theta, fp, likdat){
     if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) 
       return(-Inf)
 
-  mod <- simmod(fp, VERSION ="R")
-
+  mod <- simmod.specfp(fp, VERSION ="R")
+  
+  
   ## ANC likelihood
   if(exists("ancsite.dat", likdat))
     ll.anc <- ll_ancsite(mod, fp, coef=c(fp$ancbias, fp$ancrtsite.beta), vinfl=fp$v.infl, likdat$ancsite.dat)

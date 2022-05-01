@@ -27,6 +27,7 @@ imis <- function(B0, B, B_re, number_k, opt_k=NULL, fp, likdat,
 
   ## Draw initial samples from prior distribution
   X_k <- sample_prior(B0, fp)  # Draw initial samples from the prior distribution
+  print(paste0("prior sample: ",apply(X_k,2,mean)))
   cov_prior = cov(X_k)        # estimate of the prior covariance
 
   ## Locations and covariance of mixture components
@@ -50,6 +51,7 @@ imis <- function(B0, B, B_re, number_k, opt_k=NULL, fp, likdat,
 
     ## Calculate log-likelihood for new inputs
     ll_k <- likelihood(X_k, fp, likdat, log=TRUE)
+    print(paste0("likelihood: ",ll_k))
 
     ##  Keep only inputs with non-zero likelihood, calculate importance weights
     which_k <- which(ll_k > -Inf)

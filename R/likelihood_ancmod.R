@@ -19,7 +19,7 @@ prepare_anc_model <- function(fp, eppd,
   ancmod$has_ancrtsite <- !is.null(eppd$ancsitedat) && any(eppd$ancsitedat$type == "ancrt")
   ancmod$has_ancrtcens <- !is.null(eppd$ancrtcens) && nrow(eppd$ancrtcens)
 
-  ancmod$fit_ancbias <- ancmod$has_ancss || ancmod$has_ancrt
+  ancmod$fit_ancbias <- ancmod$has_ancss || ancmod$has_ancrtsite
   ancmod$fit_logfrr <- ancmod$has_ancrtcens
   ancmod$fit_vinfl <- if(is.null(fit_vinfl)) (ancmod$has_ancss || ancmod$has_ancrtsite) else fit_vinfl
   ancmod$fit_ancrtcens_vinfl <- if(is.null(fit_ancrtcens_vinfl)) ancmod$has_ancrtcens else fit_ancrtcens_vinfl

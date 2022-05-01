@@ -610,6 +610,7 @@ agepregprev <- function(mod, fp,
                         yidx=1:fp$ss$PROJ_YEARS,
                         agspan=5,
                         expand=FALSE){
+  
   sidx <- fp$ss$f.idx # only women get pregnant
 
   if(length(agspan)==1)
@@ -637,6 +638,7 @@ agepregprev <- function(mod, fp,
   hivp <- (mod[cbind(a_idx, s_idx, 2, y_idx)] + mod[cbind(a_idx, s_idx, 2, yminus1_idx)]) / 2
   hivn <- (mod[cbind(a_idx, s_idx, 1, y_idx)] + mod[cbind(a_idx, s_idx, 1, yminus1_idx)]) / 2
 
+  
   ## Calculate age-specific FRR given the CD4 and ART duration distribution
   hivpop_fert <- attr(mod, "hivpop")[ , fp$ss$h.fert.idx, fp$ss$f.idx, ]
   artpop_fert <- attr(mod, "artpop")[ , , fp$ss$h.fert.idx, fp$ss$f.idx, ]

@@ -1,0 +1,151 @@
+---
+title: "Basic example stepping through EPP-ASM for key populations"
+author: ""
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+editor_options: 
+  chunk_output_type: console
+---
+  
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  warning = FALSE,
+  comment = "#>"
+)
+```
+
+
+```{r, load}
+rm(list=ls())
+devtools::install_github("mrc-ide/eppasm@new-master-csvar")
+devtools::install_github("jeffeaton/epp@deepa-dev")
+devtools::load_all("~/Documents/eppasm")
+
+```
+
+## Preparing EPP-ASM inputs
+
+```{r, eppasm_inputs}
+
+pjnz <- system.file("extdata/testpjnz", "senegal_2021_05_04.pjnz", package="eppasm")
+entry_rates = read.csv(system.file("extdata/entry_rates.csv", package = "eppasm"))
+pops = epp::read_spt(system.file("extdata/testpjnz", "senegal_2021_05_04.pjnz", package="eppasm"))
+entrantprev = readRDS(system.file("extdata/entrantprev.RDS", package="eppasm"))
+sen <- prepare_spec_fit(pjnz, proj.end=2019.5, popupdate = FALSE)
+
+```
+
+## EPP-ASM model with single set of parameter inputs
+
+Prepare model parameters from parameter vector input
+```{r, single_param}
+theta_ur <- c(-5.074497e-01, -2.829512e+00, -1.529482e+00,  1.999455e+03, -6.620818e-02,-7.390377e-02, -3.267637e-03,  2.730426e+00, -3.984808e-01, -3.242572e+00)
+
+
+fp <- attr(sen$`Travailleurs du sexe`, "specfp")
+basepop = data.table(fp$basepop)
+basepop[,age := 15:80]
+basepop = melt(basepop, id.vars = "age")
+ggplot(basepop, aes(age, value, fill = variable)) + geom_bar(stat = "identity", position = "dodge") + ylab("Number of people") + xlab("Age") + theme_bw() + scale_fill_discrete(name = NULL) + ggtitle("Base FSW Population")
+
+
+#fp <- attr(sen$`Pop féminine restante`,"specfp")
+#Set migration to 0
+fp$netmigr <- attr(sen$`Travailleurs du sexe`,"specfp")$netmigr - attr(sen$`Travailleurs du sexe`,"specfp")$netmigr
+fp <- attr(sen$`HSH`, "specfp")
+fp <- prepare_rhybrid(fp)
+fp$logitiota <- TRUE
+fp$incidmod <- "eppspectrum"
+
+```
+
+Simulate the model once.
+
+```{r, simulate_model}
+nn = readRDS("~/Documents/tests/SEN_test7fitmod_all.RDS")
+fp = nn$`Travailleurs du sexe`$fp
+theta_ur <- apply(nn$`Travailleurs du sexe`$resample,2,mean)
+fp = attr(sen$`Pop féminine restante`, "specfp")
+param <- fnCreateParam(theta_ur, fp)
+fp_par <- update(fp, list = param)
+
+fp = fp_par
+debugonce(simmod.specfp)
+mod <- simmod.specfp(fp_par, VERSION = "R")
+
+prev(mod)
+incid(mod)
+
+names(nn$`Travailleurs du sexe`)
+names(attributes(sen$`Travailleurs du sexe`))
+
+fp_bad <- attr(loc$`Travailleurs du sexe`,"specfp")
+#saveRDS(fp_par$entrantprev,"~/Documents/eppasm/inst/extdata/entrantprev.RDS")
+
+
+```
+
+
+## Fitting the EPP-ASM model
+
+```{r, fit_eppasm, cache=TRUE}
+theta_ur <- c(-5.074497e-01, -2.829512e+00, -1.529482e+00,  1.999455e+03, -6.620818e-02,-7.390377e-02, -3.267637e-03,  2.730426e+00, -3.984808e-01, -3.242572e+00)
+
+loc <- sen
+locfit = list()
+
+##Not sure why this broke
+attr(loc$`Travailleurs du sexe`,"specfp")$entrantprev <- entrantprev
+attr(loc$`HSH`,"specfp")$entrantprev <- entrantprev
+attr(loc$`Clients des travailleurs du sexe`,"specfp")$entrantprev  <- entrantprev
+attr(loc$`Pop masculine restante`,"specfp")$entrantprev  <- entrantprev
+attr(loc$`Pop féminine restante`,"specfp")$entrantprev  <- entrantprev
+
+attr(loc$`Travailleurs du sexe`,"specfp")$popadjust <- FALSE
+attr(loc$`HSH`,"specfp")$popadjust <- FALSE
+attr(loc$`Clients des travailleurs du sexe`,"specfp")$popadjust<- FALSE
+
+
+##Because there are no women in these populations how could we use agepregprev function...
+attr(loc$`HSH`,"specfp")$pregprev <- FALSE  
+attr(loc$`Clients des travailleurs du sexe`,"specfp")$pregprev <- FALSE  
+attr(loc$`Pop masculine restante`,"specfp")$pregprev <- FALSE  
+
+locfit$HSH <- eppasm::fitmod(loc$HSH, eppmod = "rhybrid", rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=50, optfit = TRUE,  opt_init = theta_ur,opthess=FALSE)
+
+locfit$`Travailleurs du sexe`<- eppasm::fitmod(loc$`Travailleurs du sexe`, eppmod = "rhybrid", rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE, opt_init = theta_ur,opthess=FALSE)
+
+locfit$`Clients des travailleurs du sexe`<- eppasm::fitmod(loc$`Clients des travailleurs du sexe`, eppmod = "rhybrid",rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE,  opt_init = theta_ur,opthess=FALSE)
+
+locfit$`Pop féminine restante`<- eppasm::fitmod(loc$`Pop féminine restante`,  eppmod = "rhybrid",  rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE,  opt_init = theta_ur)
+
+locfit$`Pop masculine restante`<- eppasm::fitmod(loc$`Pop masculine restante`,  eppmod = "rhybrid", rw_start = 2005, B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE,  opt_init = theta_ur)
+
+#saveRDS(locfit, "~/Documents/tests/SEN_test5fitmod_all.RDS") ##FSW only
+#saveRDS(locfit, "~/Documents/tests/SEN_test6fitmod_all.RDS") ##HSH only
+#saveRDS(locfit, "~/Documents/tests/SEN_test7fitmod_all.RDS") ##FSW with popadjust = FALSE
+#saveRDS(locfit, "~/Documents/tests/SEN_test8fitmod_all.RDS") ##FSW with lower entrant numbers
+#saveRDS(locfit, "~/Documents/tests/SEN_test9fitmod_all.RDS") ##FSW with no ANC data
+saveRDS(locfit, "~/Documents/tests/SEN_test10fitmod_all.RDS") ##Clients only
+```
+
+## Extend the projection
+
+```{r, fit_eppasm, cache=TRUE}
+locfit <- lapply(locfit, extend_projection, proj_years = 52)
+
+```
+
+## Aggregation
+
+```{r, fit_eppasm, cache=TRUE}
+#Single sim takes the mean across resamples but is not working right now - resulting in Nan- Instead, set to just take first 2 resamples for testing
+
+##Adding this because they wound up NA, XML file missing string attribute
+locfit$`Clients des travailleurs du sexe`$fp$assignmentType <- 'replace'
+
+##With incorporating turnover
+locfit_aggr <- aggr_specfit(fitlist=locfit, turnover = TRUE,  single_sim = FALSE)
+
+```

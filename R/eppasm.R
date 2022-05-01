@@ -39,7 +39,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   ## initialize projection
   pop <- array(0, c(pAG, NG, pDS, PROJ_YEARS))
   pop[,,1,1] <- fp$basepop
-  entries <- fp$targetpop
+  entries <- fp$targetpop*0.1
   hivpop <- array(0, c(hDS, hAG, NG, PROJ_YEARS))
   artpop <- array(0, c(hTS, hDS, hAG, NG, PROJ_YEARS))
  
@@ -92,32 +92,32 @@ simmod.specfp <- function(fp, VERSION="C"){
   prevlast <- 0
   
   ## store some outputs to troubleshoot
-  #y = 52
+  y = 52
   #out_dat = data.frame(year = rep(NA,y*11),
-                       # time_step = rep(c(0:10),y),
-                       # total_pop = rep(NA,y*11),
-                       # t_pop = rep(NA,y*11),
-                       # total_pop_entries = rep(NA,y*11),
-                       # total_pop_deaths = rep(NA,y*11),
-                       # total_pop_mig = rep(NA,y*11),
-                       # t_pop_entries = rep(NA,y*11),
-                       # t_pop_deaths = rep(NA,y*11),
-                       # total_hiv = rep(NA,y*11),
-                       # t_hiv = rep(NA,y*11),
-                       # hiv_migration = rep(NA,y*11),
-                       # t_hiv_migration = rep(NA,y*11),
-                       # hiv_deaths = rep(NA,y*11),
-                       # t_hivdeaths= rep(NA,y*11),
-                       # hiv_p_entries = rep(NA,y*11),
-                       # artpop = rep(NA,y*11),
-                       # infections = rep(NA, y*11),
-                       # t_artpop = rep(NA,y*11))
-                       # 
-  
+  # time_step = rep(c(0:10),y),
+  # total_pop = rep(NA,y*11),
+  # t_pop = rep(NA,y*11),
+  # total_pop_entries = rep(NA,y*11),
+  # total_pop_deaths = rep(NA,y*11),
+  # total_pop_mig = rep(NA,y*11),
+  # t_pop_entries = rep(NA,y*11),
+  # t_pop_deaths = rep(NA,y*11),
+  # total_hiv = rep(NA,y*11),
+  # t_hiv = rep(NA,y*11),
+  # hiv_migration = rep(NA,y*11),
+  # t_hiv_migration = rep(NA,y*11),
+  # hiv_deaths = rep(NA,y*11),
+  # t_hivdeaths= rep(NA,y*11),
+  # hiv_p_entries = rep(NA,y*11),
+  # artpop = rep(NA,y*11),
+  # infections = rep(NA, y*11),
+  # t_artpop = rep(NA,y*11))
+
+
   for(i in 2:fp$SIM_YEARS){
     #print(i)
     #if(length(pop[,,,i][pop[,,,i] < 0]) > 0) ##print(paste0("year: ",i," has neg numbers"))
-    #if(i == 9) break
+    #if(i == 33) break
     #out_dat[-21 + 11*i,"year"] <- i
     ## ################################### ##
     ##  Single-year population projection  ##
@@ -141,12 +141,13 @@ simmod.specfp <- function(fp, VERSION="C"){
     if(exists("popadjust", where=fp) & fp$popadjust & !turnover){
       hivn_entrants <- fp$entrantpop[,i-1]*(1-entrant_prev)
       hivp_entrants <- fp$entrantpop[,i-1]*entrant_prev
-    } else if(exists("popadjust", where=fp) & fp$popadjust & turnover){ ##Full age distribution of entries if its a key population with turnover
+    } else if(turnover){ ##Full age distribution of entries if its a key population with turnover
       
       entries_total <- entries[,,i]
+      #out_dat[-21 + 11*i,"total_pop_entries"] <- sum(entries_total)
       
       hivn_entrants <- entries_total
-      hivp_entrants <- entries_total
+      hivp_entrants <- entries_total ##Number gets adjusted below - done this way to maintain structure
       
       hivn_entrants[1,] <- entries_total[1,]*(1-entrant_prev)
       hivp_entrants[1,] <- entries_total[1,]*entrant_prev
@@ -163,12 +164,14 @@ simmod.specfp <- function(fp, VERSION="C"){
     entrant_prev_out[i] <- sum(hivp_entrants) / sum(hivn_entrants+hivp_entrants)
     hivp_entrants_out[,i] <- sum(hivp_entrants)
     
-    if(!is.null(dim(hivn_entrants))){
+    if(!is.null(dim(hivn_entrants))){ #Way to condition on age-specific entries (for key pops)
       pop[,,hivn.idx,i] <- pop[,,hivn.idx,i]+hivn_entrants
       pop[,,hivp.idx,i] <- pop[,,hivp.idx,i]+hivp_entrants
-      if(turnover){ #Only 15 year olds 
+      if(turnover){ #Only 15 year olds
         t.hivp_entrants <- hivn_entrants[1,]*t.rate
         t.hivn_entrants <- hivp_entrants[1,]*t.rate
+        
+        #out_dat[-21 + 11*i,"t_pop_entries"] <- sum(t.hivp_entrants + t.hivn_entrants)
       }
       
     } else {
@@ -180,9 +183,10 @@ simmod.specfp <- function(fp, VERSION="C"){
       }
       
     }
-    
+
     pop[is.nan(pop)] <- 0
-    t.pop[is.nan(t.pop)] <- 0
+    
+    if(turnover) t.pop[is.nan(t.pop)] <- 0
   
     #print(pop[,2,hivp.idx,i])
     ##Probability of moving from 1 HIV age group to anther.
@@ -195,6 +199,7 @@ simmod.specfp <- function(fp, VERSION="C"){
       t.hiv.ag.prob <- t.pop[aglast.idx,,hivp.idx,i-1] / apply(t.pop[,,hivp.idx,i-1], 2, ctapply, ag.idx, sum)
       t.hiv.ag.prob[is.nan(t.hiv.ag.prob)] <- 0
     }
+    
     
     hivpop[,,,i] <- hivpop[,,,i-1] 
     hivpop[,-hAG,,i] <- hivpop[,-hAG,,i] - sweep(hivpop[,-hAG,,i-1], 2:3, hiv.ag.prob[-hAG,], "*")
@@ -216,7 +221,12 @@ simmod.specfp <- function(fp, VERSION="C"){
       artpop[,,,,i] <- artpop[,,,,i-1] 
       artpop[,,-hAG,,i] <- artpop[,,-hAG,,i] - sweep(artpop[,,-hAG,,i-1], 3:4, hiv.ag.prob[-hAG,], "*")
       artpop[,,-1,,i] <- artpop[,,-1,,i] + sweep(artpop[,,-hAG,,i-1], 3:4, hiv.ag.prob[-hAG,], "*")
-      artpop[,,1,,i] <- artpop[,,1,,i] + sweep(fp$paedsurv_artcd4dist[,,,i], 3, hivp_entrants[1,] * fp$entrantartcov[,i], "*")
+      
+      if(!is.null(dim(hivn_entrants))){
+        artpop[,,1,,i] <- artpop[,,1,,i] + sweep(fp$paedsurv_artcd4dist[,,,i], 3, hivp_entrants[1,] * fp$entrantartcov[,i], "*")
+      } else {
+        artpop[,,1,,i] <- artpop[,,1,,i] + sweep(fp$paedsurv_artcd4dist[,,,i], 3, hivp_entrants * fp$entrantartcov[,i], "*")
+      }
       if(turnover){ 
         t.artpop[,,,,i] <- t.artpop[,,,,i-1] 
         t.artpop[,,-hAG,,i] <- t.artpop[,,-hAG,,i] - sweep(t.artpop[,,-hAG,,i-1], 3:4, t.hiv.ag.prob[-hAG,], "*")
@@ -245,7 +255,8 @@ simmod.specfp <- function(fp, VERSION="C"){
     hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.sx.prob, "*")
     #out_dat[-21 + 11*i,"total_pop_deaths"] <- sum(deaths)
     hivpop[is.nan(hivpop)] <- 0
-    t.hivpop[is.nan(t.hivpop)] <- 0
+    if(turnover) t.hivpop[is.nan(t.hivpop)] <- 0
+    
     
     if(i > fp$tARTstart){
       artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.sx.prob, "*")
@@ -254,41 +265,41 @@ simmod.specfp <- function(fp, VERSION="C"){
       }
     }
     
-    ## net migration
-    if(turnover){
-      t.netmigsurv <- fp$netmigr[,,i]*t.rate*(1+fp$Sx[,,i])/2 ##Need to assume something here..
-      t.mr.prob <- 1+t.netmigsurv / rowSums(t.pop[,,,i],,2)
-      t.mr.prob[is.nan(t.mr.prob)] <- 0 #Problem due to 0 population in first year of t pop
-      t.mr.prob[t.mr.prob < 0] <- 1 ##Temporary fix for too many migrants
-      t.hiv.mr.prob <- apply(t.mr.prob * t.pop[,,2,i], 2, ctapply, ag.idx, sum) /  apply(t.pop[,,2,i], 2, ctapply, ag.idx, sum)
-      t.hiv.mr.prob[is.nan(t.hiv.mr.prob)] <- 0
-      #out_dat[-21 + 11*i,"t_pop_mig"] <- sum(sweep(t.pop[,,,i], 1:2, t.mr.prob, "*")) - sum(t.pop[,,,i])
-      t.pop[,,,i] <- sweep(t.pop[,,,i], 1:2, t.mr.prob, "*")
-    }
-
-    netmigsurv <- (fp$netmigr[,,i]-fp$netmigr[,,i]*t.rate)*(1+fp$Sx[,,i])/2
-    mr.prob <- 1+netmigsurv / rowSums(pop[,,,i],,2)
-    mr.prob[is.nan(mr.prob)] <- 0
-    mr.prob[mr.prob < 0] <- 1 ##Temporary fix for too many migrants
-    hiv.mr.prob <- apply(mr.prob * pop[,,2,i], 2, ctapply, ag.idx, sum) /  apply(pop[,,2,i], 2, ctapply, ag.idx, sum)
-    hiv.mr.prob[is.nan(hiv.mr.prob)] <- 0
-    #out_dat[-21 + 11*i,"total_pop_mig"] <- sum(sweep(pop[,,,i], 1:2, mr.prob, "*")) - sum(pop[,,,i])
-    pop[,,,i] <- sweep(pop[,,,i], 1:2, mr.prob, "*")
-
-    t.hivpop[is.nan(t.hivpop)] <- 0
-    hivpop[is.nan(hivpop)] <- 0
-    
-    #out_dat[-21 + 11*i,"hiv_migration"] <- sum(sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")) - sum(hivpop[,,,i])
-    hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")
-    if(i > fp$tARTstart)
-      artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.mr.prob, "*")
-
-    if(turnover){
-      #out_dat[-21 + 11*i,"t_hiv_migration"] <- sum(sweep(t.hivpop[,,,i], 2:3, t.hiv.mr.prob, "*")) - sum(t.hivpop[,,,i])
-      t.hivpop[,,,i] <- sweep(t.hivpop[,,,i], 2:3, t.hiv.mr.prob, "*")
-      if(i > fp$tARTstart)
-        t.artpop[,,,,i] <- sweep(t.artpop[,,,,i], 3:4, t.hiv.mr.prob, "*")
-    }
+    ## net migration - removing for now
+    # if(turnover){
+    #   t.netmigsurv <- fp$netmigr[,,i]*t.rate*(1+fp$Sx[,,i])/2 ##Need to assume something here..
+    #   t.mr.prob <- 1+t.netmigsurv / rowSums(t.pop[,,,i],,2)
+    #   t.mr.prob[is.nan(t.mr.prob)] <- 0 #Problem due to 0 population in first year of t pop
+    #   t.mr.prob[t.mr.prob < 0] <- 1 ##Temporary fix for too many migrants
+    #   t.hiv.mr.prob <- apply(t.mr.prob * t.pop[,,2,i], 2, ctapply, ag.idx, sum) /  apply(t.pop[,,2,i], 2, ctapply, ag.idx, sum)
+    #   t.hiv.mr.prob[is.nan(t.hiv.mr.prob)] <- 0
+    #   #out_dat[-21 + 11*i,"t_pop_mig"] <- sum(sweep(t.pop[,,,i], 1:2, t.mr.prob, "*")) - sum(t.pop[,,,i])
+    #   t.pop[,,,i] <- sweep(t.pop[,,,i], 1:2, t.mr.prob, "*")
+    # }
+    # 
+    # netmigsurv <- (fp$netmigr[,,i]-fp$netmigr[,,i]*t.rate)*(1+fp$Sx[,,i])/2
+    # mr.prob <- 1+netmigsurv / rowSums(pop[,,,i],,2)
+    # mr.prob[is.nan(mr.prob)] <- 0
+    # mr.prob[mr.prob < 0] <- 1 ##Temporary fix for too many migrants
+    # hiv.mr.prob <- apply(mr.prob * pop[,,2,i], 2, ctapply, ag.idx, sum) /  apply(pop[,,2,i], 2, ctapply, ag.idx, sum)
+    # hiv.mr.prob[is.nan(hiv.mr.prob)] <- 0
+    # #out_dat[-21 + 11*i,"total_pop_mig"] <- sum(sweep(pop[,,,i], 1:2, mr.prob, "*")) - sum(pop[,,,i])
+    # pop[,,,i] <- sweep(pop[,,,i], 1:2, mr.prob, "*")
+# 
+#     t.hivpop[is.nan(t.hivpop)] <- 0
+#     hivpop[is.nan(hivpop)] <- 0
+#     
+#     #out_dat[-21 + 11*i,"hiv_migration"] <- sum(sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")) - sum(hivpop[,,,i])
+#     hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")
+#     if(i > fp$tARTstart)
+#       artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.mr.prob, "*")
+# 
+#     if(turnover){
+#       #out_dat[-21 + 11*i,"t_hiv_migration"] <- sum(sweep(t.hivpop[,,,i], 2:3, t.hiv.mr.prob, "*")) - sum(t.hivpop[,,,i])
+#       t.hivpop[,,,i] <- sweep(t.hivpop[,,,i], 2:3, t.hiv.mr.prob, "*")
+#       if(i > fp$tARTstart)
+#         t.artpop[,,,,i] <- sweep(t.artpop[,,,,i], 3:4, t.hiv.mr.prob, "*")
+#     }
     
     ## fertility 
     births.by.age <- rowSums(pop[p.fert.idx, f.idx,,i-1:0])/2 * fp$asfr[,i]
@@ -297,12 +308,16 @@ simmod.specfp <- function(fp, VERSION="C"){
     if(i+AGE_START <= PROJ_YEARS)
       birthslag[,i+AGE_START-1] <- births
     
-    t.pop[is.nan(t.pop)] <- 0 ##Fix for 0 population, e.g. males in female sex workers
+    
     pop[is.nan(pop)] <- 0
     hivpop[is.nan(hivpop)] <- 0
     artpop[is.nan(artpop)] <- 0
-    t.hivpop[is.nan(t.hivpop)] <- 0
-    t.artpop[is.nan(t.artpop)] <- 0
+    
+    if(turnover){
+      t.pop[is.nan(t.pop)] <- 0 ##Fix for 0 population, e.g. males in female sex workers
+      t.hivpop[is.nan(t.hivpop)] <- 0
+      t.artpop[is.nan(t.artpop)] <- 0
+    }
     
     #if(length(pop[,,,i][pop[,,,i] < 0]) > 0) #print(paste0("year: ",i," has neg numbers"))
     
@@ -721,9 +736,13 @@ simmod.specfp <- function(fp, VERSION="C"){
       hiv.popadj.prob[is.nan(hiv.popadj.prob)] <- 0
       
       pop[,,,i] <- sweep(pop[,,,i], 1:2, popadj.prob[,,i], "*")
+      pop[is.nan(pop)] <- 0
+      
       hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.popadj.prob, "*")
+      hivpop[is.nan(hivpop)] <- 0
       if(i >= fp$tARTstart)
         artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.popadj.prob, "*")
+        artpop[is.nan(artpop)] <- 0
       
       if(turnover){
         t.popadj.prob <- array(0, c(pAG, NG, PROJ_YEARS))
@@ -754,17 +773,18 @@ simmod.specfp <- function(fp, VERSION="C"){
     
     ## prevalence and incidence 15 to 49
     pop[is.nan(pop)] <- 0
-    t.pop[is.nan(t.pop)] <- 0
+    
     prev15to49[i] <- sum(pop[p.age15to49.idx,,hivp.idx,i]) / sum(pop[p.age15to49.idx,,,i])
     incid15to49[i] <- sum(incid15to49[i]) / sum(pop[p.age15to49.idx,,hivn.idx,i-1])
     
     if(turnover){
+      t.pop[is.nan(t.pop)] <- 0
       t.prev15to49[i] <- sum(t.pop[p.age15to49.idx,,hivp.idx,i]) / sum(t.pop[p.age15to49.idx,,,i])
     }
     
   }
   
-  
+  attr(pop, "allpop") <- pop
   attr(pop, "prev15to49") <- prev15to49
   attr(pop, "incid15to49") <- incid15to49
   attr(pop, "sexinc") <- sexinc15to49out
@@ -780,6 +800,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "pregprevlag") <- pregprevlag
   attr(pop, "pop") <- apply(pop, 4, sum)
   
+  
   if(fp$eppmod != "directincid"){
     attr(pop, "incrate15to49_ts") <- incrate15to49.ts.out
     attr(pop, "prev15to49_ts") <- prev15to49.ts.out
@@ -789,6 +810,7 @@ simmod.specfp <- function(fp, VERSION="C"){
   attr(pop, "hivp_entrants") <- hivp_entrants_out
   
   if(turnover){
+    attr(pop, "t.allpop") <- t.pop
     attr(pop, "t.pop") <- apply(t.pop, 4, sum)
     attr(pop, "t.hivpop") <- t.hivpop
     attr(pop, "t.artpop") <- t.artpop

@@ -152,8 +152,8 @@ create_subpop_specfp <- function(projp, demp, eppd, epp.subp.input, epp_t0=setNa
         
         for(year in 1:dim(demp.subpop[[subpop]]$basepop)[3]){
           template <- demp.subpop[[subpop]]$basepop[,,year] 
-          template[1:15,] <- 0
-          template[16:dim(demp.subpop[[subpop]]$basepop)[1],ifelse(perc_male == 1, 1,2)] <- subpop1[year] * entry_rates$proportion
+          template[1:14,] <- 0
+          template[15:dim(demp.subpop[[subpop]]$basepop)[1],ifelse(perc_male == 1, 1,2)] <- subpop1[year] * entry_rates$proportion
           template[,ifelse(perc_male == 1, 2,1)] <- 0
           demp.subpop[[subpop]]$basepop[,,year]  <- template
          
@@ -231,7 +231,14 @@ create_subpop_specfp <- function(projp, demp, eppd, epp.subp.input, epp_t0=setNa
   ## If national survey data are available, apportion ART according to relative average HH survey prevalence in each subpopulation,
   ## If no HH survey, apportion based on relative mean ANC prevalence
   
-  get15to49pop <- function(demp, year) sum(demp$basepop[as.character(15:49),,as.character(year)])
+  get15to49pop <- function(demp, year) {
+    if(epp.subp.input[[subpop]]$epidemicType == "concentrated"){ #Assuming sex-specific subpopulations
+      apply(demp$basepop[as.character(15:49),,as.character(year)],2,sum)
+    } else {
+      sum(demp$basepop[as.character(15:49),,as.character(year)])
+    }
+  }
+  
   subpop.dist <- prop.table(sapply(demp.subpop, get15to49pop, 2010))
   
   if(!any(unlist(lapply(eppd, function(x) nrow(x$hhs)))==0)){ # HH survey data available
@@ -248,7 +255,11 @@ create_subpop_specfp <- function(projp, demp, eppd, epp.subp.input, epp_t0=setNa
   for(subpop in names(eppd)){
     projp.subpop[[subpop]] <- projp
     isartnum <- projp$art15plus_numperc == 0
-    projp.subpop[[subpop]]$art15plus_num[isartnum] <- projp$art15plus_num[isartnum] * art.dist[subpop]
+    if(epp.subp.input[[subpop]]$epidemicType == "concentrated"){
+      projp.subpop[[subpop]]$art15plus_num[isartnum] <- projp$art15plus_num[isartnum] * art.dist[,subpop]
+    } else {
+      projp.subpop[[subpop]]$art15plus_num[isartnum] <- projp$art15plus_num[isartnum] * art.dist[subpop]
+    }
   }
 
   ## Apportion age 14 HIV population
@@ -376,6 +387,7 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
     opt$fp <- fp
     opt$likdat <- likdat
     opt$param <- fnCreateParam(opt$par, fp)
+    print(opt$param)
     opt$mod <- simmod(update(fp, list=opt$param), VERSION = simmod_vers)
     if(opthess){
       opt$hessian <- optimHess(opt_init, optfn, fp=fp, likdat=likdat,

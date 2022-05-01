@@ -31,6 +31,7 @@ devtools::load_all("~/Documents/eppasm")
 pjnz <- system.file("extdata/testpjnz", "senegal_2021_05_04.pjnz", package="eppasm")
 entry_rates = read.csv(system.file("extdata/entry_rates.csv", package = "eppasm"))
 pops = epp::read_spt(system.file("extdata/testpjnz", "senegal_2021_05_04.pjnz", package="eppasm"))
+entrant_prev = readRDS(system.file("extdata/entrantprev.RDS", package="eppasm"))
 sen <- prepare_spec_fit(pjnz, proj.end=2021.5, popupdate = FALSE)
 
 ```
@@ -39,16 +40,14 @@ sen <- prepare_spec_fit(pjnz, proj.end=2021.5, popupdate = FALSE)
 
 Prepare model parameters from parameter vector input
 ```{r, single_param}
-theta_ur <- c(-5.074497e-01, -2.829512e+00, -1.529482e+00,  1.999455e+03, -6.620818e-02,
--7.390377e-02, -3.267637e-03,  2.730426e+00, -3.984808e-01, -3.242572e+00)
-
+theta_ur <- c(1.229537e-01, -2.101881e+00, -1.776640e+00 , 2.016388e+03,  9.474221e-03,
+-6.841146e-02,  6.812545e-02 , 4.624824e+00 ,-3.241486e-01, -3.142873e+00)
 
 fp <- attr(sen$`Travailleurs du sexe`, "specfp")
-#Set migration to 0
-fp$netmigr <- attr(sen$`Travailleurs du sexe`,"specfp")$netmigr - attr(sen$`Travailleurs du sexe`,"specfp")$netmigr
 fp <- prepare_rhybrid(fp)
 fp$logitiota <- TRUE
 fp$incidmod <- "eppspectrum"
+attr(loc$`Travailleurs du sexe`,"specfp")$entrantprev <- fp_par$entrantprev
 
 ```
 
@@ -57,9 +56,11 @@ Simulate the model once.
 ```{r, simulate_model}
 param <- fnCreateParam(theta_ur, fp)
 fp_par <- update(fp, list = param)
+
+
+fp = fp_par
 mod <- simmod.specfp(fp_par, VERSION = "R")
 
-#These methods need adjustment for key populations (currently produces NaN because 0 males or females in some pops)
 prev(mod)
 incid(mod)
 
@@ -73,11 +74,23 @@ incid(mod)
 loc <- sen
 locfit = list()
 
+##Not sure why this broke in prepare_spec_fit but can use placeholder for now
+attr(loc$`Travailleurs du sexe`,"specfp")$entrantprev <- entrantprev
+attr(loc$`HSH`,"specfp")$entrantprev <- entrantprev
+attr(loc$`Clients des travailleurs du sexe`,"specfp")$entrantprev  <- entrantprev
+attr(loc$`Pop masculine restante`,"specfp")$entrantprev  <- entrantprev
+attr(loc$`Pop féminine restante`,"specfp")$entrantprev  <- entrantprev
+
+##Because there are no women in these populations we can't use agepregprev function...
+attr(loc$`HSH`,"specfp")$pregprev <- FALSE  
+attr(loc$`Clients des travailleurs du sexe`,"specfp")$pregprev <- FALSE  
+attr(loc$`Pop masculine restante`,"specfp")$pregprev <- FALSE  
+
 locfit$HSH <- eppasm::fitmod(loc$HSH, eppmod = "rhybrid", rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE)
 
 locfit$`Travailleurs du sexe`<- eppasm::fitmod(loc$`Travailleurs du sexe`, eppmod = "rhybrid", rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE)
 
-locfit$`Clients des travailleurs du sexe`<- eppasm::fitmod(loc$`Clients des travailleurs du sexe`, eppmod = "rhybrid",rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE)
+locfit$`Clients des travailleurs du sexe`<- eppasm::fitmod(loc$`Clients des travailleurs du sexe`, eppmod = "rhybrid",rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE,opthess=FALSE)
 
 locfit$`Pop féminine restante`<- eppasm::fitmod(loc$`Pop féminine restante`,  eppmod = "rhybrid",  rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE)
 

@@ -1,3 +1,7 @@
+## eppasm 0.6.0
+
+* Add likelihood for survey ART coverage.
+
 ## eppasm 0.5.12
 
 * Add condition in `eppasm.cpp` to avoid dividing by 0 when there is zero population eligible

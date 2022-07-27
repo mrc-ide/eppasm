@@ -315,7 +315,7 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
 
   if(exists("deff_approx", hhsage))
     hhsage$n_eff <- hhsage$n/hhsage$deff_approx
-  else if(exists("deff_approx", hhsage))
+  else if(exists("deff", hhsage))
     hhsage$n_eff <- hhsage$n/hhsage$deff
   else
     hhsage$n_eff <- hhsage$prev * (1 - hhsage$prev) / hhsage$se ^ 2

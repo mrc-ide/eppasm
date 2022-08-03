@@ -70,6 +70,7 @@ ancrtsite.beta.pr.sd <- 1.0
 #' @param ancsite_df data.frame of site-level ANC design for predictions
 #' @param fp fixed parameter input list
 #'
+#' @export
 #' @examples
 #' pjnz <- system.file("extdata/testpjnz", "Botswana2017.PJNZ", package="eppasm")
 #' bw <- prepare_spec_fit(pjnz, proj.end=2021.5)

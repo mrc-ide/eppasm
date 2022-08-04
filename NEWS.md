@@ -1,3 +1,9 @@
+## eppasm 0.6.1
+
+* For direct incidence input, create new option `DIRECTINCID_HTS` for intercalating direct incidence new HIV infections in each time step. This was implemented by (1) calculating the number of new infections once per year before the HIV simulation, then (2) adding DT * new infections in each time step. 
+
+Pre-calculating the number of new infections, rather than applying the HIV incidence rate in each time step was preferred to maintain consistency with Spectrum which calculates the number of infections based on previous year population size.
+
 ## eppasm 0.6.0
 
 * Add likelihood for survey ART coverage.

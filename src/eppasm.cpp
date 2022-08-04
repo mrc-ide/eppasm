@@ -41,7 +41,8 @@
 
 #define EPP_RSPLINE 0
 #define EPP_RTREND 1
-#define EPP_DIRECTINCID 2  // annual direct incidence inputs (as Spectrum)
+#define EPP_DIRECTINCID_ANN 2  // annual direct incidence inputs (as Spectrum)
+#define EPP_DIRECTINCID_HTS 3  // direct incidence inputs per HIV time step (as Spectrum)
 
 #define INCIDMOD_EPPSPEC 0
 #define INCIDMOD_TRANSM 1
@@ -176,7 +177,8 @@ extern "C" {
     double tsEpidemicStart, iota, relinfectART;
     double *rspline_rvec;
     double *rtrend_beta, rtrend_tstab, rtrend_r0;
-    if(eppmod == EPP_DIRECTINCID){
+    if (eppmod == EPP_DIRECTINCID_ANN ||
+        eppmod == EPP_DIRECTINCID_HTS) {
       incidinput = REAL(getListElement(s_fp, "incidinput"));
       pIDX_INCIDPOP = 0;
       if(*INTEGER(getListElement(s_fp, "incidpopage")) == INCIDPOP_15TO49)
@@ -552,6 +554,38 @@ extern "C" {
       int cd4elig_idx = artcd4elig_idx[t] - 1; // -1 for 0-based indexing vs. 1-based in R
       int anyelig_idx = (specpop_percelig[t] > 0 | pw_artelig[t] > 0) ? 0 : (who34percelig > 0) ? hIDX_CD4_350 : cd4elig_idx;
       everARTelig_idx = anyelig_idx < everARTelig_idx ? anyelig_idx : everARTelig_idx;
+
+      double infections_ts[NG][pAG];
+
+      if(eppmod == EPP_DIRECTINCID_ANN ||
+         eppmod == EPP_DIRECTINCID_HTS ) {
+        
+	// Calculating new infections once per year (like Spectrum)
+	
+	double Xhivp = 0.0, Xhivn[NG], Xhivn_incagerr[NG];
+	
+	for(int g = 0; g < NG; g++){
+	  Xhivn[g] = 0.0;
+	  Xhivn_incagerr[g] = 0.0;
+	  for(int a = pIDX_INCIDPOP; a < pIDX_INCIDPOP+pAG_INCIDPOP; a++){
+	    Xhivp += pop[t-1][HIVP][g][a];
+	    Xhivn[g] += pop[t-1][HIVN][g][a];
+	    Xhivn_incagerr[g] += incrr_age[t][g][a] * pop[t-1][HIVN][g][a];
+	  }
+	}
+	// double prev_i = Xhivp / (Xhivn[MALE] + Xhivn[FEMALE] + Xhivp);
+	// double incrate15to49_i = (prev15to49[t] - prev_i)/(1.0 - prev_i);
+	double incrate_i = incidinput[t];
+	double incrate_g[NG];
+	incrate_g[MALE] = incrate_i * (Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
+	incrate_g[FEMALE] = incrate_i * incrr_sex[t]*(Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
+        
+	for(int g = 0; g < NG; g++) {
+          for(int a = 0; a < pAG; a++) {
+            infections_ts[g][a] = pop[t-1][HIVN][g][a] * incrate_g[g] * incrr_age[t][g][a] * Xhivn[g] / Xhivn_incagerr[g];
+          }
+        }
+      }
       
       for(int hts = 0; hts < HIVSTEPS_PER_YEAR; hts++){
 
@@ -587,27 +621,30 @@ extern "C" {
             }
           }
 
-        if(eppmod != EPP_DIRECTINCID){
+        if (eppmod != EPP_DIRECTINCID_ANN) {
+
           // incidence
+          
+          if (eppmod != EPP_DIRECTINCID_HTS) {
 
-          // calculate r(t)
-          if(eppmod == EPP_RSPLINE)
-            rvec[ts] = rspline_rvec[ts];
-          else
-            rvec[ts] = calc_rtrend_rt(pop, rtrend_tstab, rtrend_beta, rtrend_r0,
-                                      projsteps[ts], tsEpidemicStart, DT, t, hts,
-                                      rvec[ts-1], &prevlast, &prevcurr);
-
-          // calculate new infections by sex and age
-          double infections_ts[NG][pAG];
-          if(incidmod == INCIDMOD_EPPSPEC)
+            // calculate r(t)
+            if (eppmod == EPP_RSPLINE) {
+              rvec[ts] = rspline_rvec[ts];
+            } else if (eppmod == EPP_RTREND) {
+              rvec[ts] = calc_rtrend_rt(pop, rtrend_tstab, rtrend_beta, rtrend_r0,
+                                        projsteps[ts], tsEpidemicStart, DT, t, hts,
+                                        rvec[ts-1], &prevlast, &prevcurr);
+            } 
+            
+            // calculate new infections by sex and age
             calc_infections_eppspectrum(pop, hivpop, artpop,
                                         rvec[ts], relinfectART, (projsteps[ts] == tsEpidemicStart) ? iota : 0.0,
                                         incrr_sex, incrr_age, 
-					t_ART_start, DT, t, hts, hAG_START, hAG_SPAN,
+                                        t_ART_start, DT, t, hts, hAG_START, hAG_SPAN,
                                         &prevcurr, &incrate15to49_ts_out[ts], infections_ts);
-
-          prev15to49_ts_out[ts] = prevcurr;
+          
+            prev15to49_ts_out[ts] = prevcurr;
+          }
 
           // add new infections to HIV population
           for(int g = 0; g < NG; g++){
@@ -853,35 +890,18 @@ extern "C" {
 
       } // loop HIVSTEPS_PER_YEAR
 
-
       
-      if(eppmod == EPP_DIRECTINCID){
+      if (eppmod == EPP_DIRECTINCID_ANN) {
+
 	// Calculating new infections once per year (like Spectrum)
 	
-	double Xhivp = 0.0, Xhivn[NG], Xhivn_incagerr[NG];
-	
-	for(int g = 0; g < NG; g++){
-	  Xhivn[g] = 0.0;
-	  Xhivn_incagerr[g] = 0.0;
-	  for(int a = pIDX_INCIDPOP; a < pIDX_INCIDPOP+pAG_INCIDPOP; a++){
-	    Xhivp += pop[t-1][HIVP][g][a];
-	    Xhivn[g] += pop[t-1][HIVN][g][a];
-	    Xhivn_incagerr[g] += incrr_age[t][g][a] * pop[t-1][HIVN][g][a];
-	  }
-	}
-	// double prev_i = Xhivp / (Xhivn[MALE] + Xhivn[FEMALE] + Xhivp);
-	// double incrate15to49_i = (prev15to49[t] - prev_i)/(1.0 - prev_i);
-	double incrate_i = incidinput[t];
-	double incrate_g[NG];
-	incrate_g[MALE] = incrate_i * (Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
-	incrate_g[FEMALE] = incrate_i * incrr_sex[t]*(Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
-	
+        
 	for(int g = 0; g < NG; g++){
 	  int a = 0;
 	  for(int ha = 0; ha < hAG; ha++){
 	    double infections_a, infections_ha = 0.0;
 	    for(int i = 0; i < hAG_SPAN[ha]; i++){
-	      infections_ha += infections_a = pop[t-1][HIVN][g][a] * incrate_g[g] * incrr_age[t][g][a] * Xhivn[g] / Xhivn_incagerr[g];
+	      infections_ha += infections_a = infections_ts[g][a];
 	      infections[t][g][a] += infections_a;
 	      pop[t][HIVN][g][a] -= infections_a;
 	      pop[t][HIVP][g][a] += infections_a;

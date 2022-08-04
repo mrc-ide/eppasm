@@ -8,6 +8,14 @@ Pre-calculating the number of new infections, rather than applying the HIV incid
 
 * Add likelihood for survey ART coverage.
 
+## eppasm 0.5.12
+
+* Add condition in `eppasm.cpp` to avoid dividing by 0 when there is zero population eligible
+  to initiate ART.
+
+## eppasm 0.5.11
+
+* Patch `get_dp_version()` to search for tag instead of relying on exact location.
 
 ## eppasm 0.5.10
 

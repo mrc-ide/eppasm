@@ -828,14 +828,16 @@ extern "C" {
 
               for(int ha = hIDX_15PLUS; ha < hAG; ha++)
                 for(int hm = anyelig_idx; hm < hDS; hm++){
-                  double artinit_hahm = artinit_hts * artelig_hahm[ha-hIDX_15PLUS][hm] * ((1.0 - art_alloc_mxweight)/Xartelig_15plus + art_alloc_mxweight * cd4_mort[g][ha][hm] / expect_mort_artelig15plus);
-                  if(artinit_hahm > artelig_hahm[ha-hIDX_15PLUS][hm])
-		    artinit_hahm = artelig_hahm[ha-hIDX_15PLUS][hm];
-		  if(artinit_hahm > hivpop[t][g][ha][hm] + DT * grad[g][ha][hm])
-		    artinit_hahm = hivpop[t][g][ha][hm] + DT * grad[g][ha][hm];
-                  grad[g][ha][hm] -= artinit_hahm / DT;
-                  gradART[g][ha][hm][ART0MOS] += artinit_hahm / DT;
-		  artinit[t][g][ha][hm] += artinit_hahm; 
+		  if (Xartelig_15plus > 0.0) {
+		    double artinit_hahm = artinit_hts * artelig_hahm[ha-hIDX_15PLUS][hm] * ((1.0 - art_alloc_mxweight)/Xartelig_15plus + art_alloc_mxweight * cd4_mort[g][ha][hm] / expect_mort_artelig15plus);
+		    if(artinit_hahm > artelig_hahm[ha-hIDX_15PLUS][hm])
+		      artinit_hahm = artelig_hahm[ha-hIDX_15PLUS][hm];
+		    if(artinit_hahm > hivpop[t][g][ha][hm] + DT * grad[g][ha][hm])
+		      artinit_hahm = hivpop[t][g][ha][hm] + DT * grad[g][ha][hm];
+		    grad[g][ha][hm] -= artinit_hahm / DT;
+		    gradART[g][ha][hm][ART0MOS] += artinit_hahm / DT;
+		    artinit[t][g][ha][hm] += artinit_hahm;
+		  }
                 }
             }
           }

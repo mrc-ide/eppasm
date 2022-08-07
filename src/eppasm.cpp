@@ -555,7 +555,28 @@ extern "C" {
       int anyelig_idx = (specpop_percelig[t] > 0 | pw_artelig[t] > 0) ? 0 : (who34percelig > 0) ? hIDX_CD4_350 : cd4elig_idx;
       everARTelig_idx = anyelig_idx < everARTelig_idx ? anyelig_idx : everARTelig_idx;
 
-      double infections_ts[NG][pAG];
+      double Xhivn[NG], incrate_g[NG], infections_ts[NG][pAG];
+
+      if (eppmod == EPP_DIRECTINCID_ANN ||
+	  eppmod == EPP_DIRECTINCID_HTS ) {
+	
+	// Calculate incidence rate by sex
+	// (Note: incidence rate by age is calculated per time-step using the
+	//    **current year** HIV population, instead of the previous year
+	//    HIV population.
+	//    Rob Glaubius, 5 August 2022: https://github.com/mrc-ide/leapfrog/issues/18)
+
+	for(int g = 0; g < NG; g++) {
+	  Xhivn[g] = 0.0;
+	  for(int a = pIDX_INCIDPOP; a < pIDX_INCIDPOP+pAG_INCIDPOP; a++) {
+	    Xhivn[g] += pop[t-1][HIVN][g][a];
+	  }
+	}
+
+	double incrate_i = incidinput[t];
+	incrate_g[MALE] = incrate_i * (Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
+	incrate_g[FEMALE] = incrate_i * incrr_sex[t]*(Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
+      }
       
       for(int hts = 0; hts < HIVSTEPS_PER_YEAR; hts++){
 
@@ -614,33 +635,25 @@ extern "C" {
                                         &prevcurr, &incrate15to49_ts_out[ts], infections_ts);
           
             prev15to49_ts_out[ts] = prevcurr;
-          }
 
-        if(eppmod == EPP_DIRECTINCID_ANN || eppmod == EPP_DIRECTINCID_HTS ) {        
-          // Calculating new infections once per year (like Spectrum)
-          double Xhivp = 0.0, Xhivn[NG], Xhivn_incagerr[NG];
-	
-	        for(int g = 0; g < NG; g++) {
-	          Xhivn[g] = 0.0;
-	          Xhivn_incagerr[g] = 0.0;
-	          for(int a = pIDX_INCIDPOP; a < pIDX_INCIDPOP+pAG_INCIDPOP; a++) {
-	            Xhivp += pop[t-1][HIVP][g][a];
-	            Xhivn[g] += pop[t-1][HIVN][g][a];
-	            Xhivn_incagerr[g] += incrr_age[t][g][a] * pop[t][HIVN][g][a];
-	          }
-	        }
-	        double incrate_i = incidinput[t];
-	        double incrate_g[NG];
-	        incrate_g[MALE] = incrate_i * (Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
-	        incrate_g[FEMALE] = incrate_i * incrr_sex[t]*(Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
-        
-	        for(int g = 0; g < NG; g++) {
-            for(int a = 0; a < pAG; a++) {
-              infections_ts[g][a] = pop[t][HIVN][g][a] * incrate_g[g] * incrr_age[t][g][a] * Xhivn[g] / Xhivn_incagerr[g];
-            }
-          }
-        }
-
+          } else { // eppmod == EPP_DIRECTINCID_HTS
+	    
+	    // Calculate HIV infections by age. This uses the updated
+	    // 'current year' population (vs. previous year population
+	    // used for overall incidence rate and incidence by sex)
+	    
+	    for(int g = 0; g < NG; g++) {
+	      double Xhivn_incagerr = 0.0;
+	      for(int a = pIDX_INCIDPOP; a < pIDX_INCIDPOP+pAG_INCIDPOP; a++) {
+		    Xhivn_incagerr += incrr_age[t][g][a] * pop[t][HIVN][g][a];
+	      }
+	      
+	      for(int a = 0; a < pAG; a++) {
+		infections_ts[g][a] = pop[t][HIVN][g][a] * incrate_g[g] * incrr_age[t][g][a] * Xhivn[g] / Xhivn_incagerr;
+	      }
+	    }
+	  }
+	  
           // add new infections to HIV population
           for(int g = 0; g < NG; g++){
             int a = 0;
@@ -881,15 +894,27 @@ extern "C" {
 	  }
 	}
 
-
-
       } // loop HIVSTEPS_PER_YEAR
 
       
       if (eppmod == EPP_DIRECTINCID_ANN) {
 
-	// Calculating new infections once per year (like Spectrum)
+	// Calculating new infections by age (once per year)
+
+	// Calculate HIV infections by age (once per year). This uses the updated
+	// 'current year' population (vs. previous year population used for
+	// overall incidence rate and incidence by sex)
 	
+	for(int g = 0; g < NG; g++) {
+	  double Xhivn_incagerr = 0.0;
+	  for(int a = pIDX_INCIDPOP; a < pIDX_INCIDPOP+pAG_INCIDPOP; a++) {
+	    Xhivn_incagerr += incrr_age[t][g][a] * pop[t][HIVN][g][a];
+	  }
+	  
+	  for(int a = 0; a < pAG; a++) {
+	    infections_ts[g][a] = pop[t][HIVN][g][a] * incrate_g[g] * incrr_age[t][g][a] * Xhivn[g] / Xhivn_incagerr;
+	  }
+	}
         
 	for(int g = 0; g < NG; g++){
 	  int a = 0;

@@ -1,3 +1,9 @@
+## eppasm 0.6.2
+
+* Distribute age incidence rate ratio using **current** year HIV population by time step, instead of previous year HIV population to match Spectrum calculation. 
+  - Calculation of incidence rate by sex uses **previous** year HIV negative population
+  - Thanks Rob Glaubius for debugging: https://github.com/mrc-ide/leapfrog/issues/18
+
 ## eppasm 0.6.1
 
 * For direct incidence input, create new option `DIRECTINCID_HTS` for intercalating direct incidence new HIV infections in each time step. This was implemented by (1) calculating the number of new infections once per year before the HIV simulation, then (2) adding DT * new infections in each time step. 

@@ -157,8 +157,6 @@ simmod.specfp <- function(fp, VERSION="C"){
       incrate.i <- fp$incidinput[i]
       
       sexinc <- incrate.i*c(1, fp$incrr_sex[i])*sum(pop[p.incidpop.idx,,hivn.idx,i-1])/(sum(pop[p.incidpop.idx,m.idx,hivn.idx,i-1]) + fp$incrr_sex[i]*sum(pop[p.incidpop.idx, f.idx,hivn.idx,i-1]))
-      agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc/(colSums(pop[p.incidpop.idx,,hivn.idx,i-1] * fp$incrr_age[p.incidpop.idx,,i])/colSums(pop[p.incidpop.idx,,hivn.idx,i-1])), "*")
-      infections_i <- agesex.inc * pop[,,hivn.idx,i-1]
     }
 
     ## events at dt timestep
@@ -187,9 +185,11 @@ simmod.specfp <- function(fp, VERSION="C"){
           incrate15to49.ts.out[ts] <- attr(infections.ts, "incrate15to49.ts")
           prev15to49.ts.out[ts] <- attr(infections.ts, "prevcurr")
           prevlast <- attr(infections.ts, "prevcurr")
+
         } else {
           ## eppmod == directincid_hts
-          infections.ts <- infections_i
+          agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc/(colSums(pop[p.incidpop.idx,,hivn.idx,i] * fp$incrr_age[p.incidpop.idx,,i])/colSums(pop[p.incidpop.idx,,hivn.idx,i-1])), "*")
+          infections.ts <- agesex.inc * pop[,,hivn.idx,i]
         }
         
         pop[,,hivn.idx,i] <- pop[,,hivn.idx,i] - DT*infections.ts
@@ -370,7 +370,8 @@ simmod.specfp <- function(fp, VERSION="C"){
 
     ## Direct incidence input
     if(fp$eppmod == "directincid_ann"){
-      infections[,,i] <- infections_i
+      agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc/(colSums(pop[p.incidpop.idx,,hivn.idx,i] * fp$incrr_age[p.incidpop.idx,,i])/colSums(pop[p.incidpop.idx,,hivn.idx,i-1])), "*")
+      infections[,,i] <- agesex.inc * pop[,,hivn.idx,i]
       pop[,,hivn.idx,i] <- pop[,,hivn.idx,i] - infections[,,i]
       pop[,,hivp.idx,i] <- pop[,,hivp.idx,i] + infections[,,i]
       

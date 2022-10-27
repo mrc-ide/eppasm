@@ -1,3 +1,8 @@
+## eppasm 0.7.0
+
+* In `read_specdp_demog_param()`, normalise the age-specific fertility distribution before disaggregating TFR to ASFR. This fixes small discrepancy between Spectrum and EPP-ASM population projection.
+
+
 ## eppasm 0.6.2
 
 * Distribute age incidence rate ratio using **current** year HIV population by time step, instead of previous year HIV population to match Spectrum calculation. 

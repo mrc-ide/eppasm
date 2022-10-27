@@ -807,6 +807,8 @@ read_demog_param <- function(upd.file, age.intervals = 1){
   ## asfr
   asfd <- array(as.numeric(pasfrs$value), c(35, nyears))
   dimnames(asfd) <- list(age=15:49, year=years)
+  asfd <- sweep(asfd, 2, colSums(asfd), "/")
+  
   asfr <- sweep(asfd, 2, tfr, "*")
   asfr <- apply(asfr, 2, tapply, age.groups[16:50], mean)
 
@@ -899,6 +901,10 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   tfr <- setNames(as.numeric(dp[tfr.tidx + 2, timedat.idx]), proj.years)
   asfd <- sapply(dp[asfd.tidx + 3:9, timedat.idx], as.numeric)/100
   asfd <- apply(asfd / 5, 2, rep, each=5)
+
+  ## Internally, Spectrum normalises the ASFD before multiplying by TFR
+  asfd <- sweep(asfd, 2, colSums(asfd), "/")
+  
   dimnames(asfd) <- list(age=15:49, year=proj.years)
   asfr <- sweep(asfd, 2, tfr, "*")
 

@@ -2,6 +2,7 @@
 
 * In `read_specdp_demog_param()`, normalise the age-specific fertility distribution before disaggregating TFR to ASFR. This fixes small discrepancy between Spectrum and EPP-ASM population projection.
 
+* In `read_specdp_demog_param()`, disaggregate the under-5 net migrations to single-year ages proportional to survival probabilities, to match Spectrum.
 
 ## eppasm 0.6.2
 

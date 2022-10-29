@@ -50,6 +50,10 @@
 #define INCIDPOP_15TO49 0 // age range corresponding to incidence input
 #define INCIDPOP_15PLUS 1
 
+#define PROJPERIOD_MIDYEAR 0   // mid-year projection period 
+#define PROJPERIOD_CALENDAR 1  // calendar-year projection (Spectrum 6.2 update; December 2022)
+
+
 using namespace boost;
 
 
@@ -91,6 +95,8 @@ extern "C" {
     double DT = 1.0/HIVSTEPS_PER_YEAR;
     int *hAG_SPAN = INTEGER(getListElement(s_ss, "h.ag.span"));
     double *h_art_stage_dur = REAL(getListElement(s_ss, "h_art_stage_dur"));
+
+    int projection_period_int = *INTEGER(getListElement(s_fp, "projection_period_int"));
 
     int hAG_START[hAG];
     hAG_START[0] = 0;
@@ -505,13 +511,14 @@ extern "C" {
             pop[t][HIVP][g][a] -= hdeaths_a;   // survival HIV+ population
             natdeaths[t][g][a] = ndeaths_a + hdeaths_a;
 
-            // net migration
-            double migrate_a = netmigr[t][g][a] * (1+Sx[t][g][a])/2.0 / (pop[t][HIVN][g][a] + pop[t][HIVP][g][a]);
-            pop[t][HIVN][g][a] *= 1+migrate_a;
-            double hmig_a = migrate_a * pop[t][HIVP][g][a];
-            deathsmig_ha += hmig_a;
-            pop[t][HIVP][g][a] += hmig_a;
-
+	    if (projection_period_int == PROJPERIOD_MIDYEAR) {
+	      // net migration
+	      double migrate_a = netmigr[t][g][a] * (1+Sx[t][g][a])/2.0 / (pop[t][HIVN][g][a] + pop[t][HIVP][g][a]);
+	      pop[t][HIVN][g][a] *= 1+migrate_a;
+	      double hmig_a = migrate_a * pop[t][HIVP][g][a];
+	      deathsmig_ha += hmig_a;
+	      pop[t][HIVP][g][a] += hmig_a;
+	    }
             a++;
           }
 
@@ -937,6 +944,41 @@ extern "C" {
 	}
       }
 
+      // Net migration for calendar-year projection option with end-year migration
+      if (projection_period_int == PROJPERIOD_CALENDAR) {
+
+	printf("In here\n");
+	  
+	for(int g = 0; g < NG; g++){
+	  int a = 0;
+	  for(int ha = 0; ha < hAG; ha++){
+	    double mig_ha = 0, hivpop_ha = 0;
+	    for(int i = 0; i < hAG_SPAN[ha]; i++){
+	      
+	      hivpop_ha += pop[t][HIVP][g][a];
+	      
+	      double migrate_a = netmigr[t][g][a] / (pop[t][HIVN][g][a] + pop[t][HIVP][g][a]);
+	      // double migrate_a = netmigr[t][g][a] * (1+Sx[t][g][a])/2.0 / (pop[t][HIVN][g][a] + pop[t][HIVP][g][a]);
+	      pop[t][HIVN][g][a] *= 1+migrate_a;
+	      double hmig_a = migrate_a * pop[t][HIVP][g][a];
+	      mig_ha += hmig_a;
+	      pop[t][HIVP][g][a] += hmig_a;
+	      a++;
+	    }
+	    
+	    // migration and deaths for hivpop
+	    double migrate_ha = hivpop_ha > 0 ? mig_ha / hivpop_ha : 0.0;
+	    for(int hm = 0; hm < hDS; hm++){
+	      hivpop[t][g][ha][hm] *= 1+migrate_ha;
+	      if(t > t_ART_start)
+		for(int hu = 0; hu < hTS; hu++)
+		  artpop[t][g][ha][hm][hu] *= 1+migrate_ha;
+	    } // loop over hm
+	  } // loop over ha
+	} // loop over g
+      } // if (projection_period_int == PROJPERIOD_CALENDAR)
+
+      
       // adjust population to match target population
       if(bin_popadjust){
         for(int g = 0; g < NG; g++){

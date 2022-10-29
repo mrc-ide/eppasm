@@ -18,6 +18,12 @@ simmod.specfp <- function(fp, VERSION="C"){
     ## 3: directincid_hts
     fp$eppmodInt <- match(fp$eppmod, c("rtrend", "directincid_ann", "directincid_hts"), nomatch=0) # 0: r-spline;
     fp$incidmodInt <- match(fp$incidmod, c("eppspectrum"))-1L  # -1 for 0-based indexing
+
+    ## projection_period codes:
+    ## 0: mid-year (<= Spectrum 5.19)
+    ## 1: calendar year (>= Spectrum 5.2)
+    fp$projection_period_int <- match(fp$projection_period, c("midyear", "calendar")) - 1L # -1 for 0-based indexing
+
     mod <- .Call(eppasmC, fp)
     class(mod) <- "spec"
     return(mod)
@@ -124,16 +130,19 @@ simmod.specfp <- function(fp, VERSION="C"){
     if(i > fp$tARTstart)
       artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.sx.prob, "*")
 
-    ## net migration
-    netmigsurv <- fp$netmigr[,,i]*(1+fp$Sx[,,i])/2
-    mr.prob <- 1+netmigsurv / rowSums(pop[,,,i],,2)
-    hiv.mr.prob <- apply(mr.prob * pop[,,2,i], 2, ctapply, ag.idx, sum) /  apply(pop[,,2,i], 2, ctapply, ag.idx, sum)
-    hiv.mr.prob[is.nan(hiv.mr.prob)] <- 0
-    pop[,,,i] <- sweep(pop[,,,i], 1:2, mr.prob, "*")
+    if (fp$projection_period == "midyear") {
 
-    hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")
-    if(i > fp$tARTstart)
-      artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.mr.prob, "*")
+      ## net migration
+      netmigsurv <- fp$netmigr[,,i]*(1+fp$Sx[,,i])/2
+      mr.prob <- 1+netmigsurv / rowSums(pop[,,,i],,2)
+      hiv.mr.prob <- apply(mr.prob * pop[,,2,i], 2, ctapply, ag.idx, sum) /  apply(pop[,,2,i], 2, ctapply, ag.idx, sum)
+      hiv.mr.prob[is.nan(hiv.mr.prob)] <- 0
+      pop[,,,i] <- sweep(pop[,,,i], 1:2, mr.prob, "*")
+      
+      hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")
+      if(i > fp$tARTstart)
+        artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.mr.prob, "*")
+    }
 
     ## fertility
     births.by.age <- rowSums(pop[p.fert.idx, f.idx,,i-1:0])/2 * fp$asfr[,i]
@@ -379,6 +388,21 @@ simmod.specfp <- function(fp, VERSION="C"){
       incid15to49[i] <- sum(infections[p.age15to49.idx,,i])
     }
 
+    if (fp$projection_period == "calendar") {
+
+      ## net migration
+      netmigsurv <- fp$netmigr[,,i]
+      mr.prob <- 1+netmigsurv / rowSums(pop[,,,i],,2)
+      hiv.mr.prob <- apply(mr.prob * pop[,,2,i], 2, ctapply, ag.idx, sum) /  apply(pop[,,2,i], 2, ctapply, ag.idx, sum)
+      hiv.mr.prob[is.nan(hiv.mr.prob)] <- 0
+      pop[,,,i] <- sweep(pop[,,,i], 1:2, mr.prob, "*")
+      
+      hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")
+      if(i > fp$tARTstart)
+        artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.mr.prob, "*")
+    }
+
+    
     ## adjust population to match target population size
     if(exists("popadjust", where=fp) & fp$popadjust){
       popadj.prob[,,i] <- fp$targetpop[,,i] / rowSums(pop[,,,i],,2)

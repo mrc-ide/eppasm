@@ -4,6 +4,9 @@
 
 * In `read_specdp_demog_param()`, disaggregate the under-5 net migrations to single-year ages proportional to survival probabilities, to match Spectrum.
 
+* Change model projection to calendar year steps instead of mid-year steps, consistent with Spectrum 6.2 updated for WPP 2022 release in December 2022.
+  - Net-migrations added at end of projection step, consistent with WPP 2022. No longer (1) adjust net migration for half-period survival, nor (2) adjust 
+    net migration to be half in current age group and half in next age group.
 ## eppasm 0.6.2
 
 * Distribute age incidence rate ratio using **current** year HIV population by time step, instead of previous year HIV population to match Spectrum calculation. 

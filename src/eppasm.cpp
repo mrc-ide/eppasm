@@ -1052,7 +1052,13 @@ extern "C" {
           hivp15to49[t] += pop[t][HIVP][g][a];
         }
       prev15to49[t] = hivp15to49[t]/(hivn15to49[t] + hivp15to49[t]);
-      incid15to49[t] /= hivn15to49[t-1];
+
+      // if period = calendar
+      double incid15to49_denom = (projection_period_int == PROJPERIOD_CALENDAR) ?
+	0.5 * (hivn15to49[t-1] + hivn15to49[t]) :
+	hivn15to49[t-1];
+      
+      incid15to49[t] /= incid15to49_denom;
     }
 
     UNPROTECT(28);

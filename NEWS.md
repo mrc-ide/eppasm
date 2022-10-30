@@ -8,6 +8,8 @@
   - Net-migrations added at end of projection step, consistent with WPP 2022. No longer (1) adjust net migration for half-period survival, nor (2) adjust 
     net migration to be half in current age group and half in next age group.
   - ART interpolation is for calendar year instead of mid-year to mid-year.
+  - Incidence rate 15-49 calculation uses interpolated mid-year susceptible population as denominator.
+  - Likelihood calculation use mid-year HIV prevalence or ART coverage based on simple average of end-year values.
   
 Code changes are backwards compatible such that code supports simulation of either calendar year or mid-year projection steps. This is controlled by option `fp$projection_period` = either `"midyear"` or `"calendar"`. 
 

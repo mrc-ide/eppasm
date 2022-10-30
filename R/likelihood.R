@@ -137,8 +137,20 @@ ll_ancsite <- function(mod, fp, coef=c(0, 0), vinfl=0, dat){
 
   if(!nrow(df))
     return(0)
-    
-  qM <- suppressWarnings(qnorm(agepregprev(mod, fp, dat$datgrp$aidx, dat$datgrp$yidx, dat$datgrp$agspan)))
+
+  pregprevM <- agepregprev(mod, fp, dat$datgrp$aidx, dat$datgrp$yidx, dat$datgrp$agspan)
+
+  ## If calendar year projection, average current and previous year prevalence to
+  ## approximate mid-year prevalence.
+  ## NOTE: This will be inefficient if values for every year because it duplicates
+  ##   prevalence calculation for the same year.
+  
+  if (fp$projection_period == "calendar") {
+    pregprevM_last <- agepregprev(mod, fp, dat$datgrp$aidx, dat$datgrp$yidx-1L, dat$datgrp$agspan)
+    pregprevM <- 0.5 * (pregprevM + pregprevM_last)
+  }
+  
+  qM <- suppressWarnings(qnorm(pregprevM))
 
   if(any(is.na(qM)) || any(qM == -Inf) || any(qM > 2))  ## prev < 0.977
     return(-Inf)
@@ -192,7 +204,19 @@ ll_ancrtcens <- function(mod, dat, fp, pointwise = FALSE){
   if(!nrow(dat))
     return(0)
 
-  qM.prev <- suppressWarnings(qnorm(agepregprev(mod, fp, dat$aidx, dat$yidx, dat$agspan)))
+  qM.prev <- agepregprev(mod, fp, dat$aidx, dat$yidx, dat$agspan)
+  
+  ## If calendar year projection, average current and previous year prevalence to
+  ## approximate mid-year prevalence.
+  ## NOTE: This will be inefficient if values for every year because it duplicates
+  ##   prevalence calculation for the same year.
+  
+  if (fp$projection_period == "calendar") {
+    qM.prev_last <- qM.prev <- agepregprev(mod, fp, dat$aidx, dat$yidx-1L, dat$agspan)
+    qM.prev <- 0.5 * (qM.prev + qM.prev_last)
+  }
+  
+  qM.prev <- suppressWarnings(qnorm(qM.prev))
 
   if(any(is.na(qM.prev)))
     val <- rep(-Inf, nrow(dat))
@@ -341,9 +365,17 @@ prepare_hhsageprev_likdat <- function(hhsage, fp){
 
 #' Log likelihood for age-specific household survey prevalence
 #' @export 
-ll_hhsage <- function(mod, dat, pointwise = FALSE){
+ll_hhsage <- function(mod, fp, dat, pointwise = FALSE){
 
-  qM.age <- suppressWarnings(qnorm(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan)))
+  prevM.age <- ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan)
+  ## If calendar year projection, average current and previous year prevalence to
+  ## approximate mid-year prevalence
+  if (fp$projection_period == "calendar") {
+    prevM.age_last <- ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx-1L, agspan = dat$agspan)
+    prevM.age <- 0.5 * (prevM.age + prevM.age_last)
+  }
+    
+  qM.age <- suppressWarnings(qnorm(prevM.age))
   
   if(any(is.na(qM.age)))
     val <- rep(-Inf, nrow(dat))
@@ -358,9 +390,16 @@ ll_hhsage <- function(mod, dat, pointwise = FALSE){
 
 #' Log likelihood for age-specific household survey prevalence using binomial approximation
 #' @export 
-ll_hhsage_binom <- function(mod, dat, pointwise = FALSE){
+ll_hhsage_binom <- function(mod, fp, dat, pointwise = FALSE){
 
   prevM.age <- suppressWarnings(ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx, agspan = dat$agspan))
+
+  ## If calendar year projection, average current and previous year prevalence to
+  ## approximate mid-year prevalence
+  if (fp$projection_period == "calendar") {
+    prevM.age_last <- ageprev(mod, aidx = dat$aidx, sidx = dat$sidx, yidx = dat$yidx-1L, agspan = dat$agspan)
+    prevM.age <- 0.5 * (prevM.age + prevM.age_last)
+  }
 
   if(any(is.na(prevM.age)) || any(prevM.age >= 1))
     val <- rep(-Inf, nrow(dat))
@@ -404,9 +443,18 @@ prepare_hhsartcov_likdat <- function(hhsartcov, fp){
 
 
 #' Log likelihood for age-specific household survey prevalence
-ll_hhsartcov <- function(mod, dat, pointwise = FALSE){
+ll_hhsartcov <- function(mod, fp, dat, pointwise = FALSE){
 
-  qM <- qnorm(artcov15to49(mod)[dat$yidx])
+  artcovM <- artcov15to49(mod)
+  artcovM_obs <- artcovM[dat$yidx]
+
+  ## If calendar year projection, average current and previous year
+  ## to approximate mid-year prevalence
+  if (fp$projection_period == "calendar") {
+    artcovM_obs <- 0.5 * (artcovM_obs + artcovM[dat$yidx-1L])
+  }
+  
+  qM <- qnorm(artcovM_obs)
   
   if(any(is.na(qM)))
     val <- rep(-Inf, nrow(dat))
@@ -444,7 +492,7 @@ prepare_hhsincid_likdat <- function(hhsincid, fp){
 #'
 #' @param mod model output, object of class `spec`.
 #' @param hhsincid.dat prepared houshold survey incidence estimates (see perp
-ll_hhsincid <- function(mod, hhsincid.dat){
+ll_hhsincid <- function(mod, fp, hhsincid.dat){
   logincid <- log(incid(mod, fp))
   ll.incid <- sum(dnorm(hhsincid.dat$log_incid, logincid[hhsincid.dat$idx], hhsincid.dat$log_incid.se, TRUE))
   return(ll.incid)
@@ -586,19 +634,19 @@ ll <- function(theta, fp, likdat){
   ## Household survey likelihood
   if(exists("hhs.dat", where=likdat))
     if(exists("ageprev", fp) && fp$ageprev=="binom")
-      ll.hhs <- ll_hhsage_binom(mod, likdat$hhs.dat)
+      ll.hhs <- ll_hhsage_binom(mod, fp, likdat$hhs.dat)
     else ## use probit likelihood
-      ll.hhs <- ll_hhsage(mod, likdat$hhs.dat) # probit-transformed model
+      ll.hhs <- ll_hhsage(mod, fp, likdat$hhs.dat) # probit-transformed model
   else
     ll.hhs <- 0
 
   if(!is.null(likdat$hhsincid.dat))
-    ll.incid <- ll_hhsincid(mod, likdat$hhsincid.dat)
+    ll.incid <- ll_hhsincid(mod, fp, likdat$hhsincid.dat)
   else
     ll.incid <- 0
 
   if(!is.null(likdat$hhsartcov.dat))
-    ll.hhsartcov <- ll_hhsartcov(mod, likdat$hhsartcov.dat)
+    ll.hhsartcov <- ll_hhsartcov(mod, fp, likdat$hhsartcov.dat)
   else
     ll.hhsartcov <- 0
 

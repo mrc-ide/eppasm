@@ -431,7 +431,14 @@ simmod.specfp <- function(fp, VERSION="C"){
 
     ## prevalence and incidence 15 to 49
     prev15to49[i] <- sum(pop[p.age15to49.idx,,hivp.idx,i]) / sum(pop[p.age15to49.idx,,,i])
-    incid15to49[i] <- sum(incid15to49[i]) / sum(pop[p.age15to49.idx,,hivn.idx,i-1])
+
+    if (fp$projection_period == "calendar") {
+      ## incidence: interpolated denominator
+      incid15to49_denom <- 0.5 * (sum(pop[p.age15to49.idx,,hivn.idx,i-1]) + sum(pop[p.age15to49.idx,,hivn.idx,i]))      
+    } else {
+      incid15to49_denom <- sum(pop[p.age15to49.idx,,hivn.idx,i-1])
+    }
+    incid15to49[i] <- sum(incid15to49[i]) / incid15to49_denom
   }
 
 

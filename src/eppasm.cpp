@@ -959,8 +959,6 @@ extern "C" {
 
       // Net migration for calendar-year projection option with end-year migration
       if (projection_period_int == PROJPERIOD_CALENDAR) {
-
-	printf("In here\n");
 	  
 	for(int g = 0; g < NG; g++){
 	  int a = 0;

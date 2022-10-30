@@ -751,7 +751,8 @@ extern "C" {
 
             // calculate number on ART at end of ts, based on number or percent
             double artnum_hts = 0.0;
-            if(DT*(hts+1) < 0.5){
+            if (projection_period_int == PROJPERIOD_MIDYEAR &
+		DT*(hts+1) < 0.5) {
               if(!art15plus_isperc[t-2][g] & !art15plus_isperc[t-1][g]){ // both numbers
                 artnum_hts = (0.5-DT*(hts+1))*artnum15plus[t-2][g] + (DT*(hts+1)+0.5)*artnum15plus[t-1][g];
               } else if(art15plus_isperc[t-2][g] & art15plus_isperc[t-1][g]){ // both percentages
@@ -763,19 +764,31 @@ extern "C" {
                 artnum_hts = artcov_hts * (Xart_15plus + Xartelig_15plus);
               }
             } else {
+
+	      // If the projection period is calendar year (>= Spectrum v6.2), this condition is
+	      // always followed, and it interpolates between end of last year and current year (+ 1.0).
+	      // If projection period was mid-year (<= Spectrum v6.19), the second half of the projection
+	      // year interpolates the first half of the calendar year (e.g. hts 7/10 for 2019 interpolates
+	      // December 2018 to December 2019)
+
+	      double art_interp_w = DT*(hts+1.0);
+	      if (projection_period_int == PROJPERIOD_MIDYEAR) {
+		art_interp_w -= 0.5;
+	      }
+	      
               if(!art15plus_isperc[t-1][g] & !art15plus_isperc[t][g]){ // both numbers
-                artnum_hts = (1.5-DT*(hts+1))*artnum15plus[t-1][g] + (DT*(hts+1)-0.5)*artnum15plus[t][g];
+                artnum_hts = (1.0 - art_interp_w)*artnum15plus[t-1][g] + art_interp_w*artnum15plus[t][g];
               } else if(art15plus_isperc[t-1][g] & art15plus_isperc[t][g]){ // both percentages
-                double artcov_hts = (1.5-DT*(hts+1))*artnum15plus[t-1][g] + (DT*(hts+1)-0.5)*artnum15plus[t][g];
+                double artcov_hts = (1.0 - art_interp_w)*artnum15plus[t-1][g] + art_interp_w*artnum15plus[t][g];
                 artnum_hts = artcov_hts * (Xart_15plus + Xartelig_15plus);
               } else if(!art15plus_isperc[t-1][g] & art15plus_isperc[t][g]){ // transition from number to percentage
                 double curr_coverage = Xart_15plus / (Xart_15plus + Xartelig_15plus);
-                double artcov_hts = curr_coverage + (artnum15plus[t][g] - curr_coverage) * DT / (1.5-DT*hts);
+                double artcov_hts = curr_coverage + (artnum15plus[t][g] - curr_coverage) * DT / (1.0 - art_interp_w);
                 artnum_hts = artcov_hts * (Xart_15plus + Xartelig_15plus);
               }
             }
 
-            double artinit_hts = artnum_hts > Xart_15plus ? artnum_hts - Xart_15plus : 0;
+            double artinit_hts = artnum_hts > Xart_15plus ? artnum_hts - Xart_15plus : 0.0;
 
             // median CD4 at initiation inputs
             if(med_cd4init_input[t]){

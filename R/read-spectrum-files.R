@@ -701,6 +701,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 
   projp <- list("yr_start" = yr_start,
                 "yr_end" = yr_end,
+                "spectrum_version" = vers_str,
                 "relinfectART" = relinfectART,
                 "fert_rat" = fert_rat,
                 "cd4fert_rat" = cd4fert_rat,

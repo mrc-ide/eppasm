@@ -1,10 +1,17 @@
+#' Create simulation inputs fixed parameters
+#'
+#' @details
+#' If argument `projection_period = NULL`, R determines the projection period based
+#' on the Spectrum version number. For version <= 6.19, projection period is `"midyear"`,
+#' and for version >= 6.20, projection period is `"calendar"`.
+#' 
+#' @export
+#' 
 create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_start = projp$yr_start, proj_end = projp$yr_end,
                                    AGE_START = 15L, relinfectART = projp$relinfectART, time_epi_start = projp$t0,
                                    popadjust=FALSE, targetpop=demp$basepop, artelig200adj=TRUE, who34percelig=0,
                                    frr_art6mos=projp$frr_art6mos, frr_art1yr=projp$frr_art6mos,
-                                   projection_period = "calendar"){
-
-  stopifnot(projection_period %in% c("calendar", "midyear"))
+                                   projection_period = NULL){
   
   ## ########################## ##
   ##  Define model state space  ##
@@ -57,7 +64,20 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp <- list(ss=ss)
   fp$SIM_YEARS <- ss$PROJ_YEARS
   fp$proj.steps <- proj_start + 0.5 + 0:(ss$hiv_steps_per_year * (fp$SIM_YEARS-1)) / ss$hiv_steps_per_year
-  fp$projection_period <- projection_period
+
+  
+  if (is.null(projection_period)) {
+    
+    if (!grepl("^[4-6]\\.[0-9]", projp$spectrum_version)) {
+      stop(paste0("Spectrum version not recognized: ", projp$spectrum_version))
+    }
+    fp$projection_period <- if (projp$spectrum_version >= "6.2") {"calendar"} else {"midyear"}
+    
+  } else {
+    stopifnot(projection_period %in% c("calendar", "midyear"))
+    fp$projection_period <- projection_period
+  }
+
   
   ## ######################## ##
   ##  Demographic parameters  ##
@@ -82,7 +102,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   
   netmigr.adj <- demp$netmigr
 
-  if (projection_period == "midyear") {
+  if (fp$projection_period == "midyear") {
 
     ## Spectrum mid-year projection (v5.19 and earlier) adjusts net-migration to occur
     ## half in current age group and half in next age group
@@ -109,7 +129,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
         for(j in max(1, AGE_START-(i-2)):AGE_START){
           ii <- i+j-AGE_START
           cumsurv[s,i] <- cumsurv[s,i] * demp$Sx[j,s,ii]
-          if (projection_period == "midyear") {
+          if (fp$projection_period == "midyear") {
             if(j==1)
               cumnetmigr[s,i] <- netmigr.adj[j,s,ii] * (1+2*demp$Sx[j,s,ii])/3
             else

@@ -4,7 +4,7 @@
 \alias{ll_hhsage}
 \title{Log likelihood for age-specific household survey prevalence}
 \usage{
-ll_hhsage(mod, dat, pointwise = FALSE)
+ll_hhsage(mod, fp, dat, pointwise = FALSE)
 }
 \description{
 Log likelihood for age-specific household survey prevalence

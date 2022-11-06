@@ -24,4 +24,4 @@ Suggests:
 VignetteBuilder: knitr
 URL: https://github.com/mrc-ide/eppasm
 BugReports: https://github.com/mrc-ide/eppasm/issues
-RoxygenNote: 7.1.1
+RoxygenNote: 7.2.1

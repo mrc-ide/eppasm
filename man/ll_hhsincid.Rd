@@ -4,7 +4,7 @@
 \alias{ll_hhsincid}
 \title{Log-likelhood for direct incidence estimate from household survey}
 \usage{
-ll_hhsincid(mod, hhsincid.dat)
+ll_hhsincid(mod, fp, hhsincid.dat)
 }
 \arguments{
 \item{mod}{model output, object of class `spec`.}

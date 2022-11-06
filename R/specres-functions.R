@@ -1,12 +1,32 @@
-
 #' @export 
 incid.specres <- function(x){
+  nyr <- ncol(x$newinf.m)
+  infections <- colSums(x$newinf.m[4:10,-1]+x$newinf.f[4:10,-1])
+  hivn_last <- colSums(x$totpop.m[4:10,-nyr]+x$totpop.f[4:10,-nyr]-(x$hivnum.m[4:10,-nyr]+x$hivnum.f[4:10,-nyr]))
+  hivn_curr <- colSums(x$totpop.m[4:10,-1]+x$totpop.f[4:10,-1]-(x$hivnum.m[4:10,-1]+x$hivnum.f[4:10,-1]))
+  hivn <- 0.5 * (hivn_last + hivn_curr)
+  
+  c(0, infections / hivn)
+}
+
+#' Incidence rate age 15-49 using previous-year susceptible population
+#'
+#' Return HIV incidence calculated as number of infections among age 15-49 population 
+#' divided by susceptible population at the start of the projection year. This was
+#' the standard HIV incidence calculation reported by Spectrum up to version <=6.19.
+#' From Spectrum version >=6.2, the incidence rate is reported divided by the projection
+#' period population.
+#' 
+#' @param x `specres` object created by `read_hivproj_output()`.
+#' 
+#' @export 
+incid15to49_eppinput_specres <- function(x){
   nyr <- ncol(x$newinf.m)
   infections <- colSums(x$newinf.m[4:10,-1]+x$newinf.f[4:10,-1])
   hivn <- colSums(x$totpop.m[4:10,-nyr]+x$totpop.f[4:10,-nyr]-(x$hivnum.m[4:10,-nyr]+x$hivnum.f[4:10,-nyr]))
   c(0, infections / hivn)
 }
-    
+
 #' @export 
 prev.specres <- function(x) colSums(x$hivnum.m[4:10,]+x$hivnum.f[4:10,])/colSums(x$totpop.m[4:10,]+x$totpop.f[4:10,])
 

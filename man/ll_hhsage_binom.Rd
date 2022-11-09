@@ -4,7 +4,7 @@
 \alias{ll_hhsage_binom}
 \title{Log likelihood for age-specific household survey prevalence using binomial approximation}
 \usage{
-ll_hhsage_binom(mod, dat, pointwise = FALSE)
+ll_hhsage_binom(mod, fp, dat, pointwise = FALSE)
 }
 \description{
 Log likelihood for age-specific household survey prevalence using binomial approximation

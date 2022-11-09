@@ -50,6 +50,10 @@
 #define INCIDPOP_15TO49 0 // age range corresponding to incidence input
 #define INCIDPOP_15PLUS 1
 
+#define PROJPERIOD_MIDYEAR 0   // mid-year projection period 
+#define PROJPERIOD_CALENDAR 1  // calendar-year projection (Spectrum 6.2 update; December 2022)
+
+
 using namespace boost;
 
 
@@ -91,6 +95,8 @@ extern "C" {
     double DT = 1.0/HIVSTEPS_PER_YEAR;
     int *hAG_SPAN = INTEGER(getListElement(s_ss, "h.ag.span"));
     double *h_art_stage_dur = REAL(getListElement(s_ss, "h_art_stage_dur"));
+
+    int projection_period_int = *INTEGER(getListElement(s_fp, "projection_period_int"));
 
     int hAG_START[hAG];
     hAG_START[0] = 0;
@@ -383,7 +389,7 @@ extern "C" {
       for(int a = 0; a < pAG; a++){
         pop[0][HIVN][g][a] = basepop[g][a];
         pop[0][HIVP][g][a] = 0.0;
-        if(a >= pIDX_15TO49 & a < pIDX_15TO49+pAG_15TO49)
+        if(a >= pIDX_15TO49 && a < pIDX_15TO49+pAG_15TO49)
           hivn15to49[0] += basepop[g][a];
       }
 
@@ -505,13 +511,14 @@ extern "C" {
             pop[t][HIVP][g][a] -= hdeaths_a;   // survival HIV+ population
             natdeaths[t][g][a] = ndeaths_a + hdeaths_a;
 
-            // net migration
-            double migrate_a = netmigr[t][g][a] * (1+Sx[t][g][a])/2.0 / (pop[t][HIVN][g][a] + pop[t][HIVP][g][a]);
-            pop[t][HIVN][g][a] *= 1+migrate_a;
-            double hmig_a = migrate_a * pop[t][HIVP][g][a];
-            deathsmig_ha += hmig_a;
-            pop[t][HIVP][g][a] += hmig_a;
-
+	    if (projection_period_int == PROJPERIOD_MIDYEAR) {
+	      // net migration
+	      double migrate_a = netmigr[t][g][a] * (1+Sx[t][g][a])/2.0 / (pop[t][HIVN][g][a] + pop[t][HIVP][g][a]);
+	      pop[t][HIVN][g][a] *= 1+migrate_a;
+	      double hmig_a = migrate_a * pop[t][HIVP][g][a];
+	      deathsmig_ha += hmig_a;
+	      pop[t][HIVP][g][a] += hmig_a;
+	    }
             a++;
           }
 
@@ -552,7 +559,7 @@ extern "C" {
       ////////////////////////////////
 
       int cd4elig_idx = artcd4elig_idx[t] - 1; // -1 for 0-based indexing vs. 1-based in R
-      int anyelig_idx = (specpop_percelig[t] > 0 | pw_artelig[t] > 0) ? 0 : (who34percelig > 0) ? hIDX_CD4_350 : cd4elig_idx;
+      int anyelig_idx = (specpop_percelig[t] > 0 || pw_artelig[t] > 0) ? 0 : (who34percelig > 0) ? hIDX_CD4_350 : cd4elig_idx;
       everARTelig_idx = anyelig_idx < everARTelig_idx ? anyelig_idx : everARTelig_idx;
 
       double Xhivn[NG], incrate_g[NG], infections_ts[NG][pAG];
@@ -594,7 +601,7 @@ extern "C" {
             for(int hm = 0; hm < hDS; hm++){
 
 	      double cd4mx_scale = 1.0;
-	      if(scale_cd4_mort & t >= t_ART_start & hm >= everARTelig_idx){
+	      if(scale_cd4_mort && t >= t_ART_start && hm >= everARTelig_idx){
 		double artpop_hahm = 0.0;
 		for(int hu = 0; hu < hTS; hu++)
 		  artpop_hahm += artpop[t][g][ha][hm][hu];
@@ -724,7 +731,7 @@ extern "C" {
               }
 
               // if pw_artelig, add pregnant women to artelig_hahm population
-              if(g == FEMALE & pw_artelig[t] > 0 & ha < hAG_FERT){
+              if(g == FEMALE && pw_artelig[t] > 0 && ha < hAG_FERT){
                 double frr_pop_ha = 0;
                 for(int a =  hAG_START[ha]; a < hAG_START[ha]+hAG_SPAN[ha]; a++)
                   frr_pop_ha += pop[t][HIVN][g][a]; // add HIV- population
@@ -744,31 +751,44 @@ extern "C" {
 
             // calculate number on ART at end of ts, based on number or percent
             double artnum_hts = 0.0;
-            if(DT*(hts+1) < 0.5){
-              if(!art15plus_isperc[t-2][g] & !art15plus_isperc[t-1][g]){ // both numbers
+            if (projection_period_int == PROJPERIOD_MIDYEAR &&
+		DT*(hts+1) < 0.5) {
+              if(!art15plus_isperc[t-2][g] && !art15plus_isperc[t-1][g]){ // both numbers
                 artnum_hts = (0.5-DT*(hts+1))*artnum15plus[t-2][g] + (DT*(hts+1)+0.5)*artnum15plus[t-1][g];
-              } else if(art15plus_isperc[t-2][g] & art15plus_isperc[t-1][g]){ // both percentages
+              } else if(art15plus_isperc[t-2][g] && art15plus_isperc[t-1][g]){ // both percentages
                 double artcov_hts = (0.5-DT*(hts+1))*artnum15plus[t-2][g] + (DT*(hts+1)+0.5)*artnum15plus[t-1][g];
                 artnum_hts = artcov_hts * (Xart_15plus + Xartelig_15plus);
-              } else if(!art15plus_isperc[t-2][g] & art15plus_isperc[t-1][g]){ // transition from number to percentage
+              } else if(!art15plus_isperc[t-2][g] && art15plus_isperc[t-1][g]){ // transition from number to percentage
                 double curr_coverage = Xart_15plus / (Xart_15plus + Xartelig_15plus);
                 double artcov_hts = curr_coverage + (artnum15plus[t-1][g] - curr_coverage) * DT / (0.5-DT*hts);
                 artnum_hts = artcov_hts * (Xart_15plus + Xartelig_15plus);
               }
             } else {
-              if(!art15plus_isperc[t-1][g] & !art15plus_isperc[t][g]){ // both numbers
-                artnum_hts = (1.5-DT*(hts+1))*artnum15plus[t-1][g] + (DT*(hts+1)-0.5)*artnum15plus[t][g];
-              } else if(art15plus_isperc[t-1][g] & art15plus_isperc[t][g]){ // both percentages
-                double artcov_hts = (1.5-DT*(hts+1))*artnum15plus[t-1][g] + (DT*(hts+1)-0.5)*artnum15plus[t][g];
+
+	      // If the projection period is calendar year (>= Spectrum v6.2), this condition is
+	      // always followed, and it interpolates between end of last year and current year (+ 1.0).
+	      // If projection period was mid-year (<= Spectrum v6.19), the second half of the projection
+	      // year interpolates the first half of the calendar year (e.g. hts 7/10 for 2019 interpolates
+	      // December 2018 to December 2019)
+
+	      double art_interp_w = DT*(hts+1.0);
+	      if (projection_period_int == PROJPERIOD_MIDYEAR) {
+		art_interp_w -= 0.5;
+	      }
+	      
+              if(!art15plus_isperc[t-1][g] && !art15plus_isperc[t][g]){ // both numbers
+                artnum_hts = (1.0 - art_interp_w)*artnum15plus[t-1][g] + art_interp_w*artnum15plus[t][g];
+              } else if(art15plus_isperc[t-1][g] && art15plus_isperc[t][g]){ // both percentages
+                double artcov_hts = (1.0 - art_interp_w)*artnum15plus[t-1][g] + art_interp_w*artnum15plus[t][g];
                 artnum_hts = artcov_hts * (Xart_15plus + Xartelig_15plus);
-              } else if(!art15plus_isperc[t-1][g] & art15plus_isperc[t][g]){ // transition from number to percentage
+              } else if(!art15plus_isperc[t-1][g] && art15plus_isperc[t][g]){ // transition from number to percentage
                 double curr_coverage = Xart_15plus / (Xart_15plus + Xartelig_15plus);
-                double artcov_hts = curr_coverage + (artnum15plus[t][g] - curr_coverage) * DT / (1.5-DT*hts);
+                double artcov_hts = curr_coverage + (artnum15plus[t][g] - curr_coverage) * DT / (1.0 - art_interp_w);
                 artnum_hts = artcov_hts * (Xart_15plus + Xartelig_15plus);
               }
             }
 
-            double artinit_hts = artnum_hts > Xart_15plus ? artnum_hts - Xart_15plus : 0;
+            double artinit_hts = artnum_hts > Xart_15plus ? artnum_hts - Xart_15plus : 0.0;
 
             // median CD4 at initiation inputs
             if(med_cd4init_input[t]){
@@ -815,7 +835,7 @@ extern "C" {
 		double artelig_hm = 0;
 		for(int ha = hIDX_15PLUS; ha < hAG; ha++)
 		  artelig_hm += artelig_hahm[ha-hIDX_15PLUS][hm];
-		double init_prop = (artelig_hm == 0 | artinit_hts > artelig_hm) ? 1.0 : artinit_hts / artelig_hm;
+		double init_prop = (artelig_hm == 0 || artinit_hts > artelig_hm) ? 1.0 : artinit_hts / artelig_hm;
 
 		for(int ha = hIDX_15PLUS; ha < hAG; ha++){
 		  double artinit_hahm = init_prop * artelig_hahm[ha-hIDX_15PLUS][hm];
@@ -937,6 +957,39 @@ extern "C" {
 	}
       }
 
+      // Net migration for calendar-year projection option with end-year migration
+      if (projection_period_int == PROJPERIOD_CALENDAR) {
+	  
+	for(int g = 0; g < NG; g++){
+	  int a = 0;
+	  for(int ha = 0; ha < hAG; ha++){
+	    double mig_ha = 0, hivpop_ha = 0;
+	    for(int i = 0; i < hAG_SPAN[ha]; i++){
+	      
+	      hivpop_ha += pop[t][HIVP][g][a];
+	      
+	      double migrate_a = netmigr[t][g][a] / (pop[t][HIVN][g][a] + pop[t][HIVP][g][a]);
+	      // double migrate_a = netmigr[t][g][a] * (1+Sx[t][g][a])/2.0 / (pop[t][HIVN][g][a] + pop[t][HIVP][g][a]);
+	      pop[t][HIVN][g][a] *= 1+migrate_a;
+	      double hmig_a = migrate_a * pop[t][HIVP][g][a];
+	      mig_ha += hmig_a;
+	      pop[t][HIVP][g][a] += hmig_a;
+	      a++;
+	    }
+	    
+	    // migration for hivpop
+	    double migrate_ha = hivpop_ha > 0 ? mig_ha / hivpop_ha : 0.0;
+	    for(int hm = 0; hm < hDS; hm++){
+	      hivpop[t][g][ha][hm] *= 1+migrate_ha;
+	      if(t > t_ART_start)
+		for(int hu = 0; hu < hTS; hu++)
+		  artpop[t][g][ha][hm][hu] *= 1+migrate_ha;
+	    } // loop over hm
+	  } // loop over ha
+	} // loop over g
+      } // if (projection_period_int == PROJPERIOD_CALENDAR)
+
+      
       // adjust population to match target population
       if(bin_popadjust){
         for(int g = 0; g < NG; g++){
@@ -999,7 +1052,13 @@ extern "C" {
           hivp15to49[t] += pop[t][HIVP][g][a];
         }
       prev15to49[t] = hivp15to49[t]/(hivn15to49[t] + hivp15to49[t]);
-      incid15to49[t] /= hivn15to49[t-1];
+
+      // if period = calendar
+      double incid15to49_denom = (projection_period_int == PROJPERIOD_CALENDAR) ?
+	0.5 * (hivn15to49[t-1] + hivn15to49[t]) :
+	hivn15to49[t-1];
+      
+      incid15to49[t] /= incid15to49_denom;
     }
 
     UNPROTECT(28);

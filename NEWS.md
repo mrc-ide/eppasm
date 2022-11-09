@@ -1,3 +1,21 @@
+## eppasm 0.7.0
+
+* In `read_specdp_demog_param()`, normalise the age-specific fertility distribution before disaggregating TFR to ASFR. This fixes small discrepancy between Spectrum and EPP-ASM population projection.
+
+* In `read_specdp_demog_param()`, disaggregate the under-5 net migrations to single-year ages proportional to survival probabilities, to match Spectrum.
+
+* Change model projection to calendar year steps instead of mid-year steps, consistent with Spectrum 6.2 updated for WPP 2022 release in December 2022.
+  - Net-migrations added at end of projection step, consistent with WPP 2022. No longer (1) adjust net migration for half-period survival, nor (2) adjust 
+    net migration to be half in current age group and half in next age group.
+  - ART interpolation is for calendar year instead of mid-year to mid-year.
+  - Incidence rate 15-49 calculation uses interpolated mid-year susceptible population as denominator.
+  - Likelihood calculation use mid-year HIV prevalence or ART coverage based on simple average of end-year values.
+  
+Code changes are backwards compatible such that code supports simulation of either calendar year or mid-year projection steps. This is controlled by option `fp$projection_period` = either `"midyear"` or `"calendar"`. 
+
+The function `create_spectrum_fixpar(..., projection_period = "calendar")` has new argument which defaults to calendar year input. This must be re-run to recreate the `fp` object to change the choice because calculation of paediatric net migration inputs depends on the choice.
+
+
 ## eppasm 0.6.2
 
 * Distribute age incidence rate ratio using **current** year HIV population by time step, instead of previous year HIV population to match Spectrum calculation. 

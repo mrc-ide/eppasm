@@ -18,6 +18,12 @@ simmod.specfp <- function(fp, VERSION="C"){
     ## 3: directincid_hts
     fp$eppmodInt <- match(fp$eppmod, c("rtrend", "directincid_ann", "directincid_hts"), nomatch=0) # 0: r-spline;
     fp$incidmodInt <- match(fp$incidmod, c("eppspectrum"))-1L  # -1 for 0-based indexing
+
+    ## projection_period codes:
+    ## 0: mid-year (<= Spectrum 5.19)
+    ## 1: calendar year (>= Spectrum 5.2)
+    fp$projection_period_int <- match(fp$projection_period, c("midyear", "calendar")) - 1L # -1 for 0-based indexing
+
     mod <- .Call(eppasmC, fp)
     class(mod) <- "spec"
     return(mod)
@@ -124,16 +130,19 @@ simmod.specfp <- function(fp, VERSION="C"){
     if(i > fp$tARTstart)
       artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.sx.prob, "*")
 
-    ## net migration
-    netmigsurv <- fp$netmigr[,,i]*(1+fp$Sx[,,i])/2
-    mr.prob <- 1+netmigsurv / rowSums(pop[,,,i],,2)
-    hiv.mr.prob <- apply(mr.prob * pop[,,2,i], 2, ctapply, ag.idx, sum) /  apply(pop[,,2,i], 2, ctapply, ag.idx, sum)
-    hiv.mr.prob[is.nan(hiv.mr.prob)] <- 0
-    pop[,,,i] <- sweep(pop[,,,i], 1:2, mr.prob, "*")
+    if (fp$projection_period == "midyear") {
 
-    hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")
-    if(i > fp$tARTstart)
-      artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.mr.prob, "*")
+      ## net migration
+      netmigsurv <- fp$netmigr[,,i]*(1+fp$Sx[,,i])/2
+      mr.prob <- 1+netmigsurv / rowSums(pop[,,,i],,2)
+      hiv.mr.prob <- apply(mr.prob * pop[,,2,i], 2, ctapply, ag.idx, sum) /  apply(pop[,,2,i], 2, ctapply, ag.idx, sum)
+      hiv.mr.prob[is.nan(hiv.mr.prob)] <- 0
+      pop[,,,i] <- sweep(pop[,,,i], 1:2, mr.prob, "*")
+      
+      hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")
+      if(i > fp$tARTstart)
+        artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.mr.prob, "*")
+    }
 
     ## fertility
     births.by.age <- rowSums(pop[p.fert.idx, f.idx,,i-1:0])/2 * fp$asfr[,i]
@@ -257,7 +266,7 @@ simmod.specfp <- function(fp, VERSION="C"){
 
         artpop_curr_g <- colSums(artpop[,,h.age15plus.idx,,i],,3) + DT*colSums(gradART[,,h.age15plus.idx,],,3)
         artnum.ii <- c(0,0) # number on ART this ts
-        if(DT*ii < 0.5){
+        if (fp$projection_period == "midyear" && DT*ii < 0.5){
           for(g in 1:2){
             if(!any(fp$art15plus_isperc[g,i-2:1])){  # both number
               artnum.ii[g] <- c(fp$art15plus_num[g,i-2:1] %*% c(1-(DT*ii+0.5), DT*ii+0.5))
@@ -272,14 +281,19 @@ simmod.specfp <- function(fp, VERSION="C"){
           }
         } else {
           for(g in 1:2){
+            art_interp_w <- DT*ii
+            if (fp$projection_period == "midyear") {
+              art_interp_w <- art_interp_w - 0.5
+            }
+
             if(!any(fp$art15plus_isperc[g,i-1:0])){  # both number
-              artnum.ii[g] <- c(fp$art15plus_num[g,i-1:0] %*% c(1-(DT*ii-0.5), DT*ii-0.5))
+              artnum.ii[g] <- c(fp$art15plus_num[g,i-1:0] %*% c(1-art_interp_w, art_interp_w))
             } else if(all(fp$art15plus_isperc[g,i-1:0])) {  # both percentage
-              artcov.ii <- c(fp$art15plus_num[g,i-1:0] %*% c(1-(DT*ii-0.5), DT*ii-0.5))
+              artcov.ii <- c(fp$art15plus_num[g,i-1:0] %*% c(1-art_interp_w, art_interp_w))
               artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + artpop_curr_g[g])
             } else if(!fp$art15plus_isperc[g,i-1] & fp$art15plus_isperc[g,i]){  # transition number to percentage
               curr_coverage <- artpop_curr_g[g] / (sum(art15plus.elig[,,g]) + artpop_curr_g[g])
-              artcov.ii <- curr_coverage + (fp$art15plus_num[g,i] - curr_coverage) * DT/(1.5-DT*(ii-1))
+              artcov.ii <- curr_coverage + (fp$art15plus_num[g,i] - curr_coverage) * DT/(1.0 - art_interp_w)
               artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + artpop_curr_g[g])
             }
           }
@@ -379,6 +393,21 @@ simmod.specfp <- function(fp, VERSION="C"){
       incid15to49[i] <- sum(infections[p.age15to49.idx,,i])
     }
 
+    if (fp$projection_period == "calendar") {
+
+      ## net migration
+      netmigsurv <- fp$netmigr[,,i]
+      mr.prob <- 1+netmigsurv / rowSums(pop[,,,i],,2)
+      hiv.mr.prob <- apply(mr.prob * pop[,,2,i], 2, ctapply, ag.idx, sum) /  apply(pop[,,2,i], 2, ctapply, ag.idx, sum)
+      hiv.mr.prob[is.nan(hiv.mr.prob)] <- 0
+      pop[,,,i] <- sweep(pop[,,,i], 1:2, mr.prob, "*")
+      
+      hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")
+      if(i > fp$tARTstart)
+        artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.mr.prob, "*")
+    }
+
+    
     ## adjust population to match target population size
     if(exists("popadjust", where=fp) & fp$popadjust){
       popadj.prob[,,i] <- fp$targetpop[,,i] / rowSums(pop[,,,i],,2)
@@ -402,7 +431,14 @@ simmod.specfp <- function(fp, VERSION="C"){
 
     ## prevalence and incidence 15 to 49
     prev15to49[i] <- sum(pop[p.age15to49.idx,,hivp.idx,i]) / sum(pop[p.age15to49.idx,,,i])
-    incid15to49[i] <- sum(incid15to49[i]) / sum(pop[p.age15to49.idx,,hivn.idx,i-1])
+
+    if (fp$projection_period == "calendar") {
+      ## incidence: interpolated denominator
+      incid15to49_denom <- 0.5 * (sum(pop[p.age15to49.idx,,hivn.idx,i-1]) + sum(pop[p.age15to49.idx,,hivn.idx,i]))      
+    } else {
+      incid15to49_denom <- sum(pop[p.age15to49.idx,,hivn.idx,i-1])
+    }
+    incid15to49[i] <- sum(incid15to49[i]) / incid15to49_denom
   }
 
 

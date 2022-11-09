@@ -701,6 +701,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 
   projp <- list("yr_start" = yr_start,
                 "yr_end" = yr_end,
+                "spectrum_version" = vers_str,
                 "relinfectART" = relinfectART,
                 "fert_rat" = fert_rat,
                 "cd4fert_rat" = cd4fert_rat,
@@ -807,6 +808,8 @@ read_demog_param <- function(upd.file, age.intervals = 1){
   ## asfr
   asfd <- array(as.numeric(pasfrs$value), c(35, nyears))
   dimnames(asfd) <- list(age=15:49, year=years)
+  asfd <- sweep(asfd, 2, colSums(asfd), "/")
+  
   asfr <- sweep(asfd, 2, tfr, "*")
   asfr <- apply(asfr, 2, tapply, age.groups[16:50], mean)
 
@@ -899,6 +902,10 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   tfr <- setNames(as.numeric(dp[tfr.tidx + 2, timedat.idx]), proj.years)
   asfd <- sapply(dp[asfd.tidx + 3:9, timedat.idx], as.numeric)/100
   asfd <- apply(asfd / 5, 2, rep, each=5)
+
+  ## Internally, Spectrum normalises the ASFD before multiplying by TFR
+  asfd <- sweep(asfd, 2, colSums(asfd), "/")
+  
   dimnames(asfd) <- list(age=15:49, year=proj.years)
   asfr <- sweep(asfd, 2, tfr, "*")
 
@@ -924,7 +931,10 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
     netmigagedist <- sapply(dpsub("<MigrAgeDist MV2>", 2+1:34, timedat.idx), as.numeric) / 100
   netmigagedist <- array(c(netmigagedist), c(17, 2, length(proj.years)))
 
-  netmigr <- sweep(netmigagedist, 2:3, totnetmig, "*")
+  ## Normalise netmigagedist
+  netmigagedist <- sweep(netmigagedist, 2:3, colSums(netmigagedist), "/")
+
+  netmigr5 <- sweep(netmigagedist, 2:3, totnetmig, "*")
 
 
   ## Beer's coefficients for disaggregating 5 year age groups into
@@ -963,8 +973,22 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
                       cbind(matrix(0, 5, 11), Aultim, matrix(0, 5, 1)),
                       c(rep(0, 16), 1))))
 
-  netmigr <- apply(netmigr, 2:3, function(x) A %*% x)
+  netmigr <- apply(netmigr5, 2:3, function(x) A %*% x)
   dimnames(netmigr) <- list(age=0:80, sex=c("Male", "Female"), year=proj.years)
+
+  ## For age <5 years, Spectrum uses a different disaggregation for net migration
+  u5prop <- array(dim = c(5, 2))
+  u5prop[1, ] <- Sx[1, , 1] * 2
+  u5prop[2, ] <- Sx[2, , 1] * u5prop[1, ]
+  u5prop[3, ] <- Sx[3, , 1] * u5prop[2, ]
+  u5prop[4, ] <- Sx[4, , 1] * u5prop[3, ]
+  u5prop[5, ] <- Sx[5, , 1] * u5prop[4, ]
+  
+  u5prop <- sweep(u5prop, 2, colSums(u5prop), "/")
+  
+  netmigr[1:5 , 1, ] <- u5prop[ , 1, drop = FALSE] %*% netmigr5[1, 1, ]
+  netmigr[1:5 , 2, ] <- u5prop[ , 2, drop = FALSE] %*% netmigr5[1, 2, ]
+
 
 
   demp <- list("basepop"=basepop, "mx"=mx, "Sx"=Sx, "asfr"=asfr, "tfr"=tfr, "asfd"=asfd, "srb"=srb, "netmigr"=netmigr,

@@ -3,10 +3,11 @@
 
 # eppasm
 
-[![Travis build
-status](https://travis-ci.org/mrc-ide/eppasm.svg?branch=new-master)](https://travis-ci.org/mrc-ide/eppasm)
-[![Coverage
-status](https://codecov.io/gh/mrc-ide/eppasm/branch/new-master/graph/badge.svg)](https://codecov.io/github/mrc-ide/eppasm?branch=new-master)
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/mrc-ide/eppasm/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/mrc-ide/eppasm/actions/workflows/R-CMD-check.yaml)  
+[![Codecov test
+coverage](https://codecov.io/gh/mrc-ide/eppasm/branch/master/graph/badge.svg)](https://app.codecov.io/gh/mrc-ide/eppasm?branch=master)  
+<!-- badges: end -->
 
 The goal of eppasm is to …
 
@@ -25,10 +26,10 @@ devtools::install_github("mrc-ide/eppasm")
 
 ### Botswana2018.PJNZ
 
-  - Urban/Rural epidemic configuratio
-  - ANC-RT census data, no site-level ANC-RT data
+-   Urban/Rural epidemic configuratio
+-   ANC-RT census data, no site-level ANC-RT data
 
-### Mozambique\_Maputo\_Cidade.PJNZ
+### Mozambique_Maputo_Cidade.PJNZ
 
-  - Subnational, single EPP region configuration
-  - Uses median CD4 count input
+-   Subnational, single EPP region configuration
+-   Uses median CD4 count input

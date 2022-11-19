@@ -33,13 +33,13 @@ theta_rtrend <- c(1977.68776203971, 16.2122044236609, 0.196472777334891, 0.45554
 
 test_that("ll returns expected value", {
   expect_equal(round(ll(theta_rhybrid, fp_rhybrid, likdat), 4),
-               c(anc = 81.3049, ancrt = 7.4092, hhs = 6.816, incid = 0, rprior = 0))
+               c(anc = 81.3049, ancrt = 7.4092, hhs = 6.816, incid = 0, artcov = 0.0, rprior = 0))
   expect_equal(round(ll(theta_rspline, fp_rspline, likdat), 4),
-               c(anc = 52.9655, ancrt = 2.0052, hhs = 3.9813, incid = 0, rprior = 0))
+               c(anc = 52.9655, ancrt = 2.0052, hhs = 3.9813, incid = 0, artcov = 0.0, rprior = 0))
   expect_equal(round(ll(theta_rspline, fp_rspline_eq, likdat), 4),
-               c(anc = 52.9655, ancrt = 2.0052, hhs = 3.9813, incid = 0, rprior = -15.1136))
+               c(anc = 52.9655, ancrt = 2.0052, hhs = 3.9813, incid = 0, artcov = 0.0, rprior = -15.1136))
   expect_equal(round(ll(theta_rtrend, fp_rtrend, likdat), 4),
-               c(anc = 79.1005, ancrt = 8.6278, hhs = 6.7833, incid = 0, rprior = 0))
+               c(anc = 79.1005, ancrt = 8.6278, hhs = 6.7833, incid = 0, artcov = 0.0, rprior = 0))
 })
 
 

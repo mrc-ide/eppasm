@@ -38,7 +38,7 @@ read_dp <- function(pjnz, use_ep5 = FALSE){
 
   dp <- vroom::vroom(unz(pjnz, dpfile), delim = ",",
                      col_types = vroom::cols(.default = vroom::col_character()),
-                     .name_repair = "minimal")
+                     .name_repair = "minimal", progress = FALSE)
   dp <- as.data.frame(dp)
 
   return(dp)
@@ -49,7 +49,7 @@ read_pjn <- function(pjnz){
   pjnfile <- grep(".PJN$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
   pjn <- vroom::vroom(unz(pjnz, pjnfile), delim = ",",
                      col_types = vroom::cols(.default = vroom::col_character()),
-                     .name_repair = "minimal")
+                     .name_repair = "minimal", progress = FALSE)
   pjn <- as.data.frame(pjn)
   
   return(pjn)

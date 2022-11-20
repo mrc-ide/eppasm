@@ -783,7 +783,7 @@ extern "C" {
                 artnum_hts = artcov_hts * (Xart_15plus + Xartelig_15plus);
               } else if(!art15plus_isperc[t-1][g] && art15plus_isperc[t][g]){ // transition from number to percentage
                 double curr_coverage = Xart_15plus / (Xart_15plus + Xartelig_15plus);
-                double artcov_hts = curr_coverage + (artnum15plus[t][g] - curr_coverage) * DT / (1.0 - art_interp_w);
+                double artcov_hts = curr_coverage + (artnum15plus[t][g] - curr_coverage) * DT / (1.0 - art_interp_w + DT);
                 artnum_hts = artcov_hts * (Xart_15plus + Xartelig_15plus);
               }
             }

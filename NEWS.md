@@ -4,6 +4,7 @@
 * Handle Spectrum version numbers saved on Francophone locale devices: e.g. 6,13 instead of 6.13.
 * In `read_specdp_demog_param()`, ensure no zero totals when normalising age-specific fertility 
   distribution and net-migration age distribution.
+* Fix calculation for target number on treatment during transition from number to percent input.
 
 Package tidying to address R CMD CHECK warnings:
 

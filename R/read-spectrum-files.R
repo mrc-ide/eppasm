@@ -922,7 +922,9 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   asfd <- apply(asfd / 5, 2, rep, each=5)
 
   ## Internally, Spectrum normalises the ASFD before multiplying by TFR
-  asfd <- sweep(asfd, 2, colSums(asfd), "/")
+  asfd_sum <- colSums(asfd)
+  asfd_sum[asfd_sum == 0.0] <- 1.0
+  asfd <- sweep(asfd, 2, asfd_sum, "/")
   
   dimnames(asfd) <- list(age=15:49, year=proj.years)
   asfr <- sweep(asfd, 2, tfr, "*")
@@ -950,7 +952,9 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   netmigagedist <- array(c(netmigagedist), c(17, 2, length(proj.years)))
 
   ## Normalise netmigagedist
-  netmigagedist <- sweep(netmigagedist, 2:3, colSums(netmigagedist), "/")
+  netmigagedist_sum <- colSums(netmigagedist)
+  netmigagedist_sum[netmigagedist_sum == 0.0] <- 1.0
+  netmigagedist <- sweep(netmigagedist, 2:3, netmigagedist_sum, "/")
 
   netmigr5 <- sweep(netmigagedist, 2:3, totnetmig, "*")
 

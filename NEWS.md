@@ -2,6 +2,8 @@
 
 * Use `vroom::vroom()` to read PJNZ files; much faster for reading `.DP` file.
 * Handle Spectrum version numbers saved on Francophone locale devices: e.g. 6,13 instead of 6.13.
+* In `read_specdp_demog_param()`, ensure no zero totals when normalising age-specific fertility 
+  distribution and net-migration age distribution.
 
 Package tidying to address R CMD CHECK warnings:
 

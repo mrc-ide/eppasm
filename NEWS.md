@@ -1,6 +1,7 @@
 ## eppasm 0.7.1
 
 * Use `vroom::vroom()` to read PJNZ files; much faster for reading `.DP` file.
+* Handle Spectrum version numbers saved on Francophone locale devices: e.g. 6,13 instead of 6.13.
 
 Package tidying to address R CMD CHECK warnings:
 

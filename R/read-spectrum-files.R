@@ -588,11 +588,21 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   names(art_prop_alloc) <- c("mx", "elig")
 
   vers_str <- dpsub("<ValidVers MV>", 2, 4)
-  version <- as.numeric(sub("^([0-9\\.]+).*", "\\1", vers_str))
-  betav <- if(grepl("Beta", vers_str))
+
+  ## Replace comma decimal separator save on Francophone locale computers
+  vers_str <- sub("^([0-9]+),(.*)$", "\\1.\\2", vers_str)
+  
+  version <- as.numeric(sub("^([0-9\\.]+).*", "\\1", vers_str)) 
+  betav <- if(grepl("Beta", vers_str)) {
              as.numeric(sub(".*Beta ([0-9]+)$", "\\1", vers_str))
-           else
+           } else {
              NA
+           }
+
+  if (!grepl("^[0-9]+\\.[0-9]+$", version)) {
+    stop(paste0("Valid Spectrum version not recognized: ", vers_str))
+  }
+  
   if(version >= 5.73 && (betav >= 15 | is.na(betav)))
     scale_cd4_mort <- 1L
   else

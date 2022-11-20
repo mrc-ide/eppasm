@@ -1,7 +1,7 @@
 
 #' @useDynLib eppasm eppasmC
 #' @export
-simmod.specfp <- function(fp, VERSION="C"){
+simmod.specfp <- function(fp, VERSION="C", ...){
 
   if(!exists("popadjust", where=fp))
     fp$popadjust <- FALSE
@@ -293,7 +293,7 @@ simmod.specfp <- function(fp, VERSION="C"){
               artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + artpop_curr_g[g])
             } else if(!fp$art15plus_isperc[g,i-1] & fp$art15plus_isperc[g,i]){  # transition number to percentage
               curr_coverage <- artpop_curr_g[g] / (sum(art15plus.elig[,,g]) + artpop_curr_g[g])
-              artcov.ii <- curr_coverage + (fp$art15plus_num[g,i] - curr_coverage) * DT/(1.0 - art_interp_w)
+              artcov.ii <- curr_coverage + (fp$art15plus_num[g,i] - curr_coverage) * DT/(1.0 - art_interp_w + DT)              
               artnum.ii[g] <- artcov.ii * (sum(art15plus.elig[,,g]) + artpop_curr_g[g])
             }
           }

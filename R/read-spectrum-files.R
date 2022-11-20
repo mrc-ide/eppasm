@@ -23,25 +23,43 @@ get_dp_version <- function(dp){
   return(dp.vers)
 }
 
+#' Read Spectrum internal files file from PJNZ
+#'
+#' @param pjnz file path to Spectrum PJNZ file.
+#' 
 #' @export
-read_dp <- function(pjnz){
-  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+read_dp <- function(pjnz, use_ep5 = FALSE){
+
+  if(use_ep5) {
+    dpfile <- grep(".ep5$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  } else {
+    dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  }
+
+  dp <- vroom::vroom(unz(pjnz, dpfile), delim = ",",
+                     col_types = vroom::cols(.default = vroom::col_character()),
+                     .name_repair = "minimal")
+  dp <- as.data.frame(dp)
+
   return(dp)
 }
 
 #' @export
 read_pjn <- function(pjnz){
-  dpfile <- grep(".PJN$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
-  return(dp)
+  pjnfile <- grep(".PJN$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  pjn <- vroom::vroom(unz(pjnz, pjnfile), delim = ",",
+                     col_types = vroom::cols(.default = vroom::col_character()),
+                     .name_repair = "minimal")
+  pjn <- as.data.frame(pjn)
+  
+  return(pjn)
 }
 
 #' @export
 read_region <- function(pjnz){
   pjn <- read_pjn(pjnz)
   region <- pjn[which(pjn[,1] == "<Projection Parameters - Subnational Region Name2>")+2, 4]
-  if(region == "")
+  if(is.na(region))
     return(NULL)
   else
     return(region)
@@ -318,13 +336,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
 read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 
   ## read .DP file
-
-  if(use_ep5)
-    dpfile <- grep(".ep5$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-  else
-    dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-
-  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+  dp <- read_dp(pjnz, use_ep5)
 
   if(use_ep5)
     dp.vers <- "Spectrum2017"
@@ -466,7 +478,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
       ## has data, but not both.
 
       data_row <- dpsub("<HIVSexRatio MV>", 1:3, 4)
-      data_row <- which(data_row != "")
+      data_row <- which(data_row != "" & !is.na(data_row))
       if (length(data_row) != 1) {
         stop("DP tag <HIVSexRatio MV> not parsed correctly")
       }
@@ -576,11 +588,21 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   names(art_prop_alloc) <- c("mx", "elig")
 
   vers_str <- dpsub("<ValidVers MV>", 2, 4)
-  version <- as.numeric(sub("^([0-9\\.]+).*", "\\1", vers_str))
-  betav <- if(grepl("Beta", vers_str))
+
+  ## Replace comma decimal separator save on Francophone locale computers
+  vers_str <- sub("^([0-9]+),(.*)$", "\\1.\\2", vers_str)
+  
+  version <- as.numeric(sub("^([0-9\\.]+).*", "\\1", vers_str)) 
+  betav <- if(grepl("Beta", vers_str)) {
              as.numeric(sub(".*Beta ([0-9]+)$", "\\1", vers_str))
-           else
+           } else {
              NA
+           }
+
+  if (!grepl("^[0-9]+\\.[0-9]+$", version)) {
+    stop(paste0("Valid Spectrum version not recognized: ", vers_str))
+  }
+  
   if(version >= 5.73 && (betav >= 15 | is.na(betav)))
     scale_cd4_mort <- 1L
   else
@@ -837,12 +859,8 @@ read_demog_param <- function(upd.file, age.intervals = 1){
 #' @export
 read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
 
-  if(use_ep5)
-    dpfile <- grep(".ep5$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-  else
-    dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-
-  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+  ## read .DP file
+  dp <- read_dp(pjnz, use_ep5)
 
   if(use_ep5)
     dp.vers <- "Spectrum2017"
@@ -904,7 +922,9 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   asfd <- apply(asfd / 5, 2, rep, each=5)
 
   ## Internally, Spectrum normalises the ASFD before multiplying by TFR
-  asfd <- sweep(asfd, 2, colSums(asfd), "/")
+  asfd_sum <- colSums(asfd)
+  asfd_sum[asfd_sum == 0.0] <- 1.0
+  asfd <- sweep(asfd, 2, asfd_sum, "/")
   
   dimnames(asfd) <- list(age=15:49, year=proj.years)
   asfr <- sweep(asfd, 2, tfr, "*")
@@ -932,7 +952,9 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   netmigagedist <- array(c(netmigagedist), c(17, 2, length(proj.years)))
 
   ## Normalise netmigagedist
-  netmigagedist <- sweep(netmigagedist, 2:3, colSums(netmigagedist), "/")
+  netmigagedist_sum <- colSums(netmigagedist)
+  netmigagedist_sum[netmigagedist_sum == 0.0] <- 1.0
+  netmigagedist <- sweep(netmigagedist, 2:3, netmigagedist_sum, "/")
 
   netmigr5 <- sweep(netmigagedist, 2:3, totnetmig, "*")
 
@@ -1095,8 +1117,7 @@ read_subp_file <- function(filepath){
 #' @export
 read_csavr_data <- function(pjnz){
 
-  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+  dp <- read_dp(pjnz)
 
   exists_dptag <- function(tag, tagcol=1){tag %in% dp[,tagcol]}
   dpsub <- function(tag, rows, cols, tagcol=1){
@@ -1131,8 +1152,7 @@ read_csavr_data <- function(pjnz){
 #' @export
 read_incid_input <- function(pjnz){
 
-  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+  dp <- read_dp(pjnz)
 
   exists_dptag <- function(tag, tagcol=1){tag %in% dp[,tagcol]}
   dpsub <- function(tag, rows, cols, tagcol=1){

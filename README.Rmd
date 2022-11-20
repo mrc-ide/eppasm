@@ -14,8 +14,10 @@ knitr::opts_chunk$set(
 ```
 # eppasm
 
-[![Travis build status](https://travis-ci.org/mrc-ide/eppasm.svg?branch=new-master)](https://travis-ci.org/mrc-ide/eppasm)
-[![Coverage status](https://codecov.io/gh/mrc-ide/eppasm/branch/new-master/graph/badge.svg)](https://codecov.io/github/mrc-ide/eppasm?branch=new-master)
+  <!-- badges: start -->
+  [![R-CMD-check](https://github.com/mrc-ide/eppasm/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/mrc-ide/eppasm/actions/workflows/R-CMD-check.yaml)  
+  [![Codecov test coverage](https://codecov.io/gh/mrc-ide/eppasm/branch/master/graph/badge.svg)](https://app.codecov.io/gh/mrc-ide/eppasm?branch=master)  
+  <!-- badges: end -->
 
 
 The goal of eppasm is to ...

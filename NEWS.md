@@ -1,3 +1,17 @@
+## eppasm 0.7.1
+
+* Use `vroom::vroom()` to read PJNZ files; much faster for reading `.DP` file.
+* Handle Spectrum version numbers saved on Francophone locale devices: e.g. 6,13 instead of 6.13.
+* In `read_specdp_demog_param()`, ensure no zero totals when normalising age-specific fertility 
+  distribution and net-migration age distribution.
+* Fix calculation for target number on treatment during transition from number to percent input.
+
+Package tidying to address R CMD CHECK warnings:
+
+* Add package imports for `anclik` and `binom`.
+* Align function signatures for S3 generics.
+* Remove `src/Makevars` with GCC specific `-pedantic` compiler flag.
+
 ## eppasm 0.7.0
 
 * In `read_specdp_demog_param()`, normalise the age-specific fertility distribution before disaggregating TFR to ASFR. This fixes small discrepancy between Spectrum and EPP-ASM population projection.

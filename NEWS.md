@@ -1,3 +1,11 @@
+## eppasm 0.7.1
+
+Package tidying to address R CMD CHECK warnings:
+
+* Add package imports for `anclik` and `binom`.
+* Align function signatures for S3 generics.
+* Remove `src/Makevars` with GCC specific `-pedantic` compiler flag.
+
 ## eppasm 0.7.0
 
 * In `read_specdp_demog_param()`, normalise the age-specific fertility distribution before disaggregating TFR to ASFR. This fixes small discrepancy between Spectrum and EPP-ASM population projection.

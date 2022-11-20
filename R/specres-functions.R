@@ -1,9 +1,9 @@
 #' @export 
-incid.specres <- function(x){
-  nyr <- ncol(x$newinf.m)
-  infections <- colSums(x$newinf.m[4:10,-1]+x$newinf.f[4:10,-1])
-  hivn_last <- colSums(x$totpop.m[4:10,-nyr]+x$totpop.f[4:10,-nyr]-(x$hivnum.m[4:10,-nyr]+x$hivnum.f[4:10,-nyr]))
-  hivn_curr <- colSums(x$totpop.m[4:10,-1]+x$totpop.f[4:10,-1]-(x$hivnum.m[4:10,-1]+x$hivnum.f[4:10,-1]))
+incid.specres <- function(mod, ...){
+  nyr <- ncol(mod$newinf.m)
+  infections <- colSums(mod$newinf.m[4:10,-1]+mod$newinf.f[4:10,-1])
+  hivn_last <- colSums(mod$totpop.m[4:10,-nyr]+mod$totpop.f[4:10,-nyr]-(mod$hivnum.m[4:10,-nyr]+mod$hivnum.f[4:10,-nyr]))
+  hivn_curr <- colSums(mod$totpop.m[4:10,-1]+mod$totpop.f[4:10,-1]-(mod$hivnum.m[4:10,-1]+mod$hivnum.f[4:10,-1]))
   hivn <- 0.5 * (hivn_last + hivn_curr)
   
   c(0, infections / hivn)
@@ -28,7 +28,9 @@ incid15to49_eppinput_specres <- function(x){
 }
 
 #' @export 
-prev.specres <- function(x) colSums(x$hivnum.m[4:10,]+x$hivnum.f[4:10,])/colSums(x$totpop.m[4:10,]+x$totpop.f[4:10,])
+prev.specres <- function(mod, ...) {
+  colSums(mod$hivnum.m[4:10,]+mod$hivnum.f[4:10,])/colSums(mod$totpop.m[4:10,]+mod$totpop.f[4:10,])
+}
 
 #' @export 
 aidsdeaths.specres <- function(x) colSums(x$aidsdeaths.m[-(1:3),]+x$aidsdeaths.f[-(1:3),])
@@ -86,10 +88,14 @@ artpop15to49.specres <- function(specres){colSums(specres$artnum.m[4:10,]+specre
 artpop15plus.specres <- function(specres){colSums(specres$artnum.m[4:17,]+specres$artnum.f[4:17,])}
 
 #' @export 
-artcov15to49.specres <- function(specres){colSums(specres$artnum.m[4:10,]+specres$artnum.f[4:10,]) / colSums(specres$hivnum.m[4:10,]+specres$hivnum.f[4:10,])}
+artcov15to49.specres <- function(mod, ...){
+  colSums(mod$artnum.m[4:10,]+mod$artnum.f[4:10,]) / colSums(mod$hivnum.m[4:10,]+mod$hivnum.f[4:10,])
+}
 
 #' @export 
-artcov15plus.specres <- function(specres){colSums(specres$artnum.m[4:17,]+specres$artnum.f[4:17,]) / colSums(specres$hivnum.m[4:17,]+specres$hivnum.f[4:17,])}
+artcov15plus.specres <- function(mod, ...){
+  colSums(mod$artnum.m[4:17,]+mod$artnum.f[4:17,]) / colSums(mod$hivnum.m[4:17,]+mod$hivnum.f[4:17,])
+}
 
 #' @export 
 age15pop.specres <- function(specres){colSums(specres$totpop["15",,])}
@@ -129,6 +135,6 @@ incid_sexratio.specres <- function(x){
 }
 
 #' @export 
-fnPregPrev.specres <- function(specres){
-  specres$hivpregwomen / specres$births
+fnPregPrev.specres <- function(mod, ...){
+  mod$hivpregwomen / mod$births
 }

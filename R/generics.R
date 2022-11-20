@@ -1,5 +1,8 @@
 
 #' Simulate model
+#'
+#' @param fp fixed parameter input object
+#' @param ... Arguments to be passed to methods
 #' 
 #' @export
 simmod <- function(fp, ...) UseMethod("simmod")

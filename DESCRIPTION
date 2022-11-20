@@ -12,6 +12,7 @@ Imports:
     fastmatch (>= 1.1),
     mvtnorm,
     reshape2,
+    vroom,
     xml2
 LinkingTo: BH
 Remotes:

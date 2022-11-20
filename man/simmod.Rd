@@ -6,6 +6,11 @@
 \usage{
 simmod(fp, ...)
 }
+\arguments{
+\item{fp}{fixed parameter input object}
+
+\item{...}{Arguments to be passed to methods}
+}
 \description{
 Simulate model
 }

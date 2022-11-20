@@ -23,25 +23,43 @@ get_dp_version <- function(dp){
   return(dp.vers)
 }
 
+#' Read Spectrum internal files file from PJNZ
+#'
+#' @param pjnz file path to Spectrum PJNZ file.
+#' 
 #' @export
-read_dp <- function(pjnz){
-  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+read_dp <- function(pjnz, use_ep5 = FALSE){
+
+  if(use_ep5) {
+    dpfile <- grep(".ep5$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  } else {
+    dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  }
+
+  dp <- vroom::vroom(unz(pjnz, dpfile), delim = ",",
+                     col_types = vroom::cols(.default = vroom::col_character()),
+                     .name_repair = "minimal")
+  dp <- as.data.frame(dp)
+
   return(dp)
 }
 
 #' @export
 read_pjn <- function(pjnz){
-  dpfile <- grep(".PJN$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
-  return(dp)
+  pjnfile <- grep(".PJN$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  pjn <- vroom::vroom(unz(pjnz, pjnfile), delim = ",",
+                     col_types = vroom::cols(.default = vroom::col_character()),
+                     .name_repair = "minimal")
+  pjn <- as.data.frame(pjn)
+  
+  return(pjn)
 }
 
 #' @export
 read_region <- function(pjnz){
   pjn <- read_pjn(pjnz)
   region <- pjn[which(pjn[,1] == "<Projection Parameters - Subnational Region Name2>")+2, 4]
-  if(region == "")
+  if(is.na(region))
     return(NULL)
   else
     return(region)
@@ -318,13 +336,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
 read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 
   ## read .DP file
-
-  if(use_ep5)
-    dpfile <- grep(".ep5$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-  else
-    dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-
-  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+  dp <- read_dp(pjnz, use_ep5)
 
   if(use_ep5)
     dp.vers <- "Spectrum2017"
@@ -466,7 +478,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
       ## has data, but not both.
 
       data_row <- dpsub("<HIVSexRatio MV>", 1:3, 4)
-      data_row <- which(data_row != "")
+      data_row <- which(data_row != "" & !is.na(data_row))
       if (length(data_row) != 1) {
         stop("DP tag <HIVSexRatio MV> not parsed correctly")
       }
@@ -837,12 +849,8 @@ read_demog_param <- function(upd.file, age.intervals = 1){
 #' @export
 read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
 
-  if(use_ep5)
-    dpfile <- grep(".ep5$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-  else
-    dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-
-  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+  ## read .DP file
+  dp <- read_dp(pjnz, use_ep5)
 
   if(use_ep5)
     dp.vers <- "Spectrum2017"
@@ -1095,8 +1103,7 @@ read_subp_file <- function(filepath){
 #' @export
 read_csavr_data <- function(pjnz){
 
-  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+  dp <- read_dp(pjnz)
 
   exists_dptag <- function(tag, tagcol=1){tag %in% dp[,tagcol]}
   dpsub <- function(tag, rows, cols, tagcol=1){
@@ -1131,8 +1138,7 @@ read_csavr_data <- function(pjnz){
 #' @export
 read_incid_input <- function(pjnz){
 
-  dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
-  dp <- read.csv(unz(pjnz, dpfile), as.is=TRUE)
+  dp <- read_dp(pjnz)
 
   exists_dptag <- function(tag, tagcol=1){tag %in% dp[,tagcol]}
   dpsub <- function(tag, rows, cols, tagcol=1){

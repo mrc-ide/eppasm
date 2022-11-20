@@ -1,5 +1,7 @@
 ## eppasm 0.7.1
 
+* Use `vroom::vroom()` to read PJNZ files; much faster for reading `.DP` file.
+
 Package tidying to address R CMD CHECK warnings:
 
 * Add package imports for `anclik` and `binom`.

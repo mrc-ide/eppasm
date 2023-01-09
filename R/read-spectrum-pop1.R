@@ -1,3 +1,4 @@
+#' @export
 read_pop1 <- function(pop1file, country, years = 2000:2021){
 
   print(country)

@@ -4,7 +4,7 @@
 \alias{read_dp}
 \title{Read Spectrum internal files file from PJNZ}
 \usage{
-read_dp(pjnz)
+read_dp(pjnz, use_ep5 = FALSE)
 }
 \arguments{
 \item{pjnz}{file path to Spectrum PJNZ file.}

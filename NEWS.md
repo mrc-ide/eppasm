@@ -1,3 +1,7 @@
+## eppasm 0.7.2
+
+* Add function `read_pop1()` to parse Spectrum `_pop1.xlsx` export file. 
+
 ## eppasm 0.7.1
 
 * Use `vroom::vroom()` to read PJNZ files; much faster for reading `.DP` file.

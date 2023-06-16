@@ -1263,6 +1263,7 @@ likelihood <- function(theta, fp, likdat, log=FALSE){
     lval <- sum(ll(theta, fp, likdat))
   else
     lval <- unlist(lapply(seq_len(nrow(theta)), function(i) sum(ll(theta[i,], fp, likdat))))
+  lval <- as.numeric(lval)
   if(log)
     return(lval)
   else

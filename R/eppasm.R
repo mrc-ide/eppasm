@@ -284,7 +284,7 @@ simmod.specfp <- function(fp, VERSION="C"){
           infections.ts <- calc_infections_simpletransm(fp, pop, hivpop, artpop, i, ii, rvec[ts])
         else
           infections.ts <- calc_infections_eppspectrum(fp, pop, hivpop, artpop, i, ii, rvec[ts])
-
+        print(attr(infections.ts, "incrate15to49.ts"))
         incrate15to49.ts.out[ts] <- attr(infections.ts, "incrate15to49.ts")
         prev15to49.ts.out[ts] <- attr(infections.ts, "prevcurr")
         prevlast <- attr(infections.ts, "prevcurr")

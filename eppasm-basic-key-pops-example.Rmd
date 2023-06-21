@@ -20,7 +20,7 @@ knitr::opts_chunk$set(
 rm(list=ls())
 devtools::install_github("mrc-ide/eppasm@new-master-csvar")
 devtools::install_github("jeffeaton/epp@deepa-dev")
-devtools::load_all("~/Documents/eppasm")
+devtools::load_all("~/eppasm")
 
 ```
 
@@ -30,33 +30,117 @@ devtools::load_all("~/Documents/eppasm")
 
 pjnz <- system.file("extdata/testpjnz", "senegal_2021_05_04.pjnz", package="eppasm")
 entry_rates = read.csv(system.file("extdata/entry_rates.csv", package = "eppasm"))
-pops = epp::read_spt(system.file("extdata/testpjnz", "senegal_2021_05_04.pjnz", package="eppasm"))
+pops = epp::read_epp_subpops(system.file("extdata/testpjnz", "senegal_2021_05_04.pjnz", package="eppasm"))$subpops
 entrant_prev = readRDS(system.file("extdata/entrantprev.RDS", package="eppasm"))
-sen <- prepare_spec_fit(pjnz, proj.end=2021.5, popupdate = FALSE)
+sen <- prepare_spec_fit(pjnz, proj.end=2021.5, popupdate = FALSE,popadjust  <- FALSE,old=T)
+sen <- lapply(sen, function(x) { ##Not sure why these broke, will figure out later
+  attr(x, "specfp")$entrantprev <- entrant_prev
+  return(x)})
+
 
 ```
 
 ## EPP-ASM model with single set of parameter inputs
 
-Prepare model parameters from parameter vector input
-```{r, single_param}
-theta_ur <- c(1.229537e-01, -2.101881e+00, -1.776640e+00 , 2.016388e+03,  9.474221e-03,
--6.841146e-02,  6.812545e-02 , 4.624824e+00 ,-3.241486e-01, -3.142873e+00)
+1. FSW
+```{r, fsw}
+theta_ur <- c(-2.670864e-01, -2.316150e+00 , -1.904780e+00 , 2.001125e+03,  -6.645448e-02, -8.046612e-02,  6.828645e-03 , 2.691552e+00 ,-2.498762e-01, -3.289677e+00)
 
 fp <- attr(sen$`Travailleurs du sexe`, "specfp")
 fp <- prepare_rhybrid(fp)
 fp$logitiota <- TRUE
 fp$incidmod <- "eppspectrum"
-attr(loc$`Travailleurs du sexe`,"specfp")$entrantprev <- fp_par$entrantprev
 
-```
-
-Simulate the model once.
-
-```{r, simulate_model}
 param <- fnCreateParam(theta_ur, fp)
 fp_par <- update(fp, list = param)
 
+fp = fp_par
+mod <- simmod.specfp(fp_par, VERSION = "R")
+
+prev(mod)
+incid(mod)
+
+```
+
+2. MSM
+```{r, hsh}
+###NOTE: this theta produces bad results
+theta_ur <- c(-7.69957270,    4.34549492 ,   9.86553878, 2000.65091117 ,   0.96482250
+,-0.29237606 ,  -0.60507495,    0.03440191 ,  10.84988719 ,  -1.66259182,
+  -4.79567164 ,  -0.02314575 ,  -5.25788700  ,  0.20440856)
+
+fp <- attr(sen$`HSH`, "specfp")
+fp <- prepare_rhybrid(fp)
+fp$logitiota <- TRUE
+fp$incidmod <- "eppspectrum"
+
+param <- fnCreateParam(theta_ur, fp)
+fp_par <- update(fp, list = param)
+
+fp = fp_par
+mod <- simmod.specfp(fp_par, VERSION = "R")
+
+prev(mod)
+incid(mod)
+
+
+```
+
+3. Clients of sex workers
+```{r, clients}
+fit = readRDS("~/Documents/tests/SEN_test16fitmod_all.RDS")
+theta_ur <- fit$`Clients des travailleurs du sexe`$par
+fp <- fit$`Clients des travailleurs du sexe`$fp
+attr(sen$`Clients des travailleurs du sexe`,"specfp")$SIM_YEARS
+fp$SIM_YEARS
+param <- fnCreateParam(theta_ur, fp)
+fp_par <- update(fp, list = param)
+
+fp = fp_par
+mod <- simmod.specfp(fp_par, VERSION = "R")
+attr(mod,"pop")
+prev(mod)
+incid(mod)
+
+
+```
+
+4. Remaining female population
+```{r, rem_female}
+###NOTE: this theta produces bad results
+theta_ur <- c(-1.26274738,    -2.61205946 ,   -1.66778213, 1999.10969385 ,   -0.10541140,-0.01386253,0.07363281,0.03575518,2.56873759, 0.93382730,
+-4.82080269,-0.67107338,-2.75000149,0.01137144)
+
+fp <- attr(sen$`Pop masculine restante`, "specfp")
+fp <- prepare_rhybrid(fp)
+fp$logitiota <- TRUE
+fp$incidmod <- "eppspectrum"
+
+param <- fnCreateParam(theta_ur, fp)
+fp_par <- update(fp, list = param)
+
+fp = fp_par
+mod <- simmod.specfp(fp_par, VERSION = "R")
+
+prev(mod)
+incid(mod)
+
+
+```
+
+5. Remaining male population
+```{r, rem_male}
+###NOTE: this theta produces bad results
+theta_ur <- c(-1.26274738,   -2.61205946 ,  -1.66778213, 1999.10969385 ,   -0.10541140,-0.01386253,0.07363281,0.03575518,2.56873759, 0.93382730, -4.82080269,-0.67107338,-2.75000149,0.01137144)
+
+fp <- attr(sen$`Pop masculine restante`, "specfp")
+fp$pregprev <- FALSE  
+fp <- prepare_rhybrid(fp)
+fp$logitiota <- TRUE
+fp$incidmod <- "eppspectrum"
+
+param <- fnCreateParam(theta_ur, fp)
+fp_par <- update(fp, list = param)
 
 fp = fp_par
 mod <- simmod.specfp(fp_par, VERSION = "R")
@@ -74,27 +158,26 @@ incid(mod)
 loc <- sen
 locfit = list()
 
-##Not sure why this broke in prepare_spec_fit but can use placeholder for now
-attr(loc$`Travailleurs du sexe`,"specfp")$entrantprev <- entrantprev
-attr(loc$`HSH`,"specfp")$entrantprev <- entrantprev
-attr(loc$`Clients des travailleurs du sexe`,"specfp")$entrantprev  <- entrantprev
-attr(loc$`Pop masculine restante`,"specfp")$entrantprev  <- entrantprev
-attr(loc$`Pop féminine restante`,"specfp")$entrantprev  <- entrantprev
+theta_ur <- c(1.229537e-01, -2.101881e+00, -1.776640e+00 , 2.016388e+03,  9.474221e-03, -6.841146e-02,  6.812545e-02 , 4.624824e+00 ,-3.241486e-01, -3.142873e+00)
+
+
+SAVE_THETA <- theta.last
 
 ##Because there are no women in these populations we can't use agepregprev function...
 attr(loc$`HSH`,"specfp")$pregprev <- FALSE  
 attr(loc$`Clients des travailleurs du sexe`,"specfp")$pregprev <- FALSE  
 attr(loc$`Pop masculine restante`,"specfp")$pregprev <- FALSE  
 
-locfit$HSH <- eppasm::fitmod(loc$HSH, eppmod = "rhybrid", rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE)
+locfit$HSH <- eppasm::fitmod(loc$HSH, eppmod = "rhybrid", rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, opt_init = theta_ur, number_k=250, optfit = TRUE)
 
-locfit$`Travailleurs du sexe`<- eppasm::fitmod(loc$`Travailleurs du sexe`, eppmod = "rhybrid", rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE)
+locfit$`Travailleurs du sexe`<- eppasm::fitmod(loc$`Travailleurs du sexe`, eppmod = "rhybrid", rw_start = 2005,B0=1e3, B=1e2, opt_init = theta_ur, opt_iter = 1, number_k=250, optfit = TRUE)
 
 locfit$`Clients des travailleurs du sexe`<- eppasm::fitmod(loc$`Clients des travailleurs du sexe`, eppmod = "rhybrid",rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE,opthess=FALSE)
 
-locfit$`Pop féminine restante`<- eppasm::fitmod(loc$`Pop féminine restante`,  eppmod = "rhybrid",  rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE)
+locfit$`Pop féminine restante`<- eppasm::fitmod(loc$`Pop féminine restante`,  eppmod = "rhybrid",  rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE,opthess=FALSE)
 
-locfit$`Pop masculine restante`<- eppasm::fitmod(loc$`Pop masculine restante`,  eppmod = "rhybrid", rw_start = 2005, B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE)
+theta_ur <- c(-1.26274738,   -2.61205946 ,  -1.66778213, 1999.10969385 ,   -0.10541140,-0.01386253,0.07363281,0.03575518,2.56873759, 0.93382730, -4.82080269,-0.67107338,-2.75000149,0.01137144)
+locfit$`Pop masculine restante`<- eppasm::fitmod(loc$`Pop masculine restante`,  eppmod = "rhybrid", optin_init = theta_ur, rw_start = 2005, B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE,opthess=FALSE)
 
 ```
 

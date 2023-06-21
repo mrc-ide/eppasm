@@ -15,26 +15,33 @@ calc_infections_eppspectrum <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
   hivp.ii <- sum(pop[p.age15to49.idx,,hivp.idx,i])
   hivp.ii <- hivp.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i])*(1-DT*(ii-1))
   hivp.ii <- hivp.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i])*(1-DT*(ii-1))
-
+  
   art.ii <- sum(artpop[,,h.age15to49.idx,,i])
-
+  
+  #Add_term required else this will always resolve to NaN for sex-specific subpopulations
   if (!any(is.na(hivpop[,,,i])) && !any(is.na(artpop[,,,,i])) ) {
     if (sum(hivpop[,h.age15to49.idx[1],,i]) + sum(artpop[,,h.age15to49.idx[1],,i])  > 0) {
-      art.ii <- art.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i] * colSums(artpop[,,h.age15to49.idx[1],,i],,2) / (colSums(hivpop[,h.age15to49.idx[1],,i],,1) + colSums(artpop[,,h.age15to49.idx[1],,i],,2))) * (1-DT*(ii-1))
+      add_term <- pop[p.age15to49.idx[1],,hivp.idx,i] * colSums(artpop[,,h.age15to49.idx[1],,i],,2) / (colSums(hivpop[,h.age15to49.idx[1],,i],,1) + colSums(artpop[,,h.age15to49.idx[1],,i],,2))
+      add_term[is.nan(add_term)] <- 0
+      art.ii <- art.ii - sum(add_term) * (1-DT*(ii-1))
     }
     if (sum(hivpop[,tail(h.age15to49.idx, 1)+1,,i]) + sum(artpop[,,tail(h.age15to49.idx, 1)+1,,i]) > 0) {
-      art.ii <- art.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i] * colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2) / (colSums(hivpop[,tail(h.age15to49.idx, 1)+1,,i],,1) + colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2))) * (1-DT*(ii-1))
+      add_term <- pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i] * colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2) / (colSums(hivpop[,tail(h.age15to49.idx, 1)+1,,i],,1) + colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2))
+      add_term[is.nan(add_term)] <- 0
+      art.ii <- art.ii + sum(add_term) * (1-DT*(ii-1))
     }
   }
 
   art.ii[is.nan(art.ii)] <- 0
-  transm_prev <- (hivp.ii - art.ii + fp$relinfectART*art.ii) / (hivn.ii+hivp.ii)
 
+  transm_prev <- (hivp.ii - art.ii + fp$relinfectART*art.ii) / (hivn.ii+hivp.ii)
+  
   incrate15to49.ts <- r_ts * transm_prev + fp$iota * (fp$proj.steps[ts] == fp$tsEpidemicStart)
   sexinc15to49.ts <- incrate15to49.ts*c(1, fp$incrr_sex[i])*sum(pop[p.age15to49.idx,,hivn.idx,i])/(sum(pop[p.age15to49.idx,m.idx,hivn.idx,i]) + fp$incrr_sex[i]*sum(pop[p.age15to49.idx, f.idx,hivn.idx,i]))
   agesex.inc <- sweep(fp$incrr_age[,,i], 2, sexinc15to49.ts/(colSums(pop[p.age15to49.idx,,hivn.idx,i] * fp$incrr_age[p.age15to49.idx,,i])/colSums(pop[p.age15to49.idx,,hivn.idx,i])), "*")
   
   infections.ts <- agesex.inc * pop[,,hivn.idx,i]
+
   infections.ts[is.nan(infections.ts)] <- 0
   
   attr(infections.ts, "incrate15to49.ts") <- incrate15to49.ts

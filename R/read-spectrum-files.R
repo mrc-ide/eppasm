@@ -1,5 +1,8 @@
 get_dp_version <- function(dp){
   dp.vers <- dp[2,1] # <General 3>: 2013, 2014 Spectrum files; <General5>: 2015 Spectrum files
+  if(!dp.vers %in% c("<General 3>", "<General5>","<FirstYear MV>","<FirstYear MV2>")){
+    dp.vers <- dp[6,1]
+  }
   if(!dp.vers %in% c("<General 3>", "<General5>"))
     if(dp.vers == "<FirstYear MV>")
       dp.vers <- "Spectrum2016"

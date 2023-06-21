@@ -7,7 +7,7 @@
 #'
 #' @export
 #' 
-prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=TRUE, use_ep5=FALSE){
+prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=TRUE, use_ep5=FALSE, old = FALSE){
 
   ## epp
   eppd <- epp::read_epp_data(pjnz)
@@ -48,7 +48,8 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
                                       proj_end=proj.end, epp_t0=epp_t0,
                                       popadjust = popadjust, 
                                       popupdate = popupdate, 
-                                      perc_urban = perc_urban)
+                                      perc_urban = perc_urban,
+                                      old = old)
   
 
   ## output
@@ -119,47 +120,74 @@ tidy_hhs_data <- function(eppd){
   hhs
 }
 
-create_subpop_specfp <- function(projp, demp, eppd, epp.subp.input, epp_t0=setNames(rep(1975, length(eppd)), names(eppd)), ..., popadjust=TRUE, popupdate=TRUE, perc_urban=NULL){
+create_subpop_specfp <- function(projp, demp, eppd, epp.subp.input, epp_t0=setNames(rep(1975, length(eppd)), names(eppd)), ..., popadjust=TRUE, popupdate=TRUE, perc_urban=NULL, old = NULL){
 
   country <- attr(eppd, "country")
   country_code <- attr(eppd, "country_code")
-
+  
+  entry_rates = read.csv(system.file("extdata/entry_rates.csv", package = "eppasm"))
+  
+  if(old){
+    entry_rates = read.csv(system.file("extdata/entry_rates_older.csv", package = "eppasm"))
+  }
+  
   ## Update demp for subpopulation 
   demp.subpop <- list()
   gfr_subpop <- list()
   for(subpop in names(eppd)){ 
+    print(subpop)
     ## if(country != "Malawi") ##Probably more terminology issues here.
-    strsubp <- if(subpop %in% c("Urbain", "Urbaine", "Urban")) "U"
-               else if(subpop %in%  c("Rural", "Rurale")) "R"
-               else if(subpop %in%  c("Travailleurs du sexe", "Female sex workers")) "FSW"
-               else if(subpop %in%  c("Pop masculine restante", "Remaining male pop")) "RMP"
-               else if(subpop %in%  c("Clients des travailleurs du sexe", "Clients of sex workers")) "CFSW"
-               else if(subpop %in%  c("Pop féminine restante", "Remaining female pop")) "RFP"
-               else if(subpop %in%  c("HSH", "MSM")) "MSM"
-               else subpop  # bloody French...
     demp.subpop[[subpop]] <- demp
+    
+    ##Added for key populations
+    if(epp.subp.input[[subpop]]$epidemicType == "concentrated"){
+      
+      strsubp <- if(subpop %in% c("Urbain", "Urbaine", "Urban")) "U"
+      else if(subpop %in%  c("Rural", "Rurale")) "R"
+      else if(subpop %in%  c("Travailleurs du sexe", "Female sex workers")) "FSW"
+      else if(subpop %in%  c("Pop masculine restante", "Remaining male pop")) "RMP"
+      else if(subpop %in%  c("Clients des travailleurs du sexe", "Clients of sex workers")) "CFSW"
+      else if(subpop %in%  c("Pop féminine restante", "Remaining female pop")) "RFP"
+      else if(subpop %in%  c("HSH", "MSM")) "MSM"
+      else if(subpop %in%  c("Population carcerale")) "INC"
+      else subpop
+      
+      demp.subpop[[subpop]]$basepop <- subp[[grep(paste0("\\_", country_code, "$"), names(subp))]][["N"]][,,dimnames(demp$basepop)[[3]]]
+      perc_male = epp.subp.input[[subpop]]$percent_male
+      turnover = epp.subp.input[[subpop]]$turnover
+      subpop1 <- pops[[subpop]][,'pop15to49']
+      
+      for(year in 1:dim(demp.subpop[[subpop]]$basepop)[3]){
+        
+        template <- demp.subpop[[subpop]]$basepop[,,year] 
+        if(turnover){
+          template[16:dim(demp.subpop[[subpop]]$basepop)[1],ifelse(perc_male == 1, 1,2)] <- subpop1[year] * entry_rates$proportion
+          ##Interplate to create data backwards to age 0, though this does not get used so should not affect results - 
+          #because entries are not determine by births or age 15 entrants
+          template[1:15,ifelse(perc_male == 1, 1,2)] <- approx(c(1,template[16,]), n = 15, method = "linear")$y
+          template[,ifelse(perc_male == 1, 2,1)] <- 0
+          demp.subpop[[subpop]]$basepop[,,year]  <- template
+        } else {
+          agedist <- template[16:81,1]/sum(template[16:81,1])
+          female_agedist <- template[16:81,2]/sum(template[16:81,2])
+          if(perc_male == 0) agedist <- female_agedist
+          template[16:dim(demp.subpop[[subpop]]$basepop)[1],ifelse(perc_male == 1, 1,2)] <- subpop1[year] * agedist
+          template[,ifelse(perc_male == 1, 2,1)] <- 0
+          demp.subpop[[subpop]]$basepop[,,year]  <- template
+        
+        }
+        
+        
+      }
+      
+    }
  
     if (popadjust) {
+      strsubp <- if(subpop %in% c("Urbain", "Urbaine", "Urban")) "U"
+                  else if(subpop %in%  c("Rural", "Rurale")) "R"
       demp.subpop[[subpop]]$basepop <- subp[[grep(paste0("\\_", country_code, "$"), names(subp))]][[strsubp]][,,dimnames(demp$basepop)[[3]]]
       demp.subpop[[subpop]]$netmigr[] <- 0
       
-      ##Added for key populations
-      if(is.null(demp.subpop[[subpop]]$basepop)){
-        
-        demp.subpop[[subpop]]$basepop <- subp[[grep(paste0("\\_", country_code, "$"), names(subp))]][["N"]][,,dimnames(demp$basepop)[[3]]]
-        perc_male = epp.subp.input[[subpop]]$percent_male
-        subpop1 <- pops[[subpop]][,'pop']
-        
-        for(year in 1:dim(demp.subpop[[subpop]]$basepop)[3]){
-          template <- demp.subpop[[subpop]]$basepop[,,year] 
-          template[1:14,] <- 0
-          template[15:dim(demp.subpop[[subpop]]$basepop)[1],ifelse(perc_male == 1, 1,2)] <- subpop1[year] * entry_rates$proportion
-          template[,ifelse(perc_male == 1, 2,1)] <- 0
-          demp.subpop[[subpop]]$basepop[,,year]  <- template
-         
-        }
-        
-      }
     }
       ## Record GFR for each subpop
      
@@ -217,8 +245,20 @@ create_subpop_specfp <- function(projp, demp, eppd, epp.subp.input, epp_t0=setNa
       gfr <- gfr_subpop[[subpop]]$gfr
       fpop15to44 <- sum(demp.subpop[[subpop]]$basepop[as.character(15:44), "Female", as.character(survyear)])
       prop_births <- fpop15to44*gfr / demp$births[as.character(survyear)]
-      
       demp.subpop[[subpop]]$births <- prop_births * demp$births
+      ##Not all key populations will have births
+      if(epp.subp.input[[subpop]]$epidemicType == "concentrated"){
+        if(subpop %in%  c("Travailleurs du sexe",  "Female sex workers", "FSW","HSH", "MSM","Clients des travailleurs du sexe", "Clients of sex workers")){ 
+          demp.subpop[[subpop]]$births <- demp.subpop[[subpop]]$births-demp.subpop[[subpop]]$births
+        }
+        
+        if(subpop %in%  c("Pop masculine restante", "Remaining male pop")){ 
+          if("Pop féminine restante" %in% (names(demp.subpop))) subpop_main <- "Pop féminine restante"
+          if("Remaining female pop" %in% (names(demp.subpop))) subpop_main <- "Remaining female pop"
+          demp.subpop[[subpop]]$births <- demp.subpop[[subpop_main]]$births
+        }
+        
+      }
     }
     
     ## Rake births to national births
@@ -270,7 +310,7 @@ create_subpop_specfp <- function(projp, demp, eppd, epp.subp.input, epp_t0=setNa
   
   specfp.subpop <- list()
   for(subpop in names(eppd))
-    specfp.subpop[[subpop]] <- create_spectrum_fixpar(projp.subpop[[subpop]], demp.subpop[[subpop]], epp.subp.input[[subpop]],..., popadjust=popadjust, time_epi_start=epp_t0[subpop])
+    specfp.subpop[[subpop]] <- create_spectrum_fixpar(projp.subpop[[subpop]], demp.subpop[[subpop]], epp.subp.input[[subpop]],..., popadjust=popadjust, time_epi_start=epp_t0[subpop], old=old)
 
   return(specfp.subpop)
 }
@@ -653,7 +693,7 @@ simfit.eppfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", pregprev=TRUE)
 sim_mod_list <- function(fit, rwproj=fit$fp$eppmod == "rspline",single_sim){
 
   if(single_sim){
-      fit$param <- list(fnCreateParam(apply(fit$resample,1,mean), fit$fp))
+      fit$param <- list(fnCreateParam(fit$par, fit$fp))
   } else {
     fit$param <- lapply(1:2, function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
     #fit$param <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
@@ -681,7 +721,7 @@ sim_mod_list <- function(fit, rwproj=fit$fp$eppmod == "rspline",single_sim){
     fp.list <- lapply(fit$param, function(par) update(fit$fp, list=par))
     mod.list <- lapply(fp.list, simmod, "R")
     ## strip unneeded attributes to preserve memory
-    keep <- c("class", "dim", "infections", "hivdeaths", "natdeaths", "hivpop", "artpop", "rvec", "popadjust","t.hivpop")
+    keep <- c("class", "dim", "infections", "hivdeaths", "natdeaths", "hivpop", "artpop", "rvec", "popadjust","t.hivpop","pop","allpop")
     mod.list <- lapply(mod.list, function(mod){ attributes(mod)[!names(attributes(mod)) %in% keep] <- NULL; mod})
     
 
@@ -697,31 +737,28 @@ aggr_specfit <- function(fitlist, turnover=FALSE, single_sim = FALSE,rwproj=sapp
   if(any(check_turnover) && turnover){
     turnover_attr = lapply(fitlist[check_turnover],function(x) return(list(assign_name = x$fp$assign_name, assignType = x$fp$assignmentType)))
     name = unlist(lapply(turnover_attr, function(j) j$assign_name))
-    for(n in names(name)){
-          agg_mod = allmod[name[n]][[1]]
-          t_mod = allmod[n][[1]]
+    for(n1 in names(name)){
+          agg_mod = allmod[name[n1]][[1]]
+          t_mod = allmod[n1][[1]]
           hivpop_dest = lapply(agg_mod,function(g) attr(g,"hivpop")) #Destination population
           hivpop_source = lapply(t_mod,function(g) attr(g,"hivpop")) #Source population
           t.hivpop = lapply(t_mod,function(g) attr(g,"t.hivpop")) #Turnover population
           
           #Add turnover population to the main population group if they were not represented in the data
           combine_pops = list(hivpop_dest , t.hivpop)
-          if(turnover_attr[[n]]$assignType == "add") {
-            add_t.pop = lapply(do.call(mapply, c(FUN=list, combine_pops, SIMPLIFY=FALSE)), Reduce, f="+")
+          if(turnover_attr[[n1]]$assignType == "add") {
+            add_t.pop = hivpop_dest[[1]] + t.hivpop[[1]]
             #Substitute back into modlist - SHOULD TO FIX THIS, RECURSIVE WILL BE  SLOW
-            for(i in 1:length(allmod[name[n]][[1]])){
-              attr(allmod[name[n]][[1]][[i]],"hivpop") <- add_t.pop[[i]]
+            for(i in 1:length(allmod[name[n1]][[1]])){
+              attr(allmod[name[n1]][[1]][[i]],"hivpop") <- add_t.pop[[i]]
             }
           } 
-          
-          #Remove turnover population from the source key population and sub back into modlist
-          # combine_pops = list(hivpop_source, t.hivpop)
-          # remove_t.pop = lapply(do.call(mapply, c(FUN=list, combine_pops, SIMPLIFY=FALSE)), Reduce, f="-")
-          # for(i in 1:length(allmod[name[n]][[1]])){
-          #   attr(allmod[n][[1]][[i]],"hivpop") <- remove_t.pop[[i]]
-          # }
+
       }
   }
+  
+  ##
+
   
   modaggr <- lapply(do.call(mapply, c(FUN=list, allmod, SIMPLIFY=FALSE)), Reduce, f="+")
 
@@ -739,8 +776,12 @@ aggr_specfit <- function(fitlist, turnover=FALSE, single_sim = FALSE,rwproj=sapp
   ##
   modaggr <- mapply("attr<-", modaggr, "prev15to49", lapply(modaggr, calc_prev15to49, fitlist[[1]]$fp), SIMPLIFY=FALSE)
   modaggr <- mapply("attr<-", modaggr, "incid15to49", lapply(modaggr, calc_incid15to49, fitlist[[1]]$fp), SIMPLIFY=FALSE)
+  allmod <- lapply(allmod, function(x) mapply("attr<-", x, "prev15to49", lapply(x, calc_prev15to49, fitlist[[1]]$fp), SIMPLIFY=FALSE))
+  allmod <- lapply(allmod, function(x) mapply("attr<-", x, "incid15to49", lapply(x, calc_incid15to49, fitlist[[1]]$fp), SIMPLIFY=FALSE))
   ##
   modaggr <- lapply(modaggr, "class<-", c("specaggr", "spec"))
+  allmod <- lapply(allmod, function(x) lapply(x, "class<-", c("specaggr", "spec")))
   
+  ##NEED TO GENERALIZE
   return(list(modaggr=modaggr, allmod = allmod))
 }

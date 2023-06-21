@@ -134,7 +134,7 @@ sample_invgamma_post <- function(x, prior_shape, prior_rate){
            rate=prior_rate + 0.5*rowSums(x^2))
 }
 
-extend_projection <- function(fit, proj_years){
+extend_projection <- function(fit, proj_years, no_resample = F){
 
 
   if(proj_years > fit$fp$ss$PROJ_YEARS)
@@ -157,6 +157,9 @@ extend_projection <- function(fit, proj_years){
   }
 
   theta <- fit$resample[,idx1:idx2, drop=FALSE]
+  if(no_resample){
+    theta <- fit$par[idx1:idx2]
+  }
 
   if(!is.null(fp$prior_args$rw_prior_sd))
      fit$rw_sigma <- fp$prior_args$rw_prior_sd
@@ -166,14 +169,31 @@ extend_projection <- function(fit, proj_years){
   nsteps <- fpnew$rt$n_rw - fp$rt$n_rw
 
   if(nsteps > 0){
-    thetanew <- matrix(nrow=nrow(theta), ncol=fpnew$rt$n_rw)
-    thetanew[,1:ncol(theta)] <- theta
-    thetanew[,ncol(theta)+1:nsteps] <- rnorm(nrow(theta)*nsteps, sd=fit$rw_sigma)
+    
+    if(no_resample){
+      
+      thetanew <- rep(NA, times =fpnew$rt$n_rw)
+      thetanew[1:length(theta)] <- theta
+      thetanew[length(theta)+1:nsteps] <- rnorm(nsteps, sd=fit$rw_sigma)
+      
+    } else {
+      thetanew <- matrix(nrow=nrow(theta), ncol=fpnew$rt$n_rw)
+      thetanew[,1:ncol(theta)] <- theta
+      thetanew[,ncol(theta)+1:nsteps] <- rnorm(nrow(theta)*nsteps, sd=fit$rw_sigma)
+    }
 
-    if(idx1 > 1)
-      fit$resample <- cbind(fit$resample[,1:(idx1-1), drop=FALSE], thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
-    else
-      fit$resample <- cbind(thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
+    if(no_resample){
+      if(idx1 > 1)
+        fit$par <- c(fit$par[1:(idx1-1)], thetanew, fit$par[(idx2+1):length(fit$par)])
+      else
+        fit$par <- c(thetanew, fit$par[(idx2+1):length(fit$par)])
+    } else {
+      if(idx1 > 1)
+        fit$resample <- cbind(fit$resample[,1:(idx1-1), drop=FALSE], thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
+      else
+        fit$resample <- cbind(thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
+    }
+
   } else {
     warning("already specified length, added rw_sigma only")
   }

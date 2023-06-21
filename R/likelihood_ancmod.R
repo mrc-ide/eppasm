@@ -147,7 +147,7 @@ sample_prior_ancmod <- function(n, ancmod, prior_args) {
 ###########################################
 
 ancbias.pr.mean <- 0.15
-ancbias.pr.sd <- 1.0
+ancbias.pr.sd <- 1
 vinfl.prior.rate <- 1/0.015
 
 ancrtsite.beta.pr.mean <- 0

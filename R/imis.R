@@ -27,7 +27,7 @@ imis <- function(B0, B, B_re, number_k, opt_k=NULL, fp, likdat,
 
   ## Draw initial samples from prior distribution
   X_k <- sample_prior(B0, fp)  # Draw initial samples from the prior distribution
-  print(paste0("prior sample: ",apply(X_k,2,mean)))
+  #print(paste0("prior sample: ",apply(X_k,2,mean)))
   cov_prior = cov(X_k)        # estimate of the prior covariance
 
   ## Locations and covariance of mixture components

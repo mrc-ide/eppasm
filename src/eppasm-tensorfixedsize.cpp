@@ -55,27 +55,27 @@ using namespace Eigen;
 SEXP getListElement(SEXP list, const char *str);
 int checkListElement(SEXP list, const char *str);
 
-void calc_infections_eppspectrum_tensor(const TensorMap<Tensor<double, 4>> pop_t,
-					const TensorMap<Tensor<double, 4>> hivpop_t,
-					const TensorMap<Tensor<double, 5>> artpop_t,					
-					double r_ts,
-					double relinfectART,
-					double iota,
-					double *incrr_sex,
-					const TensorMap<Tensor<double, 3>> incrr_age,
-					int t_ART_start,
-					double DT,
-					int t,
-					int hts,
-					int *hAG_START,
-					int *hAG_SPAN,
-					double *prevcurr,
-					double *incrate15to49_ts,
-					TensorFixedSize<double, Sizes<pAG, NG>>& infections_ts);
+void calc_infections_eppspectrum_tensorfixedsize(const TensorMap<Tensor<double, 4>> pop_t,
+						 const TensorMap<Tensor<double, 4>> hivpop_t,
+						 const TensorMap<Tensor<double, 5>> artpop_t,
+						 double r_ts,
+						 double relinfectART,
+						 double iota,
+						 double *incrr_sex,
+						 const TensorMap<Tensor<double, 3>> incrr_age,
+						 int t_ART_start,
+						 double DT,
+						 int t,
+						 int hts,
+						 int *hAG_START,
+						 int *hAG_SPAN,
+						 double *prevcurr,
+						 double *incrate15to49_ts,
+						 TensorFixedSize<double, Sizes<pAG, NG>>& infections_ts);
 
 extern "C" {
 
-  SEXP eppasm_tensorC(SEXP s_fp){
+  SEXP eppasm_tensorfixedsizeC(SEXP s_fp){
 
     ////////////////////////////////
     ////  set parameter values  ////
@@ -606,7 +606,7 @@ extern "C" {
           // calculate new infections by sex and age
 	  TensorFixedSize<double, Sizes<pAG, NG>> infections_ts;
           if(incidmod == INCIDMOD_EPPSPEC)
-            calc_infections_eppspectrum_tensor(pop_t,
+            calc_infections_eppspectrum_tensorfixedsize(pop_t,
 					       hivpop_t,
 					       artpop_t,
                                         rvec[ts], relinfectART, (projsteps[ts] == tsEpidemicStart) ? iota : 0.0,
@@ -981,23 +981,23 @@ extern "C" {
 }
 
 
-void calc_infections_eppspectrum_tensor(const TensorMap<Tensor<double, 4>> pop_t,
-					const TensorMap<Tensor<double, 4>> hivpop_t,
-					const TensorMap<Tensor<double, 5>> artpop_t,
-					double r_ts,
-					double relinfectART,
-					double iota,
-					double *incrr_sex,
-					const TensorMap<Tensor<double, 3>> incrr_age,
-					int t_ART_start,
-					double DT,
-					int t,
-					int hts,
-					int *hAG_START,
-					int *hAG_SPAN,
-					double *prevcurr,
-					double *incrate15to49_ts,
-					TensorFixedSize<double, Sizes<pAG, NG>>& infections_ts)
+void calc_infections_eppspectrum_tensorfixedsize(const TensorMap<Tensor<double, 4>> pop_t,
+						 const TensorMap<Tensor<double, 4>> hivpop_t,
+						 const TensorMap<Tensor<double, 5>> artpop_t,
+						 double r_ts,
+						 double relinfectART,
+						 double iota,
+						 double *incrr_sex,
+						 const TensorMap<Tensor<double, 3>> incrr_age,
+						 int t_ART_start,
+						 double DT,
+						 int t,
+						 int hts,
+						 int *hAG_START,
+						 int *hAG_SPAN,
+						 double *prevcurr,
+						 double *incrate15to49_ts,
+						 TensorFixedSize<double, Sizes<pAG, NG>>& infections_ts)
 {
 
   // sum population sizes

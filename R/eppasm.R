@@ -15,6 +15,8 @@ simmod.specfp <- function(fp, VERSION="C"){
     fp$incidmodInt <- match(fp$incidmod, c("eppspectrum"))-1L  # -1 for 0-based indexing
     if (VERSION == "tensor") {
       mod <- .Call("eppasm_tensorC", fp)
+    } else if (VERSION == "tensorfixedsize") {
+      mod <- .Call("eppasm_tensorfixedsizeC", fp)      
     } else {     
       mod <- .Call(eppasmC, fp)
     }

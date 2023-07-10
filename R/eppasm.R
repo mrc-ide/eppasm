@@ -181,6 +181,8 @@ simmod.specfp <- function(fp, VERSION="C"){
     pop[is.nan(pop)] <- 0
     
     if(turnover) t.pop[is.nan(t.pop)] <- 0
+    
+    #print(hivp_entrants)
   
     ##Probability of moving from 1 HIV age group to anther.
     #Proportion of 20-24 that would move into 25 (need to determine the proportion of 24 year olds)
@@ -412,7 +414,7 @@ simmod.specfp <- function(fp, VERSION="C"){
         pop[,,hivn.idx,i] <- pop[,,hivn.idx,i] - DT*infections.ts
         pop[,,hivp.idx,i] <- pop[,,hivp.idx,i] + DT*infections.ts
         infections[,,i] <- infections[,,i] + DT*infections.ts
-   
+        #print(pop[,,hivn.idx,i])
         #out_dat[(-21 + 11*i) + ii,"infections"] <- sum(infections[,,i])
         ###print(paste0("year: ",i," and time step", ii," ", length(pop[,,,i][pop[,,,i] < 0]) > 0))
         

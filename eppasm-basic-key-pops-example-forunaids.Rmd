@@ -38,7 +38,7 @@ spec_files = paste0("C:/Users/DeepaJahagirdar/Avenir Health Dropbox/Avenir Share
 
 pjnz <- system.file("extdata/testpjnz", "senegal_2021_05_04.pjnz", package="eppasm")
 
-#pjnz <- paste0(spec_files, "burkina_faso_2022_v3.PJNZ")
+pjnz <- paste0(spec_files, "Niger_2022_v2_22032022.pjnz")
 
 #15-49 populations file by subpopulation - gets used in create_subpop_specfp
 pops = epp::read_epp_subpops(pjnz)$subpops
@@ -65,9 +65,15 @@ loc <- lapply(loc, function(x) { ##Not sure why these broke, will figure out lat
 
 Prepare model parameters from parameter vector input
 ```{r, single_param}
-theta_ur  <- c(-5.074497e-01, -2.829512e+00, -1.529482e+00,  1.999455e+03, -6.620818e-02,-7.390377e-02, -3.267637e-03,  2.730426e+00, -3.984808e-01, -3.242572e+00)
+theta_ur  <- c( -3.415205e-01, -2.356644e+00, -1.869026e+00 , 2.002022e+03 ,-6.746011e-02 -8.147922e-02,9.314390e-04 , 3.151236e+00 ,-2.473241e-01, -3.274984e+00)
 
 
+theta_ur = apply(readRDS("~/HIV/tests/NIGER_test1pop_fem.RDS")$`Pop féminine restante`$resample,2,mean)
+
+theta_ur = apply(readRDS("~/HIV/tests/SEN_test2FSW.RDS")$`Travailleurs du sexe`$resample,2,mean)
+
+fp <- attr(loc$`Pop féminine restante`, "specfp")
+fp <- attr(loc$`Pop masculine restante`, "specfp")
 fp <- attr(loc$`Travailleurs du sexe`, "specfp")
 
 #time-varying omega, 2005-2020
@@ -97,16 +103,18 @@ Simulate the model once.
 ```{r, simulate_model}
 mod <- simmod.specfp(fp = fp_par, VERSION = "R")
 
-inc1 <- apply(attr(mod,"infections"),3,sum)
-inc2 <- apply(attr(mod,"infections"),3,sum)
+inc1 <- apply(attr(mod,"infections"),3,sum) #TV omega
+inc2 <- apply(attr(mod,"infections"),3,sum) #No TV
+inc3 <- apply(attr(mod,"infections"),3,sum) #No ART
 
 inc1a <-  attr(mod,"incid15to49")
 inc2a <-  attr(mod,"incid15to49")
 prev2 <-  apply(attr(mod,"hivpop"),4,sum)
 plot(prev1[1:48],type="l")
 lines(prev2[1:48],col="red")
-plot(inc1[1:49],type="l")
-lines(inc2[1:49],col="red")
+plot(inc2[1:49],type="l")
+lines(inc1[1:49],col="blue")
+lines(inc3[1:49],col="red")
 
 prev1 = data.table(indicator = "prevalence", simulation = c(rep("tv_omega",length(prev_w_tv_omega)*2),rep("omega",length(prev_w_tv_omega)*2)),
                    value = c(prev_w_tv_omega,prev_omega),
@@ -141,17 +149,18 @@ theta_ur = apply(readRDS("~/HIV/tests/SEN_test1HSH.RDS")$`HSH`$resample,2,mean)
 locfit$HSH <- eppasm::fitmod(loc$HSH, eppmod = "rhybrid", rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE, opthess=FALSE, opt_init = theta_ur)
 saveRDS(locfit,"~/HIV/tests/NIGER_test1HSH.RDS")
 
-theta_ur = apply(readRDS("~/HIV/tests/SEN_test1FSW.RDS")$`Travailleurs du sexe`$resample,2,mean)
-locfit$`Travailleurs du sexe`<- eppasm::fitmod(loc$`Travailleurs du sexe`, eppmod = "rhybrid", rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE, opthess=FALSE, opt_init = theta_ur)
-saveRDS(locfit,"~/HIV/tests/NIGER_test1FSW.RDS")
-
+theta_ur = apply(readRDS("~/HIV/tests/SEN_test2FSW.RDS")$`Travailleurs du sexe`$resample,2,mean)
+locfit$`Travailleurs du sexe`<- eppasm::fitmod(loc$`Travailleurs du sexe`, eppmod = "rhybrid", rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = FALSE, opthess=FALSE, opt_init = theta_ur)
+saveRDS(locfit,"~/HIV/tests/SEN_test2FSW.RDS")
+#Test1: original
+#Test2 : revise ART calculation
 
 theta_ur = apply(readRDS("~/HIV/tests/SEN_test1CFSW.RDS")$`Clients des travailleurs du sexe`$resample,2,mean)
 locfit$`Clients des travailleurs du sexe`<- eppasm::fitmod(loc$`Clients des travailleurs du sexe`, eppmod = "rhybrid",rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE,  opt_init = theta_ur, opthess=FALSE)
 saveRDS(locfit,"~/HIV/tests/NIGER_test1CFSW.RDS")
 
 theta_ur = apply(readRDS("~/HIV/tests/SEN_test1pop_fem.RDS")$`Pop féminine restante`$resample,2,mean)
-locfit$`Pop féminine restante`<- eppasm::fitmod(loc$`Pop féminine restante`,  eppmod = "rhybrid",  rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = TRUE, opthess=FALSE,  opt_init = theta_ur)
+locfit$`Pop féminine restante`<- eppasm::fitmod(loc$`Pop féminine restante`,  eppmod = "rhybrid",  rw_start = 2005,B0=1e3, B=1e2, opt_iter = 1, number_k=250, optfit = FALSE, opthess=FALSE,  opt_init = theta_ur)
 saveRDS(locfit,"~/HIV/tests/NIGER_test1pop_fem.RDS")
 
 theta_ur = apply(readRDS("~/HIV/tests/SEN_test1pop_masc.RDS")$`Pop masculine restante`$resample,2,mean)

@@ -27,7 +27,7 @@ install.packages("devtool")
 devtools::install_github("mrc-ide/eppasm@new-master")
 library(eppasm)
 devtools::load_all()
-devtools::load_all(path = "~/Documents/eppasm/")
+devtools::load_all("~/eppasm")
 ```
 
 ## Preparing EPP-ASM inputs

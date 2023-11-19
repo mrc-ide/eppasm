@@ -1,3 +1,7 @@
+## eppasm 0.7.3
+
+* Bug fix: account for end-year net migration in the ART population in the first year of ART start.
+
 ## eppasm 0.7.2
 
 * Add function `read_pop1()` to parse Spectrum `_pop1.xlsx` export file. 

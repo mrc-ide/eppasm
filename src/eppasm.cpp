@@ -981,7 +981,7 @@ extern "C" {
 	    double migrate_ha = hivpop_ha > 0 ? mig_ha / hivpop_ha : 0.0;
 	    for(int hm = 0; hm < hDS; hm++){
 	      hivpop[t][g][ha][hm] *= 1+migrate_ha;
-	      if(t > t_ART_start)
+	      if(t >= t_ART_start)
 		for(int hu = 0; hu < hTS; hu++)
 		  artpop[t][g][ha][hm][hu] *= 1+migrate_ha;
 	    } // loop over hm

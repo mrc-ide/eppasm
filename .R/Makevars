@@ -1,4 +1,7 @@
-CXX14FLAGS=-O2 -mtune=native -march=native -Wno-unused-variable -Wno-unused-function  -Wno-unknown-pragmas
+CXXFLAGS = -Wall -mtune=core2 -O3 $(LTO) #set_by_rstan
+R_XTRA_CPPFLAGS =  -I$(R_INCLUDE_DIR)   #set_by_rstan
 CC=clang
-CXX14=clang++ -arch x86_64 -ftemplate-depth-256 -std=c++1y
-CXX = clang++ -std=c++14
+CXX=clang++ -arch x86_64 -ftemplate-depth-256
+CXX=clang++
+
+ 

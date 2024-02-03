@@ -216,7 +216,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   fp$who34percelig <- who34percelig
 
   if (is.null(art_dropout_recover_cd4)) { 
-    fp$art_dropout_recover_cd4 <- if (projp$spectrum_version >= "6.2") {TRUE} else {FALSE}
+    fp$art_dropout_recover_cd4 <- if (projp$spectrum_version >= "6.14") {TRUE} else {FALSE}
   } else {
     fp$art_dropout_recover_cd4 <- art_dropout_recover_cd4
   }

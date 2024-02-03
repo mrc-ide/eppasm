@@ -244,7 +244,18 @@ simmod.specfp <- function(fp, VERSION="C", ...) {
 
         ## ART dropout
         ## remove proportion from all adult ART groups back to untreated pop
-        grad <- grad + fp$art_dropout[i]*colSums(artpop[,,,,i])
+        art_dropout_ii <- fp$art_dropout[i]*colSums(artpop[1:2,,,,i])
+        if (fp$art_dropout_recover_cd4) {
+          art_dropout_ii[1,,] <- art_dropout_ii[1,,] +
+            fp$art_dropout[i] * artpop[3:fp$ss$hTS,1,,,i]
+          art_dropout_ii[-fp$ss$hDS,,] <- art_dropout_ii[-fp$ss$hDS,,] +
+            fp$art_dropout[i] * artpop[3:fp$ss$hTS,-1,,,i]
+        } else {
+          art_dropout_ii <- art_dropout_ii +
+            fp$art_dropout[i] * artpop[3:fp$ss$hTS,,,,i]
+        }
+
+        grad <- grad + art_dropout_ii
         gradART <- gradART - fp$art_dropout[i]*artpop[,,,,i]
 
         ## calculate number eligible for ART

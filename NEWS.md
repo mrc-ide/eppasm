@@ -1,3 +1,7 @@
+## eppasm 0.7.4
+
+* Implement recovery to next higher CD4 category following ART interruption for those on ART greater than one year.
+
 ## eppasm 0.7.3
 
 * Bug fix: account for end-year net migration in the ART population in the first year of ART start.

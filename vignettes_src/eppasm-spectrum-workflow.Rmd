@@ -120,7 +120,7 @@ outputs_age$outcome <- factor(outputs_age$outcome, c("totpop", "hivpop", "infect
 dcast(outputs_age[sampleid == 1], year + sex + age ~ outcome) %>%
   write.csv("bwaggr_ageoutputs_single-resample_v2.csv", row.names=FALSE)
 
-dcast(outputs_age[ , .(value = median(value)), .(year, sex, age, outcome)],
+dcast(outputs_age[ , .(value = stats::median(value)), .(year, sex, age, outcome)],
       year + sex + age ~ outcome) %>%
   write.csv("bwaggr_ageoutputs_median_v2.csv", row.names=FALSE)
 
@@ -161,7 +161,7 @@ outputs_aggr$outcome <- factor(outputs_aggr$outcome,
 dcast(outputs_aggr[sampleid == 1], year ~ outcome) %>%
   write.csv("bwaggr_aggroutputs_single-resample_v2.csv", row.names=FALSE)
 
-dcast(outputs_aggr[ , .(value = median(value)), .(year, outcome)],
+dcast(outputs_aggr[ , .(value = stats::median(value)), .(year, outcome)],
       year ~ outcome) %>%
   write.csv("bwaggr_aggroutputs_median_v2.csv", row.names=FALSE)
 
@@ -200,7 +200,7 @@ bwfit <- fitmod(bw,
 bwfit <- extend_projection(bwfit, 52)
 
 bwfit$param <- lapply(seq_len(nrow(bwfit$resample)), function(ii) fnCreateParam(bwfit$resample[ii,], bwfit$fp))
-fplist <- lapply(bwfit$param, function(par) update(bwfit$fp, list=par))
+fplist <- lapply(bwfit$param, function(par) stats::update(bwfit$fp, list=par))
 bwnat <- lapply(fplist, simmod)
 
 bwnat <- sim_mod_list(bwfit)
@@ -245,7 +245,7 @@ outputs_age$outcome <- factor(outputs_age$outcome, c("totpop", "hivpop", "infect
 dcast(outputs_age[sampleid == 1], year + sex + age ~ outcome) %>%
   write.csv("bwnat_ageoutputs_single-resample_v2.csv", row.names=FALSE)
 
-dcast(outputs_age[ , .(value = median(value)), .(year, sex, age, outcome)],
+dcast(outputs_age[ , .(value = stats::median(value)), .(year, sex, age, outcome)],
       year + sex + age ~ outcome) %>%
   write.csv("bwnat_ageoutputs_median_v2.csv", row.names=FALSE)
 
@@ -278,7 +278,7 @@ outputs_aggr$outcome <- factor(outputs_aggr$outcome,
 dcast(outputs_aggr[sampleid == 1], year ~ outcome) %>%
   write.csv("bwnat_aggroutputs_single-resample_v2.csv", row.names=FALSE)
 
-dcast(outputs_aggr[ , .(value = median(value)), .(year, outcome)],
+dcast(outputs_aggr[ , .(value = stats::median(value)), .(year, outcome)],
       year ~ outcome) %>%
   write.csv("bwnat_aggroutputs_median_v2.csv", row.names=FALSE)
 

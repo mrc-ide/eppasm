@@ -48,7 +48,7 @@ prepare_spec_fit <- function(pjnz, proj.end=2016.5, popadjust = NULL, popupdate=
   
 
   ## output
-  val <- setNames(vector("list", length(eppd)), names(eppd))
+  val <- stats::setNames(vector("list", length(eppd)), names(eppd))
 
   set.list.attr <- function(obj, attrib, value.lst)
     mapply(function(set, value){ attributes(set)[[attrib]] <- value; set}, obj, value.lst)
@@ -109,7 +109,7 @@ tidy_hhs_data <- function(eppd){
   hhs
 }
 
-create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, length(eppd)), names(eppd)), ..., popadjust=TRUE, popupdate=TRUE, perc_urban=NULL){
+create_subpop_specfp <- function(projp, demp, eppd, epp_t0=stats::setNames(rep(1975, length(eppd)), names(eppd)), ..., popadjust=TRUE, popupdate=TRUE, perc_urban=NULL){
 
   country <- attr(eppd, "country")
   country_code <- attr(eppd, "country_code")
@@ -195,7 +195,7 @@ create_subpop_specfp <- function(projp, demp, eppd, epp_t0=setNames(rep(1975, le
   subpop.dist <- prop.table(sapply(demp.subpop, get15to49pop, 2010))
   
   if(nrow(subset(eppd[[1]]$hhs, used)) != 0){ # HH survey data available
-    hhsprev.means <- sapply(lapply(eppd, function(dat) na.omit(dat$hhs$prev[dat$hhs$used])), mean)
+    hhsprev.means <- sapply(lapply(eppd, function(dat) stats::na.omit(dat$hhs$prev[dat$hhs$used])), mean)
     art.dist <- prop.table(subpop.dist * hhsprev.means)
   } else {  ## no HH survey data
     ## Apportion ART according to relative average ANC prevalence in each subpopulation
@@ -244,7 +244,7 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps
   epp.input <- epp::read_epp_input(pjnz)
 
   ## output
-  val <- setNames(vector("list", length(eppd)), names(eppd))
+  val <- stats::setNames(vector("list", length(eppd)), names(eppd))
   val <- list()
 
   ## aggregate census data across regions
@@ -253,7 +253,7 @@ prepare_national_fit <- function(pjnz, upd.path=NULL, proj.end=2013.5, hiv_steps
     ancrtcens <- subset(ancrtcens, !is.na(prev) & !is.na(n))
     if(nrow(ancrtcens)){
       ancrtcens$x <- ancrtcens$prev * ancrtcens$n
-      ancrtcens <- aggregate(cbind(x,n) ~ year, ancrtcens, sum)
+      ancrtcens <- stats::aggregate(cbind(x,n) ~ year, ancrtcens, sum)
       ancrtcens$prev <- ancrtcens$x / ancrtcens$n
       ancrtcens <- ancrtcens[c("year", "prev", "n")]
     }
@@ -284,9 +284,9 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
   ## ... : updates to fixed parameters (fp) object to specify fitting options
 
   if(epp)
-    fp <- update(attr(obj, 'eppfp'), ...)
+    fp <- stats::update(attr(obj, 'eppfp'), ...)
   else
-    fp <- update(attr(obj, 'specfp'), ...)
+    fp <- stats::update(attr(obj, 'specfp'), ...)
 
 
   ## Prepare likelihood data
@@ -347,13 +347,13 @@ fitmod <- function(obj, ..., epp=FALSE, B0 = 1e5, B = 1e4, B.re = 3000, number_k
       lpost0 <- likelihood(X0, fp, likdat, log=TRUE) + prior(X0, fp, log=TRUE)
       opt_init <- X0[which.max(lpost0)[1],]
     }
-    opt <- optim(opt_init, optfn, fp=fp, likdat=likdat, method=opt_method, control=list(fnscale=-1, trace=4, maxit=opt_maxit, ndeps=rep(opt_diffstep, length(opt_init))))
+    opt <- stats::optim(opt_init, optfn, fp=fp, likdat=likdat, method=opt_method, control=list(fnscale=-1, trace=4, maxit=opt_maxit, ndeps=rep(opt_diffstep, length(opt_init))))
     opt$fp <- fp
     opt$likdat <- likdat
     opt$param <- fnCreateParam(opt$par, fp)
-    opt$mod <- simmod(update(fp, list=opt$param))
+    opt$mod <- simmod(stats::update(fp, list=opt$param))
     if(opthess){
-      opt$hessian <- optimHess(opt_init, optfn, fp=fp, likdat=likdat,
+      opt$hessian <- stats::optimHess(opt_init, optfn, fp=fp, likdat=likdat,
                                control=list(fnscale=-1,
                                             trace=4,
                                             maxit=1e3,
@@ -450,7 +450,7 @@ simfit.specfit <- function(fit,
     if(rwproj)
       fit <- rw_projection(fit)
 
-    fp_list <- lapply(fit$param, function(par) update(fit$fp, list=par))
+    fp_list <- lapply(fit$param, function(par) stats::update(fit$fp, list=par))
     mod.list <- lapply(fp_list, simmod)
 
   } else {
@@ -598,7 +598,7 @@ simfit.eppfit <- function(fit, rwproj=fit$fp$eppmod == "rspline", pregprev=TRUE)
     fit$param <- lapply(fit$param, function(par){par$rvec <- sim_rvec_rwproj(par$rvec, firstidx, lastidx, fit$fp$dt); par})
   }
   
-  fp.list <- lapply(fit$param, function(par) update(fit$fp, list=par))
+  fp.list <- lapply(fit$param, function(par) stats::update(fit$fp, list=par))
   mod.list <- lapply(fp.list, simmod)
   
   fit$rvec <- sapply(mod.list, attr, "rvec")
@@ -636,7 +636,7 @@ sim_mod_list <- function(fit, rwproj=fit$fp$eppmod == "rspline"){
     fit$param <- lapply(fit$param, function(par){par$rvec <- epp:::sim_rvec_rwproj(par$rvec, firstidx, lastidx, dt); par})
   }
   
-  fp.list <- lapply(fit$param, function(par) update(fit$fp, list=par))
+  fp.list <- lapply(fit$param, function(par) stats::update(fit$fp, list=par))
   mod.list <- lapply(fp.list, simmod)
 
   ## strip unneeded attributes to preserve memory

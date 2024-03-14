@@ -88,7 +88,7 @@ prepare_rhybrid <- function(fp,
 
   ## Linearly interpolate between 0 and 1 over the period (rw_start, rw_start + rw_trans)
   ## Add a small value to avoid R error in approx() if rw_trans = 0
-  rt$rw_transition <- approx(c(rw_start, rw_start + rw_trans + 0.001), c(0, 1), rt$rw_steps[-1], rule = 2)$y
+  rt$rw_transition <- stats::approx(c(rw_start, rw_start + rw_trans + 0.001), c(0, 1), rt$rw_steps[-1], rule = 2)$y
   
   rt$dt <- 1 / fp$ss$hiv_steps_per_year
 
@@ -129,7 +129,7 @@ create_rvec <- function(theta, rt){
 sample_invgamma_post <- function(x, prior_shape, prior_rate){
   ## x: n_samples, n_knots
   if(is.vector(x)) x <- matrix(x, 1)
-  1/rgamma(nrow(x), shape=prior_shape + ncol(x)/2,
+  1/stats::rgamma(nrow(x), shape=prior_shape + ncol(x)/2,
            rate=prior_rate + 0.5*rowSums(x^2))
 }
 
@@ -167,7 +167,7 @@ extend_projection <- function(fit, proj_years){
   if(nsteps > 0){
     thetanew <- matrix(nrow=nrow(theta), ncol=fpnew$rt$n_rw)
     thetanew[,1:ncol(theta)] <- theta
-    thetanew[,ncol(theta)+1:nsteps] <- rnorm(nrow(theta)*nsteps, sd=fit$rw_sigma)
+    thetanew[,ncol(theta)+1:nsteps] <- stats::rnorm(nrow(theta)*nsteps, sd=fit$rw_sigma)
 
     if(idx1 > 1)
       fit$resample <- cbind(fit$resample[,1:(idx1-1), drop=FALSE], thetanew, fit$resample[,(idx2+1):ncol(fit$resample), drop=FALSE])
@@ -192,11 +192,11 @@ calc_rtrend_rt <- function(t, fp, rveclast, prevlast, pop, i, ii){
 
   hivn.ii <- sum(pop[p.age15to49.idx,,hivn.idx,i])
   hivn.ii <- hivn.ii - sum(pop[p.age15to49.idx[1],,hivn.idx,i])*(1-DT*(ii-1))
-  hivn.ii <- hivn.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivn.idx,i])*(1-DT*(ii-1))
+  hivn.ii <- hivn.ii + sum(pop[utils::tail(p.age15to49.idx,1)+1,,hivn.idx,i])*(1-DT*(ii-1))
 
   hivp.ii <- sum(pop[p.age15to49.idx,,hivp.idx,i])
   hivp.ii <- hivp.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i])*(1-DT*(ii-1))
-  hivp.ii <- hivp.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i])*(1-DT*(ii-1))
+  hivp.ii <- hivp.ii + sum(pop[utils::tail(p.age15to49.idx,1)+1,,hivp.idx,i])*(1-DT*(ii-1))
 
   prevcurr <- hivp.ii / (hivn.ii + hivp.ii)
 
@@ -247,7 +247,7 @@ lprior_iota <- function(par, fp){
   if(exists("logitiota", fp) && fp$logitiota)
     ldinvlogit(par)  # Note: parameter is defined on range logiota.unif.prior, so no need to check bound
   else
-    dunif(par, logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
+    stats::dunif(par, logiota.unif.prior[1], logiota.unif.prior[2], log=TRUE)
 }
 
 sample_iota <- function(n, fp){
@@ -256,9 +256,9 @@ sample_iota <- function(n, fp){
       assign(names(fp$prior_args)[i], fp$prior_args[[i]])
   }
   if(exists("logitiota", fp) && fp$logitiota)
-    return(logit(runif(n)))
+    return(logit(stats::runif(n)))
   else
-    runif(n, logiota.unif.prior[1], logiota.unif.prior[2])
+    stats::runif(n, logiota.unif.prior[1], logiota.unif.prior[2])
 }
 
 ldsamp_iota <- lprior_iota

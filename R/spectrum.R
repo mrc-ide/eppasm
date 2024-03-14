@@ -238,7 +238,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   
   ## Vertical transmission and survival to AGE_START for lagged births
   
-  fp$verttrans_lag <- setNames(c(rep(0, AGE_START), projp$verttrans[1:(PROJ_YEARS-AGE_START)]), proj_start:proj_end)
+  fp$verttrans_lag <- stats::setNames(c(rep(0, AGE_START), projp$verttrans[1:(PROJ_YEARS-AGE_START)]), proj_start:proj_end)
 
   ## calculate probability of HIV death in each year
   hivqx <- apply(projp$hivdeaths[1:AGE_START,,], c(1,3), sum) / apply(projp$hivpop[1:AGE_START,,], c(1,3), sum)
@@ -247,7 +247,7 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   ## probability of surviving to AGE_START for each cohort (product along diagonal)
   cumhivsurv <- sapply(1:(PROJ_YEARS - AGE_START), function(i) prod(1-hivqx[cbind(1:15, i-1+1:15)]))
 
-  fp$paedsurv_lag <- setNames(c(rep(1, AGE_START), cumhivsurv), proj_start:proj_end)
+  fp$paedsurv_lag <- stats::setNames(c(rep(1, AGE_START), cumhivsurv), proj_start:proj_end)
 
   ## ## EQUIVALENT CODE, easier to read
   ## fp$paedsurv_lag <- rep(1.0, PROJ_YEARS)

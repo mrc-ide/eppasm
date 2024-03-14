@@ -26,7 +26,7 @@ tidy_output <- function(fit, modlab, country=NA, eppregion=NA, ancsite = TRUE){
   if(fit$fp$eppmod == "rspline")
     fit <- rw_projection(fit)
   
-  fp_list <- lapply(param_list, function(par) update(fit$fp, list=par))
+  fp_list <- lapply(param_list, function(par) stats::update(fit$fp, list=par))
   mod_list <- lapply(fp_list, simmod)
 
 
@@ -214,7 +214,7 @@ plot_output <- function(out, data_color = "grey20", th = theme_light()){
   out$pregprev$indicator <- "Prevalence among pregnant women"
   df <- rbind(subset(out$core, year %in% 1990:2018),
               subset(out$pregprev, agegr == "15-49",
-                     c(country, eppregion, year, indicator, model, mean, se, median, lower, upper)))
+                     c(country, eppregion, year, indicator, model, mean, se, stats::median, lower, upper)))
 
   obs <- data.frame(indicator = "Prevalence 15-49y",
                     subset(prev_15to49_eppregion,
@@ -257,7 +257,7 @@ plot_output <- function(out, data_color = "grey20", th = theme_light()){
   ## ANC prevalence
 
   df <- out$pregprev
-  df$agegr <- relevel(factor(df$agegr), "15-49")
+  df$agegr <- stats::relevel(factor(df$agegr), "15-49")
 
   obs <- subset(ancrtcens, country == out$country & eppregion == out$eppregion)
   if(nrow(obs))
@@ -265,10 +265,10 @@ plot_output <- function(out, data_color = "grey20", th = theme_light()){
   if(nrow(obs))
     obs$agegr <- factor(obs$agegr, levels(df$agegr))
   x.ancrt <- (obs$prev*obs$n+0.5)/(obs$n+1)
-  obs$W.ancrt <- qnorm(x.ancrt)
+  obs$W.ancrt <- stats::qnorm(x.ancrt)
   obs$v.ancrt <- 2*pi*exp(obs$W.ancrt^2)*x.ancrt*(1-x.ancrt)/obs$n
-  obs$ci_l <- with(obs, pnorm(W.ancrt - qnorm(0.975) * sqrt(v.ancrt)))
-  obs$ci_u <- with(obs, pnorm(W.ancrt + qnorm(0.975) * sqrt(v.ancrt)))
+  obs$ci_l <- with(obs, stats::pnorm(W.ancrt - stats::qnorm(0.975) * sqrt(v.ancrt)))
+  obs$ci_u <- with(obs, stats::pnorm(W.ancrt + stats::qnorm(0.975) * sqrt(v.ancrt)))
 
   ancsiteobs <- subset(ancsitedata, country == out$country &
                                     eppregion == out$eppregion &
@@ -303,7 +303,7 @@ get_pointwise_ll <- function(fit, newdata = fit$likdat){
   if(fit$fp$eppmod == "rhybrid")
     fit <- extend_projection(fit, proj_years = fit$fp$ss$PROJ_YEARS)
   
-  fp_list <- lapply(param_list, function(par) update(fit$fp, list=par))
+  fp_list <- lapply(param_list, function(par) stats::update(fit$fp, list=par))
   mod_list <- lapply(fp_list, simmod)
 
 

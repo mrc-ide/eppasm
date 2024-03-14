@@ -12,25 +12,25 @@ outpred_prev <- function(fit, out, subsample=NULL){
   ## Impute missing standard errors based on model prevalence
   na_i <- which(is.na(dat$sd.W.hhs))
   na_p <- rowMeans(fit$ageprevdat)[na_i]
-  dat$sd.W.hhs[na_i] <- sqrt(na_p * (1 - na_p) / dat$n_eff[na_i]) / dnorm(qnorm(na_p))
+  dat$sd.W.hhs[na_i] <- sqrt(na_p * (1 - na_p) / dat$n_eff[na_i]) / stats::dnorm(stats::qnorm(na_p))
 
 
   M <- fit$ageprevdat
-  qM <- qnorm(M)
-  qpred <- array(rnorm(length(qM), qM, dat$sd.W.hhs), dim(qM))
+  qM <- stats::qnorm(M)
+  qpred <- array(stats::rnorm(length(qM), qM, dat$sd.W.hhs), dim(qM))
 
   elpd <- log(rowMeans(exp(ldbinom(dat$x_eff, dat$n_eff, M))))
   resid <- rowMeans(M) - dat$prev
-  rse <- apply(M, 1, sd) / rowMeans(M)
+  rse <- apply(M, 1, stats::sd) / rowMeans(M)
   mae <- rowMeans(abs(M - dat$prev))
   rmse <- sqrt(rowMeans((M - dat$prev)^2))
 
-  elpd_q <- log(rowMeans(dnorm(dat$W.hhs, qM, dat$sd.W.hhs)))
-  rse_q <- apply(qM, 1, sd) / rowMeans(qM)
+  elpd_q <- log(rowMeans(stats::dnorm(dat$W.hhs, qM, dat$sd.W.hhs)))
+  rse_q <- apply(qM, 1, stats::sd) / rowMeans(qM)
   resid_q <- rowMeans(qM) - dat$W.hhs
   mae_q <- rowMeans(abs(qM - dat$W.hhs))
   rmse_q<- sqrt(rowMeans((qM - dat$W.hhs)^2))
-  qq <- mapply(function(f, x) f(x), apply(qpred, 1, ecdf), dat$W.hhs)  
+  qq <- mapply(function(f, x) f(x), apply(qpred, 1, stats::ecdf), dat$W.hhs)
 
   vars <- intersect(c("country", "eppregion", "survyear", "year", "sex", "agegr", "prev", "se"), names(dat))
   data.frame(dat[vars],
@@ -50,7 +50,7 @@ outpred_hhs <- function(fit, newdata, subsample=NULL){
   ## simulate model projections
   param_list <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
   
-  fp_list <- lapply(param_list, function(par) update(fit$fp, list=par))
+  fp_list <- lapply(param_list, function(par) stats::update(fit$fp, list=par))
   mod_list <- lapply(fp_list, simmod)
 
   ## new data for prediction
@@ -63,16 +63,16 @@ outpred_hhs <- function(fit, newdata, subsample=NULL){
               yidx = dat$yidx,
               agspan = dat$agspan)
   M <- matrix(M, nrow(dat))
-  qM <- qnorm(M)
-  qpred <- array(rnorm(length(qM), qM, dat$sd.W.hhs), dim(qM))
+  qM <- stats::qnorm(M)
+  qpred <- array(stats::rnorm(length(qM), qM, dat$sd.W.hhs), dim(qM))
 
-  dat$elpd_q <- log(rowMeans(dnorm(dat$W.hhs, qM, dat$sd.W.hhs)))
-  dat$se_q <- apply(qM, 1, sd)
+  dat$elpd_q <- log(rowMeans(stats::dnorm(dat$W.hhs, qM, dat$sd.W.hhs)))
+  dat$se_q <- apply(qM, 1, stats::sd)
   dat$resid_q <- rowMeans(qM) - dat$W.hhs
   dat$pred <- rowMeans(M)
-  dat$se_p <- apply(M, 1, sd)
+  dat$se_p <- apply(M, 1, stats::sd)
   dat$resid <- rowMeans(M) - dat$prev
-  dat$qq <- mapply(function(f, x) f(x), apply(qpred, 1, ecdf), dat$W.hhs)  
+  dat$qq <- mapply(function(f, x) f(x), apply(qpred, 1, stats::ecdf), dat$W.hhs)
 
   dat
 }
@@ -88,7 +88,7 @@ outpred_ancsite <- function(fit, testdat){
   ## simulate model projections
   param_list <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
 
-  fp_list <- lapply(param_list, function(par) update(fit$fp, list=par))
+  fp_list <- lapply(param_list, function(par) stats::update(fit$fp, list=par))
   mod_list <- lapply(fp_list, simmod)
 
   ## Site-level ANC data
@@ -109,7 +109,7 @@ outpred_ancsite <- function(fit, testdat){
 
   testdat$elpd <- log(rowMeans(exp(ancsite_ll)))
   testdat$resid <- rowMeans(ancsite_pred) - newdata$df$W
-  testdat$qq <- mapply(function(f, x) f(x), apply(ancsite_pred, 1, ecdf), newdata$df$W)
+  testdat$qq <- mapply(function(f, x) f(x), apply(ancsite_pred, 1, stats::ecdf), newdata$df$W)
 
   testdat
 }
@@ -128,7 +128,7 @@ outpred_incid <- function(fit, newdata, subsample=NULL){
   ## simulate model projections
   param_list <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
   
-  fp_list <- lapply(param_list, function(par) update(fit$fp, list=par))
+  fp_list <- lapply(param_list, function(par) stats::update(fit$fp, list=par))
   mod_list <- lapply(fp_list, simmod)
 
   ## new data for prediction
@@ -140,15 +140,15 @@ outpred_incid <- function(fit, newdata, subsample=NULL){
   incid_ll <- vapply(mod_list, ll_hhsincid, hhsincid.dat = dat, numeric(nrow(dat)))
   incid_ll <- matrix(incid_ll, nrow(dat))
 
-  lpred <- array(rnorm(length(lM), lM, dat$log_incid.se), dim(lM))
+  lpred <- array(stats::rnorm(length(lM), lM, dat$log_incid.se), dim(lM))
   
   dat$elpd <- log(rowMeans(exp(incid_ll)))
-  dat$se_l <- apply(lM, 1, sd)
+  dat$se_l <- apply(lM, 1, stats::sd)
   dat$resid_l <- rowMeans(lM) - dat$log_incid
   dat$pred <- rowMeans(exp(lM))
-  dat$se_p <- apply(exp(lM), 1, sd)
+  dat$se_p <- apply(exp(lM), 1, stats::sd)
   dat$resid <- rowMeans(exp(lM)) - dat$incid
-  dat$qq <- mapply(function(f, x) f(x), apply(lpred, 1, ecdf), dat$log_incid)  
+  dat$qq <- mapply(function(f, x) f(x), apply(lpred, 1, stats::ecdf), dat$log_incid)
 
   dat
 }

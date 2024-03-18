@@ -26,7 +26,7 @@ imis <- function(B0, B, B_re, number_k, opt_k=NULL, fp, likdat,
 
   ## Draw initial samples from prior distribution
   X_k <- sample_prior(B0, fp)  # Draw initial samples from the prior distribution
-  cov_prior = cov(X_k)        # estimate of the prior covariance
+  cov_prior = stats::cov(X_k)        # estimate of the prior covariance
 
   ## Locations and covariance of mixture components
   center_all <- list()
@@ -83,7 +83,7 @@ imis <- function(B0, B, B_re, number_k, opt_k=NULL, fp, likdat,
                   max(weights),                       # the maximum weight
                   1/sum(weights^2),                   # the effictive sample size
                   -sum(weights*log(weights), na.rm = TRUE) / log(length(weights)),    # the entropy relative to uniform !!! NEEDS UDPATING FOR OMITTED SAMPLES !!!
-                  var(weights/mean(weights)),                                         # the variance of scaled weights  !!! NEEDS UDPATING FOR OMITTED SAMPLES !!!
+                  stats::var(weights/mean(weights)),                                         # the variance of scaled weights  !!! NEEDS UDPATING FOR OMITTED SAMPLES !!!
                   as.numeric(iter_stop_time - iter_start_time)[3])
     iter_start_time <- iter_stop_time
 
@@ -108,25 +108,25 @@ imis <- function(B0, B, B_re, number_k, opt_k=NULL, fp, likdat,
       nlposterior <- function(theta){-prior(theta, fp, log=TRUE)-likelihood(theta, fp, likdat, log=TRUE)}
 
       ## opt <- optimization_step(theta_init, nlposterior, cov_prior)  # Version by Bao uses prior covariance to parscale optimizer
-      opt <- optimization_step(theta_init, nlposterior, cov(X_all[1:n_all, ]))
+      opt <- optimization_step(theta_init, nlposterior, stats::cov(X_all[1:n_all, ]))
       center_all[[k]] <- opt$mu
       sigma_all[[k]] <- opt$sigma
       
       ## exclude the neighborhood of the local optima
-      distance_remain <- mahalanobis(X_all[seq_len(n_all),], center_all[[k]], diag(diag(sigma_all[[k]])))
+      distance_remain <- stats::mahalanobis(X_all[seq_len(n_all),], center_all[[k]], diag(diag(sigma_all[[k]])))
       idx_exclude <- union(idx_exclude, order(distance_remain)[seq_len(n_all/length(opt_k))])
       
     } else {
 
       ## choose mixture component centered at input with current maximum weight
       center_all[[k]] <- X_all[which.max(weights),]
-      distance_all <- mahalanobis(X_all[1:n_all,], center_all[[k]], diag(diag(cov_prior)))   # Raftery & Bao version
-      ## distance_all <- mahalanobis(X_all[1:n_all,], center_all[[k]], cov(X_all[1:n_all, ]))           # Suggested by Fasiolo et al.
+      distance_all <- stats::mahalanobis(X_all[1:n_all,], center_all[[k]], diag(diag(cov_prior)))   # Raftery & Bao version
+      ## distance_all <- stats::mahalanobis(X_all[1:n_all,], center_all[[k]], stats::cov(X_all[1:n_all, ]))           # Suggested by Fasiolo et al.
       which_close <- order(distance_all)[seq_len(min(n_all, B))]  # Choose B nearest inputs (use n_all if n_all < B)
-      sigma_all[[k]] <- cov.wt(X_all[which_close, , drop=FALSE], wt = weights[which_close]+1/n_all, center = center_all[[k]])$cov   # Raftery & Bao version
+      sigma_all[[k]] <- stats::cov.wt(X_all[which_close, , drop=FALSE], wt = weights[which_close]+1/n_all, center = center_all[[k]])$cov   # Raftery & Bao version
       if(any(is.na(sigma_all[[k]])))
         sigma_all[[k]] <- cov_prior
-      ## sigma_all[[k]] <- cov.wt(X_all[which_close,], center = center_all[[k]])$cov                                   # Suggested by Fasiolo et al.
+      ## sigma_all[[k]] <- stats::cov.wt(X_all[which_close,], center = center_all[[k]])$cov                                   # Suggested by Fasiolo et al.
     }
 
     ## Update mixture weights according with new mixture component
@@ -152,14 +152,14 @@ optimization_step <- function(theta, fn, cov){
   
   ## The rough optimizer uses the Nelder-Mead algorithm.
   ptm.opt = proc.time()
-  optNM <- optim(theta, fn, method="Nelder-Mead",
+  optNM <- stats::optim(theta, fn, method="Nelder-Mead",
                  control=list(maxit=5000, parscale=sqrt(diag(cov))))
 
   ## The more efficient optimizer uses the BFGS algorithm
   optBFGS <- try(stop(""), TRUE)
   step_expon <- 0.2
   while(inherits(optBFGS, "try-error") && step_expon <= 0.8){
-    optBFGS <- try(optim(optNM$par, fn, method="BFGS", hessian=TRUE,
+    optBFGS <- try(stats::optim(optNM$par, fn, method="BFGS", hessian=TRUE,
                          control=list(parscale=sqrt(diag(cov)), ndeps=rep(.Machine$double.eps^step_expon, length(optNM$par)), maxit=1000)),
                    silent=TRUE)
     step_expon <- step_expon + 0.05

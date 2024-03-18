@@ -119,8 +119,8 @@ bh <- merge(bh, wm[c("HH1", "HH2", "LN", "start", "end")], by=c("HH1", "HH2", "L
 bh <- subset(bh, BH4C > start & BH4C <= end)
 bh$births_wt <- bh$wmweight
 
-gfr <- merge(aggregate(births_wt ~ HH6, bh, sum),
-             aggregate(pys_wt ~ HH6, wm, sum))
+gfr <- merge(stats::aggregate(births_wt ~ HH6, bh, sum),
+             stats::aggregate(pys_wt ~ HH6, wm, sum))
 gfr$gfr <- with(gfr, births_wt / pys_wt)
 
 subset(subp_gfr, country == "South Sudan")
@@ -153,8 +153,8 @@ bh <- merge(bh, wm[c("HH1", "HH2", "LN", "start", "end")], by=c("HH1", "HH2", "L
 bh <- subset(bh, BH4C > start & BH4C <= end)
 bh$births_wt <- bh$wmweight
 
-gfr <- merge(aggregate(births_wt ~ HH6, bh, sum),
-             aggregate(pys_wt ~ HH6, wm, sum))
+gfr <- merge(stats::aggregate(births_wt ~ HH6, bh, sum),
+             stats::aggregate(pys_wt ~ HH6, wm, sum))
 gfr$gfr <- with(gfr, births_wt / pys_wt)
 
 subset(subp_gfr, country == "Guinea-Bissau")
@@ -182,8 +182,8 @@ bh <- merge(bh, wm[c("HH1", "HH2", "LN", "start", "end")], by=c("HH1", "HH2", "L
 bh <- subset(bh, BH4C > start & BH4C <= end)
 bh$births_wt <- bh$WMWEIGHT
 
-gfr <- merge(aggregate(births_wt ~ HH6, bh, sum),
-             aggregate(pys_wt ~ HH6, wm, sum))
+gfr <- merge(stats::aggregate(births_wt ~ HH6, bh, sum),
+             stats::aggregate(pys_wt ~ HH6, wm, sum))
 gfr$gfr <- with(gfr, births_wt / pys_wt)
 sum(gfr$births_wt) / sum(gfr$pys_wt)
 
@@ -212,8 +212,8 @@ bh <- merge(bh, wm[c("HH1", "HH2", "LN", "start", "end")], by=c("HH1", "HH2", "L
 bh <- subset(bh, BH4C > start & BH4C <= end)
 bh$births_wt <- bh$wmweight
 
-gfr <- merge(aggregate(births_wt ~ HH6, bh, sum),
-             aggregate(pys_wt ~ HH6, wm, sum))
+gfr <- merge(stats::aggregate(births_wt ~ HH6, bh, sum),
+             stats::aggregate(pys_wt ~ HH6, wm, sum))
 gfr$gfr <- with(gfr, births_wt / pys_wt)
 gfr
 sum(gfr$births_wt) / sum(gfr$pys_wt)
@@ -248,8 +248,8 @@ bh$births_wt <- bh$wmweight
 bh$HH6[bh$HH6=="Nomadic"] <- "Rural"
 
 
-gfr <- merge(aggregate(births_wt ~ HH7, bh, sum),
-             aggregate(pys_wt ~ HH7, wm, sum))
+gfr <- merge(stats::aggregate(births_wt ~ HH7, bh, sum),
+             stats::aggregate(pys_wt ~ HH7, wm, sum))
 gfr$gfr <- with(gfr, births_wt / pys_wt)
 gfr
 sum(gfr$births_wt) / sum(gfr$pys_wt)
@@ -280,8 +280,8 @@ bh$births_wt <- bh$wmweight
 bh$HH6[bh$HH6=="Nomadic"] <- "Rural"
 
 
-gfr <- merge(aggregate(births_wt ~ HH7, bh, sum),
-             aggregate(pys_wt ~ HH7, wm, sum))
+gfr <- merge(stats::aggregate(births_wt ~ HH7, bh, sum),
+             stats::aggregate(pys_wt ~ HH7, wm, sum))
 gfr$gfr <- with(gfr, births_wt / pys_wt)
 gfr
 sum(gfr$births_wt) / sum(gfr$pys_wt)
@@ -317,8 +317,8 @@ bh$births_wt <- bh$wmweight
 bh$residence[bh$residence == "City/Town"] <- "Urban Village"
 wm$residence[wm$residence == "City/Town"] <- "Urban Village"
 
-gfr <- merge(aggregate(births_wt ~ residence, bh, sum),
-             aggregate(pys_wt ~ residence, wm, sum))
+gfr <- merge(stats::aggregate(births_wt ~ residence, bh, sum),
+             stats::aggregate(pys_wt ~ residence, wm, sum))
 gfr$gfr <- with(gfr, births_wt / pys_wt)
 gfr
 sum(gfr$births_wt) / sum(gfr$pys_wt)

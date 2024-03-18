@@ -10,17 +10,17 @@ calc_infections_eppspectrum <- function(fp, pop, hivpop, artpop, i, ii, r_ts){
 
   hivn.ii <- sum(pop[p.age15to49.idx,,hivn.idx,i])
   hivn.ii <- hivn.ii - sum(pop[p.age15to49.idx[1],,hivn.idx,i])*(1-DT*(ii-1))
-  hivn.ii <- hivn.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivn.idx,i])*(1-DT*(ii-1))
+  hivn.ii <- hivn.ii + sum(pop[utils::tail(p.age15to49.idx,1)+1,,hivn.idx,i])*(1-DT*(ii-1))
 
   hivp.ii <- sum(pop[p.age15to49.idx,,hivp.idx,i])
   hivp.ii <- hivp.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i])*(1-DT*(ii-1))
-  hivp.ii <- hivp.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i])*(1-DT*(ii-1))
+  hivp.ii <- hivp.ii + sum(pop[utils::tail(p.age15to49.idx,1)+1,,hivp.idx,i])*(1-DT*(ii-1))
 
   art.ii <- sum(artpop[,,h.age15to49.idx,,i])
   if(sum(hivpop[,h.age15to49.idx[1],,i]) + sum(artpop[,,h.age15to49.idx[1],,i])  > 0)
     art.ii <- art.ii - sum(pop[p.age15to49.idx[1],,hivp.idx,i] * colSums(artpop[,,h.age15to49.idx[1],,i],,2) / (colSums(hivpop[,h.age15to49.idx[1],,i],,1) + colSums(artpop[,,h.age15to49.idx[1],,i],,2))) * (1-DT*(ii-1))
-  if(sum(hivpop[,tail(h.age15to49.idx, 1)+1,,i]) + sum(artpop[,,tail(h.age15to49.idx, 1)+1,,i]) > 0)
-    art.ii <- art.ii + sum(pop[tail(p.age15to49.idx,1)+1,,hivp.idx,i] * colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2) / (colSums(hivpop[,tail(h.age15to49.idx, 1)+1,,i],,1) + colSums(artpop[,,tail(h.age15to49.idx, 1)+1,,i],,2))) * (1-DT*(ii-1))
+  if(sum(hivpop[,utils::tail(h.age15to49.idx, 1)+1,,i]) + sum(artpop[,,utils::tail(h.age15to49.idx, 1)+1,,i]) > 0)
+    art.ii <- art.ii + sum(pop[utils::tail(p.age15to49.idx,1)+1,,hivp.idx,i] * colSums(artpop[,,utils::tail(h.age15to49.idx, 1)+1,,i],,2) / (colSums(hivpop[,utils::tail(h.age15to49.idx, 1)+1,,i],,1) + colSums(artpop[,,utils::tail(h.age15to49.idx, 1)+1,,i],,2))) * (1-DT*(ii-1))
   
   transm_prev <- (hivp.ii - art.ii + fp$relinfectART*art.ii) / (hivn.ii+hivp.ii)
 
@@ -79,4 +79,3 @@ create_beers <- function(n5yr){
   
 ## Beers coefficient matrix
 beers_Amat <- create_beers(17)[16:81, 4:17]
-

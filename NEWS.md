@@ -1,3 +1,7 @@
+## eppasm 0.7.5
+
+* Qualify all package names and add all required packages into Imports section.
+
 ## eppasm 0.7.4
 
 * Implement recovery to next higher CD4 category following ART interruption for those on ART greater than one year.

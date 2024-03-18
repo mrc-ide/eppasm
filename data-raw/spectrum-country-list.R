@@ -4,10 +4,10 @@
 
 load("../R/sysdata.rda")
 
-spectrum5_countrylist <- read.csv("CountryListMaster.csv", as.is=TRUE, encoding = "UTF-8")
+spectrum5_countrylist <- utils::read.csv("CountryListMaster.csv", as.is=TRUE, encoding = "UTF-8")
 spectrum5_countrylist$Country[spectrum5_countrylist$Code == 384] <- "Côte d'Ivoire"
 
-iso <- read.csv("iso.csv", na.strings = "", as.is=TRUE)
+iso <- utils::read.csv("iso.csv", na.strings = "", as.is=TRUE)
 names(iso) <- sub("alpha.2", "iso2", names(iso))
 names(iso) <- sub("alpha.3", "iso3", names(iso))
 

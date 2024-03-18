@@ -2,8 +2,8 @@ estci2 <- function(x, na.rm=TRUE){
   if(is.vector(x)) x <- matrix(x, 1)
   nd <- length(dim(x))
   val <- apply(x, seq_len(nd-1), function(y) c(mean(y, na.rm=na.rm),
-                                               sd(y, na.rm=na.rm),
-                                               quantile(y, c(0.5, 0.025, 0.975), na.rm=na.rm)))
+                                               stats::sd(y, na.rm=na.rm),
+                                               stats::quantile(y, c(0.5, 0.025, 0.975), na.rm=na.rm)))
   val <- aperm(val, c(2:nd, 1))
   dimnames(val)[[nd]] <- c("mean", "se", "median", "lower", "upper")
   val
@@ -107,7 +107,7 @@ summary_outputs <- function(fit, modlist){
 
 create_outputs <- function(fit){
   paramlist <- lapply(seq_len(nrow(fit$resample)), function(ii) fnCreateParam(fit$resample[ii,], fit$fp))
-  fplist <- lapply(paramlist, function(par) update(fit$fp, list=par))
+  fplist <- lapply(paramlist, function(par) stats::update(fit$fp, list=par))
   modlist <- lapply(fplist, simmod)
   
   out <- summary_outputs(fit, modlist)

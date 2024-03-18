@@ -63,7 +63,7 @@ fp$rw_start <- 2005
 fp$incidmod <- "eppspectrum"
 
 param <- fnCreateParam(theta_ur, fp)
-fp_par <- update(fp, list = param)
+fp_par <- stats::update(fp, list = param)
 ```
 
 Simulate the model once.

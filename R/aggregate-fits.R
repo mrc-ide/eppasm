@@ -22,7 +22,7 @@ create_aggr_input <- function(inputlist){
   ancrtcens <- do.call(rbind, lapply(eppdlist, "[[", "ancrtcens"))
   if(!is.null(ancrtcens) && nrow(ancrtcens)){
     ancrtcens$x <- ancrtcens$prev * ancrtcens$n
-    ancrtcens <- aggregate(cbind(x,n) ~ year, ancrtcens, sum)
+    ancrtcens <- stats::aggregate(cbind(x,n) ~ year, ancrtcens, sum)
     ancrtcens$prev <- ancrtcens$x / ancrtcens$n
     ancrtcens <- ancrtcens[c("year", "prev", "n")]
   }

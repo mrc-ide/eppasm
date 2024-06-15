@@ -1,0 +1,240 @@
+Code,Country,Currency,ExchangeRate,Currency Name,AM,FP,CS,HV,RN,TB,UPD Filename,Global Region
+4,Afghanistan,AFN,3.83,$ argentinos,0,1,1,0,0,1,Afghanistan_4.upd,Asia
+903,AFRICA,,,,0,0,0,0,0,0,AFRICA_903.upd,
+8,Albania,ALL,,,0,1,1,0,0,0,Albania_8.upd,Eastern Europe
+12,Algeria,DZD,,,1,1,1,0,0,1,Algeria_12.upd,North Africa Middle East
+24,Angola,AOA,,,1,1,1,0,0,1,Angola_24.upd,Southern Africa
+28,Antigua and Barbuda,XCD,,,0,0,0,0,0,0,Antigua and Barbuda_28.upd,Latin America and Caribbean
+32,Argentina,ARS,,,1,1,1,0,1,1,Argentina_32.upd,Latin America and Caribbean
+51,Armenia,AMD,,,1,1,1,0,0,1,Armenia_51.upd,Eastern Europe
+533,Aruba,AWG,,,0,0,0,0,0,0,Aruba_533.upd,Latin America and Caribbean
+935,ASIA,,,,0,0,0,0,0,0,ASIA_935.upd,
+36,Australia,AUD,,,1,0,0,0,0,1,Australia_36.upd,High Income Countries
+927,Australia and New Zealand,NZD,,,0,0,0,0,0,0,Australia and New Zealand_927.upd,
+40,Austria,EUR,,,1,0,0,0,0,1,Austria_40.upd,High Income Countries
+31,Azerbaijan,AZN,,,1,1,1,0,0,1,Azerbaijan_31.upd,Eastern Europe
+44,Bahamas,BSD,,,1,1,1,0,0,1,Bahamas_44.upd,Latin America and Caribbean
+48,Bahrain,BHD,,,0,1,1,0,0,0,Bahrain_48.upd,North Africa Middle East
+50,Bangladesh,BDT,,,1,1,1,0,0,1,Bangladesh_50.upd,Asia
+52,Barbados,BBD,,,1,1,1,0,0,1,Barbados_52.upd,Latin America and Caribbean
+112,Belarus,BYR,,,1,1,1,0,0,1,Belarus_112.upd,Eastern Europe
+56,Belgium,EUR,,,1,0,0,0,0,1,Belgium_56.upd,High Income Countries
+84,Belize,BZD,,,1,1,1,0,0,1,Belize_84.upd,Latin America and Caribbean
+204,Benin,XOF,450,FCFA,1,1,1,0,1,1,Benin_204.upd,West Africa
+64,Bhutan,BTN,,,1,1,1,0,0,1,Bhutan_64.upd,Asia
+68,Bolivia,BOB,1,BOB,1,1,1,0,1,0,Bolivia_68.upd,Latin America and Caribbean
+70,Bosnia and Herzegovina,BAM,,,0,1,1,0,0,0,Bosnia and Herzegovina_70.upd,Eastern Europe
+72,Botswana,BWP,6.5,Pula,1,1,1,1,1,1,Botswana_72.upd,Southern Africa
+76,Brazil,BRL,1.71,BRL,1,1,1,1,1,1,Brazil_76.upd,Latin America and Caribbean
+96,Brunei Darussalam,BND,,,0,1,1,0,0,0,Brunei Darussalam_96.upd,Asia
+100,Bulgaria,BGN,,,1,1,1,0,0,1,Bulgaria_100.upd,High Income Countries
+854,Burkina Faso,XOF,475,FCFA,1,1,1,0,1,1,Burkina Faso_854.upd,West Africa
+108,Burundi,BIF,,,1,1,1,0,0,1,Burundi_108.upd,East Africa
+116,Cambodia,KHR,1,KHR,1,1,1,1,1,1,Cambodia_116.upd,Asia
+120,Cameroon,XAF,1,XAF,1,1,1,1,1,1,Cameroon_120.upd,West Africa
+124,Canada,CAD,,,1,0,0,0,0,1,Canada_124.upd,High Income Countries
+132,Cape Verde,CVE,,,1,1,1,0,0,0,Cape Verde_132.upd,West Africa
+915,Caribbean,XCD,,,0,0,0,0,0,0,Caribbean_915.upd,
+140,Central African Republic,XAF,1,CFA,1,1,1,0,1,0,Central African Republic_140.upd,West Africa
+916,Central America,,,,0,0,0,0,0,0,Central America_916.upd,
+5500,Central Asia,,,,0,0,0,0,0,0,Central Asia_5500.upd,
+148,Chad,XAF,1,XAF,1,1,1,0,1,1,Chad_148.upd,West Africa
+830,Channel Islands,GBP,,,0,0,0,0,0,0,Channel Islands_830.upd,High Income Countries
+152,Chile,CLP,1,US$,1,1,1,0,1,1,Chile_152.upd,Latin America and Caribbean
+156,China,CNY,1,CNY,1,1,1,1,1,1,China_156.upd,Asia
+344,China Hong Kong SAR,HKD,,,0,0,0,0,0,0,China Hong Kong SAR_344.upd,Asia
+446,China Macao SAR,MOP,,,0,0,0,0,0,0,China Macao SAR_446.upd,Asia
+158,China Taiwan Province,TWD,,,0,0,0,0,0,0,China Taiwan Province_158.upd,Asia
+170,Colombia,COP,,,1,1,1,0,0,1,Colombia_170.upd,Latin America and Caribbean
+174,Comoros,KMF,,,1,1,1,0,0,1,Comoros_174.upd,East Africa
+178,Congo,XAF,1,FCFA Afrique Centrale,1,1,1,0,1,1,Congo_178.upd,West Africa
+188,Costa Rica,CRC,,,1,1,1,0,0,1,Costa Rica_188.upd,Latin America and Caribbean
+384,Côte d'Ivoire,XOF,450,FCFA,1,1,1,1,1,0,Côte d'Ivoire_384.upd,West Africa
+191,Croatia,HRK,,,1,1,1,0,0,1,Croatia_191.upd,High Income Countries
+192,Cuba,CUP,,,1,1,1,0,0,1,Cuba_192.upd,Latin America and Caribbean
+531,Curacao,ANG,,,0,0,0,0,0,0,Curacao_531.upd,Latin America and Caribbean
+196,Cyprus,EUR,,,0,0,0,0,0,0,Cyprus_196.upd,High Income Countries
+203,Czech Republic,CZK,,,1,1,1,0,0,1,Czech Republic_203.upd,High Income Countries
+408,Dem. People's Republic of Korea,KPW,,,1,1,1,0,0,0,Dem. People's Republic of Korea_408.upd,Asia
+180,Democratic Republic of the Congo,CDF,1,CDF,1,1,1,0,1,0,Democratic Republic of the Congo_180.upd,West Africa
+208,Denmark,DKK,,,1,0,0,0,0,1,Denmark_208.upd,High Income Countries
+262,Djibouti,DJF,,,1,1,1,0,0,1,Djibouti_262.upd,East Africa
+212,Dominica,,,,,,,,,,,Latin America and Caribbean
+214,Dominican Republic,DOP,1,DOP,1,1,1,0,1,1,Dominican Republic_214.upd,Latin America and Caribbean
+910,Eastern Africa,,,,0,0,0,0,0,0,Eastern Africa_910.upd,
+906,Eastern Asia,,,,0,0,0,0,0,0,Eastern Asia_906.upd,
+923,Eastern Europe,,,,0,0,0,0,0,0,Eastern Europe_923.upd,
+218,Ecuador,ECS,1,ECS,1,1,1,0,1,1,Ecuador_218.upd,Latin America and Caribbean
+818,Egypt,EGP,,,1,1,1,0,0,1,Egypt_818.upd,North Africa Middle East
+222,El Salvador,SVC,1,US$,1,1,1,0,1,1,El Salvador_222.upd,Latin America and Caribbean
+226,Equatorial Guinea,XAF,,,1,1,1,0,0,1,Equatorial Guinea_226.upd,West Africa
+232,Eritrea,ERN,,,1,1,1,0,0,1,Eritrea_232.upd,East Africa
+233,Estonia,EEK,,,1,1,1,0,0,1,Estonia_233.upd,High Income Countries
+231,Ethiopia,ETB,1,ETB,1,1,1,1,1,1,Ethiopia_231.upd,East Africa
+908,EUROPE,,,,0,0,0,0,0,0,EUROPE_908.upd,
+242,Fiji,FJD,,,1,1,1,0,0,1,Fiji_242.upd,Asia
+246,Finland,EUR,,,1,0,0,0,0,1,Finland_246.upd,High Income Countries
+250,France,EUR,,,1,0,0,0,0,1,France_250.upd,High Income Countries
+254,French Guiana,EUR,,,0,1,0,0,0,0,French Guiana_254.upd,Latin America and Caribbean
+258,French Polynesia,XPF,,,0,1,0,0,0,0,French Polynesia_258.upd,Asia
+266,Gabon,XAF,1,CFA,1,1,1,0,1,1,Gabon_266.upd,West Africa
+270,Gambia,GMD,,,1,1,1,0,0,1,Gambia_270.upd,West Africa
+268,Georgia,GEL,,,1,1,1,0,0,1,Georgia_268.upd,Eastern Europe
+276,Germany,EUR,,,1,0,0,0,0,1,Germany_276.upd,High Income Countries
+288,Ghana,GHS,1.65,GHC,1,1,1,0,1,1,Ghana_288.upd,West Africa
+300,Greece,EUR,,,1,0,0,0,0,1,Greece_300.upd,High Income Countries
+308,Grenada,XCD,,,0,1,1,0,0,0,Grenada_308.upd,Latin America and Caribbean
+312,Guadeloupe,EUR,,,0,1,0,0,0,0,Guadeloupe_312.upd,Latin America and Caribbean
+316,Guam,USD,,,0,1,0,0,0,0,Guam_316.upd,Asia
+320,Guatemala,GTQ,1,GTQ,1,1,1,0,1,1,Guatemala_320.upd,Latin America and Caribbean
+324,Guinea,GNF,1,GNF,1,1,1,0,1,1,Guinea_324.upd,West Africa
+624,Guinea-Bissau,XOF,,,1,1,1,0,0,1,Guinea-Bissau_624.upd,West Africa
+328,Guyana,GYD,,,1,1,1,0,0,1,Guyana_328.upd,Latin America and Caribbean
+332,Haiti,HTG,,,1,1,1,0,0,1,Haiti_332.upd,Latin America and Caribbean
+340,Honduras,HNL,,,1,1,1,0,0,1,Honduras_340.upd,Latin America and Caribbean
+348,Hungary,HUF,,,1,1,1,0,0,1,Hungary_348.upd,High Income Countries
+352,Iceland,ISK,,,1,0,0,0,0,1,Iceland_352.upd,High Income Countries
+356,India,INR,46,INR,1,1,1,1,1,1,India_356.upd,Asia
+360,Indonesia,IDR,9300,IDR,1,1,1,1,1,1,Indonesia_360.upd,Asia
+364,Iran (Islamic Republic of),IRR,,,1,1,1,0,0,0,Iran (Islamic Republic of)_364.upd,North Africa Middle East
+368,Iraq,IQR,,,0,1,1,0,0,0,Iraq_368.upd,North Africa Middle East
+372,Ireland,EUR,,,1,0,0,0,0,1,Ireland_372.upd,High Income Countries
+376,Israel,ILS,,,1,0,0,0,0,1,Israel_376.upd,High Income Countries
+380,Italy,EUR,,,1,0,0,0,0,1,Italy_380.upd,High Income Countries
+388,Jamaica,JMD,,,1,1,1,1,1,1,Jamaica_388.upd,Latin America and Caribbean
+392,Japan,JPY,,,1,0,0,0,0,1,Japan_392.upd,High Income Countries
+400,Jordan,JOD,,,0,1,1,0,0,0,Jordan_400.upd,North Africa Middle East
+398,Kazakhstan,KZT,,,1,1,1,0,0,1,Kazakhstan_398.upd,Eastern Europe
+404,Kenya,KES,74.8,Shillings,1,1,1,1,1,1,Kenya_404.upd,East Africa
+296,Kiribati,AUD,,,0,0,0,0,0,0,Kiribati_296.upd,Asia
+414,Kuwait,KWD,,,0,1,1,0,0,0,Kuwait_414.upd,North Africa Middle East
+417,Kyrgyzstan,KGS,,,1,1,1,0,0,1,Kyrgyzstan_417.upd,Eastern Europe
+418,Lao People's Democratic Republic,LAK,,,1,1,1,0,0,0,Lao People's Democratic Republic_418.upd,Asia
+904,LATIN AMERICA AND THE CARIBBEAN,,,,0,0,0,0,0,0,LATIN AMERICA AND THE CARIBBEAN_904.upd,
+428,Latvia,LVL,,,1,1,1,0,0,1,Latvia_428.upd,Eastern Europe
+941,Least developed countries,,,,0,0,0,0,0,0,Least developed countries_941.upd,
+422,Lebanon,LBP,,,1,1,1,0,0,1,Lebanon_422.upd,North Africa Middle East
+426,Lesotho,LSL,7,Maloti,1,1,1,1,1,1,Lesotho_426.upd,Southern Africa
+902,Less developed regions,,,,0,0,0,0,0,0,Less developed regions_902.upd,
+948,Less developed regions excluding China,,,,0,0,0,0,0,0,Less developed regions excluding China_948.upd,
+934,Less developed regions excluding least developed,,,,0,0,0,0,0,0,Less developed regions excluding least developed_934.upd,
+430,Liberia,LRD,,,1,1,1,0,0,1,Liberia_430.upd,West Africa
+434,Libyan Arab Jamahiriya,LYD,,,0,1,1,0,0,0,Libyan Arab Jamahiriya_434.upd,North Africa Middle East
+440,Lithuania,LTL,,,1,1,1,0,0,1,Lithuania_440.upd,High Income Countries
+442,Luxembourg,EUR,,,1,0,0,0,0,1,Luxembourg_442.upd,High Income Countries
+450,Madagascar,MGA,2000,Ariary,1,1,1,0,1,1,Madagascar_450.upd,East Africa
+454,Malawi,MWK,140,Malawi Kwacha,1,1,1,1,1,1,Malawi_454.upd,East Africa
+458,Malaysia,MYR,1,MYR,1,1,1,0,1,1,Malaysia_458.upd,Asia
+462,Maldives,MVR,,,1,1,1,0,0,1,Maldives_462.upd,Asia
+466,Mali,XOF,500,XOF,1,1,1,0,1,1,Mali_466.upd,West Africa
+470,Malta,EUR,,,1,0,0,0,0,1,Malta_470.upd,High Income Countries
+474,Martinique,EUR,,,0,1,0,0,0,0,Martinique_474.upd,Latin America and Caribbean
+478,Mauritania,MRO,,,1,1,1,0,0,1,Mauritania_478.upd,West Africa
+480,Mauritius,MUR,,,1,1,1,0,0,1,Mauritius_480.upd,East Africa
+175,Mayotte,EUR,,,0,0,0,0,0,0,Mayotte_175.upd,East Africa
+928,Melanesia,,,,0,0,0,0,0,0,Melanesia_928.upd,
+484,Mexico,MXN,13.2325,Peso,1,1,1,1,1,1,Mexico_484.upd,High Income Countries
+954,Micronesia,USD,,,0,0,0,0,0,0,Micronesia_954.upd,
+583,Micronesia (Fed. States of),USD,,,0,1,1,0,0,0,Micronesia (Fed. States of)_583.upd,Asia
+911,Middle Africa,,,,0,0,0,0,0,0,Middle Africa_911.upd,
+496,Mongolia,MNT,1,MNT,1,1,1,0,1,1,Mongolia_496.upd,Asia
+499,Montenegro,EUR,,,0,1,0,0,0,0,Montenegro_499.upd,High Income Countries
+901,More developed regions,,,,0,0,0,0,0,0,More developed regions_901.upd,
+504,Morocco,MAD,,,1,1,1,0,0,1,Morocco_504.upd,North Africa Middle East
+508,Mozambique,MZN,1,MZN,1,1,1,0,1,1,Mozambique_508.upd,Southern Africa
+104,Myanmar,MMK,1,Kyats,1,1,1,0,1,1,Myanmar_104.upd,Asia
+516,Namibia,NAD,7.4,NAD,1,1,1,0,1,1,Namibia_516.upd,Southern Africa
+524,Nepal,NPR,1,NPR,1,1,1,0,1,1,Nepal_524.upd,Asia
+528,Netherlands,EUR,,,1,0,0,0,0,1,Netherlands_528.upd,High Income Countries
+540,New Caledonia,XPF,,,0,1,0,0,0,0,New Caledonia_540.upd,Asia
+554,New Zealand,NZD,,,1,0,0,0,0,1,New Zealand_554.upd,High Income Countries
+558,Nicaragua,NIO,,,1,1,1,0,0,1,Nicaragua_558.upd,Latin America and Caribbean
+562,Niger,XOF,450,FCFA,1,1,1,0,1,1,Niger_562.upd,West Africa
+566,Nigeria,NGN,150,NAIRA,1,1,1,1,1,1,Nigeria_566.upd,West Africa
+912,Northern Africa,,,,0,0,0,0,0,0,Northern Africa_912.upd,
+905,NORTHERN AMERICA,,,,0,0,0,0,0,0,NORTHERN AMERICA_905.upd,
+924,Northern Europe,,,,0,0,0,0,0,0,Northern Europe_924.upd,
+578,Norway,NOK,,,1,0,0,0,0,1,Norway_578.upd,High Income Countries
+275,Occupied Palestinian Territory,ILS,,,0,1,1,0,0,0,Occupied Palestinian Territory_275.upd,North Africa Middle East
+909,OCEANIA,,,,0,0,0,0,0,0,OCEANIA_909.upd,
+512,Oman,OMR,,,1,1,1,0,0,1,Oman_512.upd,North Africa Middle East
+586,Pakistan,PKR,84,Rs,1,1,1,0,1,1,Pakistan_586.upd,Asia
+591,Panama,PAB,1,Dolares,1,1,1,0,1,1,Panama_591.upd,Latin America and Caribbean
+598,Papua New Guinea,PGK,2.6,PGK,1,1,1,0,1,1,Papua New Guinea_598.upd,Asia
+600,Paraguay,PYG,4890,Guananies,1,1,1,0,1,1,Paraguay_600.upd,Latin America and Caribbean
+604,Peru,PEN,0.341296928,PEN,1,1,1,0,1,1,Peru_604.upd,Latin America and Caribbean
+608,Philippines,PHP,1,PHP,1,1,1,0,1,1,Philippines_608.upd,Asia
+616,Poland,PLN,,,1,1,1,0,0,1,Poland_616.upd,High Income Countries
+957,Polynesia,XPF,,,0,0,0,0,0,0,Polynesia_957.upd,
+620,Portugal,EUR,,,1,0,0,0,0,1,Portugal_620.upd,High Income Countries
+630,Puerto Rico,USD,,,0,1,0,0,0,0,Puerto Rico_630.upd,Latin America and Caribbean
+634,Qatar,QAR,,,0,1,1,0,0,0,Qatar_634.upd,North Africa Middle East
+410,Republic of Korea,KRW,,,1,1,1,0,0,1,Republic of Korea_410.upd,Asia
+498,Republic of Moldova,MDL,,,1,1,1,0,0,1,Republic of Moldova_498.upd,Eastern Europe
+638,Réunion,EUR,,,0,1,0,0,0,0,Réunion_638.upd,East Africa
+642,Romania,RON,,,1,1,1,0,0,1,Romania_642.upd,Eastern Europe
+643,Russian Federation,RUB,,,1,1,1,1,1,1,Russian Federation_643.upd,Eastern Europe
+646,Rwanda,RWF,1,RWF,1,1,1,1,1,1,Rwanda_646.upd,East Africa
+659,Saint Kitts and Nevis,,,,,,,,,,,Latin America and Caribbean
+662,Saint Lucia,XCD,,,0,1,1,0,0,0,Saint Lucia_662.upd,Latin America and Caribbean
+670,Saint Vincent and the Grenadines,XCD,,,0,1,1,0,0,0,Saint Vincent and the Grenadines_670.upd,Latin America and Caribbean
+882,Samoa,WST,,,0,1,1,0,0,0,Samoa_882.upd,Asia
+5733,Sample country,USD,1,USD,1,1,1,1,1,1,Sample country_5733.upd,North Africa Middle East
+678,São Tomé and Príncipe,STD,,,1,1,1,0,0,0,Sao Tomé and Príncipe_678.upd,West Africa
+682,Saudi Arabia,SAR,,,0,1,1,0,0,0,Saudi Arabia_682.upd,North Africa Middle East
+686,Senegal,XOF,1,XOF,1,1,1,0,1,1,Senegal_686.upd,West Africa
+688,Serbia,RSD,,,1,1,1,0,0,1,Serbia_688.upd,Eastern Europe
+690,Seychelles,SCR,,,0,0,0,0,0,0,Seychelles_690.upd,East Africa
+694,Sierra Leone,SLL,3650,Leone ,1,1,1,0,1,1,Sierra Leone_694.upd,West Africa
+702,Singapore,SGD,,,1,1,1,0,0,1,Singapore_702.upd,Asia
+703,Slovakia,SKK,,,1,1,1,0,0,1,Slovakia_703.upd,High Income Countries
+705,Slovenia,SIT,,,1,1,1,0,0,1,Slovenia_705.upd,Eastern Europe
+90,Solomon Islands,SBD,,,0,1,1,0,0,0,Solomon Islands_90.upd,Asia
+706,Somalia,SOS,,,1,1,1,0,0,1,Somalia_706.upd,East Africa
+710,South Africa,ZAR,7.5,South African Rand (ZAR),1,1,1,1,1,1,South Africa_710.upd,Southern Africa
+931,South America,,,,0,0,0,0,0,0,South America_931.upd,
+5501,Southern Asia,,,,0,0,0,0,0,0,Southern Asia_5501.upd,
+728,South Sudan,SDG,,,1,1,1,0,0,0,South Sudan_728.upd,East Africa
+921,South-central Asia,,,,0,0,0,0,0,0,South-central Asia_921.upd,
+920,South-eastern Asia,,,,0,0,0,0,0,0,South-eastern Asia_920.upd,
+913,Southern Africa,,,,0,0,0,0,0,0,Southern Africa_913.upd,
+925,Southern Europe,,,,0,0,0,0,0,0,Southern Europe_925.upd,
+724,Spain,EUR,,,1,0,0,0,0,1,Spain_724.upd,High Income Countries
+144,Sri Lanka,LKR,,,1,1,1,0,0,1,Sri Lanka_144.upd,Asia
+947,Sub-Saharan Africa,,,,0,0,0,0,0,0,Sub-Saharan Africa_947.upd,
+729,Sudan,SDG,,,1,1,1,0,0,1,Sudan_729.upd,North Africa Middle East
+740,Suriname,SRD,,,1,1,1,0,0,1,Suriname_740.upd,Latin America and Caribbean
+748,Swaziland,SZL,7,SZL,1,1,1,0,1,1,Swaziland_748.upd,Southern Africa
+752,Sweden,SEK,,,1,0,0,0,0,1,Sweden_752.upd,High Income Countries
+756,Switzerland,CHF,,,1,0,0,0,0,1,Switzerland_756.upd,High Income Countries
+760,Syrian Arab Republic,SYP,,,0,1,1,0,0,0,Syrian Arab Republic_760.upd,North Africa Middle East
+762,Tajikistan,TJS,,,1,1,1,0,0,1,Tajikistan_762.upd,Eastern Europe
+807,TFYR Macedonia,MKD,,,0,1,1,0,0,0,TFYR Macedonia_807.upd,Eastern Europe
+764,Thailand,THB,33.13,Thai Baht,1,1,1,0,1,1,Thailand_764.upd,Asia
+626,Timor-Leste,IDR,,,0,1,1,0,0,0,Timor-Leste_626.upd,Asia
+768,Togo,XOF,1,FCFA,1,1,1,0,1,1,Togo_768.upd,West Africa
+776,Tonga,TOP,,,0,1,1,0,0,0,Tonga_776.upd,Asia
+780,Trinidad and Tobago,TTD,,,1,1,1,0,0,1,Trinidad and Tobago_780.upd,Latin America and Caribbean
+788,Tunisia,TND,,,1,1,1,0,0,1,Tunisia_788.upd,North Africa Middle East
+792,Turkey,TRY,,,1,1,1,0,0,1,Turkey_792.upd,North Africa Middle East
+795,Turkmenistan,TMM,,,0,1,1,0,0,0,Turkmenistan_795.upd,Eastern Europe
+800,Uganda,UGX,2137,Ug Shilling,1,1,1,1,1,1,Uganda_800.upd,East Africa
+804,Ukraine,UAH,,,1,1,1,1,1,1,Ukraine_804.upd,Eastern Europe
+784,United Arab Emirates,AED,,,0,1,1,0,0,0,United Arab Emirates_784.upd,North Africa Middle East
+826,United Kingdom,GBP,,,1,0,0,0,0,0,United Kingdom_826.upd,High Income Countries
+834,United Republic of Tanzania,TZS,1320,Tshs,1,1,1,1,1,0,United Republic of Tanzania_834.upd,East Africa
+840,United States of America,USD,,,1,0,0,0,0,0,United States of America_840.upd,High Income Countries
+850,United States Virgin Islands,USD,,,0,1,0,0,0,0,United States Virgin Islands_850.upd,Latin America and Caribbean
+858,Uruguay,UYU,,,1,1,1,0,0,1,Uruguay_858.upd,Latin America and Caribbean
+860,Uzbekistan,UZS,,,1,1,1,0,0,1,Uzbekistan_860.upd,Eastern Europe
+548,Vanuatu,VUV,,,0,1,1,0,0,0,Vanuatu_548.upd,Asia
+862,Venezuela,VEF,,,1,1,1,0,0,0,Venezuela_862.upd,Latin America and Caribbean
+704,Viet Nam,VND,16850,Dong,1,1,1,1,1,1,Viet Nam_704.upd,Asia
+914,Western Africa,,,,0,0,0,0,0,0,Western Africa_914.upd,
+922,Western Asia,,,,0,0,0,0,0,0,Western Asia_922.upd,
+926,Western Europe,,,,0,0,0,0,0,0,Western Europe_926.upd,
+732,Western Sahara,MAD,,,0,1,0,0,0,0,Western Sahara_732.upd,North Africa Middle East
+900,WORLD,,,,0,0,0,0,0,0,WORLD_900.upd,
+887,Yemen,YER,,,1,1,1,0,0,1,Yemen_887.upd,North Africa Middle East
+894,Zambia,ZMK,5000,ZMK,1,1,1,1,1,1,Zambia_894.upd,Southern Africa
+716,Zimbabwe,ZWD,1,ZWD,1,1,1,1,1,1,Zimbabwe_716.upd,Southern Africa

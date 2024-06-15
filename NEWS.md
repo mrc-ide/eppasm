@@ -1,3 +1,7 @@
+## eppasm 0.7.6
+
+* Update internal data country ISO3 list to contain St. Kitts & Nevis and Dominica
+
 ## eppasm 0.7.5
 
 * Qualify all package names and add all required packages into Imports section.

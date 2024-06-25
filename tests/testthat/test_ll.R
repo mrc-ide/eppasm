@@ -24,7 +24,7 @@ theta_rspline <- c(0.753890895839314, 0.700227807059524, -1.92682607738255, 1.12
                    1.97574135543477, 0.24367501614327, -3.80194029103096, -0.28992227570734, 
                    -4.03773908970723)
 
-fp_rspline_eq <- update(fp_rspline, equil.rprior = TRUE)
+fp_rspline_eq <- stats::update(fp_rspline, equil.rprior = TRUE)
 
 fp_rtrend <- prepare_rtrend_model(fp)
 theta_rtrend <- c(1977.68776203971, 16.2122044236609, 0.196472777334891, 0.455548771721825, 

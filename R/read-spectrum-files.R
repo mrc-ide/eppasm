@@ -31,9 +31,9 @@ get_dp_version <- function(dp){
 read_dp <- function(pjnz, use_ep5 = FALSE){
 
   if(use_ep5) {
-    dpfile <- grep(".ep5$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+    dpfile <- grep(".ep5$", utils::unzip(pjnz, list=TRUE)$Name, value=TRUE)
   } else {
-    dpfile <- grep(".DP$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+    dpfile <- grep(".DP$", utils::unzip(pjnz, list=TRUE)$Name, value=TRUE)
   }
 
   dp <- vroom::vroom(unz(pjnz, dpfile), delim = ",",
@@ -46,7 +46,7 @@ read_dp <- function(pjnz, use_ep5 = FALSE){
 
 #' @export
 read_pjn <- function(pjnz){
-  pjnfile <- grep(".PJN$", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  pjnfile <- grep(".PJN$", utils::unzip(pjnz, list=TRUE)$Name, value=TRUE)
   pjn <- vroom::vroom(unz(pjnz, pjnfile), delim = ",",
                      col_types = vroom::cols(.default = vroom::col_character()),
                      .name_repair = "minimal", progress = FALSE)
@@ -313,10 +313,10 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
     specres$infections <- array(infections, lengths(dn1), dn1)
   }
 
-  specres$births <- setNames(as.numeric(dpsub("<Births MV>", 2, timedat.idx)), proj.years)
-  specres$hivpregwomen <- setNames(as.numeric(dpsub("<ChildNeedPMTCT MV>", 2, timedat.idx)), proj.years)
-  specres$hivpregwomen <- setNames(as.numeric(dpsub("<ChildNeedPMTCT MV>", 2, timedat.idx)), proj.years)
-  specres$receivepmtct <- setNames(as.numeric(dpsub("<ChildOnPMTCT MV>", 2, timedat.idx)), proj.years)
+  specres$births <- stats::setNames(as.numeric(dpsub("<Births MV>", 2, timedat.idx)), proj.years)
+  specres$hivpregwomen <- stats::setNames(as.numeric(dpsub("<ChildNeedPMTCT MV>", 2, timedat.idx)), proj.years)
+  specres$hivpregwomen <- stats::setNames(as.numeric(dpsub("<ChildNeedPMTCT MV>", 2, timedat.idx)), proj.years)
+  specres$receivepmtct <- stats::setNames(as.numeric(dpsub("<ChildOnPMTCT MV>", 2, timedat.idx)), proj.years)
 
   class(specres) <- "specres"
   attr(specres, "country") <- read_country(pjnz)
@@ -453,15 +453,15 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   ## sex/age-specific incidence ratios (time varying)
   incrr_age <- array(NA, c(AG, NG, length(proj.years)), list(0:(AG-1)*5, c("Male", "Female"), proj.years))
   if(dp.vers == "<General 3>"){
-    incrr_sex <- setNames(as.numeric(dp[aids5.tidx+181,timedat.idx]), proj.years) # !!! Not sure what aids5.tidx+183 (Ratio of female to male prevalence)
+    incrr_sex <- stats::setNames(as.numeric(dp[aids5.tidx+181,timedat.idx]), proj.years) # !!! Not sure what aids5.tidx+183 (Ratio of female to male prevalence)
     incrr_age[,"Male",] <- sapply(dp[aids5.tidx+281:297,timedat.idx], as.numeric)
     incrr_age[,"Female",] <- sapply(dp[aids5.tidx+299:315,timedat.idx], as.numeric)
   } else if(dp.vers == "<General5>"){
-    incrr_sex <- setNames(as.numeric(dp[hivsexrat.tidx+2, timedat.idx]), proj.years)
+    incrr_sex <- stats::setNames(as.numeric(dp[hivsexrat.tidx+2, timedat.idx]), proj.years)
     incrr_age[,"Male",] <- sapply(dp[hivagedist.tidx+3:19,timedat.idx], as.numeric)
     incrr_age[,"Female",] <- sapply(dp[hivagedist.tidx+21:37,timedat.idx], as.numeric)
   } else if(dp.vers == "Spectrum2016") {
-    incrr_sex <- setNames(as.numeric(dpsub("<HIVSexRatio MV>", 2, timedat.idx)), proj.years)
+    incrr_sex <- stats::setNames(as.numeric(dpsub("<HIVSexRatio MV>", 2, timedat.idx)), proj.years)
     incrr_age[,"Male",] <- sapply(dpsub("<DistOfHIV MV>", 4:20, timedat.idx), as.numeric)
     incrr_age[,"Female",] <- sapply(dpsub("<DistOfHIV MV>", 22:38, timedat.idx), as.numeric)
   } else if(dp.vers == "Spectrum2017") {
@@ -482,7 +482,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
       if (length(data_row) != 1) {
         stop("DP tag <HIVSexRatio MV> not parsed correctly")
       }
-      incrr_sex <- setNames(as.numeric(dpsub("<HIVSexRatio MV>", data_row, timedat.idx)), proj.years)
+      incrr_sex <- stats::setNames(as.numeric(dpsub("<HIVSexRatio MV>", data_row, timedat.idx)), proj.years)
       
     } else if (exists_dptag("<SexRatioByEpidPatt MV>")) {
       sexincrr_idx <- as.integer(dpsub("<IncEpidemicRGIdx MV>", 2, 4)) # 0-based index
@@ -567,13 +567,13 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   if(dp.vers %in% c("<General 3>", "<General5>")){
     art15plus_numperc <- sapply(dp[adult.artnumperc.tidx+3:4, timedat.idx], as.numeric)
     art15plus_num <- sapply(dp[adult.art.tidx+3:4, timedat.idx], as.numeric)
-    art15plus_eligthresh <- setNames(as.numeric(dp[adult.arteligthresh.tidx+2, timedat.idx]), proj.years)
-    artelig_specpop <- setNames(dp[specpopelig.tidx+1:7,2:6], c("description", "pop", "elig", "percent", "year"))
+    art15plus_eligthresh <- stats::setNames(as.numeric(dp[adult.arteligthresh.tidx+2, timedat.idx]), proj.years)
+    artelig_specpop <- stats::setNames(dp[specpopelig.tidx+1:7,2:6], c("description", "pop", "elig", "percent", "year"))
   } else if(dp.vers %in% c("Spectrum2016", "Spectrum2017")) {
     art15plus_numperc <- sapply(dpsub("<HAARTBySexPerNum MV>", 4:5, timedat.idx), as.numeric)
     art15plus_num <- sapply(dpsub("<HAARTBySex MV>", 4:5, timedat.idx), as.numeric)
-    art15plus_eligthresh <- setNames(as.numeric(dpsub("<CD4ThreshHoldAdults MV>", 2, timedat.idx)), proj.years)
-    artelig_specpop <- setNames(dpsub("<PopsEligTreat MV>", 3:9, 2:6), c("description", "pop", "elig", "percent", "year"))
+    art15plus_eligthresh <- stats::setNames(as.numeric(dpsub("<CD4ThreshHoldAdults MV>", 2, timedat.idx)), proj.years)
+    artelig_specpop <- stats::setNames(dpsub("<PopsEligTreat MV>", 3:9, 2:6), c("description", "pop", "elig", "percent", "year"))
   }
 
   if(exists_dptag("<NewARTPatAllocationMethod MV2>"))
@@ -633,7 +633,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 
   ## vertical transmission and paediatric survival
 
-  verttrans <- setNames(sapply(dpsub("<PerinatalTransmission MV>", 2, timedat.idx), as.numeric)/100, proj.years)
+  verttrans <- stats::setNames(sapply(dpsub("<PerinatalTransmission MV>", 2, timedat.idx), as.numeric)/100, proj.years)
 
   if(exists_dptag("<HIVBySingleAge MV>"))
     hivpop <- array(sapply(dpsub("<HIVBySingleAge MV>", c(3:83, 85:165), timedat.idx), as.numeric),
@@ -772,7 +772,7 @@ read_demog_param <- function(upd.file, age.intervals = 1){
       stop("Invalid age interval interval")
     age.groups <- c(rep(seq(0, 79, age.intervals), each=age.intervals), 80)
     age.intervals <- c(rep(age.intervals, 80 / age.intervals), 1)
-    ## } else if(length(age.groups) < 81 && age.groups[1] == 0 && tail(age.groups, 1) == 80){
+    ## } else if(length(age.groups) < 81 && age.groups[1] == 0 && utils::tail(age.groups, 1) == 80){
     ##   stop("not defined yet") ## define thie one
   } else if(length(age.intervals) < 81){
     if(sum(age.intervals != 81))
@@ -781,7 +781,7 @@ read_demog_param <- function(upd.file, age.intervals = 1){
   }
 
   ## Read and parse udp file
-  upd <- read.csv(upd.file, header=FALSE, as.is=TRUE)
+  upd <- utils::read.csv(upd.file, header=FALSE, as.is=TRUE)
 
   wpp.version <- ifelse(any(upd[,1] ==  "RevisionYear=2015"), "wpp2015", "wpp2012")
 
@@ -803,12 +803,12 @@ read_demog_param <- function(upd.file, age.intervals = 1){
   srb.tidx <- which(upd[,1] == "<srb>")
   srb.eidx <- which(upd[,1] == "</srb>")
 
-  bp <- setNames(data.frame(upd[(bp.tidx+2):(bp.eidx-1),1:4]), upd[bp.tidx+1,1:4])
-  lt <- setNames(data.frame(upd[(lt.tidx+2):(lt.eidx-1),]), upd[lt.tidx+1,])
-  pasfrs <- setNames(data.frame(upd[(pasfrs.tidx+2):(pasfrs.eidx-1),1:3]), upd[pasfrs.tidx+1,1:3])
-  migration <- setNames(data.frame(upd[(migration.tidx+2):(migration.eidx-1),1:4]), upd[migration.tidx+1,1:4])
-  tfr <- setNames(as.numeric(upd[(tfr.tidx+2):(tfr.eidx-1),2]), upd[(tfr.tidx+2):(tfr.eidx-1),1])
-  srb <- setNames(as.numeric(upd[(srb.tidx+2):(srb.eidx-1),2]), upd[(srb.tidx+2):(srb.eidx-1),1])
+  bp <- stats::setNames(data.frame(upd[(bp.tidx+2):(bp.eidx-1),1:4]), upd[bp.tidx+1,1:4])
+  lt <- stats::setNames(data.frame(upd[(lt.tidx+2):(lt.eidx-1),]), upd[lt.tidx+1,])
+  pasfrs <- stats::setNames(data.frame(upd[(pasfrs.tidx+2):(pasfrs.eidx-1),1:3]), upd[pasfrs.tidx+1,1:3])
+  migration <- stats::setNames(data.frame(upd[(migration.tidx+2):(migration.eidx-1),1:4]), upd[migration.tidx+1,1:4])
+  tfr <- stats::setNames(as.numeric(upd[(tfr.tidx+2):(tfr.eidx-1),2]), upd[(tfr.tidx+2):(tfr.eidx-1),1])
+  srb <- stats::setNames(as.numeric(upd[(srb.tidx+2):(srb.eidx-1),2]), upd[(srb.tidx+2):(srb.eidx-1),1])
 
 
   ## Aggregate into specified age groups
@@ -917,7 +917,7 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   tfr.tidx <- which(dp[,1] == "<TFR MV>")
   asfd.tidx <- which(dp[,1] == "<ASFR MV>")
 
-  tfr <- setNames(as.numeric(dp[tfr.tidx + 2, timedat.idx]), proj.years)
+  tfr <- stats::setNames(as.numeric(dp[tfr.tidx + 2, timedat.idx]), proj.years)
   asfd <- sapply(dp[asfd.tidx + 3:9, timedat.idx], as.numeric)/100
   asfd <- apply(asfd / 5, 2, rep, each=5)
 
@@ -930,11 +930,11 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   asfr <- sweep(asfd, 2, tfr, "*")
 
   births.tidx <- which(dp[,1] == "<Births MV>")
-  births <- setNames(as.numeric(dp[births.tidx + 2, timedat.idx]), proj.years)
+  births <- stats::setNames(as.numeric(dp[births.tidx + 2, timedat.idx]), proj.years)
 
   ## srb
   srb.tidx <- which(dp[,1] == "<SexBirthRatio MV>")
-  srb <- setNames(as.numeric(dp[srb.tidx + 2, timedat.idx]), proj.years)
+  srb <- stats::setNames(as.numeric(dp[srb.tidx + 2, timedat.idx]), proj.years)
 
   ## migration
   if(dp.vers == "Spectrum2016"){
@@ -1030,7 +1030,7 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
 #' @export
 read_epp_perc_urban <- function(pjnz){
 
-  xmlfile <- grep(".xml", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  xmlfile <- grep(".xml", utils::unzip(pjnz, list=TRUE)$Name, value=TRUE)
   con <- unz(pjnz, xmlfile)
   epp.xml <- xml2::read_xml(con)
 
@@ -1045,7 +1045,7 @@ read_epp_perc_urban <- function(pjnz){
   yr_start <- xml2::xml_integer(r[["worksetStartYear"]])
   yr_end <- xml2::xml_integer(r[["worksetEndYear"]])
 
-  return(setNames(perc_urban, yr_start:yr_end))
+  return(stats::setNames(perc_urban, yr_start:yr_end))
 }
 
 ## Read epidemic start year from EPP XML file
@@ -1056,7 +1056,7 @@ read_epp_perc_urban <- function(pjnz){
 #' @export
 read_epp_t0 <- function(pjnz){
 
-  xmlfile <- grep(".xml", unzip(pjnz, list=TRUE)$Name, value=TRUE)
+  xmlfile <- grep(".xml", utils::unzip(pjnz, list=TRUE)$Name, value=TRUE)
   con <- unz(pjnz, xmlfile)
   epp.xml <- xml2::read_xml(con)
 
@@ -1096,12 +1096,12 @@ read_subp_file <- function(filepath){
 
   datidx <- seq(startidx+1, endidx-1, AG+1)
 
-  header <- setNames(read.csv(text=dat[datidx], header=FALSE),
+  header <- stats::setNames(utils::read.csv(text=dat[datidx], header=FALSE),
                      c("country_code", "country", "region", "sex"))
   header$sex <- factor(header$sex, c("Male", "Female"))
 
-  data <- lapply(datidx, function(idx) read.csv(text=dat[idx+1:AG], header=FALSE))
-  data <- lapply(tapply(setNames(data, header$sex), header$region, abind::abind, along=0),
+  data <- lapply(datidx, function(idx) utils::read.csv(text=dat[idx+1:AG], header=FALSE))
+  data <- lapply(tapply(stats::setNames(data, header$sex), header$region, abind::abind, along=0),
                  aperm, c(2,1,3))
   data <- lapply(data, function(x) x[,c("Male", "Female"),])
   data <- lapply(data, "dimnames<-", list(Age=0:(AG-1), Sex=c("Male", "Female"), Year=startyear+1:years-1L))
@@ -1175,7 +1175,7 @@ read_incid_input <- function(pjnz){
     val <- NULL
   }
 
-  val <- setNames(val, proj_years)
+  val <- stats::setNames(val, proj_years)
   attr(val, "incidpopage") <- as.integer(dpsub("<EPPPopulationAges MV>", 2, 4))  # Adults 15-49 = 0; Adults 15+ = 1
   val <- val / 100
 

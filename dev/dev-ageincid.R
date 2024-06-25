@@ -13,7 +13,7 @@ fp <- create_spectrum_fixpar(projp, demp, proj_end = 2016, time_epi_start = proj
 theta.rspline <- c(1.31820011, -0.09884313, -0.40054248, 0.06277183, 0.16923859, 0.41277390, -0.17640756, -14.13863910, 0.09765759, -3.73232668, -5.12046650)
 
 param <- fnCreateParam(theta.rspline, fp)
-fp <- update(fp, list=param)
+fp <- stats::update(fp, list=param)
 fp$iota <- fp$iota*15
 
 modR <- simmod(fp, VERSION="R")

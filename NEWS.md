@@ -2,6 +2,18 @@
 
 * Add excess non-AIDS mortality among PLHIV. New model parameters `cd4_nonaids_excess_mort` and `art_nonaids_excess_mort`.
 
+## eppasm 0.7.6
+
+* Update internal data country ISO3 list to contain St. Kitts & Nevis and Dominica
+
+## eppasm 0.7.5
+
+* Qualify all package names and add all required packages into Imports section.
+
+## eppasm 0.7.4
+
+* Implement recovery to next higher CD4 category following ART interruption for those on ART greater than one year.
+
 ## eppasm 0.7.3
 
 * Bug fix: account for end-year net migration in the ART population in the first year of ART start.

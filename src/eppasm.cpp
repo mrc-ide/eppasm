@@ -149,6 +149,7 @@ extern "C" {
     double *pw_artelig = REAL(getListElement(s_fp, "pw_artelig"));
     double who34percelig = *REAL(getListElement(s_fp, "who34percelig"));
 
+    int bin_art_dropout_recover_cd4 = *INTEGER(getListElement(s_fp, "art_dropout_recover_cd4"));
     double *art_dropout = REAL(getListElement(s_fp, "art_dropout"));
     double *median_cd4init = REAL(getListElement(s_fp, "median_cd4init"));
 
@@ -786,7 +787,14 @@ extern "C" {
 		// ART dropout
 		if(art_dropout[t] > 0)
 		  for(int hu = 0; hu < hTS; hu++){
-		    grad[g][ha][hm] += art_dropout[t] * artpop[t][g][ha][hm][hu];
+
+		    if (bin_art_dropout_recover_cd4 && hu >= 2 && hm >= 1) {
+		      // recover people on ART >1 year to one higher CD4 category
+		      grad[g][ha][hm-1] += art_dropout[t] * artpop[t][g][ha][hm][hu];
+		    } else {
+		      grad[g][ha][hm] += art_dropout[t] * artpop[t][g][ha][hm][hu];
+		    }
+
                     gradART[g][ha][hm][hu] -= art_dropout[t] * artpop[t][g][ha][hm][hu];
 		  }
 

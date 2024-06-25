@@ -19,7 +19,8 @@ create_spectrum_fixpar(
   who34percelig = 0,
   frr_art6mos = projp$frr_art6mos,
   frr_art1yr = projp$frr_art6mos,
-  projection_period = NULL
+  projection_period = NULL,
+  art_dropout_recover_cd4 = NULL
 )
 }
 \description{

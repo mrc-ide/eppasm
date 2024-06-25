@@ -1,3 +1,7 @@
+## eppasm 0.8.0
+
+* Add excess non-AIDS mortality among PLHIV. New model parameters `cd4_nonaids_excess_mort` and `art_nonaids_excess_mort`.
+
 ## eppasm 0.7.3
 
 * Bug fix: account for end-year net migration in the ART population in the first year of ART start.

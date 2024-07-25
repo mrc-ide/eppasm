@@ -13,6 +13,10 @@
   
   This has modest overall difference, but was a source of numerical differences between 
   Spectrum and EPP-ASM.
+
+* Patch ART dropout implementation. Spectrum converts input ART dropout percent to an 
+  annual rate using [dropout rate] = -log(1.0 - [input percent]).
+  
   
 ## eppasm 0.7.6
 

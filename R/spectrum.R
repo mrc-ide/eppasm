@@ -220,8 +220,10 @@ create_spectrum_fixpar <- function(projp, demp, hiv_steps_per_year = 10L, proj_s
   } else {
     fp$art_dropout_recover_cd4 <- art_dropout_recover_cd4
   }
-    
-  fp$art_dropout <- projp$art_dropout[as.character(proj_start:proj_end)]/100
+
+  ## Convert input percent dropout in 12 months to an annual rate (Rob Glaubius email 25 July 2024)
+  fp$art_dropout <- -log(1.0 - projp$art_dropout[as.character(proj_start:proj_end)]/100)
+  
   fp$median_cd4init <- projp$median_cd4init[as.character(proj_start:proj_end)]
   fp$med_cd4init_input <- as.integer(fp$median_cd4init > 0)
   fp$med_cd4init_cat <- replace(findInterval(-fp$median_cd4init, - c(1000, 500, 350, 250, 200, 100, 50)),

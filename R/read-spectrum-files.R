@@ -576,6 +576,29 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     artelig_specpop <- stats::setNames(dpsub("<PopsEligTreat MV>", 3:9, 2:6), c("description", "pop", "elig", "percent", "year"))
   }
 
+  ## # Adult on ART adjustment factor
+  ## 
+  ## * Implemented from around Spectrum 6.2 (a few versions before)
+  ## * Allows user to specify scalar to reduce number on ART in each year ("<AdultARTAdjFactor>")
+  ## * Enabled / disabled by checkbox flag ("<AdultARTAdjFactorFlag>")
+  ## * Scaling factor only applies to number inputs, not percentages (John Stover email, 20 Feb 2023)
+  ##   -> Even if scaling factor specified in a year with percentage input, ignore it.
+  ## 
+  
+  if (exists_dptag("<AdultARTAdjFactorFlag>") &&
+        dpsub("<AdultARTAdjFactorFlag>", 2, 4) == 1) {
+    
+    adult_artadj_factor <- sapply(dpsub("<AdultARTAdjFactor>", 3:4, timedat.idx), as.numeric)
+
+    ## Only apply if is number (! is percentage)
+    adult_artadj_factor <- adult_artadj_factor ^ as.numeric(!art15plus_numperc)
+
+    art15plus_num <- art15plus_num * adult_artadj_factor
+  } else {
+    adult_artadj_factor <- array(1.0, dim(art15plus_num))
+  }
+
+
   if(exists_dptag("<NewARTPatAllocationMethod MV2>"))
     art_alloc_method <- as.integer(dpsub("<NewARTPatAllocationMethod MV2>", 2, 4))
   else
@@ -610,6 +633,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 
   dimnames(art15plus_numperc) <- list(sex=c("Male", "Female"), year=proj.years)
   dimnames(art15plus_num) <- list(sex=c("Male", "Female"), year=proj.years)
+  dimnames(adult_artadj_factor) <- list(sex=c("Male", "Female"), year=proj.years)
 
   artelig_specpop$pop <- c("PW", "TBHIV", "DC", "FSW", "MSM", "IDU", "OTHER")
   artelig_specpop$elig <- as.logical(as.integer(artelig_specpop$elig))
@@ -738,6 +762,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
                 "artmx_timerr" = artmx_timerr,
                 "art15plus_numperc" = art15plus_numperc,
                 "art15plus_num" = art15plus_num,
+                "adult_artadj_factor" = adult_artadj_factor,
                 "art15plus_eligthresh" = art15plus_eligthresh,
                 "artelig_specpop" = artelig_specpop,
                 "median_cd4init" = median_cd4init,

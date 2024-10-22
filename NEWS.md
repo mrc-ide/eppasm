@@ -1,3 +1,9 @@
+## epapsm 0.8.1
+
+* Implement Spectrum Adult ART scalar adjustment. This is a user input that 
+  allows the input number on ART to be adjusted by a scalar to account for 
+  over/under-reporting of treatment numbers.
+	
 ## eppasm 0.8.0
 
 * Implement Spectrum ART allocation.

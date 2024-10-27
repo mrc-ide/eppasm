@@ -673,7 +673,8 @@ extern "C" {
 		double artpop_hahm = 0.0;
 		for(int hu = 0; hu < hTS; hu++)
 		  artpop_hahm += artpop[t][g][ha][hm][hu];
-		cd4mx_scale = hivpop[t][g][ha][hm] / (hivpop[t][g][ha][hm] + artpop_hahm);
+		cd4mx_scale = (hivpop[t][g][ha][hm] + artpop_hahm) > 0 ?
+		  hivpop[t][g][ha][hm] / (hivpop[t][g][ha][hm] + artpop_hahm) : 1.0;
 	      }
 	      
               double aids_deaths = cd4mx_scale * cd4_mort[g][ha][hm] * hivpop[t][g][ha][hm];
@@ -734,7 +735,7 @@ extern "C" {
 	      }
 	    }
 	  }
-	  
+
           // add new infections to HIV population
           for(int g = 0; g < NG; g++){
             int a = 0;
@@ -804,20 +805,57 @@ extern "C" {
           // ART initiation
           for(int g = 0; g < NG; g++){
 
-            double artelig_hahm[hAG_15PLUS][hDS], Xart_15plus = 0.0, Xartelig_15plus = 0.0, expect_mort_artelig15plus = 0.0;
+
+	    // Spectrum ART allocation is 2-step process
+	    // 1. Allocate by CD4 category (weighted by 'eligible' and 'expected mortality')
+	    // 2. Allocate by age groups (weighted only by eligibility)
+	    //
+	    // The first step: allocate initiation by CD4 category (_hm) requires
+	    // tabulating number eligible and expected mortality within each CD4
+	    // category (aggregated over all ages).
+
+	    double Xart_15plus = 0.0; // Total currently on ART
+		    
+            double artelig_hahm[hAG_15PLUS][hDS];
+	    double artelig_hm[hDS];
+	    double Xartelig_15plus = 0.0;
+
+	    double expect_mort_artelig_hm[hDS];
+	    double expect_mort_artelig15plus = 0.0;
+
+	    // Initialise to zero
+	    memset(artelig_hm, 0, hDS * sizeof(double));
+	    memset(expect_mort_artelig_hm, 0, hDS * sizeof(double));
+	    	    
             for(int ha = hIDX_15PLUS; ha < hAG; ha++){
               for(int hm = everARTelig_idx; hm < hDS; hm++){
+		
 		if(hm >= anyelig_idx){
-		  double prop_elig = (hm >= cd4elig_idx) ? 1.0 : (hm >= hIDX_CD4_350) ? 1.0 - (1.0-specpop_percelig[t])*(1.0-who34percelig) : specpop_percelig[t];
-		  Xartelig_15plus += artelig_hahm[ha-hIDX_15PLUS][hm] = prop_elig * hivpop[t][g][ha][hm] ;
-		  expect_mort_artelig15plus += cd4_mort[g][ha][hm] * artelig_hahm[ha-hIDX_15PLUS][hm];
+
+		  // Specify proportion eligibly
+		  double prop_elig = (hm >= cd4elig_idx) ? 1.0 :
+		    (hm >= hIDX_CD4_350) ?
+		    1.0 - (1.0-specpop_percelig[t]) * (1.0-who34percelig) :
+		    specpop_percelig[t];
+
+		  double artelig_hahm_tmp = prop_elig * hivpop[t][g][ha][hm];
+		  artelig_hahm[ha-hIDX_15PLUS][hm] = artelig_hahm_tmp;
+		  artelig_hm[hm] += artelig_hahm_tmp;
+		  Xartelig_15plus += artelig_hahm_tmp;
+
+		  double expect_mort_hahm = cd4_mort[g][ha][hm] * artelig_hahm_tmp;
+		  expect_mort_artelig_hm[hm] += expect_mort_hahm;
+		  expect_mort_artelig15plus += expect_mort_hahm;
 		}
-                for(int hu = 0; hu < hTS; hu++)
+		
+                for(int hu = 0; hu < hTS; hu++) {
                   Xart_15plus += artpop[t][g][ha][hm][hu] + DT * gradART[g][ha][hm][hu];
+		}
               }
 
               // if pw_artelig, add pregnant women to artelig_hahm population
               if(g == FEMALE && pw_artelig[t] > 0 && ha < hAG_FERT){
+		
                 double frr_pop_ha = 0;
                 for(int a =  hAG_START[ha]; a < hAG_START[ha]+hAG_SPAN[ha]; a++)
                   frr_pop_ha += pop[t][HIVN][g][a]; // add HIV- population
@@ -826,11 +864,17 @@ extern "C" {
                   for(int hu = 0; hu < hTS; hu++)
                     frr_pop_ha += frr_art[t][ha-hIDX_FERT][hm][hu] * artpop[t][g][ha][hm][hu];
                 }
+
+		// Add pregnant women in CD4 categories before all eligible
                 for(int hm = anyelig_idx; hm < cd4elig_idx; hm++){
                   double pw_elig_hahm = births_by_ha[ha-hIDX_FERT] * frr_cd4[t][ha-hIDX_FERT][hm] * hivpop[t][g][ha][hm] / frr_pop_ha;
                   artelig_hahm[ha-hIDX_15PLUS][hm] += pw_elig_hahm;
+		  artelig_hm[hm] += pw_elig_hahm;
                   Xartelig_15plus += pw_elig_hahm;
-                  expect_mort_artelig15plus += cd4_mort[g][ha][hm] * pw_elig_hahm;
+
+		  double pw_expect_mort_hahm = cd4_mort[g][ha][hm] * pw_elig_hahm;
+		  expect_mort_artelig_hm[hm] += pw_expect_mort_hahm;
+                  expect_mort_artelig15plus += pw_expect_mort_hahm;
                 }
               }
             } // loop over ha
@@ -940,10 +984,24 @@ extern "C" {
 	      
 	    } else { // Use mixture of eligibility and expected mortality for initiation distribution
 
+	      // ART allocation step 1: allocate by CD4 stage
+	      double artinit_hm[hDS];
+	      for(int hm = anyelig_idx; hm < hDS; hm++){
+		artinit_hm[hm] = artinit_hts *
+		  ( (1.0 - art_alloc_mxweight) * artelig_hm[hm] / Xartelig_15plus +
+		    art_alloc_mxweight * expect_mort_artelig_hm[hm] / expect_mort_artelig15plus);
+	      }
+	      
               for(int ha = hIDX_15PLUS; ha < hAG; ha++)
                 for(int hm = anyelig_idx; hm < hDS; hm++){
-		  if (Xartelig_15plus > 0.0) {
-		    double artinit_hahm = artinit_hts * artelig_hahm[ha-hIDX_15PLUS][hm] * ((1.0 - art_alloc_mxweight)/Xartelig_15plus + art_alloc_mxweight * cd4_mort[g][ha][hm] / expect_mort_artelig15plus);
+
+		  // ART allocation step 2: within CD4 category, allocate
+		  // by age proportional to eligibility
+		  if (artelig_hm[hm] > 0.0) {
+		    
+		    double artinit_hahm = artinit_hm[hm] *
+		      artelig_hahm[ha-hIDX_15PLUS][hm] / artelig_hm[hm];
+		      
 		    if(artinit_hahm > artelig_hahm[ha-hIDX_15PLUS][hm])
 		      artinit_hahm = artelig_hahm[ha-hIDX_15PLUS][hm];
 		    if(artinit_hahm > hivpop[t][g][ha][hm] + DT * grad[g][ha][hm])

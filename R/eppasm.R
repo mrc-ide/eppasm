@@ -432,7 +432,7 @@ simmod.specfp <- function(fp, VERSION="C", ...) {
       pop[,,,i] <- sweep(pop[,,,i], 1:2, mr.prob, "*")
       
       hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")
-      if(i > fp$tARTstart)
+      if(i >= fp$tARTstart)
         artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.mr.prob, "*")
     }
 

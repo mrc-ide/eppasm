@@ -1,3 +1,22 @@
+## eppasm 0.8.3
+
+* Implement Spectrum adult ART adjustment by absolute count. This is a user 
+  input that adjust the number on ART count by an absolute value. It is
+  intended to be used to account for clients receiving services in or
+  from another region; typically with subnational Spectrum files.
+  
+  If both absolute count and ratio adjustments are specified in the same
+  year, the absolute count is applied first and then ratio is applied. 
+  If ART is specified as a percentage, then adjustments do not have any 
+  influence.
+  
+  Previously entered ART adjustments were applied or not via a checkbox in
+  Spectrum. The checkbox has been removed in Spectrum 6.38 beta 18. For 
+  backward compatability with previously simulated Spectrum outputs, if the 
+  checkbox flag exists in the .DP file, it is still used to determine 
+  application of the ratios; if the .DP file does not contain the checkbox 
+  flag, then the ratio is applied.
+  
 ## eppasm 0.8.2
 
 Implement new excess non-AIDS mortality among PLHIV implemented in 

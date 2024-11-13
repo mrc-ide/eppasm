@@ -653,20 +653,50 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   ## * Enabled / disabled by checkbox flag ("<AdultARTAdjFactorFlag>")
   ## * Scaling factor only applies to number inputs, not percentages (John Stover email, 20 Feb 2023)
   ##   -> Even if scaling factor specified in a year with percentage input, ignore it.
+  ##
   ## 
-  
-  if (exists_dptag("<AdultARTAdjFactorFlag>") &&
-        dpsub("<AdultARTAdjFactorFlag>", 2, 4) == 1) {
-    
+  ## ** UPDATE Spectrum 6.37 beta 18 **
+  ##
+  ## Two changes to the adult ART adjustment were implemented in Spectrum 6.37 beta 18:
+  ##
+  ## * ART adjustments were moved the main Spectrum editor and the flag variable
+  ##   "<AdultARTAdjFactorFlag>" was removed from the .DP file.
+  ## * New tag "<AdultPatsAllocToFromOtherRegion>" was added allowing for input
+  ##   of absolute count adjustment
+  ##
+  ## New logic to account for these changes:
+  ## * Initialise values to defaults 1.0 for relative adjustment and 0.0
+  ##   for absolute adjustment.
+  ## * Only check flag variable if it exists. If adjustment variable exists
+  ##   but flag variable does not exist, use the adjustment.
+  ##
+
+  ## Initialise
+  adult_artadj_factor <- array(1.0, dim(art15plus_num))
+  adult_artadj_absolute <- array(0.0, dim(art15plus_num))
+
+  ## Flag to use adjustment
+  use_artadj <- exists_dptag("<AdultARTAdjFactor>") &&
+    (!exists_dptag("<AdultARTAdjFactorFlag>") ||
+        (exists_dptag("<AdultARTAdjFactorFlag>") &&
+           dpsub("<AdultARTAdjFactorFlag>", 2, 4) == 1))
+
+  if (use_artadj) {
+
     adult_artadj_factor <- sapply(dpsub("<AdultARTAdjFactor>", 3:4, timedat.idx), as.numeric)
 
+    if(exists_dptag("<AdultPatsAllocToFromOtherRegion>")) {
+      adult_artadj_absolute <- sapply(dpsub("<AdultPatsAllocToFromOtherRegion>", 3:4, timedat.idx), as.numeric)
+    }
+    
     ## Only apply if is number (! is percentage)
     adult_artadj_factor <- adult_artadj_factor ^ as.numeric(!art15plus_numperc)
+    adult_artadj_absolute <- adult_artadj_absolute * as.numeric(!art15plus_numperc)
 
+    ## First add absolute adjustment, then apply scalar adjustment (Spectrum procedure)
+    art15plus_num <- art15plus_num + adult_artadj_absolute
     art15plus_num <- art15plus_num * adult_artadj_factor
-  } else {
-    adult_artadj_factor <- array(1.0, dim(art15plus_num))
-  }
+  } 
 
 
   if(exists_dptag("<NewARTPatAllocationMethod MV2>"))

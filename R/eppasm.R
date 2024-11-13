@@ -439,8 +439,7 @@ simmod.specfp <- function(fp, VERSION="C", ...) {
       pop[,,2,i] <- pop[,,2,i] - hivdeaths_p.ts
       hivdeaths[,,i] <- hivdeaths[,,i] + hivdeaths_p.ts
 
-      nonaids_excess.ts
-      nonaids_excess_p.ts <- apply(nonaids_excess.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
+      nonaids_excess_p.ts <- apply(nonaids_excess.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # Non-AIDS excess deaths by single-year age
       pop[,,2,i] <- pop[,,2,i] - nonaids_excess_p.ts
       excessnonaidsdeaths[,,i] <- excessnonaidsdeaths[,,i] + nonaids_excess_p.ts
     }

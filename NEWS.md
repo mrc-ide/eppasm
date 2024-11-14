@@ -1,3 +1,85 @@
+## eppasm 0.8.3
+
+* Implement Spectrum adult ART adjustment by absolute count. This is a user 
+  input that adjust the number on ART count by an absolute value. It is
+  intended to be used to account for clients receiving services in or
+  from another region; typically with subnational Spectrum files.
+  
+  If both absolute count and ratio adjustments are specified in the same
+  year, the absolute count is applied first and then ratio is applied. 
+  If ART is specified as a percentage, then adjustments do not have any 
+  influence.
+  
+  Previously entered ART adjustments were applied or not via a checkbox in
+  Spectrum. The checkbox has been removed in Spectrum 6.38 beta 18. For 
+  backward compatability with previously simulated Spectrum outputs, if the 
+  checkbox flag exists in the .DP file, it is still used to determine 
+  application of the ratios; if the .DP file does not contain the checkbox 
+  flag, then the ratio is applied.
+  
+## eppasm 0.8.2
+
+Implement new excess non-AIDS mortality among PLHIV implemented in 
+Spectrum 6.38 for 2025 UNAIDS HIV estimates.
+
+Spectrum 6.38 implements rates of non-AIDS excess mortality by sex, 
+age group, CD4 category and ART status. By default these mortality rates 
+are applied in concentrated epidemic countries and defaulted to zero in
+African HIV epidemic settings.
+
+Spectrum outputs for non-AIDS deaths among PLHIV in AIM include non-AIDS 
+excess deaths. EPP-ASM deaths outputs are updated accordingly.
+
+To ensure backward compatibility, excess non-AIDS mortality are initialized 
+to 0.0 and replaced with values read from Spectrum if the relevant values
+exist in the .DP file.
+
+Specific changes:
+* `read_hivproj_param()` is updated to read input values for excess non-AIDS
+  mortality from Spectrum .DP file, stored in tag `"<AdultNonAIDSExcessMort MV>"`.
+
+* `read_hivproj_output()` updated to read additiounal deaths outputs:
+   - Non-AIDS excess deaths among PLHIV from the tag `"<NonAIDSExcessDeathsSingleAge MV>"`,
+     and output in the array `specres$nonaids_excess_deaths`.
+   - AIDS deaths by ART status are now output by single-year age in outputs `aidsdeaths_art1`
+     and `aidsdeaths_noart1`. (Previously only output by 5-year age group.
+   - **BREAKING CHANGE:** Previous outputs for AIDS deaths by ART status in 5-year age groups
+     `aidsdeaths_art` and `aidsdeaths_noart` have added a suffix `5` to avoid ambiguity:
+	 `aidsdeaths_art5` and `aidsdeaths_noart5`. Previous code that used `aidsdeaths_art` and
+	 `aidsdeaths_noart` will need to be updated.
+
+* EPP-ASM code updated to incorporate excess non-AIDS mortality among PLHIV. 
+  Internally new model parameters arrays `cd4_nonaids_excess_mort` and 
+  `art_nonaids_excess_mort` follow the same dimensions and stratification 
+  of `cd4_mort` and `art_mort` arrays. These represent expansions of the 
+  arrays saved in Spectrum-AIM, to all age groups and ART duration categories, 
+  consistent with handling of the `cd4_mort` and `art_mort` arrays.
+
+## epapsm 0.8.1
+
+* Implement Spectrum Adult ART scalar adjustment. This is a user input that 
+  allows the input number on ART to be adjusted by a scalar to account for 
+  over/under-reporting of treatment numbers.
+	
+## eppasm 0.8.0
+
+* Implement Spectrum ART allocation.
+  
+  There has been a longstanding discrepancy betweeen EPP-ASM and Spectrum in ART allocation.
+  For ART allocation by 'expected mortality', EPP-ASM allocated according to mortality by CD4
+  and age.
+  
+  Spectrum allocates ART in a two step process: first, ART is allocated by CD4 category based
+  on the 'expected mortality' and 'proportional to eligibility' weight. Second, within 
+  CD4 categories, ART is allocated by age solely proportional to number in each age 
+  group (propotional to eligibility).
+  
+  This has modest overall difference, but was a source of numerical differences between 
+  Spectrum and EPP-ASM.
+
+* Patch ART dropout implementation. Spectrum converts input ART dropout percent to an 
+  annual rate using [dropout rate] = -log(1.0 - [input percent]).
+  
 ## eppasm 0.7.6
 
 * Update internal data country ISO3 list to contain St. Kitts & Nevis and Dominica

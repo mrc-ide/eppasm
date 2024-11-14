@@ -60,6 +60,16 @@ simmod.specfp <- function(fp, VERSION="C", ...) {
   hivdeaths <- array(0, c(pAG, NG, PROJ_YEARS))
   natdeaths <- array(0, c(pAG, NG, PROJ_YEARS))
 
+  excessnonaidsdeaths <- array(0.0, c(pAG, NG, PROJ_YEARS))
+
+  aidsdeaths_noart <- array(0.0, c(hDS, hAG, NG, PROJ_YEARS))
+  natdeaths_noart <- array(0.0, c(hDS, hAG, NG, PROJ_YEARS))
+  excessnonaidsdeaths_noart <- array(0.0, c(hDS, hAG, NG, PROJ_YEARS))
+
+  aidsdeaths_art <- array(0.0, c(hTS, hDS, hAG, NG, PROJ_YEARS))
+  natdeaths_art <- array(0.0, c(hTS, hDS, hAG, NG, PROJ_YEARS))
+  excessnonaidsdeaths_art <- array(0.0, c(hTS, hDS, hAG, NG, PROJ_YEARS))
+
   popadj.prob <- array(0, c(pAG, NG, PROJ_YEARS))
 
   if(fp$eppmod != "directincid_ann") {
@@ -126,9 +136,12 @@ simmod.specfp <- function(fp, VERSION="C", ...) {
     pop[,,,i] <- pop[,,,i] - deaths
     natdeaths[,,i] <- rowSums(deaths,,2)
 
+    natdeaths_noart[,,,i] <- sweep(hivpop[,,,i], 2:3, 1.0 - hiv.sx.prob, "*")
     hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.sx.prob, "*")
-    if(i > fp$tARTstart)
+    if(i > fp$tARTstart) {
+      natdeaths_art[,,,,i] <- sweep(artpop[,,,,i], 3:4, 1.0 - hiv.sx.prob, "*")
       artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.sx.prob, "*")
+    }
 
     if (fp$projection_period == "midyear") {
 
@@ -217,18 +230,20 @@ simmod.specfp <- function(fp, VERSION="C", ...) {
         cd4mx_scale <- hivpop[,,,i] / (hivpop[,,,i] + colSums(artpop[,,,,i]))
         cd4mx_scale[!is.finite(cd4mx_scale)] <- 1.0
         cd4_mort_ts <- fp$cd4_mort * cd4mx_scale
-      } else
+      } else {
         cd4_mort_ts <- fp$cd4_mort
+      }
 
       grad <- grad - cd4_mort_ts * hivpop[,,,i]              # HIV mortality, untreated
+      hivdeaths.ts <- DT * colSums(cd4_mort_ts * hivpop[,,,i])
+      aidsdeaths_noart[,,,i] <- aidsdeaths_noart[,,,i] + DT * cd4_mort_ts * hivpop[,,,i]
+      
+      ## Non-AIDS excess mortality
+      grad <- grad - fp$cd4_nonaids_excess_mort * hivpop[,,,i]
+      nonaids_excess.ts <- DT * colSums(fp$cd4_nonaids_excess_mort * hivpop[,,,i])
+      excessnonaidsdeaths_noart[,,,i] <- excessnonaidsdeaths_noart[,,,i] + DT * fp$cd4_nonaids_excess_mort * hivpop[,,,i]
 
-      ## Remove hivdeaths from pop
-      hivdeaths.ts <- DT*(colSums(cd4_mort_ts * hivpop[,,,i]) + colSums(fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i],,2))
-      calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
-      hivdeaths_p.ts <- apply(hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
-      pop[,,2,i] <- pop[,,2,i] - hivdeaths_p.ts
-      hivdeaths[,,i] <- hivdeaths[,,i] + hivdeaths_p.ts
-
+      
       ## ART initiation
       if(i >= fp$tARTstart) {
 
@@ -240,6 +255,18 @@ simmod.specfp <- function(fp, VERSION="C", ...) {
         gradART[2:hTS,,,] <- gradART[2:hTS,,,] + 1.0 / fp$ss$h_art_stage_dur * artpop[1:(hTS-1),,,, i]      # add ART duration progression
 
         gradART <- gradART - fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i]   # ART mortality
+
+        hivdeaths.ts <- hivdeaths.ts +
+          DT * colSums(fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i],,2)
+        aidsdeaths_art[,,,,i] <- aidsdeaths_art[,,,,i] +
+          DT * fp$art_mort * fp$artmx_timerr[ , i] * artpop[,,,,i]
+      
+        ## Non-AIDS excess mortality
+        gradART <- gradART - fp$art_nonaids_excess_mort * artpop[,,,,i]
+        nonaids_excess.ts <- nonaids_excess.ts +
+          DT * colSums(fp$art_nonaids_excess_mort * artpop[,,,,i],,2)
+        excessnonaidsdeaths_art[,,,,i] <- excessnonaidsdeaths_art[,,,,i] +
+          DT * fp$art_nonaids_excess_mort * artpop[,,,,i]
 
 
         ## ART dropout
@@ -329,23 +356,41 @@ simmod.specfp <- function(fp, VERSION="C", ...) {
             }
 
           } else {
+
+            ## ## Old EPP-ASM implementation
+            ##
+            ## Applied 'expected mortality' weight within each cd4-age mortality strata.
+            ## Different from Spectrum -- see Spectrum implementation below
+            ## 
+            ## expect.mort.weight <- sweep(fp$cd4_mort[, h.age15plus.idx,], 3,
+            ##                             colSums(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,],,2), "/")
+            ## artinit.weight <- sweep(fp$art_alloc_mxweight * expect.mort.weight, 3, (1 - fp$art_alloc_mxweight)/colSums(art15plus.elig,,2), "+")
+            ## artinit <- pmin(sweep(artinit.weight * art15plus.elig, 3, art15plus.inits, "*"),
+            ##                 art15plus.elig)
+
+            ## Spectrum ART initiation is 2-step process
+            ## 1. Allocate by CD4 category (weighted by 'eligible' and 'expected mortality')
+            ## 2. Allocate by age groups (weighted only by eligibility)
+
+            ## First step: allocate initiation by CD4 category (_hm)
+            artelig_hm <- apply(art15plus.elig, c(1, 3), sum)
+            expected_deaths_hm <- apply(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,], c(1, 3), sum)
+            expected.mort.weight_hm <- sweep(expected_deaths_hm, 2, colSums(expected_deaths_hm), "/")
+            artelig.weight_hm <- sweep(artelig_hm, 2, colSums(artelig_hm), "/")
             
-            expect.mort.weight <- sweep(fp$cd4_mort[, h.age15plus.idx,], 3,
-                                        colSums(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,],,2), "/")          
-            artinit.weight <- sweep(fp$art_alloc_mxweight * expect.mort.weight, 3, (1 - fp$art_alloc_mxweight)/colSums(art15plus.elig,,2), "+")
-            artinit <- pmin(sweep(artinit.weight * art15plus.elig, 3, art15plus.inits, "*"),
-                            art15plus.elig)
+            artinit.weight_hm <- fp$art_alloc_mxweight * expected.mort.weight_hm +
+              (1.0 - fp$art_alloc_mxweight) * artelig.weight_hm
+
+            artinit_hm <- sweep(artinit.weight_hm, 2, art15plus.inits, "*")
+
+            ## Second step: within each CD4 category, allocate initiation
+            ## proportionally by age
             
-            ## Allocation by average mortality across CD4, trying to match Spectrum
-            ## artelig_by_cd4 <- apply(art15plus.elig, c(1, 3), sum)
-            ## expectmort_by_cd4 <- apply(art15plus.elig * fp$cd4_mort[, h.age15plus.idx,], c(1, 3), sum)
-            
-            ## artinit_dist <- fp$art_alloc_mxweight * sweep(artelig_by_cd4, 2, colSums(artelig_by_cd4), "/") +
-            ##   (1 - fp$art_alloc_mxweight) * sweep(expectmort_by_cd4, 2, colSums(expectmort_by_cd4), "/")
-            
-            ## artinit_prob <- sweep(artinit_dist, 2, art15plus.inits, "*") / artelig_by_cd4
-            ## artinit <- sweep(art15plus.elig, c(1, 3), artinit_prob, "*")
-            ## artinit <- pmin(artinit, art15plus.elig, na.rm=TRUE)
+            ## Proportion initiating in each sex x CD4 category
+            artinit_prob <- artinit_hm / artelig_hm
+            artinit <- sweep(art15plus.elig, c(1, 3), artinit_prob, "*")
+
+            artinit <- pmin(artinit, art15plus.elig, na.rm=TRUE)
           }
 
         } else {
@@ -386,7 +431,18 @@ simmod.specfp <- function(fp, VERSION="C", ...) {
       }
 
       hivpop[,,,i] <- hivpop[,,,i] + DT * grad
-    }    
+
+      
+      ## Remove hivdeaths from pop
+      calc.agdist <- function(x) {d <- x/rep(ctapply(x, ag.idx, sum), h.ag.span); d[is.na(d)] <- 0; d}
+      hivdeaths_p.ts <- apply(hivdeaths.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # HIV deaths by single-year age
+      pop[,,2,i] <- pop[,,2,i] - hivdeaths_p.ts
+      hivdeaths[,,i] <- hivdeaths[,,i] + hivdeaths_p.ts
+
+      nonaids_excess_p.ts <- apply(nonaids_excess.ts, 2, rep, h.ag.span) * apply(pop[,,hivp.idx,i], 2, calc.agdist)  # Non-AIDS excess deaths by single-year age
+      pop[,,2,i] <- pop[,,2,i] - nonaids_excess_p.ts
+      excessnonaidsdeaths[,,i] <- excessnonaidsdeaths[,,i] + nonaids_excess_p.ts
+    }
 
     ## ## Code for calculating new infections once per year to match prevalence (like Spectrum)
     ## ## incidence
@@ -414,7 +470,7 @@ simmod.specfp <- function(fp, VERSION="C", ...) {
       pop[,,,i] <- sweep(pop[,,,i], 1:2, mr.prob, "*")
       
       hivpop[,,,i] <- sweep(hivpop[,,,i], 2:3, hiv.mr.prob, "*")
-      if(i > fp$tARTstart)
+      if(i >= fp$tARTstart)
         artpop[,,,,i] <- sweep(artpop[,,,,i], 3:4, hiv.mr.prob, "*")
     }
 
@@ -462,6 +518,16 @@ simmod.specfp <- function(fp, VERSION="C", ...) {
   attr(pop, "infections") <- infections
   attr(pop, "hivdeaths") <- hivdeaths
   attr(pop, "natdeaths") <- natdeaths
+
+  attr(pop, "excessnonaidsdeaths") <- excessnonaidsdeaths
+
+  attr(pop, "aidsdeaths_noart") <- aidsdeaths_noart
+  attr(pop, "natdeaths_noart") <- natdeaths_noart
+  attr(pop, "excessnonaidsdeaths_noart") <- excessnonaidsdeaths_noart
+  
+  attr(pop, "aidsdeaths_art") <- aidsdeaths_art
+  attr(pop, "natdeaths_art") <- natdeaths_art
+  attr(pop, "excessnonaidsdeaths_art") <- excessnonaidsdeaths_art
 
   attr(pop, "popadjust") <- popadj.prob
 

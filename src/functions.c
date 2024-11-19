@@ -4,14 +4,14 @@
 SEXP ageprevC(SEXP s_mod, SEXP s_aidx, SEXP s_sidx, SEXP s_yidx, SEXP s_agspan) {
 
   double *mod = REAL(s_mod);
-  int *dim = INTEGER(getAttrib(s_mod, R_DimSymbol));
+  int *dim = INTEGER(Rf_getAttrib(s_mod, R_DimSymbol));
   int *aidx = INTEGER(s_aidx);
   int *sidx = INTEGER(s_sidx);
   int *yidx = INTEGER(s_yidx);
   int *agspan = INTEGER(s_agspan);
   
-  int n = length(s_aidx);
-  SEXP s_out = PROTECT(allocVector(REALSXP, n));
+  int n = Rf_length(s_aidx);
+  SEXP s_out = PROTECT(Rf_allocVector(REALSXP, n));
   double *out = REAL(s_out);
 
   for(int i = 0; i < n; i++){

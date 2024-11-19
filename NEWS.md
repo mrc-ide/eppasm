@@ -1,3 +1,7 @@
+## eppasm 0.7.7
+
+* Update to use full names for R internal functions e.g. `Rf_allocVector` instead of `allocVector`. Shorthand names are no longer allowed in R v4.5.0. See Nov 10th news https://developer.r-project.org/blosxom.cgi/R-devel
+
 ## eppasm 0.7.6
 
 * Update internal data country ISO3 list to contain St. Kitts & Nevis and Dominica

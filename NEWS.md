@@ -1,3 +1,28 @@
+## epapsm 0.8.1
+
+* Implement Spectrum Adult ART scalar adjustment. This is a user input that 
+  allows the input number on ART to be adjusted by a scalar to account for 
+  over/under-reporting of treatment numbers.
+	
+## eppasm 0.8.0
+
+* Implement Spectrum ART allocation.
+  
+  There has been a longstanding discrepancy betweeen EPP-ASM and Spectrum in ART allocation.
+  For ART allocation by 'expected mortality', EPP-ASM allocated according to mortality by CD4
+  and age.
+  
+  Spectrum allocates ART in a two step process: first, ART is allocated by CD4 category based
+  on the 'expected mortality' and 'proportional to eligibility' weight. Second, within 
+  CD4 categories, ART is allocated by age solely proportional to number in each age 
+  group (propotional to eligibility).
+  
+  This has modest overall difference, but was a source of numerical differences between 
+  Spectrum and EPP-ASM.
+
+* Patch ART dropout implementation. Spectrum converts input ART dropout percent to an 
+  annual rate using [dropout rate] = -log(1.0 - [input percent]).
+  
 ## eppasm 0.7.7
 
 * Update to use full names for R internal functions e.g. `Rf_allocVector` instead of `allocVector`. Shorthand names are no longer allowed in R v4.5.0. See Nov 10th news https://developer.r-project.org/blosxom.cgi/R-devel

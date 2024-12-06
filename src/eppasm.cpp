@@ -349,29 +349,29 @@ extern "C" {
     multi_array_ref<double, 5> aidsdeaths_art(REAL(s_aidsdeaths_art), extents[PROJ_YEARS][NG][hAG][hDS][hTS]);
     memset(REAL(s_aidsdeaths_art), 0, Rf_length(s_aidsdeaths_art)*sizeof(double));
 
-    SEXP s_natdeaths_art = PROTECT(allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
-    SEXP s_natdeaths_art_dim = PROTECT(allocVector(INTSXP, 5));
+    SEXP s_natdeaths_art = PROTECT(Rf_allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_natdeaths_art_dim = PROTECT(Rf_allocVector(INTSXP, 5));
     INTEGER(s_natdeaths_art_dim)[0] = hTS;
     INTEGER(s_natdeaths_art_dim)[1] = hDS;
     INTEGER(s_natdeaths_art_dim)[2] = hAG;
     INTEGER(s_natdeaths_art_dim)[3] = NG;
     INTEGER(s_natdeaths_art_dim)[4] = PROJ_YEARS;
-    setAttrib(s_natdeaths_art, R_DimSymbol, s_natdeaths_art_dim);
-    setAttrib(s_pop, install("natdeaths_art"), s_natdeaths_art);
+    Rf_setAttrib(s_natdeaths_art, R_DimSymbol, s_natdeaths_art_dim);
+    Rf_setAttrib(s_pop, Rf_install("natdeaths_art"), s_natdeaths_art);
     multi_array_ref<double, 5> natdeaths_art(REAL(s_natdeaths_art), extents[PROJ_YEARS][NG][hAG][hDS][hTS]);
-    memset(REAL(s_natdeaths_art), 0, length(s_natdeaths_art)*sizeof(double));
+    memset(REAL(s_natdeaths_art), 0, Rf_length(s_natdeaths_art)*sizeof(double));
 
-    SEXP s_excessnonaidsdeaths_art = PROTECT(allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
-    SEXP s_excessnonaidsdeaths_art_dim = PROTECT(allocVector(INTSXP, 5));
+    SEXP s_excessnonaidsdeaths_art = PROTECT(Rf_allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_excessnonaidsdeaths_art_dim = PROTECT(Rf_allocVector(INTSXP, 5));
     INTEGER(s_excessnonaidsdeaths_art_dim)[0] = hTS;
     INTEGER(s_excessnonaidsdeaths_art_dim)[1] = hDS;
     INTEGER(s_excessnonaidsdeaths_art_dim)[2] = hAG;
     INTEGER(s_excessnonaidsdeaths_art_dim)[3] = NG;
     INTEGER(s_excessnonaidsdeaths_art_dim)[4] = PROJ_YEARS;
-    setAttrib(s_excessnonaidsdeaths_art, R_DimSymbol, s_excessnonaidsdeaths_art_dim);
-    setAttrib(s_pop, install("excessnonaidsdeaths_art"), s_excessnonaidsdeaths_art);
+    Rf_setAttrib(s_excessnonaidsdeaths_art, R_DimSymbol, s_excessnonaidsdeaths_art_dim);
+    Rf_setAttrib(s_pop, Rf_install("excessnonaidsdeaths_art"), s_excessnonaidsdeaths_art);
     multi_array_ref<double, 5> excessnonaidsdeaths_art(REAL(s_excessnonaidsdeaths_art), extents[PROJ_YEARS][NG][hAG][hDS][hTS]);
-    memset(REAL(s_excessnonaidsdeaths_art), 0, length(s_excessnonaidsdeaths_art)*sizeof(double));
+    memset(REAL(s_excessnonaidsdeaths_art), 0, Rf_length(s_excessnonaidsdeaths_art)*sizeof(double));
 
     SEXP s_popadjust = PROTECT(Rf_allocVector(REALSXP, pAG * NG * PROJ_YEARS));
     SEXP s_popadjust_dim = PROTECT(Rf_allocVector(INTSXP, 3));

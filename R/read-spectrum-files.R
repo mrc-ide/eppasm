@@ -238,10 +238,10 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
 
   aidsdeaths5 <- array(sapply(aidsdeaths5, as.numeric), lengths(dn5), dn5)
 
-  aidsdeaths_art <- array(sapply(dpsub("<AIDSDeathsART MV2>", c(4:20, 22:38), timedat.idx), as.numeric),
-                          lengths(dn5), dn5)
-  aidsdeaths_noart <- array(sapply(dpsub("<AIDSDeathsNoART MV2>", c(4:20, 22:38), timedat.idx), as.numeric),
-                            lengths(dn5), dn5)
+  aidsdeaths_art5 <- array(sapply(dpsub("<AIDSDeathsART MV2>", c(4:20, 22:38), timedat.idx), as.numeric),
+                           lengths(dn5), dn5)
+  aidsdeaths_noart5 <- array(sapply(dpsub("<AIDSDeathsNoART MV2>", c(4:20, 22:38), timedat.idx), as.numeric),
+                             lengths(dn5), dn5)
 
 
   specres <- list("totpop.m" = totpop.m,
@@ -257,8 +257,8 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
                   "aidsdeaths.m" = aidsdeaths.m,
                   "aidsdeaths.f" = aidsdeaths.f,
                   aidsdeaths5 = aidsdeaths5,
-                  aidsdeaths_art = aidsdeaths_art,
-                  aidsdeaths_noart = aidsdeaths_noart)
+                  aidsdeaths_art5 = aidsdeaths_art5,
+                  aidsdeaths_noart5 = aidsdeaths_noart5)
 
   if(single.age){
 
@@ -305,12 +305,53 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
     else
       infections <- NA
 
+
+    ## Rob Glaubius, 25 October 2024
+    ## New tag <NonAIDSExcessDeathsSingleAge MV> stores estimated non-AIDS
+    ## excess deaths by:
+    ## * year (columns)
+    ## * sex (slowest-changing; both, male, female),
+    ## * single age (next slowest; all, 0…80+), and 
+    ## * ART status (fastest-moving; off/on).
+    ## 
+    ## Align output arrays similarly to other single-age outputs: age x sex x year
+    ## With 'male', and 'female', but not both sexes
+
+    ## 3 skips header; 82*2 skips 'both sex' block
+    noart_excess_mf_idx <- 3 + 82*2 + c(1:81, 83:163)*2
+    if (exists_dptag("<NonAIDSExcessDeathsSingleAge MV>")) {
+      nonaids_excess_deaths_noart <- sapply(dpsub("<NonAIDSExcessDeathsSingleAge MV>", noart_excess_mf_idx, timedat.idx), as.numeric)
+      nonaids_excess_deaths_art <- sapply(dpsub("<NonAIDSExcessDeathsSingleAge MV>", noart_excess_mf_idx + 1, timedat.idx), as.numeric)
+    } else {
+      nonaids_excess_deaths_noart <- rep(0.0, prod(lengths(dn1)))
+      nonaids_excess_deaths_art <- rep(0.0, prod(lengths(dn1)))
+    }
+
+
+    aidsdeath_row_idx <- 4 + 82 + c(0:80, 82+0:80)
+    if (exists_dptag("<AIDSDeathsARTSingleAge MV>")) {
+      aidsdeaths_art1 <- sapply(dpsub("<AIDSDeathsARTSingleAge MV>", aidsdeath_row_idx, timedat.idx), as.numeric)
+    } else {
+      aidsdeaths_art1 <- rep(0.0, prod(lengths(dn1)))
+    }
+
+    if (exists_dptag("<AIDSDeathsNoARTSingleAge MV>")) {
+      aidsdeaths_noart1 <- sapply(dpsub("<AIDSDeathsNoARTSingleAge MV>", aidsdeath_row_idx, timedat.idx), as.numeric)
+    } else {
+      aidsdeaths_noart1 <- rep(0.0, prod(lengths(dn1)))
+    }
+
     specres$totpop <- array(totpop, lengths(dn1), dn1)
     specres$hivpop <- array(hivpop, lengths(dn1), dn1)
     specres$artpop <- array(artpop, lengths(dn1), dn1)
     specres$natdeaths <- array(natdeaths, lengths(dn1), dn1)
     specres$hivdeaths <- array(hivdeaths, lengths(dn1), dn1)
     specres$infections <- array(infections, lengths(dn1), dn1)
+    specres$nonaids_excess_deaths_noart <- array(nonaids_excess_deaths_noart, lengths(dn1), dn1)
+    specres$nonaids_excess_deaths_art <- array(nonaids_excess_deaths_art, lengths(dn1), dn1)
+    specres$aidsdeaths_art1 <- array(aidsdeaths_art1, lengths(dn1), dn1)
+    specres$aidsdeaths_noart1 <- array(aidsdeaths_noart1, lengths(dn1), dn1)
+    
   }
 
   specres$births <- stats::setNames(as.numeric(dpsub("<Births MV>", 2, timedat.idx)), proj.years)
@@ -563,6 +604,35 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     artmx_timerr["ART1YR", ] <- val[2, ]
   }
 
+  ## Non-AIDS excess mortality by CD4
+  ## * Added in Spectrum 6.37 beta 17
+  ## * Initiated to default 0.0; will update witgh values from .DP if tag <AdultNonAIDSExcessMort MV> exists
+  ##
+  ## Formatting note from Rob Glaubius:
+  ## New tag <AdultNonAIDSExcessMort MV> stores the new rates.
+  ## These are organized into four rows for
+  ##   1) men off ART,
+  ##   2) men on ART,
+  ##   3) women off ART,
+  ##   4) women on ART.
+  ## 
+  ## Each row is laid out left-to-right in the same as our other adult HIV-related mortality rates:
+  ## * 15-24: CD4>500, 350-500, …, <50
+  ## * 25-34: CD4>500, 350-500, …, <50
+  ## * 35-44: CD4>500, 350-500, …, <50
+  ## * 45-54: CD4>500, 350-500, …, <50
+  ##
+
+  cd4_nonaids_excess_mort <- array(0.0, c(DS, 4, NG), dimnames(cd4_mort))
+  art_nonaids_excess_mort <- array(0.0, c(DS, 4, NG), dimnames(cd4_mort))
+
+  if(exists_dptag("<AdultNonAIDSExcessMort MV>")) {
+    cd4_nonaids_excess_mort[,,"Male"] <- array(as.numeric(dpsub("<AdultNonAIDSExcessMort MV>", 2, 4:31)), c(DS, 4))
+    art_nonaids_excess_mort[,,"Male"] <- array(as.numeric(dpsub("<AdultNonAIDSExcessMort MV>", 3, 4:31)), c(DS, 4))
+    cd4_nonaids_excess_mort[,,"Female"] <- array(as.numeric(dpsub("<AdultNonAIDSExcessMort MV>", 4, 4:31)), c(DS, 4))
+    art_nonaids_excess_mort[,,"Female"] <- array(as.numeric(dpsub("<AdultNonAIDSExcessMort MV>", 5, 4:31)), c(DS, 4))    
+  }
+
   ## program parameters
   if(dp.vers %in% c("<General 3>", "<General5>")){
     art15plus_numperc <- sapply(dp[adult.artnumperc.tidx+3:4, timedat.idx], as.numeric)
@@ -760,6 +830,8 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
                 "cd4_mort" = cd4_mort,
                 "art_mort" = art_mort,
                 "artmx_timerr" = artmx_timerr,
+                cd4_nonaids_excess_mort = cd4_nonaids_excess_mort,
+                art_nonaids_excess_mort = art_nonaids_excess_mort,
                 "art15plus_numperc" = art15plus_numperc,
                 "art15plus_num" = art15plus_num,
                 "adult_artadj_factor" = adult_artadj_factor,

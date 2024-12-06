@@ -130,7 +130,9 @@ extern "C" {
     multi_array_ref<double, 3> cd4_initdist(REAL(getListElement(s_fp, "cd4_initdist")), extents[NG][hAG][hDS]);
     multi_array_ref<double, 3> cd4_prog(REAL(getListElement(s_fp, "cd4_prog")), extents[NG][hAG][hDS-1]);
     multi_array_ref<double, 3> cd4_mort(REAL(getListElement(s_fp, "cd4_mort")), extents[NG][hAG][hDS]);
+    multi_array_ref<double, 3> cd4_nonaids_excess_mort(REAL(getListElement(s_fp, "cd4_nonaids_excess_mort")), extents[NG][hAG][hDS]);
     multi_array_ref<double, 4> art_mort(REAL(getListElement(s_fp, "art_mort")), extents[NG][hAG][hDS][hTS]);
+    multi_array_ref<double, 4> art_nonaids_excess_mort(REAL(getListElement(s_fp, "art_nonaids_excess_mort")), extents[NG][hAG][hDS][hTS]);
     multi_array_ref<double, 2> artmx_timerr(REAL(getListElement(s_fp, "artmx_timerr")), extents[PROJ_YEARS][hTS]);
 
     // sub-fertility
@@ -291,6 +293,16 @@ extern "C" {
     Rf_setAttrib(s_pop, Rf_install("natdeaths"), s_natdeaths);
     multi_array_ref<double, 3> natdeaths(REAL(s_natdeaths), extents[PROJ_YEARS][NG][pAG]);
     memset(REAL(s_natdeaths), 0, Rf_length(s_natdeaths)*sizeof(double));
+
+    SEXP s_excessnonaidsdeaths = PROTECT(Rf_allocVector(REALSXP, pAG * NG * PROJ_YEARS));
+    SEXP s_excessnonaidsdeaths_dim = PROTECT(Rf_allocVector(INTSXP, 3));
+    INTEGER(s_excessnonaidsdeaths_dim)[0] = pAG;
+    INTEGER(s_excessnonaidsdeaths_dim)[1] = NG;
+    INTEGER(s_excessnonaidsdeaths_dim)[2] = PROJ_YEARS;
+    Rf_setAttrib(s_excessnonaidsdeaths, R_DimSymbol, s_excessnonaidsdeaths_dim);
+    Rf_setAttrib(s_pop, Rf_install("excessnonaidsdeaths"), s_excessnonaidsdeaths);
+    multi_array_ref<double, 3> excessnonaidsdeaths(REAL(s_excessnonaidsdeaths), extents[PROJ_YEARS][NG][pAG]);
+    memset(REAL(s_excessnonaidsdeaths), 0, Rf_length(s_excessnonaidsdeaths)*sizeof(double));
     
     SEXP s_aidsdeaths_noart = PROTECT(Rf_allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
     SEXP s_aidsdeaths_noart_dim = PROTECT(Rf_allocVector(INTSXP, 4));
@@ -302,6 +314,28 @@ extern "C" {
     Rf_setAttrib(s_pop, Rf_install("aidsdeaths_noart"), s_aidsdeaths_noart);
     multi_array_ref<double, 4> aidsdeaths_noart(REAL(s_aidsdeaths_noart), extents[PROJ_YEARS][NG][hAG][hDS]);
     memset(REAL(s_aidsdeaths_noart), 0, Rf_length(s_aidsdeaths_noart)*sizeof(double));
+
+    SEXP s_natdeaths_noart = PROTECT(Rf_allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_natdeaths_noart_dim = PROTECT(Rf_allocVector(INTSXP, 4));
+    INTEGER(s_natdeaths_noart_dim)[0] = hDS;
+    INTEGER(s_natdeaths_noart_dim)[1] = hAG;
+    INTEGER(s_natdeaths_noart_dim)[2] = NG;
+    INTEGER(s_natdeaths_noart_dim)[3] = PROJ_YEARS;
+    Rf_setAttrib(s_natdeaths_noart, R_DimSymbol, s_natdeaths_noart_dim);
+    Rf_setAttrib(s_pop, Rf_install("natdeaths_noart"), s_natdeaths_noart);
+    multi_array_ref<double, 4> natdeaths_noart(REAL(s_natdeaths_noart), extents[PROJ_YEARS][NG][hAG][hDS]);
+    memset(REAL(s_natdeaths_noart), 0, Rf_length(s_natdeaths_noart)*sizeof(double));
+
+    SEXP s_excessnonaidsdeaths_noart = PROTECT(Rf_allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_excessnonaidsdeaths_noart_dim = PROTECT(Rf_allocVector(INTSXP, 4));
+    INTEGER(s_excessnonaidsdeaths_noart_dim)[0] = hDS;
+    INTEGER(s_excessnonaidsdeaths_noart_dim)[1] = hAG;
+    INTEGER(s_excessnonaidsdeaths_noart_dim)[2] = NG;
+    INTEGER(s_excessnonaidsdeaths_noart_dim)[3] = PROJ_YEARS;
+    Rf_setAttrib(s_excessnonaidsdeaths_noart, R_DimSymbol, s_excessnonaidsdeaths_noart_dim);
+    Rf_setAttrib(s_pop, Rf_install("excessnonaidsdeaths_noart"), s_excessnonaidsdeaths_noart);
+    multi_array_ref<double, 4> excessnonaidsdeaths_noart(REAL(s_excessnonaidsdeaths_noart), extents[PROJ_YEARS][NG][hAG][hDS]);
+    memset(REAL(s_excessnonaidsdeaths_noart), 0, Rf_length(s_excessnonaidsdeaths_noart)*sizeof(double));
 
     SEXP s_aidsdeaths_art = PROTECT(Rf_allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
     SEXP s_aidsdeaths_art_dim = PROTECT(Rf_allocVector(INTSXP, 5));
@@ -315,6 +349,29 @@ extern "C" {
     multi_array_ref<double, 5> aidsdeaths_art(REAL(s_aidsdeaths_art), extents[PROJ_YEARS][NG][hAG][hDS][hTS]);
     memset(REAL(s_aidsdeaths_art), 0, Rf_length(s_aidsdeaths_art)*sizeof(double));
 
+    SEXP s_natdeaths_art = PROTECT(allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_natdeaths_art_dim = PROTECT(allocVector(INTSXP, 5));
+    INTEGER(s_natdeaths_art_dim)[0] = hTS;
+    INTEGER(s_natdeaths_art_dim)[1] = hDS;
+    INTEGER(s_natdeaths_art_dim)[2] = hAG;
+    INTEGER(s_natdeaths_art_dim)[3] = NG;
+    INTEGER(s_natdeaths_art_dim)[4] = PROJ_YEARS;
+    setAttrib(s_natdeaths_art, R_DimSymbol, s_natdeaths_art_dim);
+    setAttrib(s_pop, install("natdeaths_art"), s_natdeaths_art);
+    multi_array_ref<double, 5> natdeaths_art(REAL(s_natdeaths_art), extents[PROJ_YEARS][NG][hAG][hDS][hTS]);
+    memset(REAL(s_natdeaths_art), 0, length(s_natdeaths_art)*sizeof(double));
+
+    SEXP s_excessnonaidsdeaths_art = PROTECT(allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_excessnonaidsdeaths_art_dim = PROTECT(allocVector(INTSXP, 5));
+    INTEGER(s_excessnonaidsdeaths_art_dim)[0] = hTS;
+    INTEGER(s_excessnonaidsdeaths_art_dim)[1] = hDS;
+    INTEGER(s_excessnonaidsdeaths_art_dim)[2] = hAG;
+    INTEGER(s_excessnonaidsdeaths_art_dim)[3] = NG;
+    INTEGER(s_excessnonaidsdeaths_art_dim)[4] = PROJ_YEARS;
+    setAttrib(s_excessnonaidsdeaths_art, R_DimSymbol, s_excessnonaidsdeaths_art_dim);
+    setAttrib(s_pop, install("excessnonaidsdeaths_art"), s_excessnonaidsdeaths_art);
+    multi_array_ref<double, 5> excessnonaidsdeaths_art(REAL(s_excessnonaidsdeaths_art), extents[PROJ_YEARS][NG][hAG][hDS][hTS]);
+    memset(REAL(s_excessnonaidsdeaths_art), 0, length(s_excessnonaidsdeaths_art)*sizeof(double));
 
     SEXP s_popadjust = PROTECT(Rf_allocVector(REALSXP, pAG * NG * PROJ_YEARS));
     SEXP s_popadjust_dim = PROTECT(Rf_allocVector(INTSXP, 3));
@@ -499,6 +556,7 @@ extern "C" {
         int a = 0;
         for(int ha = 0; ha < hAG; ha++){
           double deathsmig_ha = 0, hivpop_ha = 0;
+	  double deaths_ha = 0.0;
           for(int i = 0; i < hAG_SPAN[ha]; i++){
 
             hivpop_ha += pop[t][HIVP][g][a];
@@ -508,6 +566,7 @@ extern "C" {
             double ndeaths_a = pop[t][HIVN][g][a] * qx;
             pop[t][HIVN][g][a] -= ndeaths_a; // survival HIV- population
             double hdeaths_a = pop[t][HIVP][g][a] * qx;
+	    deaths_ha += hdeaths_a;
             deathsmig_ha -= hdeaths_a;
             pop[t][HIVP][g][a] -= hdeaths_a;   // survival HIV+ population
             natdeaths[t][g][a] = ndeaths_a + hdeaths_a;
@@ -524,12 +583,16 @@ extern "C" {
           }
 
           // migration and deaths for hivpop
+	  double deathrate_ha = hivpop_ha > 0 ? deaths_ha / hivpop_ha : 0.0;
           double deathmigrate_ha = hivpop_ha > 0 ? deathsmig_ha / hivpop_ha : 0.0;
           for(int hm = 0; hm < hDS; hm++){
+	    natdeaths_noart[t][g][ha][hm] += hivpop[t][g][ha][hm] * deathrate_ha;
             hivpop[t][g][ha][hm] *= 1+deathmigrate_ha;
             if(t > t_ART_start)
-              for(int hu = 0; hu < hTS; hu++)
+              for(int hu = 0; hu < hTS; hu++) {
+		natdeaths_art[t][g][ha][hm][hu] += artpop[t][g][ha][hm][hu] * deathrate_ha;
                 artpop[t][g][ha][hm][hu] *= 1+deathmigrate_ha;
+	      }
           } // loop over hm
         } // loop over ha
       } // loop over g
@@ -593,6 +656,9 @@ extern "C" {
         double hivdeaths_ha[NG][hAG];
         memset(hivdeaths_ha, 0, sizeof(double)*NG*hAG);
 
+	double nonaids_excess_ha[NG][hAG];
+        memset(nonaids_excess_ha, 0, sizeof(double)*NG*hAG);
+
         // untreated population
 
         // disease progression and mortality
@@ -610,10 +676,16 @@ extern "C" {
 		  hivpop[t][g][ha][hm] / (hivpop[t][g][ha][hm] + artpop_hahm) : 1.0;
 	      }
 	      
-              double deaths = cd4mx_scale * cd4_mort[g][ha][hm] * hivpop[t][g][ha][hm];
-              hivdeaths_ha[g][ha] += DT*deaths;
-	      aidsdeaths_noart[t][g][ha][hm] += DT*deaths;
-              grad[g][ha][hm] = -deaths;
+              double aids_deaths = cd4mx_scale * cd4_mort[g][ha][hm] * hivpop[t][g][ha][hm];
+              hivdeaths_ha[g][ha] += DT * aids_deaths;
+	      aidsdeaths_noart[t][g][ha][hm] += DT * aids_deaths;
+
+	      double excess_nonaids_deaths = cd4_nonaids_excess_mort[g][ha][hm] * hivpop[t][g][ha][hm];
+              nonaids_excess_ha[g][ha] += DT * excess_nonaids_deaths;
+	      excessnonaidsdeaths_noart[t][g][ha][hm] += DT * excess_nonaids_deaths;
+
+	      
+              grad[g][ha][hm] = -(aids_deaths + excess_nonaids_deaths);
             }
             for(int hm = 1; hm < hDS; hm++){
               grad[g][ha][hm-1] -= cd4_prog[g][ha][hm-1] * hivpop[t][g][ha][hm-1];
@@ -696,10 +768,15 @@ extern "C" {
               for(int hm = everARTelig_idx; hm < hDS; hm++){
 
                 for(int hu = 0; hu < hTS; hu++){
-                  double deaths = art_mort[g][ha][hm][hu] * artmx_timerr[t][hu] * artpop[t][g][ha][hm][hu];
-                  hivdeaths_ha[g][ha] += DT*deaths;
-		  aidsdeaths_art[t][g][ha][hm][hu] += DT*deaths;
-                  gradART[g][ha][hm][hu] = -deaths;
+                  double aids_deaths = art_mort[g][ha][hm][hu] * artmx_timerr[t][hu] * artpop[t][g][ha][hm][hu];
+		  double nonaids_deaths = art_nonaids_excess_mort[g][ha][hm][hu] * artpop[t][g][ha][hm][hu];
+                  hivdeaths_ha[g][ha] += DT * aids_deaths;
+		  aidsdeaths_art[t][g][ha][hm][hu] += DT * aids_deaths;
+
+		  nonaids_excess_ha[g][ha] += DT * nonaids_deaths;
+		  excessnonaidsdeaths_art[t][g][ha][hm][hu] += DT * nonaids_deaths;
+
+                  gradART[g][ha][hm][hu] = -(aids_deaths + nonaids_deaths);
                 }
 
 		for(int hu = 0; hu < (hTS - 1); hu++) {
@@ -969,9 +1046,11 @@ extern "C" {
 	  for(int ha = 0; ha < hAG; ha++){
 	    if(hivpop_ha[ha] > 0){
 	      double hivqx_ha = hivdeaths_ha[g][ha] / hivpop_ha[ha];
+	      double nonaids_excess_qx_ha = nonaids_excess_ha[g][ha] / hivpop_ha[ha];
 	      for(int i = 0; i < hAG_SPAN[ha]; i++){
 		hivdeaths[t][g][a] += pop[t][HIVP][g][a] * hivqx_ha;
-		pop[t][HIVP][g][a] *= (1.0-hivqx_ha);
+		excessnonaidsdeaths[t][g][a] += pop[t][HIVP][g][a] * nonaids_excess_qx_ha;
+		pop[t][HIVP][g][a] *= (1.0 - hivqx_ha - nonaids_excess_qx_ha);
 		a++;
 	      }
 	    } else {
@@ -1127,7 +1206,7 @@ extern "C" {
       incid15to49[t] /= incid15to49_denom;
     }
 
-    UNPROTECT(28);
+    UNPROTECT(38);
     return s_pop;
   }
 }

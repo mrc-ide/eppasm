@@ -232,148 +232,148 @@ extern "C" {
     multi_array_ref<double, 4> paedsurv_artcd4dist(REAL(getListElement(s_fp, "paedsurv_artcd4dist")), extents[PROJ_YEARS][NG][hDS][hTS]);
 
     // initialize output
-    SEXP s_pop = PROTECT(allocVector(REALSXP, pAG * NG * pDS * PROJ_YEARS));
-    SEXP s_pop_dim = PROTECT(allocVector(INTSXP, 4));
+    SEXP s_pop = PROTECT(Rf_allocVector(REALSXP, pAG * NG * pDS * PROJ_YEARS));
+    SEXP s_pop_dim = PROTECT(Rf_allocVector(INTSXP, 4));
     INTEGER(s_pop_dim)[0] = pAG;
     INTEGER(s_pop_dim)[1] = NG;
     INTEGER(s_pop_dim)[2] = pDS;
     INTEGER(s_pop_dim)[3] = PROJ_YEARS;
-    setAttrib(s_pop, R_DimSymbol, s_pop_dim);
-    memset(REAL(s_pop), 0, length(s_pop)*sizeof(double));
+    Rf_setAttrib(s_pop, R_DimSymbol, s_pop_dim);
+    memset(REAL(s_pop), 0, Rf_length(s_pop)*sizeof(double));
 
-    SEXP s_hivpop = PROTECT(allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
-    SEXP s_hivpop_dim = PROTECT(allocVector(INTSXP, 4));
+    SEXP s_hivpop = PROTECT(Rf_allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_hivpop_dim = PROTECT(Rf_allocVector(INTSXP, 4));
     INTEGER(s_hivpop_dim)[0] = hDS;
     INTEGER(s_hivpop_dim)[1] = hAG;
     INTEGER(s_hivpop_dim)[2] = NG;
     INTEGER(s_hivpop_dim)[3] = PROJ_YEARS;
-    setAttrib(s_hivpop, R_DimSymbol, s_hivpop_dim);
-    setAttrib(s_pop, install("hivpop"), s_hivpop);
-    memset(REAL(s_hivpop), 0, length(s_hivpop)*sizeof(double));
+    Rf_setAttrib(s_hivpop, R_DimSymbol, s_hivpop_dim);
+    Rf_setAttrib(s_pop, Rf_install("hivpop"), s_hivpop);
+    memset(REAL(s_hivpop), 0, Rf_length(s_hivpop)*sizeof(double));
 
-    SEXP s_artpop = PROTECT(allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
-    SEXP s_artpop_dim = PROTECT(allocVector(INTSXP, 5));
+    SEXP s_artpop = PROTECT(Rf_allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_artpop_dim = PROTECT(Rf_allocVector(INTSXP, 5));
     INTEGER(s_artpop_dim)[0] = hTS;
     INTEGER(s_artpop_dim)[1] = hDS;
     INTEGER(s_artpop_dim)[2] = hAG;
     INTEGER(s_artpop_dim)[3] = NG;
     INTEGER(s_artpop_dim)[4] = PROJ_YEARS;
-    setAttrib(s_artpop, R_DimSymbol, s_artpop_dim);
-    setAttrib(s_pop, install("artpop"), s_artpop);
-    memset(REAL(s_artpop), 0, length(s_artpop)*sizeof(double));
+    Rf_setAttrib(s_artpop, R_DimSymbol, s_artpop_dim);
+    Rf_setAttrib(s_pop, Rf_install("artpop"), s_artpop);
+    memset(REAL(s_artpop), 0, Rf_length(s_artpop)*sizeof(double));
 
-    SEXP s_infections = PROTECT(allocVector(REALSXP, pAG * NG * PROJ_YEARS));
-    SEXP s_infections_dim = PROTECT(allocVector(INTSXP, 3));
+    SEXP s_infections = PROTECT(Rf_allocVector(REALSXP, pAG * NG * PROJ_YEARS));
+    SEXP s_infections_dim = PROTECT(Rf_allocVector(INTSXP, 3));
     INTEGER(s_infections_dim)[0] = pAG;
     INTEGER(s_infections_dim)[1] = NG;
     INTEGER(s_infections_dim)[2] = PROJ_YEARS;
-    setAttrib(s_infections, R_DimSymbol, s_infections_dim);
-    setAttrib(s_pop, install("infections"), s_infections);
+    Rf_setAttrib(s_infections, R_DimSymbol, s_infections_dim);
+    Rf_setAttrib(s_pop, Rf_install("infections"), s_infections);
     multi_array_ref<double, 3> infections(REAL(s_infections), extents[PROJ_YEARS][NG][pAG]);
-    memset(REAL(s_infections), 0, length(s_infections)*sizeof(double));
+    memset(REAL(s_infections), 0, Rf_length(s_infections)*sizeof(double));
 
-    SEXP s_hivdeaths = PROTECT(allocVector(REALSXP, pAG * NG * PROJ_YEARS));
-    SEXP s_hivdeaths_dim = PROTECT(allocVector(INTSXP, 3));
+    SEXP s_hivdeaths = PROTECT(Rf_allocVector(REALSXP, pAG * NG * PROJ_YEARS));
+    SEXP s_hivdeaths_dim = PROTECT(Rf_allocVector(INTSXP, 3));
     INTEGER(s_hivdeaths_dim)[0] = pAG;
     INTEGER(s_hivdeaths_dim)[1] = NG;
     INTEGER(s_hivdeaths_dim)[2] = PROJ_YEARS;
-    setAttrib(s_hivdeaths, R_DimSymbol, s_hivdeaths_dim);
-    setAttrib(s_pop, install("hivdeaths"), s_hivdeaths);
+    Rf_setAttrib(s_hivdeaths, R_DimSymbol, s_hivdeaths_dim);
+    Rf_setAttrib(s_pop, Rf_install("hivdeaths"), s_hivdeaths);
     multi_array_ref<double, 3> hivdeaths(REAL(s_hivdeaths), extents[PROJ_YEARS][NG][pAG]);
-    memset(REAL(s_hivdeaths), 0, length(s_hivdeaths)*sizeof(double));
+    memset(REAL(s_hivdeaths), 0, Rf_length(s_hivdeaths)*sizeof(double));
 
-    SEXP s_natdeaths = PROTECT(allocVector(REALSXP, pAG * NG * PROJ_YEARS));
-    SEXP s_natdeaths_dim = PROTECT(allocVector(INTSXP, 3));
+    SEXP s_natdeaths = PROTECT(Rf_allocVector(REALSXP, pAG * NG * PROJ_YEARS));
+    SEXP s_natdeaths_dim = PROTECT(Rf_allocVector(INTSXP, 3));
     INTEGER(s_natdeaths_dim)[0] = pAG;
     INTEGER(s_natdeaths_dim)[1] = NG;
     INTEGER(s_natdeaths_dim)[2] = PROJ_YEARS;
-    setAttrib(s_natdeaths, R_DimSymbol, s_natdeaths_dim);
-    setAttrib(s_pop, install("natdeaths"), s_natdeaths);
+    Rf_setAttrib(s_natdeaths, R_DimSymbol, s_natdeaths_dim);
+    Rf_setAttrib(s_pop, Rf_install("natdeaths"), s_natdeaths);
     multi_array_ref<double, 3> natdeaths(REAL(s_natdeaths), extents[PROJ_YEARS][NG][pAG]);
-    memset(REAL(s_natdeaths), 0, length(s_natdeaths)*sizeof(double));
+    memset(REAL(s_natdeaths), 0, Rf_length(s_natdeaths)*sizeof(double));
     
-    SEXP s_aidsdeaths_noart = PROTECT(allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
-    SEXP s_aidsdeaths_noart_dim = PROTECT(allocVector(INTSXP, 4));
+    SEXP s_aidsdeaths_noart = PROTECT(Rf_allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_aidsdeaths_noart_dim = PROTECT(Rf_allocVector(INTSXP, 4));
     INTEGER(s_aidsdeaths_noart_dim)[0] = hDS;
     INTEGER(s_aidsdeaths_noart_dim)[1] = hAG;
     INTEGER(s_aidsdeaths_noart_dim)[2] = NG;
     INTEGER(s_aidsdeaths_noart_dim)[3] = PROJ_YEARS;
-    setAttrib(s_aidsdeaths_noart, R_DimSymbol, s_aidsdeaths_noart_dim);
-    setAttrib(s_pop, install("aidsdeaths_noart"), s_aidsdeaths_noart);
+    Rf_setAttrib(s_aidsdeaths_noart, R_DimSymbol, s_aidsdeaths_noart_dim);
+    Rf_setAttrib(s_pop, Rf_install("aidsdeaths_noart"), s_aidsdeaths_noart);
     multi_array_ref<double, 4> aidsdeaths_noart(REAL(s_aidsdeaths_noart), extents[PROJ_YEARS][NG][hAG][hDS]);
-    memset(REAL(s_aidsdeaths_noart), 0, length(s_aidsdeaths_noart)*sizeof(double));
+    memset(REAL(s_aidsdeaths_noart), 0, Rf_length(s_aidsdeaths_noart)*sizeof(double));
 
-    SEXP s_aidsdeaths_art = PROTECT(allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
-    SEXP s_aidsdeaths_art_dim = PROTECT(allocVector(INTSXP, 5));
+    SEXP s_aidsdeaths_art = PROTECT(Rf_allocVector(REALSXP, hTS * hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_aidsdeaths_art_dim = PROTECT(Rf_allocVector(INTSXP, 5));
     INTEGER(s_aidsdeaths_art_dim)[0] = hTS;
     INTEGER(s_aidsdeaths_art_dim)[1] = hDS;
     INTEGER(s_aidsdeaths_art_dim)[2] = hAG;
     INTEGER(s_aidsdeaths_art_dim)[3] = NG;
     INTEGER(s_aidsdeaths_art_dim)[4] = PROJ_YEARS;
-    setAttrib(s_aidsdeaths_art, R_DimSymbol, s_aidsdeaths_art_dim);
-    setAttrib(s_pop, install("aidsdeaths_art"), s_aidsdeaths_art);
+    Rf_setAttrib(s_aidsdeaths_art, R_DimSymbol, s_aidsdeaths_art_dim);
+    Rf_setAttrib(s_pop, Rf_install("aidsdeaths_art"), s_aidsdeaths_art);
     multi_array_ref<double, 5> aidsdeaths_art(REAL(s_aidsdeaths_art), extents[PROJ_YEARS][NG][hAG][hDS][hTS]);
-    memset(REAL(s_aidsdeaths_art), 0, length(s_aidsdeaths_art)*sizeof(double));
+    memset(REAL(s_aidsdeaths_art), 0, Rf_length(s_aidsdeaths_art)*sizeof(double));
 
 
-    SEXP s_popadjust = PROTECT(allocVector(REALSXP, pAG * NG * PROJ_YEARS));
-    SEXP s_popadjust_dim = PROTECT(allocVector(INTSXP, 3));
+    SEXP s_popadjust = PROTECT(Rf_allocVector(REALSXP, pAG * NG * PROJ_YEARS));
+    SEXP s_popadjust_dim = PROTECT(Rf_allocVector(INTSXP, 3));
     INTEGER(s_popadjust_dim)[0] = pAG;
     INTEGER(s_popadjust_dim)[1] = NG;
     INTEGER(s_popadjust_dim)[2] = PROJ_YEARS;
-    setAttrib(s_popadjust, R_DimSymbol, s_popadjust_dim);
-    setAttrib(s_pop, install("popadjust"), s_popadjust);
+    Rf_setAttrib(s_popadjust, R_DimSymbol, s_popadjust_dim);
+    Rf_setAttrib(s_pop, Rf_install("popadjust"), s_popadjust);
     multi_array_ref<double, 3> popadjust(REAL(s_popadjust), extents[PROJ_YEARS][NG][pAG]);
-    memset(REAL(s_popadjust), 0, length(s_popadjust)*sizeof(double));
+    memset(REAL(s_popadjust), 0, Rf_length(s_popadjust)*sizeof(double));
 
-    SEXP s_artinit = PROTECT(allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
-    SEXP s_artinit_dim = PROTECT(allocVector(INTSXP, 4));
+    SEXP s_artinit = PROTECT(Rf_allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
+    SEXP s_artinit_dim = PROTECT(Rf_allocVector(INTSXP, 4));
     INTEGER(s_artinit_dim)[0] = hDS;
     INTEGER(s_artinit_dim)[1] = hAG;
     INTEGER(s_artinit_dim)[2] = NG;
     INTEGER(s_artinit_dim)[3] = PROJ_YEARS;
-    setAttrib(s_artinit, R_DimSymbol, s_artinit_dim);
-    setAttrib(s_pop, install("artinit"), s_artinit);
+    Rf_setAttrib(s_artinit, R_DimSymbol, s_artinit_dim);
+    Rf_setAttrib(s_pop, Rf_install("artinit"), s_artinit);
     multi_array_ref<double, 4> artinit(REAL(s_artinit), extents[PROJ_YEARS][NG][hAG][hDS]);
-    memset(REAL(s_artinit), 0, length(s_artinit)*sizeof(double));
+    memset(REAL(s_artinit), 0, Rf_length(s_artinit)*sizeof(double));
 
 
-    SEXP s_pregprevlag = PROTECT(allocVector(REALSXP, PROJ_YEARS));
-    setAttrib(s_pop, install("pregprevlag"), s_pregprevlag);
+    SEXP s_pregprevlag = PROTECT(Rf_allocVector(REALSXP, PROJ_YEARS));
+    Rf_setAttrib(s_pop, Rf_install("pregprevlag"), s_pregprevlag);
 
-    SEXP s_incrate15to49_ts = PROTECT(allocVector(REALSXP, (PROJ_YEARS-1) * HIVSTEPS_PER_YEAR));
-    setAttrib(s_pop, install("incrate15to49_ts"), s_incrate15to49_ts);
+    SEXP s_incrate15to49_ts = PROTECT(Rf_allocVector(REALSXP, (PROJ_YEARS-1) * HIVSTEPS_PER_YEAR));
+    Rf_setAttrib(s_pop, Rf_install("incrate15to49_ts"), s_incrate15to49_ts);
     double *incrate15to49_ts_out = REAL(s_incrate15to49_ts);
-    memset(incrate15to49_ts_out, 0, length(s_incrate15to49_ts)*sizeof(double));
+    memset(incrate15to49_ts_out, 0, Rf_length(s_incrate15to49_ts)*sizeof(double));
 
-    SEXP s_prev15to49_ts = PROTECT(allocVector(REALSXP, (PROJ_YEARS-1) * HIVSTEPS_PER_YEAR));
-    setAttrib(s_pop, install("prev15to49_ts"), s_prev15to49_ts);
+    SEXP s_prev15to49_ts = PROTECT(Rf_allocVector(REALSXP, (PROJ_YEARS-1) * HIVSTEPS_PER_YEAR));
+    Rf_setAttrib(s_pop, Rf_install("prev15to49_ts"), s_prev15to49_ts);
     double *prev15to49_ts_out = REAL(s_prev15to49_ts);
-    memset(prev15to49_ts_out, 0, length(s_prev15to49_ts)*sizeof(double));
+    memset(prev15to49_ts_out, 0, Rf_length(s_prev15to49_ts)*sizeof(double));
 
-    SEXP s_rvec_ts = PROTECT(allocVector(REALSXP, (PROJ_YEARS-1) * HIVSTEPS_PER_YEAR));
-    setAttrib(s_pop, install("rvec_ts"), s_rvec_ts);
+    SEXP s_rvec_ts = PROTECT(Rf_allocVector(REALSXP, (PROJ_YEARS-1) * HIVSTEPS_PER_YEAR));
+    Rf_setAttrib(s_pop, Rf_install("rvec_ts"), s_rvec_ts);
     double *rvec = REAL(s_rvec_ts);
 
-    SEXP s_prev15to49 = PROTECT(allocVector(REALSXP, PROJ_YEARS));
-    setAttrib(s_pop, install("prev15to49"), s_prev15to49);
+    SEXP s_prev15to49 = PROTECT(Rf_allocVector(REALSXP, PROJ_YEARS));
+    Rf_setAttrib(s_pop, Rf_install("prev15to49"), s_prev15to49);
     double *prev15to49 = REAL(s_prev15to49);
     prev15to49[0] = 0.0;
 
-    SEXP s_pregprev = PROTECT(allocVector(REALSXP, PROJ_YEARS));
-    setAttrib(s_pop, install("pregprev"), s_pregprev);
+    SEXP s_pregprev = PROTECT(Rf_allocVector(REALSXP, PROJ_YEARS));
+    Rf_setAttrib(s_pop, Rf_install("pregprev"), s_pregprev);
     double *pregprev = REAL(s_pregprev);
     pregprev[0] = 0.0;
 
-    SEXP s_incid15to49 = PROTECT(allocVector(REALSXP, PROJ_YEARS));
-    setAttrib(s_pop, install("incid15to49"), s_incid15to49);
+    SEXP s_incid15to49 = PROTECT(Rf_allocVector(REALSXP, PROJ_YEARS));
+    Rf_setAttrib(s_pop, Rf_install("incid15to49"), s_incid15to49);
     double *incid15to49 = REAL(s_incid15to49);
-    memset(incid15to49, 0, length(s_incid15to49)*sizeof(double));
+    memset(incid15to49, 0, Rf_length(s_incid15to49)*sizeof(double));
 
-    SEXP s_entrantprev_out = PROTECT(allocVector(REALSXP, PROJ_YEARS));
-    setAttrib(s_pop, install("entrantprev"), s_entrantprev_out);
+    SEXP s_entrantprev_out = PROTECT(Rf_allocVector(REALSXP, PROJ_YEARS));
+    Rf_setAttrib(s_pop, Rf_install("entrantprev"), s_entrantprev_out);
     double *entrantprev_out = REAL(s_entrantprev_out);
-    memset(entrantprev_out, 0, length(s_entrantprev_out)*sizeof(double));
+    memset(entrantprev_out, 0, Rf_length(s_entrantprev_out)*sizeof(double));
 
     double *hivn15to49 = (double*) R_alloc(PROJ_YEARS, sizeof(double));
     double *hivp15to49 = (double*) R_alloc(PROJ_YEARS, sizeof(double));
@@ -405,7 +405,7 @@ extern "C" {
     // ART population with stage stratification
     // double artpop[PROJ_YEARS][NG][hAG][hDS][hTS];
     multi_array_ref<double, 5> artpop(REAL(s_artpop), extents[PROJ_YEARS][NG][hAG][hDS][hTS]);
-    // memset(REAL(s_artpop), 0, length(s_artpop) * sizeof(double)); // initialize artpop to 0
+    // memset(REAL(s_artpop), 0, Rf_length(s_artpop) * sizeof(double)); // initialize artpop to 0
     if(t_ART_start < PROJ_YEARS)
       for(int g = 0; g < NG; g++)
         for(int ha = 0; ha < hAG; ha++)
@@ -1136,24 +1136,24 @@ extern "C" {
 
 SEXP getListElement(SEXP list, const char *str)
 {
-  SEXP elmt = R_NilValue, names = getAttrib(list, R_NamesSymbol);
+  SEXP elmt = R_NilValue, names = Rf_getAttrib(list, R_NamesSymbol);
   int i;
-  for ( i = 0; i < length(list); i++ )
+  for ( i = 0; i < Rf_length(list); i++ )
     if ( strcmp(CHAR(STRING_ELT(names, i)), str) == 0 ) {
       elmt = VECTOR_ELT(list, i);
       break;
     }
 
   if ( elmt == R_NilValue )
-    error("%s missing from list", str);
+    Rf_error("%s missing from list", str);
 
   return elmt;
 }
 
 int checkListElement(SEXP list, const char *str)
 {
-  SEXP names = getAttrib(list, R_NamesSymbol);
-  for (int i = 0; i < length(list); i++ )
+  SEXP names = Rf_getAttrib(list, R_NamesSymbol);
+  for (int i = 0; i < Rf_length(list); i++ )
     if (strcmp(CHAR(STRING_ELT(names, i)), str) == 0 )
       return 1;
 

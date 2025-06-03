@@ -604,6 +604,11 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     artmx_timerr["ART1YR", ] <- val[2, ]
   }
 
+  artmx_multiplier <- 1.0
+  if (exists_dptag("<MortalityRatesMultiplier MV>")) {
+    artmx_multiplier <- as.numeric(dpsub("<MortalityRatesMultiplier MV>", 2, 4))
+  }
+
   ## Non-AIDS excess mortality by CD4
   ## * Added in Spectrum 6.37 beta 17
   ## * Initiated to default 0.0; will update witgh values from .DP if tag <AdultNonAIDSExcessMort MV> exists
@@ -860,6 +865,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
                 "cd4_mort" = cd4_mort,
                 "art_mort" = art_mort,
                 "artmx_timerr" = artmx_timerr,
+                artmx_multiplier = artmx_multiplier,
                 cd4_nonaids_excess_mort = cd4_nonaids_excess_mort,
                 art_nonaids_excess_mort = art_nonaids_excess_mort,
                 "art15plus_numperc" = art15plus_numperc,

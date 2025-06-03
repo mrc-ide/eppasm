@@ -1,3 +1,9 @@
+## eppasm 0.8.5
+
+* Implement ART mortality rate multiplier, added to Spectrum in 2023 in the
+  [Advanced options] -> [Adult transition parameters] -> [HIV mortality with ART].
+  Stored in the .DP file under tag `<MortalityRatesMultiplier MV>`.
+
 ## eppasm 0.8.4
 
 * Update to use full names for R internal functions in new 0.8 code e.g. `Rf_allocVector` instead of `allocVector`. Shorthand names are no longer allowed in R v4.5.0. See Nov 10th news https://developer.r-project.org/blosxom.cgi/R-devel

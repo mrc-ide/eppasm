@@ -1,3 +1,7 @@
+## eppasm 0.8.6
+
+* Update internal data country ISO3 list to include Tuvalu (TUV).
+
 ## eppasm 0.8.5
 
 * Implement ART mortality rate multiplier, added to Spectrum in 2023 in the

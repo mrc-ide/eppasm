@@ -4,11 +4,14 @@
 
 ## 15 June 2024:
 ## - Manually updated with Dominica and St. Kitts & Nevis
-## - Name change Swaziland -> Eswatini
+
+## 5 July 2025:
+## - Manually added Tuvalu to country list
+
 
 load("../R/sysdata.rda")
 
-spectrum5_countrylist <- utils::read.csv("CountryListMaster_2024-06-15.csv",
+spectrum5_countrylist <- utils::read.csv("CountryListMaster_2025-07-05.csv",
                                          as.is=TRUE, encoding = "UTF-8")
 spectrum5_countrylist$Country[spectrum5_countrylist$Code == 384] <- "Côte d'Ivoire"
 

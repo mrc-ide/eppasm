@@ -115,7 +115,7 @@ likdat <- prepare_likdat(attr(bw$Urban, "eppd"), fp)
 ll(theta_ur, fp, likdat)
 
 ## Components of likelihood calculation
-ll_hhsage(mod, likdat$hhs.dat)
+ll_hhsage(mod, fp, likdat$hhs.dat)
 
 ll_ancsite(mod, fp_par,
            coef = c(fp_par$ancbias, fp_par$ancrtsite.beta),

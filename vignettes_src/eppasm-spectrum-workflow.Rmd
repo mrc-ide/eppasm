@@ -39,10 +39,10 @@ bw <- prepare_spec_fit(pjnz, proj.end=2021.5)
 bwfit <- list()
 
 bwfit$Urban <- fitmod(bw$Urban,
-                      eppmod = "rlogistic_rw", rw_start = 2005, fitincrr = FALSE,
+                      eppmod = "rhybrid", rw_start = 2005, fitincrr = FALSE,
                       B0=1e4, B=1e3, opt_iter = 1:2*5, number_k=50)
 bwfit$Rural <- fitmod(bw$Rural,
-                      eppmod = "rlogistic_rw", rw_start = 2005, fitincrr = FALSE,
+                      eppmod = "rhybrid", rw_start = 2005, fitincrr = FALSE,
                       B0=1e4, B=1e3, opt_iter = 1:2*5, number_k=50)
 ```
 
@@ -86,31 +86,31 @@ dimnm <- list(age = 15:80, sex = c("male", "female"), year = 1970:2021)
 totpop <- lapply(bwaggr, apply, c(1, 2, 4), sum) %>%
   abind::abind(., rev.along=0, use.dnns=TRUE,
                new.names = c(dimnm, list(sampleid = seq_along(.)))) %>%
-  melt %>%
+  reshape2::melt() %>%
   data.table(., outcome = "totpop")
 
 hivpop <- lapply(bwaggr, function(x) x[ , , 2, ]) %>%
   abind::abind(., rev.along=0, use.dnns=TRUE,
                new.names = c(dimnm, list(sampleid = seq_along(.)))) %>%
-  melt %>%
+  reshape2::melt() %>%
   data.table(., outcome = "hivpop")
 
 infections <- lapply(bwaggr, attr, "infections") %>%
   abind::abind(., rev.along=0, use.dnns=TRUE,
                new.names = c(dimnm, list(sampleid = seq_along(.)))) %>%
-  melt %>%
+  reshape2::melt() %>%
   data.table(., outcome = "infections")
 
 natdeaths <- lapply(bwaggr, attr, "natdeaths") %>%
   abind::abind(., rev.along=0, use.dnns=TRUE,
                new.names = c(dimnm, list(sampleid = seq_along(.)))) %>%
-  melt %>%
+  reshape2::melt() %>%
   data.table(., outcome = "natdeaths")
 
 hivdeaths <- lapply(bwaggr, attr, "hivdeaths") %>%
   abind::abind(., rev.along=0, use.dnns=TRUE,
                new.names = c(dimnm, list(sampleid = seq_along(.)))) %>%
-  melt %>%
+  reshape2::melt() %>%
   data.table(., outcome = "hivdeaths")
 
 outputs_age <- rbind(totpop, hivpop, infections, natdeaths, hivdeaths)
@@ -140,17 +140,17 @@ For comparisons, the following annual aggregate outputs are generated:
 
 hivprev <- sapply(bwaggr, prev) %>%
   "dimnames<-"(list(year = 1970:2021, sampleid = seq_len(ncol(.)))) %>%
-  melt %>%
+  reshape2::melt() %>%
   data.table(., outcome = "prev15to49")
 
 hivincid <- sapply(bwaggr, incid) %>%
   "dimnames<-"(list(year = 1970:2021, sampleid = seq_len(ncol(.)))) %>%
-  melt %>%
+  reshape2::melt() %>%  
   data.table(., outcome = "incid15to49")
 
 artcov <- sapply(bwaggr, artcov15plus) %>%
   "dimnames<-"(list(year = 1970:2021, sampleid = seq_len(ncol(.)))) %>%
-  melt %>%
+  reshape2::melt() %>%
   data.table(., outcome = "artcov15plus")
 
 outputs_aggr <- rbind(hivprev, hivincid, artcov)
@@ -211,31 +211,31 @@ dimnm <- list(age = 15:80, sex = c("male", "female"), year = 1970:2021)
 totpop <- lapply(bwnat, apply, c(1, 2, 4), sum) %>%
   abind::abind(., rev.along=0, use.dnns=TRUE,
                new.names = c(dimnm, list(sampleid = seq_along(.)))) %>%
-  melt %>%
+  reshape2::melt() %>%
   data.table(., outcome = "totpop")
 
 hivpop <- lapply(bwnat, function(x) x[ , , 2, ]) %>%
   abind::abind(., rev.along=0, use.dnns=TRUE,
                new.names = c(dimnm, list(sampleid = seq_along(.)))) %>%
-  melt %>%
+  reshape2::melt() %>%
   data.table(., outcome = "hivpop")
 
 infections <- lapply(bwnat, attr, "infections") %>%
   abind::abind(., rev.along=0, use.dnns=TRUE,
                new.names = c(dimnm, list(sampleid = seq_along(.)))) %>%
-  melt %>%
+  reshape2::melt() %>%
   data.table(., outcome = "infections")
 
 natdeaths <- lapply(bwnat, attr, "natdeaths") %>%
   abind::abind(., rev.along=0, use.dnns=TRUE,
                new.names = c(dimnm, list(sampleid = seq_along(.)))) %>%
-  melt %>%
+  reshape2::melt() %>%
   data.table(., outcome = "natdeaths")
 
 hivdeaths <- lapply(bwnat, attr, "hivdeaths") %>%
   abind::abind(., rev.along=0, use.dnns=TRUE,
                new.names = c(dimnm, list(sampleid = seq_along(.)))) %>%
-  melt %>%
+  reshape2::melt() %>%
   data.table(., outcome = "hivdeaths")
 
 outputs_age <- rbind(totpop, hivpop, infections, natdeaths, hivdeaths)
@@ -257,17 +257,17 @@ dcast(outputs_age[ , .(value = mean(value)), .(year, sex, age, outcome)],
 
 hivprev <- sapply(bwnat, prev) %>%
   "dimnames<-"(list(year = 1970:2021, sampleid = seq_len(ncol(.)))) %>%
-  melt %>%
+  reshape2::melt() %>%
   data.table(., outcome = "prev15to49")
 
 hivincid <- sapply(bwnat, incid) %>%
   "dimnames<-"(list(year = 1970:2021, sampleid = seq_len(ncol(.)))) %>%
-  melt %>%
+  reshape2::melt() %>%
   data.table(., outcome = "incid15to49")
 
 artcov <- sapply(bwnat, artcov15plus) %>%
   "dimnames<-"(list(year = 1970:2021, sampleid = seq_len(ncol(.)))) %>%
-  melt %>%
+  reshape2::melt() %>%
   data.table(., outcome = "artcov15plus")
 
 outputs_aggr <- rbind(hivprev, hivincid, artcov)

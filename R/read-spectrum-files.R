@@ -780,7 +780,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     hivdeaths <- array(sapply(dpsub("<AidsDeathsByAge MV2>", 3:164, timedat.idx), as.numeric),
                        c(81, 2, length(proj.years)), list(0:80, c("Male", "Female"), proj.years))
   else
-    hivpop <- NULL
+    hivdeaths <- NULL
 
   ## distribution of entering age 15 HIV population
   age15hivpop <- array(0, c(1+TS, DS, NG, length(proj.years)),

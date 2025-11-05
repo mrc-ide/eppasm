@@ -83,7 +83,7 @@ incid(modR)
 
 Add survey ART coverage data.
 
-```{r, add_artcov_dat
+```{r, add_artcov_dat}
 attr(bw$Urban, "eppd")$hhsartcov <- data.frame(year = 2012,
                                                sex = "both",
                                                agegr = "15-49",

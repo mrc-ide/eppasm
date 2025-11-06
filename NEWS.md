@@ -244,13 +244,13 @@ Pre-calculating the number of new infections, rather than applying the HIV incid
 - Refactor age-specific prevalence function.
 - Add age-specific ART coverage function.
 
-# eppasm 0.4.0
+## eppasm 0.4.0
 - Add annual direct incidence input option.
 
-# eppasm 0.3.4
+## eppasm 0.3.4
 - Merge updates from v0.1.2 into v0.3.3
 
-# eppasm 0.3.3
+## eppasm 0.3.3
 
 - Modularize code for calculating new infections.
 
@@ -266,7 +266,7 @@ Pre-calculating the number of new infections, rather than applying the HIV incid
 - Add function to generate summary model outputs
 
 
-# eppasm 0.3.2
+## eppasm 0.3.2
 
 - Integrate random effects variance parameter out of likelihood.
 - Implement hybrid r-spline and RW model for r(t).
@@ -275,7 +275,7 @@ Pre-calculating the number of new infections, rather than applying the HIV incid
 
 - Add option to fit without site-level ANC data.
 
-# eppasm 0.3.0
+## eppasm 0.3.0
 
 - Rename package `eppasm`.
 - Add IMIS function to eppasm package. In this version of IMIS, at each iteration a new mixture component is constructed either centered on input with greatest weight or based on optimizer. Allows optimizers to be run at arbitrary iterations, but doesn't implment multiple optimizers which might still be usful. Covariance for optimizer mixture component when Hessian is degenerate still needs further work.
@@ -292,37 +292,37 @@ Pre-calculating the number of new infections, rather than applying the HIV incid
 - Add functions to read country and subnational region from Spectrum PJN file.
 
 
-# eppspectrum 0.1.6
+## eppspectrum 0.1.6
 
 - Bug fix: add check in ll_hhage_binom() that ldbinom() does not return NaN.
 - Bug fix: in create_spectrum_fixpar(), handle case where ART initiation starts in different years for men and women.
 
 
-# eppspectrum 0.1.5
+## eppspectrum 0.1.5
 
 - Implemented O-spline model (penalized B-spline) using mgcv to construct
 - Added `r0logiotaratio` option to estimate ratio of r(t0) and log of initial seed, reduces correation. Not set as default.
 
 
-# eppspectrum 0.1.3
+## eppspectrum 0.1.3
 
 - EPP model setup occurs in fitmod()
 - Allow order of spline model penalty to vary (fp$rtpenord)
 - Allow number of knots to vary (fp$numKnots)
 - Return spline coefficients in fnCreateParam()
 
-# eppspectrum 0.1.2
+## eppspectrum 0.1.2
 - Parse Spectrum births in read_specdp_demog_param().
 - Add births from Spectrum to specfp object.
 - For epp regions, distribute number of births based on 15-44 population size and GFR.
 - Implement age 15 entrant prevalence and ART coverage inputs.
 
-# eppspectrum 0.1.1
+## eppspectrum 0.1.1
 
 - Add option to use .ep5 file inputs instead of .DP file when preparing fit from PJNZ file. (use_ep5=FALSE by default.)
 - update prepare_spec_fit() to not use popadjust if EPP projection has a single population.
 
 
-# eppspectrum 0.1
+## eppspectrum 0.1
 
 - Update to interface with `epp v0.3` which implements ANC routine testing (ANC-RT) likelihood in EPP 2017.

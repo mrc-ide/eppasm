@@ -5,9 +5,9 @@ get_dp_version <- function(dp){
   ## * <General5>: 2015 Spectrum files
   ## * <FirstYear MV>: 2016 Spectrum file
   ## * <FirstYear MV2>: 2017+ spectrum file
-  
+
   exists_dptag <- function(tag, tagcol=1){tag %in% dp[,tagcol]}
-  
+
   dp.vers <- if (exists_dptag("<General 3>")) {
     "<General 3>"
   } else if (exists_dptag("<General5>")) {
@@ -26,7 +26,7 @@ get_dp_version <- function(dp){
 #' Read Spectrum internal files file from PJNZ
 #'
 #' @param pjnz file path to Spectrum PJNZ file.
-#' 
+#'
 #' @export
 read_dp <- function(pjnz, use_ep5 = FALSE){
 
@@ -51,7 +51,7 @@ read_pjn <- function(pjnz){
                      col_types = vroom::cols(.default = vroom::col_character()),
                      .name_repair = "minimal", progress = FALSE)
   pjn <- as.data.frame(pjn)
-  
+
   return(pjn)
 }
 
@@ -311,9 +311,9 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
     ## excess deaths by:
     ## * year (columns)
     ## * sex (slowest-changing; both, male, female),
-    ## * single age (next slowest; all, 0…80+), and 
+    ## * single age (next slowest; all, 0…80+), and
     ## * ART status (fastest-moving; off/on).
-    ## 
+    ##
     ## Align output arrays similarly to other single-age outputs: age x sex x year
     ## With 'male', and 'female', but not both sexes
 
@@ -351,7 +351,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
     specres$nonaids_excess_deaths_art <- array(nonaids_excess_deaths_art, lengths(dn1), dn1)
     specres$aidsdeaths_art1 <- array(aidsdeaths_art1, lengths(dn1), dn1)
     specres$aidsdeaths_noart1 <- array(aidsdeaths_noart1, lengths(dn1), dn1)
-    
+
   }
 
   specres$births <- stats::setNames(as.numeric(dpsub("<Births MV>", 2, timedat.idx)), proj.years)
@@ -373,7 +373,7 @@ read_hivproj_output <- function(pjnz, single.age=TRUE){
 ######################################################
 
 #' @export
-#' 
+#'
 read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 
   ## read .DP file
@@ -524,7 +524,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
         stop("DP tag <HIVSexRatio MV> not parsed correctly")
       }
       incrr_sex <- stats::setNames(as.numeric(dpsub("<HIVSexRatio MV>", data_row, timedat.idx)), proj.years)
-      
+
     } else if (exists_dptag("<SexRatioByEpidPatt MV>")) {
       sexincrr_idx <- as.integer(dpsub("<IncEpidemicRGIdx MV>", 2, 4)) # 0-based index
       incrr_sex <- dpsub("<SexRatioByEpidPatt MV>", 3:8, timedat.idx)[sexincrr_idx+1, ]
@@ -620,7 +620,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   ##   2) men on ART,
   ##   3) women off ART,
   ##   4) women on ART.
-  ## 
+  ##
   ## Each row is laid out left-to-right in the same as our other adult HIV-related mortality rates:
   ## * 15-24: CD4>500, 350-500, …, <50
   ## * 25-34: CD4>500, 350-500, …, <50
@@ -635,7 +635,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     cd4_nonaids_excess_mort[,,"Male"] <- array(as.numeric(dpsub("<AdultNonAIDSExcessMort MV>", 2, 4:31)), c(DS, 4))
     art_nonaids_excess_mort[,,"Male"] <- array(as.numeric(dpsub("<AdultNonAIDSExcessMort MV>", 3, 4:31)), c(DS, 4))
     cd4_nonaids_excess_mort[,,"Female"] <- array(as.numeric(dpsub("<AdultNonAIDSExcessMort MV>", 4, 4:31)), c(DS, 4))
-    art_nonaids_excess_mort[,,"Female"] <- array(as.numeric(dpsub("<AdultNonAIDSExcessMort MV>", 5, 4:31)), c(DS, 4))    
+    art_nonaids_excess_mort[,,"Female"] <- array(as.numeric(dpsub("<AdultNonAIDSExcessMort MV>", 5, 4:31)), c(DS, 4))
   }
 
   ## program parameters
@@ -652,14 +652,14 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   }
 
   ## # Adult on ART adjustment factor
-  ## 
+  ##
   ## * Implemented from around Spectrum 6.2 (a few versions before)
   ## * Allows user to specify scalar to reduce number on ART in each year ("<AdultARTAdjFactor>")
   ## * Enabled / disabled by checkbox flag ("<AdultARTAdjFactorFlag>")
   ## * Scaling factor only applies to number inputs, not percentages (John Stover email, 20 Feb 2023)
   ##   -> Even if scaling factor specified in a year with percentage input, ignore it.
   ##
-  ## 
+  ##
   ## ** UPDATE Spectrum 6.37 beta 18 **
   ##
   ## Two changes to the adult ART adjustment were implemented in Spectrum 6.37 beta 18:
@@ -693,7 +693,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     if(exists_dptag("<AdultPatsAllocToFromOtherRegion>")) {
       adult_artadj_absolute <- sapply(dpsub("<AdultPatsAllocToFromOtherRegion>", 3:4, timedat.idx), as.numeric)
     }
-    
+
     ## Only apply if is number (! is percentage)
     adult_artadj_factor <- adult_artadj_factor ^ as.numeric(!art15plus_numperc)
     adult_artadj_absolute <- adult_artadj_absolute * as.numeric(!art15plus_numperc)
@@ -701,7 +701,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
     ## First add absolute adjustment, then apply scalar adjustment (Spectrum procedure)
     art15plus_num <- art15plus_num + adult_artadj_absolute
     art15plus_num <- art15plus_num * adult_artadj_factor
-  } 
+  }
 
 
   if(exists_dptag("<NewARTPatAllocationMethod MV2>"))
@@ -719,8 +719,8 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
 
   ## Replace comma decimal separator save on Francophone locale computers
   vers_str <- sub("^([0-9]+),(.*)$", "\\1.\\2", vers_str)
-  
-  version <- as.numeric(sub("^([0-9\\.]+).*", "\\1", vers_str)) 
+
+  version <- as.numeric(sub("^([0-9\\.]+).*", "\\1", vers_str))
   betav <- if(grepl("Beta", vers_str)) {
              as.numeric(sub(".*Beta ([0-9]+)$", "\\1", vers_str))
            } else {
@@ -730,7 +730,7 @@ read_hivproj_param <- function(pjnz, use_ep5=FALSE){
   if (!grepl("^[0-9]+\\.[0-9]+$", version)) {
     stop(paste0("Valid Spectrum version not recognized: ", vers_str))
   }
-  
+
   if(version >= 5.73 && (betav >= 15 | is.na(betav)))
     scale_cd4_mort <- 1L
   else
@@ -964,7 +964,7 @@ read_demog_param <- function(upd.file, age.intervals = 1){
   asfd <- array(as.numeric(pasfrs$value), c(35, nyears))
   dimnames(asfd) <- list(age=15:49, year=years)
   asfd <- sweep(asfd, 2, colSums(asfd), "/")
-  
+
   asfr <- sweep(asfd, 2, tfr, "*")
   asfr <- apply(asfr, 2, tapply, age.groups[16:50], mean)
 
@@ -1038,11 +1038,11 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   ## mx
   if(dp.vers == "Spectrum2016"){
     sx.tidx <- which(dp[,1] == "<SurvRate MV>")
-    Sx <- dp[sx.tidx+3+c(0:79,81, 83+0:79, 83+81), timedat.idx]
+    Sx <- dp[sx.tidx+3+c(0:81, 83+0:81), timedat.idx]
   } else if(dp.vers == "Spectrum2017")
-    Sx <- dpsub("<SurvRate MV2>", 3+c(0:79, 81, 82+0:79, 82+81), timedat.idx)
-  Sx <- array(as.numeric(unlist(Sx)), c(81, 2, length(proj.years)))
-  dimnames(Sx) <- list(age=0:80, sex=c("Male", "Female"), year=proj.years)
+    Sx <- dpsub("<SurvRate MV2>", 3+c(0:81, 82+0:81), timedat.idx)
+  Sx <- array(as.numeric(unlist(Sx)), c(82, 2, length(proj.years)))
+  dimnames(Sx) <- list(age=c(0:80, "80+"), sex=c("Male", "Female"), year=proj.years)
 
   mx <- -log(Sx)
 
@@ -1058,7 +1058,7 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   asfd_sum <- colSums(asfd)
   asfd_sum[asfd_sum == 0.0] <- 1.0
   asfd <- sweep(asfd, 2, asfd_sum, "/")
-  
+
   dimnames(asfd) <- list(age=15:49, year=proj.years)
   asfr <- sweep(asfd, 2, tfr, "*")
 
@@ -1138,9 +1138,9 @@ read_specdp_demog_param <- function(pjnz, use_ep5=FALSE){
   u5prop[3, ] <- Sx[3, , 1] * u5prop[2, ]
   u5prop[4, ] <- Sx[4, , 1] * u5prop[3, ]
   u5prop[5, ] <- Sx[5, , 1] * u5prop[4, ]
-  
+
   u5prop <- sweep(u5prop, 2, colSums(u5prop), "/")
-  
+
   netmigr[1:5 , 1, ] <- u5prop[ , 1, drop = FALSE] %*% netmigr5[1, 1, ]
   netmigr[1:5 , 2, ] <- u5prop[ , 2, drop = FALSE] %*% netmigr5[1, 2, ]
 
@@ -1198,7 +1198,7 @@ read_epp_t0 <- function(pjnz){
 
   obj <- xml2::xml_find_all(r, ".//object")
   projsets <- obj[which(xml2::xml_attr(obj, "class") == "epp2011.core.sets.ProjectionSet")]
-  
+
   t0 <- list()
   for(nd in projsets) {
     ns <- xml2::xml_children(nd)

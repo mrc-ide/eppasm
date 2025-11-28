@@ -50,7 +50,7 @@
 #define INCIDPOP_15TO49 0 // age range corresponding to incidence input
 #define INCIDPOP_15PLUS 1
 
-#define PROJPERIOD_MIDYEAR 0   // mid-year projection period 
+#define PROJPERIOD_MIDYEAR 0   // mid-year projection period
 #define PROJPERIOD_CALENDAR 1  // calendar-year projection (Spectrum 6.2 update; December 2022)
 
 
@@ -176,7 +176,7 @@ extern "C" {
       a_relbehav_age = REAL(getListElement(s_fp, "relbehav_age"));
     }
     multi_array_ref<double, 2> relbehav_age(a_relbehav_age, extents[NG][pAG]);
-    
+
     multi_array_ref<double, 3> incrr_age(REAL(getListElement(s_fp, "incrr_age")), extents[PROJ_YEARS][NG][pAG]);
 
     int eppmod = *INTEGER(getListElement(s_fp, "eppmodInt"));
@@ -198,7 +198,7 @@ extern "C" {
       relinfectART = *REAL(getListElement(s_fp, "relinfectART"));
       tsEpidemicStart = *REAL(getListElement(s_fp, "tsEpidemicStart"));
       iota = *REAL(getListElement(s_fp, "iota"));
-      
+
       if(eppmod == EPP_RSPLINE)
 	rspline_rvec = REAL(getListElement(s_fp, "rvec"));
       else if(eppmod == EPP_RTREND){
@@ -303,7 +303,7 @@ extern "C" {
     Rf_setAttrib(s_pop, Rf_install("excessnonaidsdeaths"), s_excessnonaidsdeaths);
     multi_array_ref<double, 3> excessnonaidsdeaths(REAL(s_excessnonaidsdeaths), extents[PROJ_YEARS][NG][pAG]);
     memset(REAL(s_excessnonaidsdeaths), 0, Rf_length(s_excessnonaidsdeaths)*sizeof(double));
-    
+
     SEXP s_aidsdeaths_noart = PROTECT(Rf_allocVector(REALSXP, hDS * hAG * NG * PROJ_YEARS));
     SEXP s_aidsdeaths_noart_dim = PROTECT(Rf_allocVector(INTSXP, 4));
     INTEGER(s_aidsdeaths_noart_dim)[0] = hDS;
@@ -522,7 +522,7 @@ extern "C" {
 
         double paedsurv_g;
         double entrant_prev;
-	
+
 	if(use_entrantprev)
 	  entrant_prev = entrantprev[t][g];
 	else
@@ -630,7 +630,7 @@ extern "C" {
 
       if (eppmod == EPP_DIRECTINCID_ANN ||
 	  eppmod == EPP_DIRECTINCID_HTS ) {
-	
+
 	// Calculate incidence rate by sex
 	// (Note: incidence rate by age is calculated per time-step using the
 	//    **current year** HIV population, instead of the previous year
@@ -648,7 +648,7 @@ extern "C" {
 	incrate_g[MALE] = incrate_i * (Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
 	incrate_g[FEMALE] = incrate_i * incrr_sex[t]*(Xhivn[MALE]+Xhivn[FEMALE]) / (Xhivn[MALE] + incrr_sex[t]*Xhivn[FEMALE]);
       }
-      
+
       for(int hts = 0; hts < HIVSTEPS_PER_YEAR; hts++){
 
         int ts = (t-1)*HIVSTEPS_PER_YEAR + hts;
@@ -675,7 +675,7 @@ extern "C" {
 		cd4mx_scale = (hivpop[t][g][ha][hm] + artpop_hahm) > 0 ?
 		  hivpop[t][g][ha][hm] / (hivpop[t][g][ha][hm] + artpop_hahm) : 1.0;
 	      }
-	      
+
               double aids_deaths = cd4mx_scale * cd4_mort[g][ha][hm] * hivpop[t][g][ha][hm];
               hivdeaths_ha[g][ha] += DT * aids_deaths;
 	      aidsdeaths_noart[t][g][ha][hm] += DT * aids_deaths;
@@ -684,7 +684,7 @@ extern "C" {
               nonaids_excess_ha[g][ha] += DT * excess_nonaids_deaths;
 	      excessnonaidsdeaths_noart[t][g][ha][hm] += DT * excess_nonaids_deaths;
 
-	      
+
               grad[g][ha][hm] = -(aids_deaths + excess_nonaids_deaths);
             }
             for(int hm = 1; hm < hDS; hm++){
@@ -696,7 +696,7 @@ extern "C" {
         if (eppmod != EPP_DIRECTINCID_ANN) {
 
           // incidence
-          
+
           if (eppmod != EPP_DIRECTINCID_HTS) {
 
             // calculate r(t)
@@ -706,29 +706,29 @@ extern "C" {
               rvec[ts] = calc_rtrend_rt(pop, rtrend_tstab, rtrend_beta, rtrend_r0,
                                         projsteps[ts], tsEpidemicStart, DT, t, hts,
                                         rvec[ts-1], &prevlast, &prevcurr);
-            } 
-            
+            }
+
             // calculate new infections by sex and age
             calc_infections_eppspectrum(pop, hivpop, artpop,
                                         rvec[ts], relinfectART, (projsteps[ts] == tsEpidemicStart) ? iota : 0.0,
-                                        incrr_sex, incrr_age, 
+                                        incrr_sex, incrr_age,
                                         t_ART_start, DT, t, hts, hAG_START, hAG_SPAN,
                                         &prevcurr, &incrate15to49_ts_out[ts], infections_ts);
-          
+
             prev15to49_ts_out[ts] = prevcurr;
 
           } else { // eppmod == EPP_DIRECTINCID_HTS
-	    
+
 	    // Calculate HIV infections by age. This uses the updated
 	    // 'current year' population (vs. previous year population
 	    // used for overall incidence rate and incidence by sex)
-	    
+
 	    for(int g = 0; g < NG; g++) {
 	      double Xhivn_incagerr = 0.0;
 	      for(int a = pIDX_INCIDPOP; a < pIDX_INCIDPOP+pAG_INCIDPOP; a++) {
 		    Xhivn_incagerr += incrr_age[t][g][a] * pop[t][HIVN][g][a];
 	      }
-	      
+
 	      for(int a = 0; a < pAG; a++) {
 		infections_ts[g][a] = pop[t][HIVN][g][a] * incrate_g[g] * incrr_age[t][g][a] * Xhivn[g] / Xhivn_incagerr;
 	      }
@@ -761,7 +761,7 @@ extern "C" {
         if(t >= t_ART_start){
 
 	  double gradART[NG][hAG][hDS][hTS];
-	  
+
           // progression and mortality
           for(int g = 0; g < NG; g++)
             for(int ha = 0; ha < hAG; ha++)
@@ -814,7 +814,7 @@ extern "C" {
 	    // category (aggregated over all ages).
 
 	    double Xart_15plus = 0.0; // Total currently on ART
-		    
+
             double artelig_hahm[hAG_15PLUS][hDS];
 	    double artelig_hm[hDS];
 	    double Xartelig_15plus = 0.0;
@@ -825,10 +825,10 @@ extern "C" {
 	    // Initialise to zero
 	    memset(artelig_hm, 0, hDS * sizeof(double));
 	    memset(expect_mort_artelig_hm, 0, hDS * sizeof(double));
-	    	    
+
             for(int ha = hIDX_15PLUS; ha < hAG; ha++){
               for(int hm = everARTelig_idx; hm < hDS; hm++){
-		
+
 		if(hm >= anyelig_idx){
 
 		  // Specify proportion eligibly
@@ -846,7 +846,7 @@ extern "C" {
 		  expect_mort_artelig_hm[hm] += expect_mort_hahm;
 		  expect_mort_artelig15plus += expect_mort_hahm;
 		}
-		
+
                 for(int hu = 0; hu < hTS; hu++) {
                   Xart_15plus += artpop[t][g][ha][hm][hu] + DT * gradART[g][ha][hm][hu];
 		}
@@ -854,7 +854,7 @@ extern "C" {
 
               // if pw_artelig, add pregnant women to artelig_hahm population
               if(g == FEMALE && pw_artelig[t] > 0 && ha < hAG_FERT){
-		
+
                 double frr_pop_ha = 0;
                 for(int a =  hAG_START[ha]; a < hAG_START[ha]+hAG_SPAN[ha]; a++)
                   frr_pop_ha += pop[t][HIVN][g][a]; // add HIV- population
@@ -904,7 +904,7 @@ extern "C" {
 	      if (projection_period_int == PROJPERIOD_MIDYEAR) {
 		art_interp_w -= 0.5;
 	      }
-	      
+
               if(!art15plus_isperc[t-1][g] && !art15plus_isperc[t][g]){ // both numbers
                 artnum_hts = (1.0 - art_interp_w)*artnum15plus[t-1][g] + art_interp_w*artnum15plus[t][g];
               } else if(art15plus_isperc[t-1][g] && art15plus_isperc[t][g]){ // both percentages
@@ -955,7 +955,7 @@ extern "C" {
 		    artinit_hahm = hivpop[t][g][ha][hm] + DT * grad[g][ha][hm];
 		  grad[g][ha][hm] -= artinit_hahm / DT;
                   gradART[g][ha][hm][ART0MOS] += artinit_hahm / DT;
-		  artinit[t][g][ha][hm] += artinit_hahm; 
+		  artinit[t][g][ha][hm] += artinit_hahm;
                 }
 
             } else if(art_alloc_method == 4) {  // lowest CD4 first
@@ -974,13 +974,13 @@ extern "C" {
 
                   grad[g][ha][hm] -= artinit_hahm / DT;
                   gradART[g][ha][hm][ART0MOS] += artinit_hahm / DT;
-		  artinit[t][g][ha][hm] += artinit_hahm; 
+		  artinit[t][g][ha][hm] += artinit_hahm;
 		}
 		if(init_prop < 1.0)
 		  break;
 		artinit_hts -= init_prop * artelig_hm;
 	      }
-	      
+
 	    } else { // Use mixture of eligibility and expected mortality for initiation distribution
 
 	      // ART allocation step 1: allocate by CD4 stage
@@ -990,17 +990,17 @@ extern "C" {
 		  ( (1.0 - art_alloc_mxweight) * artelig_hm[hm] / Xartelig_15plus +
 		    art_alloc_mxweight * expect_mort_artelig_hm[hm] / expect_mort_artelig15plus);
 	      }
-	      
+
               for(int ha = hIDX_15PLUS; ha < hAG; ha++)
                 for(int hm = anyelig_idx; hm < hDS; hm++){
 
 		  // ART allocation step 2: within CD4 category, allocate
 		  // by age proportional to eligibility
 		  if (artelig_hm[hm] > 0.0) {
-		    
+
 		    double artinit_hahm = artinit_hm[hm] *
 		      artelig_hahm[ha-hIDX_15PLUS][hm] / artelig_hm[hm];
-		      
+
 		    if(artinit_hahm > artelig_hahm[ha-hIDX_15PLUS][hm])
 		      artinit_hahm = artelig_hahm[ha-hIDX_15PLUS][hm];
 		    if(artinit_hahm > hivpop[t][g][ha][hm] + DT * grad[g][ha][hm])
@@ -1018,7 +1018,7 @@ extern "C" {
 	      for(int hm = everARTelig_idx; hm < hDS; hm++)
 		for(int hu = 0; hu < hTS; hu++)
 		  artpop[t][g][ha][hm][hu] += DT*gradART[g][ha][hm][hu];
-	  
+
 	} // if(t >= t_ART_start)
 
 	for(int g = 0; g < NG; g++)
@@ -1029,7 +1029,7 @@ extern "C" {
 
 	// remove hivdeaths from pop
 	for(int g = 0; g < NG; g++){
-	  
+
 	  // sum HIV+ population size in each hivpop age group
 	  double hivpop_ha[hAG];
 	  int a = 0;
@@ -1040,7 +1040,7 @@ extern "C" {
 	      a++;
 	    }
 	  }
-	  
+
 	  // remove hivdeaths proportionally to age-distribution within each age group
 	  a = 0;
 	  for(int ha = 0; ha < hAG; ha++){
@@ -1061,7 +1061,7 @@ extern "C" {
 
       } // loop HIVSTEPS_PER_YEAR
 
-      
+
       if (eppmod == EPP_DIRECTINCID_ANN) {
 
 	// Calculating new infections by age (once per year)
@@ -1069,18 +1069,18 @@ extern "C" {
 	// Calculate HIV infections by age (once per year). This uses the updated
 	// 'current year' population (vs. previous year population used for
 	// overall incidence rate and incidence by sex)
-	
+
 	for(int g = 0; g < NG; g++) {
 	  double Xhivn_incagerr = 0.0;
 	  for(int a = pIDX_INCIDPOP; a < pIDX_INCIDPOP+pAG_INCIDPOP; a++) {
 	    Xhivn_incagerr += incrr_age[t][g][a] * pop[t][HIVN][g][a];
 	  }
-	  
+
 	  for(int a = 0; a < pAG; a++) {
 	    infections_ts[g][a] = pop[t][HIVN][g][a] * incrate_g[g] * incrr_age[t][g][a] * Xhivn[g] / Xhivn_incagerr;
 	  }
 	}
-        
+
 	for(int g = 0; g < NG; g++){
 	  int a = 0;
 	  for(int ha = 0; ha < hAG; ha++){
@@ -1094,7 +1094,7 @@ extern "C" {
 	    }
 	    if(ha < hIDX_15TO49+hAG_15TO49)
 	      incid15to49[t] += infections_ha;
-	    
+
 	    // add infections to hivpop
 	    for(int hm = 0; hm < hDS; hm++)
 	      hivpop[t][g][ha][hm] += infections_ha * cd4_initdist[g][ha][hm];
@@ -1104,15 +1104,15 @@ extern "C" {
 
       // Net migration for calendar-year projection option with end-year migration
       if (projection_period_int == PROJPERIOD_CALENDAR) {
-	  
+
 	for(int g = 0; g < NG; g++){
 	  int a = 0;
 	  for(int ha = 0; ha < hAG; ha++){
 	    double mig_ha = 0, hivpop_ha = 0;
 	    for(int i = 0; i < hAG_SPAN[ha]; i++){
-	      
+
 	      hivpop_ha += pop[t][HIVP][g][a];
-	      
+
 	      double migrate_a = netmigr[t][g][a] / (pop[t][HIVN][g][a] + pop[t][HIVP][g][a]);
 	      // double migrate_a = netmigr[t][g][a] * (1+Sx[t][g][a])/2.0 / (pop[t][HIVN][g][a] + pop[t][HIVP][g][a]);
 	      pop[t][HIVN][g][a] *= 1+migrate_a;
@@ -1121,7 +1121,7 @@ extern "C" {
 	      pop[t][HIVP][g][a] += hmig_a;
 	      a++;
 	    }
-	    
+
 	    // migration for hivpop
 	    double migrate_ha = hivpop_ha > 0 ? mig_ha / hivpop_ha : 0.0;
 	    for(int hm = 0; hm < hDS; hm++){
@@ -1134,7 +1134,7 @@ extern "C" {
 	} // loop over g
       } // if (projection_period_int == PROJPERIOD_CALENDAR)
 
-      
+
       // adjust population to match target population
       if(bin_popadjust){
         for(int g = 0; g < NG; g++){
@@ -1202,7 +1202,7 @@ extern "C" {
       double incid15to49_denom = (projection_period_int == PROJPERIOD_CALENDAR) ?
 	0.5 * (hivn15to49[t-1] + hivn15to49[t]) :
 	hivn15to49[t-1];
-      
+
       incid15to49[t] /= incid15to49_denom;
     }
 

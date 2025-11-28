@@ -304,7 +304,8 @@ fnCreateParam <- function(theta, fp){
 
 
   paramcurr <- epp_nparam+anclik_nparam
-  if(exists("ancrt", fp) && fp$ancrt %in% c("census", "both")){
+
+  if (exists("ancrt", fp) && fp$ancrt %in% c("census", "both")) {
     param$log_frr_adjust <- theta[paramcurr+1]
     param$frr_cd4 <- fp$frr_cd4 * exp(param$log_frr_adjust)
     param$frr_art <- fp$frr_art * exp(param$log_frr_adjust)
@@ -510,28 +511,32 @@ prepare_likdat <- function(eppd, fp){
 
   likdat$hhs.dat <- prepare_hhsageprev_likdat(eppd$hhs, fp)
 
-  if(exists("ancsitedat", where=eppd)){
+  if (exists("ancsitedat", where=eppd)) {
 
     ancsitedat <- eppd$ancsitedat
 
-    if(exists("ancrt", fp) && fp$ancrt %in% c("none", "census"))
+    if (exists("ancrt", fp) && fp$ancrt %in% c("none", "census")) {
       ancsitedat <- subset(ancsitedat, type == "ancss")
+    }
 
     likdat$ancsite.dat <- prepare_ancsite_likdat(ancsitedat, fp)
   }
 
-  if(exists("ancrtcens", where=eppd)){
-    if(exists("ancrt", fp) && fp$ancrt %in% c("none", "site"))
+  if (exists("ancrtcens", where=eppd)) {
+    if (exists("ancrt", fp) && fp$ancrt %in% c("none", "site")) {
       eppd$ancrtcens <- NULL
-    else
+    } else {
       likdat$ancrtcens.dat <- prepare_ancrtcens_likdat(eppd$ancrtcens, fp)
+    }
   }
 
-  if(exists("hhsincid", where=eppd))
+  if(exists("hhsincid", where=eppd)) {
     likdat$hhsincid.dat <- prepare_hhsincid_likdat(eppd$hhsincid, fp)
+  }
 
-  if(exists("hhsartcov", where=eppd))
+  if(exists("hhsartcov", where=eppd)) {
     likdat$hhsartcov.dat <- prepare_hhsartcov_likdat(eppd$hhsartcov, fp)
+  }
 
   return(likdat)
 }
@@ -613,9 +618,11 @@ ll <- function(theta, fp, likdat){
   theta.last <<- theta
   fp <- stats::update(fp, list=fnCreateParam(theta, fp))
 
-  if (fp$eppmod == "rspline")
-    if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20)
+  if (fp$eppmod == "rspline") {
+    if (any(is.na(fp$rvec)) || min(fp$rvec) < 0 || max(fp$rvec) > 20) {
       return(-Inf)
+    }
+  }
 
   mod <- simmod(fp)
 

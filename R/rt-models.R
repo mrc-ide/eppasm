@@ -12,7 +12,7 @@ prepare_logrw <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5){
     rt$n_rw <- fp$n_rw
 
   fp$numKnots <- rt$n_rw
-  
+
   ## Random walk design matrix
   rt$rw_knots <- seq(min(rw_steps), max(rw_steps), length.out=rt$n_rw+1)
   rt$rwX <- outer(rw_steps, rt$rw_knots[1:rt$n_rw], ">=")
@@ -21,18 +21,18 @@ prepare_logrw <- function(fp, tsEpidemicStart=fp$ss$time_epi_start+0.5){
   fp$rt <- rt
 
   fp$rvec.spldes <- rbind(matrix(0, rt$nsteps_preepi, fp$numKnots), rt$rwX)
-                                
+
   if(!exists("eppmod", fp))
     fp$eppmod <- "logrw"
   fp$iota <- NULL
-  
+
   return(fp)
 }
 
 
 rlog_pr_mean <- c(log(0.35), log(0.09), log(0.2), 1993)
 rlog_pr_sd <- c(0.5, 0.3, 0.5, 5)
-                
+
 rlogistic <- function(t, p){
   ## p[1] = log r(0)    : log r(t) at the start of the epidemic (exponential growth)
   ## p[2] = log r(Inf)  : endemic value for log r(t)
@@ -44,7 +44,7 @@ rlogistic <- function(t, p){
 
 
 #' Setup the r-hybrid model
-#' 
+#'
 #' @param fp model parameters object
 #' @param tsEpidemicStart time step at which epidemic is seeded
 #' @param rw_start time when random walk starts
@@ -71,25 +71,25 @@ prepare_rhybrid <- function(fp,
   rt <- list()
 
   rt$proj.steps <- fp$proj.steps
-  
+
   rt$rw_start <- rw_start
   rt$rw_trans <- rw_trans
 
   switch_idx <- max(which(fp$proj.steps <= rw_start))
   rt$rlogistic_steps <- fp$proj.steps[1:switch_idx]
   rt$rw_steps <- fp$proj.steps[switch_idx:length(fp$proj.steps)]
-  
+
   rt$n_rw <- ceiling((max(rt$proj.steps) - rw_start) / rw_dk)
   rt$rw_dk <- rw_dk
   rt$rw_knots <- seq(rw_start, rw_start + rt$rw_dk * rt$n_rw, by = rt$rw_dk)
   rt$rw_idx <- findInterval(rt$rw_steps[-1], rt$rw_knots)
-  
+
   rt$n_param <- 4+rt$n_rw  # 4 parameters for rlogistic
 
   ## Linearly interpolate between 0 and 1 over the period (rw_start, rw_start + rw_trans)
   ## Add a small value to avoid R error in approx() if rw_trans = 0
   rt$rw_transition <- stats::approx(c(rw_start, rw_start + rw_trans + 0.001), c(0, 1), rt$rw_steps[-1], rule = 2)$y
-  
+
   rt$dt <- 1 / fp$ss$hiv_steps_per_year
 
   rt$eppmod <- "rhybrid"
@@ -98,7 +98,7 @@ prepare_rhybrid <- function(fp,
   if(!exists("eppmod", fp))
     fp$eppmod <- "rhybrid"
   fp$iota <- NULL
-  
+
   return(fp)
 }
 
@@ -138,7 +138,7 @@ extend_projection <- function(fit, proj_years){
 
   if(proj_years > fit$fp$ss$PROJ_YEARS)
     stop("Cannot extend projection beyond duration of projection file")
-  
+
   fp <- fit$fp
   fpnew <- fp
 
@@ -161,7 +161,7 @@ extend_projection <- function(fit, proj_years){
      fit$rw_sigma <- fp$prior_args$rw_prior_sd
   else
     fit$rw_sigma <- rw_prior_sd
-  
+
   nsteps <- fpnew$rt$n_rw - fp$rt$n_rw
 
   if(nsteps > 0){
@@ -200,7 +200,7 @@ calc_rtrend_rt <- function(t, fp, rveclast, prevlast, pop, i, ii){
 
   prevcurr <- hivp.ii / (hivn.ii + hivp.ii)
 
-  
+
   if(t > fp$tsEpidemicStart){
     par <- fp$rtrend
     gamma.t <- if(t < par$tStabilize) 0 else (prevcurr-prevlast)*(t - par$tStabilize) / (fp$ss$DT*prevlast)
@@ -233,7 +233,7 @@ transf_iota <- function(par, fp){
   if(exists("logitiota", fp) && fp$logitiota)
     exp(invlogit(par)*diff(logiota.unif.prior) + logiota.unif.prior[1])
   else
-    exp(par)  
+    exp(par)
 }
 
 lprior_iota <- function(par, fp){

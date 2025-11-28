@@ -12,10 +12,10 @@ imis(
   opt_k = NULL,
   fp,
   likdat,
-  prior = eppasm::prior,
-  likelihood = eppasm::likelihood,
-  sample_prior = eppasm::sample.prior,
-  dsamp = eppasm::dsamp,
+  prior = eppasm:::prior,
+  likelihood = eppasm:::likelihood,
+  sample_prior = eppasm:::sample.prior,
+  dsamp = eppasm:::dsamp,
   save_all = FALSE
 )
 }
